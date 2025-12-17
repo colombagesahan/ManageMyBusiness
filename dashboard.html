@@ -64,6 +64,17 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 .chat-chip { background: #e0e7ff; color: var(--primary); padding: 6px 10px; border-radius: 20px; font-size: 11px; cursor: pointer; border: 1px solid #c7d2fe; transition: 0.2s; font-weight: 500; }
 .chat-chip:hover { background: var(--primary); color: white; border-color: var(--primary); }
 
+/* --- NEW: TOAST & LOADER STYLES --- */
+.toast-container { position: fixed; top: 20px; right: 20px; z-index: 3000; display: flex; flex-direction: column; gap: 10px; }
+.toast { background: white; color: var(--text); padding: 12px 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 10px; border-left: 4px solid var(--primary); animation: slideIn 0.3s; font-size: 14px; min-width: 250px; }
+.toast.success { border-left-color: var(--success); }
+.toast.error { border-left-color: var(--danger); }
+@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+.loading-overlay { position: fixed; inset: 0; background: rgba(255,255,255,0.7); backdrop-filter: blur(2px); z-index: 4000; display: none; align-items: center; justify-content: center; flex-direction: column; }
+.spinner { width: 40px; height: 40px; border: 4px solid #e5e7eb; border-top: 4px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
 /* --- MOBILE --- */
 @media(max-width: 768px) {
     .sidebar { position: absolute; left: -100%; height: 100%; width: 80%; }
@@ -73,6 +84,15 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 </style>
 </head>
 <body>
+
+<!-- NEW: TOAST CONTAINER -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- NEW: LOADING OVERLAY -->
+<div class="loading-overlay" id="globalLoader">
+    <div class="spinner"></div>
+    <div style="margin-top: 10px; font-weight: 500; font-size: 14px; color: var(--text);">Processing...</div>
+</div>
 
 <!-- SIDEBAR -->
 <aside class="sidebar" id="sidebar">
@@ -370,6 +390,24 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
     let cart = [];
     let salesCache = [];
 
+    // --- NEW: UI HELPERS ---
+    function showToast(message, type = 'success') {
+        const container = document.getElementById('toastContainer');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        const icon = type === 'success' ? 'check-line' : 'error-warning-line';
+        toast.innerHTML = `<i class="ri-${icon}" style="font-size:18px;"></i> ${message}`;
+        container.appendChild(toast);
+        setTimeout(() => {
+            toast.style.animation = 'slideIn 0.3s reverse';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
+    function toggleLoader(show) {
+        document.getElementById('globalLoader').style.display = show ? 'flex' : 'none';
+    }
+
     const worldCurrencies = [
         { code: "USD", symbol: "$" }, { code: "EUR", symbol: "€" }, { code: "GBP", symbol: "£" },
         { code: "JPY", symbol: "¥" }, { code: "LKR", symbol: "Rs" }, { code: "INR", symbol: "₹" }
@@ -392,6 +430,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 
     // --- SHOPS ---
     async function loadShops() {
+        toggleLoader(true);
         const q = collection(db, `users/${currentUser.uid}/shops`);
         const snap = await getDocs(q);
         const select = document.getElementById('shopSelector');
@@ -400,6 +439,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         snap.forEach(d => shops.push({id: d.id, ...d.data()}));
 
         if(shops.length === 0) {
+            toggleLoader(false);
             document.getElementById('shopModal').style.display = 'flex';
             document.querySelector('#shopModal .btn-danger').style.display = 'none';
             return;
@@ -418,19 +458,24 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
     window.saveNewShop = async () => {
         const name = document.getElementById('msName').value;
         const currency = document.getElementById('msCurrency').value;
-        if(!name) return alert("Shop Name required");
+        if(!name) return showToast("Shop Name required", "error");
+        
+        toggleLoader(true);
         const ref = await addDoc(collection(db, `users/${currentUser.uid}/shops`), { name, currency, created: new Date() });
         document.getElementById('shopModal').style.display = 'none';
         await loadShops();
         document.getElementById('shopSelector').value = ref.id;
         changeShop();
+        showToast("Shop created successfully!");
     };
 
     window.deleteCurrentShop = async () => {
         if(!confirm("Delete this shop and all data? Cannot be undone.")) return;
+        toggleLoader(true);
         await deleteDoc(doc(db, `users/${currentUser.uid}/shops`, currentShopId));
         currentShopId = null;
         loadShops();
+        showToast("Shop deleted");
     };
 
     window.changeShop = () => {
@@ -442,6 +487,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 
     async function refreshData() {
         if(!currentShopId) return;
+        toggleLoader(true);
         await loadProducts();
         await loadEmployees();
         const q = query(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/sales`), orderBy('date', 'desc'));
@@ -449,6 +495,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         salesCache = [];
         snap.forEach(d => salesCache.push({id: d.id, ...d.data()}));
         updateDashboard();
+        toggleLoader(false);
     }
 
     window.loadView = (viewName) => {
@@ -477,9 +524,14 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         const term = document.getElementById('prodSearch').value.toLowerCase();
         const tbody = document.querySelector('#prodTable tbody');
         
-        tbody.innerHTML = productsCache
-            .filter(p => p.name.toLowerCase().includes(term))
-            .map(p => {
+        const filtered = productsCache.filter(p => p.name.toLowerCase().includes(term));
+
+        if(filtered.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 20px; color: #9ca3af;">No products found. Add one to get started!</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = filtered.map(p => {
                 const dateStr = p.dateAdded ? new Date(p.dateAdded).toLocaleDateString() : '-';
                 return `
                 <tr>
@@ -559,6 +611,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
     };
 
     async function finalizeProductSave(id, data) {
+        toggleLoader(true);
         // Determine Action Type
         const isEdit = !!id;
         
@@ -575,17 +628,21 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         }
 
         document.getElementById('prodModal').style.display = 'none';
-        loadProducts();
+        await loadProducts();
+        toggleLoader(false);
+        showToast("Product saved successfully!");
     }
 
     window.deleteProduct = async (id, name) => {
         if(!confirm('Delete this product batch?')) return;
         const p = productsCache.find(x => x.id === id);
-        
+        toggleLoader(true);
         await deleteDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/products`, id));
         await logInventory(name, 'DELETE', 'Product Deleted', -p.qty, 0);
         
         loadProducts();
+        toggleLoader(false);
+        showToast("Product batch deleted");
     };
 
     // --- INVENTORY LOGGING ---
@@ -627,6 +684,11 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
             return true;
         });
 
+        if (filtered.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No logs found for this period.</td></tr>';
+            return;
+        }
+
         tbody.innerHTML = filtered.map(l => `
             <tr>
                 <td>${new Date(l.date).toLocaleString()}</td>
@@ -643,8 +705,14 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         const grid = document.getElementById('posGrid');
         const term = document.getElementById('posSearch').value.toLowerCase();
         
-        grid.innerHTML = productsCache
-            .filter(p => p.qty > 0 && p.name.toLowerCase().includes(term)) // HIDE OUT OF STOCK
+        const filtered = productsCache.filter(p => p.qty > 0 && p.name.toLowerCase().includes(term));
+
+        if(filtered.length === 0) {
+            grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: #9ca3af; padding: 20px;">No items match or out of stock</div>';
+            return;
+        }
+
+        grid.innerHTML = filtered
             .map(p => {
                 const date = new Date(p.dateAdded).toLocaleDateString();
                 return `
@@ -660,10 +728,10 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 
     window.addToCart = (id) => {
         const p = productsCache.find(x => x.id === id);
-        if(p.qty < 1) return alert("Out of Stock");
+        if(p.qty < 1) return showToast("Out of Stock", "error");
         const exist = cart.find(x => x.id === id);
         if(exist) {
-            if(exist.qty >= p.qty) return alert("Max stock reached");
+            if(exist.qty >= p.qty) return showToast("Max stock reached", "error");
             exist.qty++;
         } else {
             cart.push({...p, qty: 1});
@@ -693,9 +761,10 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
     };
 
     window.checkout = async () => {
-        if(!cart.length) return;
+        if(!cart.length) return showToast("Cart is empty!", "error");
         const customer = document.getElementById('posCustomer').value || 'Walk-in';
         
+        toggleLoader(true);
         // 1. Save Sale
         const saleData = {
             date: new Date().toISOString(),
@@ -718,7 +787,8 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         cart = []; renderCart(); 
         await loadProducts();
         updateDashboard();
-        alert("Sale Completed!");
+        toggleLoader(false);
+        showToast("Sale Completed!", "success");
     };
 
     // --- EMPLOYEES & PAYROLL (Same as before) ---
@@ -729,6 +799,12 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         const select2 = document.getElementById('calcEmpSelect');
         
         grid.innerHTML = ''; select1.innerHTML = ''; select2.innerHTML = '';
+
+        // Empty state check
+        if(snap.empty) {
+            grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 20px; color: #6b7280;">No employees added.</div>';
+            return;
+        }
 
         snap.forEach(d => {
             const e = {id: d.id, ...d.data()};
@@ -745,6 +821,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
     }
 
     window.saveEmployee = async () => {
+        toggleLoader(true);
         await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/employees`), {
             name: document.getElementById('meName').value,
             role: document.getElementById('meRole').value,
@@ -752,9 +829,12 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         });
         document.getElementById('empModal').style.display = 'none';
         loadEmployees();
+        toggleLoader(false);
+        showToast("Employee added");
     };
 
     window.saveDailyLog = async () => {
+        toggleLoader(true);
         const empId = document.getElementById('payEmpSelect').value;
         const log = {
             date: document.getElementById('payDate').value,
@@ -764,7 +844,8 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
             timestamp: new Date()
         };
         await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/employees/${empId}/logs`), log);
-        alert("Daily Log Saved");
+        toggleLoader(false);
+        showToast("Daily Log Saved");
     };
 
     window.calculateSalary = async () => {
@@ -773,6 +854,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         const sel = document.getElementById('calcEmpSelect');
         const baseSalary = Number(sel.options[sel.selectedIndex].dataset.salary);
 
+        toggleLoader(true);
         const q = collection(db, `users/${currentUser.uid}/shops/${currentShopId}/employees/${empId}/logs`);
         const snap = await getDocs(q);
         
@@ -806,6 +888,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
                 <span>Net Salary:</span> <span>${formatMoney(netSalary)}</span>
             </div>
         `;
+        toggleLoader(false);
     };
 
     window.updateDashboard = () => {
