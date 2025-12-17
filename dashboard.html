@@ -50,6 +50,19 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 .view { display: none; animation: fade 0.2s; } .view.active { display: block; }
 @keyframes fade { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
+/* --- CHAT BOT STYLES --- */
+.chat-fab { position: fixed; bottom: 20px; right: 20px; width: 50px; height: 50px; background: var(--primary); border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; font-size: 24px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 2000; transition: 0.3s; }
+.chat-fab:hover { transform: scale(1.1); }
+.chat-window { position: fixed; bottom: 80px; right: 20px; width: 340px; height: 480px; background: white; border-radius: 12px; box-shadow: 0 5px 25px rgba(0,0,0,0.15); z-index: 2000; display: none; flex-direction: column; overflow: hidden; border: 1px solid #e5e7eb; }
+.chat-header { background: var(--primary); color: white; padding: 12px 15px; font-weight: 600; display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
+.chat-body { flex: 1; padding: 15px; overflow-y: auto; background: #f9fafb; display: flex; flex-direction: column; gap: 10px; }
+.chat-msg { max-width: 85%; padding: 10px 12px; border-radius: 10px; font-size: 13px; line-height: 1.4; animation: fade 0.2s; }
+.chat-msg.bot { background: white; border: 1px solid #e5e7eb; align-self: flex-start; color: var(--text); border-bottom-left-radius: 2px; }
+.chat-msg.user { background: var(--primary); color: white; align-self: flex-end; border-bottom-right-radius: 2px; }
+.chat-options { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 5px; }
+.chat-chip { background: #e0e7ff; color: var(--primary); padding: 6px 10px; border-radius: 20px; font-size: 11px; cursor: pointer; border: 1px solid #c7d2fe; transition: 0.2s; font-weight: 500; }
+.chat-chip:hover { background: var(--primary); color: white; border-color: var(--primary); }
+
 /* --- MOBILE --- */
 @media(max-width: 768px) {
     .sidebar { position: absolute; left: -100%; height: 100%; width: 80%; }
@@ -219,6 +232,26 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 
     </div>
 </main>
+
+<!-- CHAT BOT (New) -->
+<div class="chat-fab" onclick="toggleChat()">
+    <i class="ri-customer-service-2-line"></i>
+</div>
+<div class="chat-window" id="supportChat">
+    <div class="chat-header">
+        <span><i class="ri-robot-2-line" style="margin-right:5px;"></i> Auto-Support</span>
+        <i class="ri-close-line" style="cursor:pointer; font-size:18px;" onclick="toggleChat()"></i>
+    </div>
+    <div class="chat-body" id="chatContent">
+        <div class="chat-msg bot">Hello! I can explain how to use this dashboard. Click a topic below:</div>
+        <div class="chat-options" id="chatOptions">
+            <div class="chat-chip" onclick="askBot('batch')">Add vs Edit Product?</div>
+            <div class="chat-chip" onclick="askBot('price')">New Stock Prices</div>
+            <div class="chat-chip" onclick="askBot('pos')">POS Help</div>
+            <div class="chat-chip" onclick="askBot('payroll')">Payroll Math</div>
+        </div>
+    </div>
+</div>
 
 <!-- MODALS -->
 
@@ -810,6 +843,44 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 
     // Attach global functions to window
     window.removeFromCart = removeFromCart;
+    window.toggleChat = () => {
+        const w = document.getElementById('supportChat');
+        w.style.display = w.style.display === 'flex' ? 'none' : 'flex';
+    };
+    window.askBot = (topic) => {
+        const content = document.getElementById('chatContent');
+        const userMsg = document.createElement('div');
+        userMsg.className = 'chat-msg user';
+        
+        let response = "";
+        
+        if(topic === 'batch') {
+            userMsg.textContent = "How do I handle new prices?";
+            response = `<b>Batch Management:</b><br>If a new stock arrives with a <b>different price</b>:<br>1. Click <b>+ Add Product</b> (Do NOT edit existing).<br>2. Use exact same name.<br>3. Enter new prices and quantity.<br>This creates a separate batch.`;
+        } else if(topic === 'edit') {
+            userMsg.textContent = "When to use Edit?";
+            response = `<b>Use Edit ONLY for corrections:</b><br>- Spelling mistakes.<br>- Wrong entry (e.g. typed 50 instead of 500).<br>- Updating price of <b>existing</b> stock on shelf.<br>❌ Do NOT use Edit for new shipments with new costs.`;
+        } else if(topic === 'pos') {
+            userMsg.textContent = "POS Help";
+            response = `<b>POS Logic:</b><br>- Products with <b>0 Stock</b> are hidden.<br>- You may see duplicate names: check the <b>Price</b> and <b>Date</b> on the card.<br>- Always sell old batches (cheaper/older date) first to clear stock.`;
+        } else if(topic === 'payroll') {
+            userMsg.textContent = "Payroll Math";
+            response = `<b>Formula:</b><br>(Basic Salary - LWP Deductions - Advances) + Overtime.<br><i>LWP is calculated based on a 30-day month daily rate.</i>`;
+        } else if(topic === 'price') {
+             userMsg.textContent = "New Stock Prices";
+             response = `<b>Scenario:</b> Old stock bought at $100, new at $120?<br>1. Add new product with $120 Buy Price.<br>2. POS will show both batches.<br>3. Sell old $100 batch first until it disappears.`;
+        }
+
+        content.appendChild(userMsg);
+        
+        setTimeout(() => {
+            const botMsg = document.createElement('div');
+            botMsg.className = 'chat-msg bot';
+            botMsg.innerHTML = response;
+            content.appendChild(botMsg);
+            content.scrollTop = content.scrollHeight;
+        }, 500);
+    };
 </script>
 </body>
 </html>
