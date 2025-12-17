@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NexGen BMS | Enterprise Management</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    <style>
+        :root { --primary: #6366f1; --dark: #0f172a; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }
+        body { background: #f8fafc; color: var(--dark); }
+        
+        .navbar { display: flex; justify-content: space-between; align-items: center; padding: 20px 5%; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .logo { font-size: 24px; font-weight: 800; color: var(--primary); display: flex; align-items: center; gap: 8px; }
+        
+        .hero { min-height: 90vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 20px; background: radial-gradient(circle at top, #e0e7ff 0%, transparent 40%); }
+        h1 { font-size: 3.5rem; line-height: 1.1; margin-bottom: 20px; font-weight: 800; letter-spacing: -1px; }
+        h1 span { color: var(--primary); }
+        p { font-size: 1.25rem; color: #64748b; max-width: 600px; margin-bottom: 40px; }
+        
+        .btn-google {
+            background: white; color: #333; padding: 16px 32px; border-radius: 50px;
+            font-weight: 600; font-size: 1.1rem; border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); cursor: pointer;
+            display: inline-flex; align-items: center; gap: 12px; transition: transform 0.2s;
+        }
+        .btn-google:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        
+        .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; padding: 80px 5%; }
+        .feature-card { background: white; padding: 40px; border-radius: 24px; border: 1px solid #f1f5f9; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02); transition: 0.3s; }
+        .feature-card:hover { transform: translateY(-5px); border-color: var(--primary); }
+        .icon-box { width: 50px; height: 50px; background: #e0e7ff; color: var(--primary); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; margin-bottom: 20px; }
+
+        @media(max-width: 768px) { h1 { font-size: 2.5rem; } }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo"><i class="ri-pie-chart-2-fill"></i> NexGen BMS</div>
+        <button class="btn-google" style="padding: 8px 16px; font-size: 14px;" id="loginBtnNav">Sign In</button>
+    </nav>
+
+    <header class="hero">
+        <h1>Smart Management for <br><span>Modern Business</span></h1>
+        <p>Unlimited shops. Advanced Payroll with OT & LWP. Real-time Inventory. All secured with your Google Account.</p>
+        <button id="loginBtnMain" class="btn-google">
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="24" alt="G">
+            Continue with Google
+        </button>
+    </header>
+
+    <section class="features">
+        <div class="feature-card">
+            <div class="icon-box"><i class="ri-store-2-line"></i></div>
+            <h3>Multi-Shop Architecture</h3>
+            <p>Manage multiple businesses from one dashboard. Switch between shops instantly without relogging.</p>
+        </div>
+        <div class="feature-card">
+            <div class="icon-box"><i class="ri-calculator-line"></i></div>
+            <h3>Advanced Payroll AI</h3>
+            <p>Auto-calculate salaries based on Daily Logs: Basic - LWP - Advances + Overtime.</p>
+        </div>
+        <div class="feature-card">
+            <div class="icon-box"><i class="ri-shopping-cart-fill"></i></div>
+            <h3>Smart POS</h3>
+            <p>Lightning fast checkout. Cart management, stock deduction, and thermal invoice printing.</p>
+        </div>
+    </section>
+
+    <!-- FIREBASE SETUP -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+        import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+
+        // 🔴 PASTE YOUR FIREBASE CONFIG HERE
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT_ID.appspot.com",
+            messagingSenderId: "SENDER_ID",
+            appId: "APP_ID"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const provider = new GoogleAuthProvider();
+
+        const handleLogin = () => {
+            signInWithPopup(auth, provider)
+                .then(() => window.location.href = "dashboard.html")
+                .catch(err => alert("Login Failed: " + err.message));
+        };
+
+        document.getElementById('loginBtnNav').addEventListener('click', handleLogin);
+        document.getElementById('loginBtnMain').addEventListener('click', handleLogin);
+
+        onAuthStateChanged(auth, user => {
+            if(user) window.location.href = "dashboard.html";
+        });
+    </script>
+</body>
+</html>
