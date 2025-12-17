@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dashboard | NexGen BMS</title>
+<title>Dashboard | ManageMyBusiness</title>
 <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -60,7 +60,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
 
 <!-- SIDEBAR -->
 <aside class="sidebar" id="sidebar">
-    <div class="brand"><i class="ri-pie-chart-2-fill" style="margin-right:10px;"></i> NexGen BMS</div>
+    <div class="brand"><i class="ri-pie-chart-2-fill" style="margin-right:10px;"></i> ManageMyBusiness</div>
     <div class="nav">
         <div class="nav-group">Main</div>
         <a class="nav-item active" onclick="loadView('dashboard')"><i class="ri-dashboard-line"></i> Dashboard</a>
@@ -276,14 +276,14 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
     import { getFirestore, collection, addDoc, getDocs, doc, deleteDoc, updateDoc, query, where, orderBy } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
     // 🔴 RE-PASTE FIREBASE CONFIG HERE
-    const firebaseConfig = {
-  apiKey: "AIzaSyBHiVsnZH82jAzFnsegYJjTH-j8kWA4pfI",
-  authDomain: "nexgen-bms.firebaseapp.com",
-  projectId: "nexgen-bms",
-  storageBucket: "nexgen-bms.firebasestorage.app",
-  messagingSenderId: "868997252838",
-  appId: "1:868997252838:web:c79c4021b9300bbd675d27",
-  measurementId: "G-L6NFFV4DR1"
+   const firebaseConfig = {
+  apiKey: "AIzaSyCZrmkX2RsJTbn4j-WmbuCMudWaETMvXwQ",
+  authDomain: "managemybusiness-b4afb.firebaseapp.com",
+  projectId: "managemybusiness-b4afb",
+  storageBucket: "managemybusiness-b4afb.firebasestorage.app",
+  messagingSenderId: "237936848306",
+  appId: "1:237936848306:web:91a996c3d1d3ceda3b48ab",
+  measurementId: "G-7KPL8EDQ5H"
 };
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
