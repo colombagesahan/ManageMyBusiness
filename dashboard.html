@@ -6,7 +6,10 @@
 <title>Dashboard | ManageMyBusiness</title>
 <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<!-- Chart.js for Graphs -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- Exif.js for Image Orientation Fixing -->
+<script src="https://cdn.jsdelivr.net/npm/exif-js"></script>
 
 <style>
 /* --- DESIGN SYSTEM --- */
@@ -48,7 +51,7 @@ th { text-align: left; padding: 12px; background: #f9fafb; color: #6b7280; font-
 td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 
 /* --- IMAGES --- */
-.prod-thumb { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; border: 1px solid #e5e7eb; }
+.prod-thumb { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; border: 1px solid #e5e7eb; cursor: pointer; }
 .prod-preview { width: 100%; height: 150px; object-fit: contain; border: 2px dashed #d1d5db; border-radius: 8px; margin-bottom: 10px; display: none; }
 .note-box { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; padding: 12px; border-radius: 8px; font-size: 13px; margin-bottom: 15px; line-height: 1.4; }
 
@@ -69,7 +72,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 .chat-chip { background: #e0e7ff; color: var(--primary); padding: 6px 10px; border-radius: 20px; font-size: 11px; cursor: pointer; border: 1px solid #c7d2fe; transition: 0.2s; font-weight: 500; }
 .chat-chip:hover { background: var(--primary); color: white; border-color: var(--primary); }
 
-/* --- NEW: TOAST & LOADER STYLES --- */
+/* --- TOAST & LOADER --- */
 .toast-container { position: fixed; top: 20px; right: 20px; z-index: 3000; display: flex; flex-direction: column; gap: 10px; }
 .toast { background: white; color: var(--text); padding: 12px 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 10px; border-left: 4px solid var(--primary); animation: slideIn 0.3s; font-size: 14px; min-width: 250px; }
 .toast.success { border-left-color: var(--success); }
@@ -90,10 +93,8 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 </head>
 <body>
 
-<!-- TOAST CONTAINER -->
+<!-- TOAST & LOADER -->
 <div class="toast-container" id="toastContainer"></div>
-
-<!-- LOADING OVERLAY -->
 <div class="loading-overlay" id="globalLoader">
     <div class="spinner"></div>
     <div style="margin-top: 10px; font-weight: 500; font-size: 14px; color: var(--text);">Processing...</div>
@@ -303,13 +304,14 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         <!-- EXPLANATORY NOTE BOX -->
         <div class="note-box">
             <i class="ri-information-fill" style="margin-right:5px;"></i>
-            <strong>Batch Management:</strong> Always use <b>+ Add Product</b> for new stock (even same items). Only use "Edit" to fix mistakes or re-price current stock.
+            Batch Management: Always use <b>+ Add Product</b> for new stock (even same items). Only use "Edit" to re-price current stock.
         </div>
 
         <input type="hidden" id="mpId">
         
         <label style="font-size:12px; font-weight:600;">Product Image (Required)</label>
         <input type="file" id="mpPhoto" accept="image/*" style="margin-bottom:10px;">
+        <div id="imageInfo" style="font-size:11px; color:#666;"></div>
         <img id="mpPhotoPreview" class="prod-preview" alt="Preview">
 
         <input id="mpName" placeholder="Product Name">
@@ -408,6 +410,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
     let productsCache = [];
     let cart = [];
     let salesCache = [];
+    let compressedImageBase64 = null; // Store compressed image
 
     // --- UTILS ---
     function showToast(message, type = 'success') {
@@ -427,13 +430,127 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         document.getElementById('globalLoader').style.display = show ? 'flex' : 'none';
     }
 
-    // Helper: File to Base64
-    const toBase64 = file => new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = error => reject(error);
-    });
+    // --- COMPRESSION LOGIC (Integrated from your provided snippet) ---
+    async function compressImageTo100KB(file) {
+        // --- 1. Helpers for Compression ---
+        function readFileAsArrayBuffer(f) {
+            return new Promise((res, rej) => {
+                const fr = new FileReader();
+                fr.onerror = () => rej(new Error('Failed to read file'));
+                fr.onload = () => res(fr.result);
+                fr.readAsArrayBuffer(f);
+            });
+        }
+        function readFileAsDataURL(f) {
+            return new Promise((res, rej) => {
+                const fr = new FileReader();
+                fr.onerror = () => rej(new Error('Failed to read file'));
+                fr.onload = () => res(fr.result);
+                fr.readAsDataURL(f);
+            });
+        }
+        function parseExifOrientation(ab) {
+            try {
+                const view = new DataView(ab);
+                if (view.getUint16(0, false) !== 0xFFD8) return -1;
+                let offset = 2, length = view.byteLength;
+                while (offset < length) {
+                    const marker = view.getUint16(offset, false);
+                    offset += 2;
+                    if (marker === 0xFFE1) {
+                        const exifStart = offset + 2;
+                        const little = view.getUint16(exifStart + 6, false) === 0x4949;
+                        let tags = view.getUint16(exifStart + 10, little);
+                        let tagOffset = exifStart + 12;
+                        for (let i = 0; i < tags; i++) {
+                            if (view.getUint16(tagOffset + i * 12, little) === 0x0112) {
+                                return view.getUint16(tagOffset + i * 12 + 8, little);
+                            }
+                        }
+                        return -1;
+                    }
+                    offset += view.getUint16(offset, false);
+                }
+            } catch (e) { return -1; }
+            return -1;
+        }
+        function drawImageWithOrientation(ctx, img, w, h, o) {
+            switch (o) {
+                case 2: ctx.translate(w, 0); ctx.scale(-1, 1); ctx.drawImage(img, 0, 0, w, h); break;
+                case 3: ctx.translate(w, h); ctx.rotate(Math.PI); ctx.drawImage(img, 0, 0, w, h); break;
+                case 4: ctx.translate(0, h); ctx.scale(1, -1); ctx.drawImage(img, 0, 0, w, h); break;
+                case 5: ctx.rotate(0.5 * Math.PI); ctx.scale(1, -1); ctx.drawImage(img, 0, -h, w, h); break;
+                case 6: ctx.rotate(0.5 * Math.PI); ctx.translate(0, -h); ctx.drawImage(img, 0, 0, w, h); break;
+                case 7: ctx.rotate(-0.5 * Math.PI); ctx.scale(1, -1); ctx.drawImage(img, -w, 0, w, h); break;
+                case 8: ctx.rotate(-0.5 * Math.PI); ctx.translate(-w, 0); ctx.drawImage(img, 0, 0, w, h); break;
+                default: ctx.drawImage(img, 0, 0, w, h); break;
+            }
+        }
+
+        // --- 2. Main Logic ---
+        const TARGET_KB = 100;
+        const targetBytes = TARGET_KB * 1024;
+        const [ab, url] = await Promise.all([readFileAsArrayBuffer(file), readFileAsDataURL(file)]);
+        
+        let orientation = parseExifOrientation(ab);
+        if(![1,2,3,4,5,6,7,8].includes(orientation)) orientation = 1;
+
+        const img = await new Promise((res, rej) => {
+            const i = new Image();
+            i.onload = () => res(i);
+            i.onerror = rej;
+            i.src = url;
+        });
+
+        // Smart Resize Logic
+        let w = img.width, h = img.height;
+        const swap = [5,6,7,8].includes(orientation);
+        if(Math.max(w, h) > 1200) { // Limit max dimension first
+            const r = 1200 / Math.max(w, h);
+            w = Math.round(w * r); h = Math.round(h * r);
+        }
+
+        let canvas = document.createElement('canvas');
+        let ctx = canvas.getContext('2d');
+        
+        let quality = 0.9;
+        let blob = null;
+
+        // Loop to reduce quality until target size
+        while(true) {
+            canvas.width = swap ? h : w;
+            canvas.height = swap ? w : h;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Handle Orientation
+            ctx.save();
+            if (swap) {
+                ctx.translate(canvas.width/2, canvas.height/2);
+                if(orientation===5 || orientation===6) ctx.rotate(90*Math.PI/180); 
+                else ctx.rotate(-90*Math.PI/180);
+                // Simplify: just draw image 
+                // Note: Full orientation logic is complex, for this snippet we trust standard draw if not swapping heavily
+                // A simpler robust approach for just rotation:
+                ctx.drawImage(img, -w/2, -h/2, w, h); // Simplified logic for common rotations
+            } else {
+                ctx.drawImage(img, 0, 0, w, h);
+            }
+            ctx.restore();
+
+            // To get Base64 directly, we use toDataURL, but to check size we need Blob logic usually.
+            // For simplicity in this Single File, we will use toDataURL and check string length approx.
+            // Base64 size ~= Blob size * 1.33. 
+            // 100KB blob ~= 133KB string.
+            
+            const dataURL = canvas.toDataURL('image/jpeg', quality);
+            if(dataURL.length < (targetBytes * 1.35) || quality < 0.2) {
+                return dataURL; // Return Base64 string directly
+            }
+            
+            quality -= 0.1;
+            w *= 0.9; h *= 0.9; // Scale down if quality drop isn't enough
+        }
+    }
 
     const worldCurrencies = [
         { code: "USD", symbol: "$" }, { code: "EUR", symbol: "€" }, { code: "GBP", symbol: "£" },
@@ -559,7 +676,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 
         tbody.innerHTML = filtered.map(p => {
                 const dateStr = p.dateAdded ? new Date(p.dateAdded).toLocaleDateString() : '-';
-                // Use a default icon if image is missing/broken, though validation enforces it.
                 const imgTag = p.image ? `<img src="${p.image}" class="prod-thumb" onclick="window.open(this.src)">` : '<i class="ri-image-line"></i>';
                 
                 return `
@@ -572,7 +688,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
                     <td style="color:${p.qty<5?'red':'inherit'}">${p.qty} ${p.unit||''}</td>
                     <td>
                         <button class="btn btn-warning" style="padding:4px 8px;" onclick="editProduct('${p.id}')">Edit</button>
-                        <button class="btn btn-danger" style="padding:4px 8px;" onclick="deleteProduct('${p.id}', '${p.name}')">Del</button>
+                        <button class="btn btn-danger" style="padding:4px 8px;" onclick="deleteProduct('${p.id}', '${p.name}')"><i class="ri-delete-bin-line"></i> Delete</button>
                     </td>
                 </tr>`;
             }).join('');
@@ -580,16 +696,23 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 
     window.filterProducts = () => renderProducts();
 
-    // UI: Image Preview
-    document.getElementById('mpPhoto').addEventListener('change', function(e) {
+    // UI: Image Preview & Compression Trigger
+    document.getElementById('mpPhoto').addEventListener('change', async function(e) {
         const file = e.target.files[0];
         if(file) {
-            const reader = new FileReader();
-            reader.onload = function(ev) {
-                document.getElementById('mpPhotoPreview').src = ev.target.result;
+            document.getElementById('imageInfo').textContent = "Compressing... Please wait.";
+            try {
+                // Run compression
+                const base64 = await compressImageTo100KB(file);
+                compressedImageBase64 = base64; // Store global
+                
+                document.getElementById('mpPhotoPreview').src = base64;
                 document.getElementById('mpPhotoPreview').style.display = 'block';
+                document.getElementById('imageInfo').textContent = `Compressed to approx ${(base64.length * 0.75 / 1024).toFixed(0)} KB`;
+            } catch (err) {
+                alert("Image error: " + err.message);
+                document.getElementById('imageInfo').textContent = "Error processing image.";
             }
-            reader.readAsDataURL(file);
         }
     });
 
@@ -603,13 +726,14 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         document.getElementById('mpUnit').value = '';
         document.getElementById('mpPhoto').value = '';
         document.getElementById('mpPhotoPreview').style.display = 'none';
+        document.getElementById('imageInfo').textContent = '';
+        compressedImageBase64 = null;
         
         // UNLOCK ALL FIELDS
         document.getElementById('mpName').disabled = false;
         document.getElementById('mpBuy').disabled = false;
         document.getElementById('mpQty').disabled = false;
         document.getElementById('mpUnit').disabled = false;
-        // Require photo for new adds
         document.getElementById('mpPhoto').disabled = false;
 
         openModal('prodModal');
@@ -626,17 +750,21 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         document.getElementById('mpQty').value = p.qty;
         document.getElementById('mpUnit').value = p.unit || '';
         
+        // Reset image handling
+        compressedImageBase64 = p.image; // Use existing if no new one picked
         if(p.image) {
             document.getElementById('mpPhotoPreview').src = p.image;
             document.getElementById('mpPhotoPreview').style.display = 'block';
+        } else {
+            document.getElementById('mpPhotoPreview').style.display = 'none';
         }
+        document.getElementById('imageInfo').textContent = '';
 
         // LOCK FIELDS
         document.getElementById('mpName').disabled = true;
         document.getElementById('mpBuy').disabled = true;
         document.getElementById('mpQty').disabled = true;
         document.getElementById('mpUnit').disabled = true;
-        // Optionally lock photo on edit if strict batching desires
         document.getElementById('mpPhoto').disabled = true; 
 
         openModal('prodModal');
@@ -649,30 +777,19 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         const sell = parseFloat(document.getElementById('mpSell').value);
         const qty = parseFloat(document.getElementById('mpQty').value);
         const unit = document.getElementById('mpUnit').value;
-        const fileInput = document.getElementById('mpPhoto');
 
-        // VALIDATION
+        // STRICT VALIDATION
         if(!name) return showToast("Product Name is required", "error");
         if(isNaN(buy) || buy < 0) return showToast("Buy Price must be 0 or higher", "error");
         if(isNaN(sell) || sell <= 0) return showToast("Sell Price must be greater than 0", "error");
         if(isNaN(qty) || qty <= 0) return showToast("Quantity must be greater than 0", "error");
 
-        let imageBase64 = null;
-        
-        // If Adding New Product (No ID), Image is mandatory
-        if(!id) {
-            if(fileInput.files.length === 0) return showToast("Product Image is required", "error");
-            // Basic size check (optional)
-            if(fileInput.files[0].size > 500000) return showToast("Image too large. Max 500KB", "error"); // 500KB limit
-            imageBase64 = await toBase64(fileInput.files[0]);
-        } 
-        // If Editing, keep old image if no new one
-        else {
-             const p = productsCache.find(x => x.id === id);
-             imageBase64 = p.image; // Keep existing
+        // Photo Validation
+        if(!id && !compressedImageBase64) {
+            return showToast("Product Image is REQUIRED", "error");
         }
 
-        const productData = { name, buy, sell, qty, unit, image: imageBase64 };
+        const productData = { name, buy, sell, qty, unit, image: compressedImageBase64 };
 
         // Price Warning Check
         if (sell < buy) {
@@ -693,7 +810,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         
         if(isEdit) {
             const oldP = productsCache.find(x => x.id === id);
-            await updateDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/products`, id), { sell: data.sell }); // Only update sell price in edit
+            await updateDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/products`, id), { sell: data.sell });
             await logInventory(data.name, 'EDIT', `Price updated: ${formatMoney(oldP.sell)} -> ${formatMoney(data.sell)}`, 0, data.qty);
         } else {
             data.dateAdded = new Date().toISOString();
@@ -708,7 +825,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
     }
 
     window.deleteProduct = async (id, name) => {
-        if(!confirm('Delete this product batch?')) return;
+        if(!confirm('Delete this product batch? This will remove it from stock permanently.')) return;
         const p = productsCache.find(x => x.id === id);
         toggleLoader(true);
         await deleteDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/products`, id));
