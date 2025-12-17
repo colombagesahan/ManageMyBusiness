@@ -13,7 +13,7 @@
 :root {
     --primary: #4F46E5; --bg: #f3f4f6; --card: #ffffff; --text: #1f2937;
     --sidebar-w: 260px; --header-h: 70px;
-    --danger: #ef4444; --success: #10b981;
+    --danger: #ef4444; --success: #10b981; --warning: #f59e0b;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
 body { background: var(--bg); display: flex; height: 100vh; overflow: hidden; color: var(--text); }
@@ -34,15 +34,17 @@ body { background: var(--bg); display: flex; height: 100vh; overflow: hidden; co
 
 /* --- COMPONENTS --- */
 .card { background: var(--card); border-radius: 16px; padding: 24px; box-shadow: 0 1px 3px 0 rgba(0,0,0,0.1); margin-bottom: 24px; border: 1px solid #e5e7eb; }
-.btn { padding: 10px 20px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; transition: 0.2s; font-size: 14px; display: inline-flex; align-items: center; gap: 6px; }
+.btn { padding: 8px 16px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; transition: 0.2s; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; }
 .btn-primary { background: var(--primary); color: white; } .btn-primary:hover { background: #4338ca; }
 .btn-danger { background: var(--danger); color: white; }
+.btn-warning { background: var(--warning); color: white; }
+.btn-ghost { background: transparent; border: 1px solid #d1d5db; color: var(--text); }
 .grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px; }
 input, select { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; margin-bottom: 10px; font-size: 14px; outline: none; }
 input:focus { border-color: var(--primary); ring: 2px solid var(--primary); }
 table { width: 100%; border-collapse: collapse; font-size: 14px; }
-th { text-align: left; padding: 12px; background: #f9fafb; color: #6b7280; font-weight: 600; border-bottom: 1px solid #e5e7eb; }
-td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
+th { text-align: left; padding: 12px; background: #f9fafb; color: #6b7280; font-weight: 600; border-bottom: 1px solid #e5e7eb; white-space: nowrap; }
+td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 
 /* --- VIEWS --- */
 .view { display: none; animation: fade 0.2s; } .view.active { display: block; }
@@ -93,8 +95,8 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
             <select class="shop-select" id="shopSelector" onchange="changeShop()">
                 <option value="">Loading Shops...</option>
             </select>
-            <button class="btn btn-primary" onclick="openModal('shopModal')" style="padding: 8px 12px;">+ Shop</button>
-            <button class="btn btn-danger" onclick="deleteCurrentShop()" style="padding: 8px 12px;" title="Delete Shop"><i class="ri-delete-bin-line"></i></button>
+            <button class="btn btn-primary" onclick="openModal('shopModal')">+ Shop</button>
+            <button class="btn btn-danger" onclick="deleteCurrentShop()" title="Delete Shop"><i class="ri-delete-bin-line"></i></button>
         </div>
     </header>
 
@@ -139,12 +141,15 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
         <!-- 2. PRODUCTS -->
         <div id="view-products" class="view">
             <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
-                <input placeholder="Search products..." style="max-width:300px; margin:0;" id="prodSearch">
-                <button class="btn btn-primary" onclick="openModal('prodModal')">+ Add Product</button>
+                <div style="display:flex; gap:10px;">
+                    <input placeholder="Search products..." style="width:250px; margin:0;" id="prodSearch" onkeyup="filterProducts(this.value)">
+                    <button class="btn btn-ghost" onclick="openInventoryReport()"><i class="ri-file-list-3-line"></i> Report</button>
+                </div>
+                <button class="btn btn-primary" onclick="prepareAddProduct()">+ Add Product</button>
             </div>
             <div class="card" style="overflow-x:auto;">
                 <table id="prodTable">
-                    <thead><tr><th>Name</th><th>Buy</th><th>Sell</th><th>Stock</th><th>Action</th></tr></thead>
+                    <thead><tr><th>Date Added</th><th>Name</th><th>Buy</th><th>Sell</th><th>Stock</th><th>Action</th></tr></thead>
                     <tbody></tbody>
                 </table>
             </div>
@@ -155,7 +160,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
             <div style="display:grid; grid-template-columns: 2fr 1fr; gap:20px;">
                 <div class="card">
                     <input id="posSearch" placeholder="Scan barcode or type name..." onkeyup="filterPos(this.value)">
-                    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap:10px; max-height:500px; overflow-y:auto;" id="posGrid"></div>
+                    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap:10px; max-height:500px; overflow-y:auto;" id="posGrid"></div>
                 </div>
                 <div class="card" style="display:flex; flex-direction:column;">
                     <h3>Current Order</h3>
@@ -179,11 +184,10 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
             <div class="grid-4" id="empGrid"></div>
         </div>
 
-        <!-- 5. ADVANCED PAYROLL (The Requested Feature) -->
+        <!-- 5. PAYROLL -->
         <div id="view-payroll" class="view">
             <div class="card">
                 <h3>Daily Log Entry</h3>
-                <p style="color:#6b7280; font-size:13px; margin-bottom:15px;">Log attendance, advances, and OT daily.</p>
                 <div class="grid-4" style="align-items:end;">
                     <div><label>Employee</label><select id="payEmpSelect"></select></div>
                     <div><label>Date</label><input type="date" id="payDate"></div>
@@ -210,29 +214,21 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
             </div>
         </div>
 
-        <!-- Placeholder views for other sections to prevent errors if clicked -->
-        <div id="view-services" class="view"><div class="card"><h3>Services</h3><p class="muted">Service management coming soon.</p></div></div>
-        <div id="view-customers" class="view"><div class="card"><h3>Customers</h3><p class="muted">Customer management coming soon.</p></div></div>
+        <div id="view-services" class="view"><div class="card"><h3>Services</h3><p class="muted">Coming soon.</p></div></div>
+        <div id="view-customers" class="view"><div class="card"><h3>Customers</h3><p class="muted">Coming soon.</p></div></div>
 
     </div>
 </main>
 
 <!-- MODALS -->
 
-<!-- New Shop Modal -->
+<!-- New Shop -->
 <div id="shopModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:1000;">
     <div class="card" style="width:400px; margin:0;">
         <h3>Create New Shop</h3>
-        <p style="color:#6b7280; font-size:13px; margin-bottom:15px;">Enter shop details and select your local currency.</p>
-        
-        <label style="font-size:12px; font-weight:600;">Shop Name</label>
         <input id="msName" placeholder="e.g. My Supermarket">
-        
-        <label style="font-size:12px; font-weight:600;">Currency</label>
-        <select id="msCurrency">
-            <!-- Populated via JS -->
-        </select>
-
+        <label style="font-size:12px;">Currency</label>
+        <select id="msCurrency"></select>
         <div style="display:flex; gap:10px; margin-top:15px;">
             <button class="btn btn-primary" onclick="saveNewShop()">Create Shop</button>
             <button class="btn btn-danger" onclick="document.getElementById('shopModal').style.display='none'">Cancel</button>
@@ -240,10 +236,11 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
     </div>
 </div>
 
-<!-- Add Product Modal (UPDATED with Unit Selector) -->
+<!-- Add/Edit Product -->
 <div id="prodModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:100;">
     <div class="card" style="width:400px; margin:0;">
-        <h3>Add Product</h3>
+        <h3 id="prodModalTitle">Add Product</h3>
+        <input type="hidden" id="mpId">
         <input id="mpName" placeholder="Product Name">
         <input id="mpBuy" type="number" placeholder="Buy Price">
         <input id="mpSell" type="number" placeholder="Sell Price">
@@ -251,11 +248,8 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
             <input id="mpQty" type="number" placeholder="Stock Qty" style="flex:1; margin-bottom:0;">
             <select id="mpUnit" style="flex:1; margin-bottom:0;">
                 <option value="">No Unit (pcs)</option>
-                <option value="kg">Kilogram (kg)</option>
-                <option value="g">Gram (g)</option>
-                <option value="l">Liter (l)</option>
-                <option value="ml">Milliliter (ml)</option>
-                <option value="m">Meter (m)</option>
+                <option value="kg">kg</option><option value="g">g</option>
+                <option value="l">l</option><option value="ml">ml</option><option value="m">m</option>
             </select>
         </div>
         <div style="display:flex; gap:10px; margin-top:10px;">
@@ -265,12 +259,11 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
     </div>
 </div>
 
-<!-- Price Warning Modal (NEW) -->
+<!-- Price Warning -->
 <div id="priceWarningModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:1100;">
     <div class="card" style="width:350px; margin:0; border-left: 4px solid var(--danger);">
-        <h3 style="color:var(--danger); margin-bottom:10px;">Warning: Negative Profit</h3>
-        <p style="font-size:14px; color:#6b7280; margin-bottom:15px;">You are setting the Selling Price lower than the Buying Price.</p>
-        <div style="background:#fef2f2; color:#b91c1c; padding:10px; border-radius:8px; font-size:13px; margin-bottom:15px;" id="priceWarningMsg"></div>
+        <h3 style="color:var(--danger);">Warning: Negative Profit</h3>
+        <div id="priceWarningMsg" style="margin:10px 0; font-size:14px;"></div>
         <div style="display:flex; gap:10px;">
             <button class="btn btn-danger" id="btnConfirmSaveAny">Save Anyway</button>
             <button class="btn btn-primary" onclick="document.getElementById('priceWarningModal').style.display='none'">Edit Price</button>
@@ -278,7 +271,31 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
     </div>
 </div>
 
-<!-- Add Employee Modal -->
+<!-- Inventory Report -->
+<div id="invReportModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:100;">
+    <div class="card" style="width:600px; height:80vh; display:flex; flex-direction:column; margin:0;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+            <h3>Inventory Log Report</h3>
+            <button class="btn btn-ghost" onclick="document.getElementById('invReportModal').style.display='none'">Close</button>
+        </div>
+        <div style="display:flex; gap:10px; margin-bottom:15px;">
+            <select id="invReportFilter" onchange="generateInventoryReport()">
+                <option value="daily">Today</option>
+                <option value="monthly" selected>This Month</option>
+                <option value="yearly">This Year</option>
+            </select>
+            <button class="btn btn-primary" onclick="generateInventoryReport()">Refresh</button>
+        </div>
+        <div style="overflow-y:auto; flex:1; border:1px solid #eee; border-radius:8px;">
+            <table id="invReportTable" style="width:100%;">
+                <thead><tr style="background:#f9fafb;"><th>Date</th><th>Product</th><th>Action</th><th>Change</th><th>Qty</th></tr></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Employee Modal -->
 <div id="empModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:100;">
     <div class="card" style="width:400px; margin:0;">
         <h3>Add Employee</h3>
@@ -296,42 +313,34 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
     import { getAuth, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
-    import { getFirestore, collection, addDoc, getDocs, doc, deleteDoc, updateDoc, query, where, orderBy } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, getDocs, doc, deleteDoc, updateDoc, query, where, orderBy, setDoc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
     // 🔴 RE-PASTE FIREBASE CONFIG HERE
-   const firebaseConfig = {
-  apiKey: "AIzaSyCZrmkX2RsJTbn4j-WmbuCMudWaETMvXwQ",
-  authDomain: "managemybusiness-b4afb.firebaseapp.com",
-  projectId: "managemybusiness-b4afb",
-  storageBucket: "managemybusiness-b4afb.firebasestorage.app",
-  messagingSenderId: "237936848306",
-  appId: "1:237936848306:web:91a996c3d1d3ceda3b48ab",
-  measurementId: "G-7KPL8EDQ5H"
-};
+    const firebaseConfig = {
+        apiKey: "AIzaSyCZrmkX2RsJTbn4j-WmbuCMudWaETMvXwQ",
+        authDomain: "managemybusiness-b4afb.firebaseapp.com",
+        projectId: "managemybusiness-b4afb",
+        storageBucket: "managemybusiness-b4afb.firebasestorage.app",
+        messagingSenderId: "237936848306",
+        appId: "1:237936848306:web:91a996c3d1d3ceda3b48ab",
+        measurementId: "G-7KPL8EDQ5H"
+    };
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
 
     let currentUser = null;
     let currentShopId = null;
-    let currentCurrency = "$"; // Default
+    let currentCurrency = "$";
     let productsCache = [];
     let cart = [];
     let salesCache = [];
 
-    // --- CURRENCIES LIST ---
     const worldCurrencies = [
         { code: "USD", symbol: "$" }, { code: "EUR", symbol: "€" }, { code: "GBP", symbol: "£" },
-        { code: "JPY", symbol: "¥" }, { code: "CNY", symbol: "¥" }, { code: "INR", symbol: "₹" },
-        { code: "LKR", symbol: "Rs" }, { code: "AUD", symbol: "A$" }, { code: "CAD", symbol: "C$" },
-        { code: "SGD", symbol: "S$" }, { code: "AED", symbol: "AED" }, { code: "SAR", symbol: "SAR" },
-        { code: "RUB", symbol: "₽" }, { code: "BRL", symbol: "R$" }, { code: "ZAR", symbol: "R" },
-        { code: "KRW", symbol: "₩" }, { code: "TRY", symbol: "₺" }, { code: "IDR", symbol: "Rp" },
-        { code: "MYR", symbol: "RM" }, { code: "PHP", symbol: "₱" }, { code: "VND", symbol: "₫" },
-        { code: "THB", symbol: "฿" }, { code: "PKR", symbol: "Rs" }, { code: "BDT", symbol: "৳" }
+        { code: "JPY", symbol: "¥" }, { code: "LKR", symbol: "Rs" }, { code: "INR", symbol: "₹" }
     ];
 
-    // --- AUTH & INIT ---
     onAuthStateChanged(auth, async (user) => {
         if (!user) window.location.href = "index.html";
         currentUser = user;
@@ -347,82 +356,47 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
         sel.innerHTML = worldCurrencies.map(c => `<option value="${c.symbol}">${c.code} (${c.symbol})</option>`).join('');
     }
 
-    // --- MULTI-SHOP LOGIC ---
+    // --- SHOPS ---
     async function loadShops() {
         const q = collection(db, `users/${currentUser.uid}/shops`);
         const snap = await getDocs(q);
         const select = document.getElementById('shopSelector');
         select.innerHTML = '';
-        
         let shops = [];
         snap.forEach(d => shops.push({id: d.id, ...d.data()}));
 
         if(shops.length === 0) {
-            // Force create if no shops
             document.getElementById('shopModal').style.display = 'flex';
-            // Disable cancel button for first shop
             document.querySelector('#shopModal .btn-danger').style.display = 'none';
             return;
         }
-
         shops.forEach(s => {
             const opt = document.createElement('option');
             opt.value = s.id; opt.text = s.name;
             opt.dataset.currency = s.currency || "$";
             select.appendChild(opt);
         });
-
-        // Restore selection or pick first
         if(!currentShopId) currentShopId = shops[0].id;
         select.value = currentShopId;
-        
-        // Trigger change to set currency
         changeShop();
     }
-
-    // Replaces simple prompt with Modal
-    window.createNewShop = () => {
-        document.querySelector('#shopModal .btn-danger').style.display = 'block'; // Ensure cancel is visible
-        document.getElementById('msName').value = '';
-        document.getElementById('shopModal').style.display = 'flex';
-    };
 
     window.saveNewShop = async () => {
         const name = document.getElementById('msName').value;
         const currency = document.getElementById('msCurrency').value;
-        
-        if(!name) return alert("Shop Name is required");
-
-        const ref = await addDoc(collection(db, `users/${currentUser.uid}/shops`), { 
-            name, 
-            currency,
-            created: new Date() 
-        });
-
+        if(!name) return alert("Shop Name required");
+        const ref = await addDoc(collection(db, `users/${currentUser.uid}/shops`), { name, currency, created: new Date() });
         document.getElementById('shopModal').style.display = 'none';
-        
-        // Reload shops and select new one
         await loadShops();
         document.getElementById('shopSelector').value = ref.id;
         changeShop();
     };
 
     window.deleteCurrentShop = async () => {
-        if(!currentShopId) return;
-        
-        const sel = document.getElementById('shopSelector');
-        const shopName = sel.options[sel.selectedIndex].text;
-
-        if(!confirm(`WARNING: Are you sure you want to delete "${shopName}"?\n\nThis will remove the shop from your list. Data recovery is not guaranteed without a backup.`)) {
-            return;
-        }
-
-        // Delete the shop document reference
+        if(!confirm("Delete this shop and all data? Cannot be undone.")) return;
         await deleteDoc(doc(db, `users/${currentUser.uid}/shops`, currentShopId));
-        
-        alert("Shop removed.");
         currentShopId = null;
-        loadShops(); // Refresh list
+        loadShops();
     };
 
     window.changeShop = () => {
@@ -436,174 +410,270 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
         if(!currentShopId) return;
         await loadProducts();
         await loadEmployees();
-        // Load Sales for Dashboard
         const q = query(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/sales`), orderBy('date', 'desc'));
         const snap = await getDocs(q);
         salesCache = [];
         snap.forEach(d => salesCache.push({id: d.id, ...d.data()}));
-        
         updateDashboard();
     }
 
-    // --- NAVIGATION ---
     window.loadView = (viewName) => {
         document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
         document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-        const target = document.getElementById(`view-${viewName}`);
-        if(target) target.classList.add('active');
-        
-        // Highlight Nav
+        document.getElementById(`view-${viewName}`).classList.add('active');
         if(event && event.currentTarget) event.currentTarget.classList.add('active');
         document.getElementById('pageTitle').textContent = viewName.charAt(0).toUpperCase() + viewName.slice(1);
     };
 
     window.openModal = (id) => document.getElementById(id).style.display = 'flex';
-    
-    // Helper helper for money
-    const formatMoney = (amount) => {
-        return `${currentCurrency}${Number(amount).toFixed(2)}`;
-    };
+    const formatMoney = (a) => `${currentCurrency}${Number(a).toFixed(2)}`;
 
-    // --- PRODUCTS ---
+    // --- PRODUCTS & INVENTORY LOGIC ---
     async function loadProducts() {
         const snap = await getDocs(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/products`));
         productsCache = [];
         snap.forEach(d => productsCache.push({id: d.id, ...d.data()}));
+        // Sort by Date Descending
+        productsCache.sort((a,b) => new Date(b.dateAdded) - new Date(a.dateAdded));
         renderProducts();
         renderPosGrid();
     }
 
     function renderProducts() {
+        const term = document.getElementById('prodSearch').value.toLowerCase();
         const tbody = document.querySelector('#prodTable tbody');
-        tbody.innerHTML = productsCache.map(p => `
-            <tr>
-                <td>${p.name}</td>
-                <td>${formatMoney(p.buy)}</td>
-                <td>${formatMoney(p.sell)}</td>
-                <td style="color:${p.qty<5?'red':'inherit'}">${p.qty} ${p.unit || ''}</td>
-                <td><button class="btn btn-danger" style="padding:4px 8px; font-size:12px;">Del</button></td>
-            </tr>
-        `).join('');
+        
+        tbody.innerHTML = productsCache
+            .filter(p => p.name.toLowerCase().includes(term))
+            .map(p => {
+                const dateStr = p.dateAdded ? new Date(p.dateAdded).toLocaleDateString() : '-';
+                return `
+                <tr>
+                    <td style="font-size:12px; color:#666;">${dateStr}</td>
+                    <td>${p.name}</td>
+                    <td>${formatMoney(p.buy)}</td>
+                    <td>${formatMoney(p.sell)}</td>
+                    <td style="color:${p.qty<5?'red':'inherit'}">${p.qty} ${p.unit||''}</td>
+                    <td>
+                        <button class="btn btn-warning" style="padding:4px 8px;" onclick="editProduct('${p.id}')">Edit</button>
+                        <button class="btn btn-danger" style="padding:4px 8px;" onclick="deleteProduct('${p.id}', '${p.name}')">Del</button>
+                    </td>
+                </tr>`;
+            }).join('');
     }
 
-    // UPDATED: Logic to handle Price Check, Unit, and Auto Date
+    window.filterProducts = () => renderProducts();
+
+    // Reset Modal for adding new
+    window.prepareAddProduct = () => {
+        document.getElementById('mpId').value = '';
+        document.getElementById('prodModalTitle').textContent = 'Add Product';
+        document.getElementById('mpName').value = '';
+        document.getElementById('mpBuy').value = '';
+        document.getElementById('mpSell').value = '';
+        document.getElementById('mpQty').value = '';
+        document.getElementById('mpUnit').value = '';
+        openModal('prodModal');
+    };
+
+    // Load existing for editing
+    window.editProduct = (id) => {
+        const p = productsCache.find(x => x.id === id);
+        if(!p) return;
+        document.getElementById('mpId').value = p.id;
+        document.getElementById('prodModalTitle').textContent = 'Update Product Stock/Price';
+        document.getElementById('mpName').value = p.name;
+        document.getElementById('mpBuy').value = p.buy;
+        document.getElementById('mpSell').value = p.sell;
+        document.getElementById('mpQty').value = p.qty;
+        document.getElementById('mpUnit').value = p.unit || '';
+        openModal('prodModal');
+    };
+
     window.saveProduct = async () => {
+        const id = document.getElementById('mpId').value;
         const name = document.getElementById('mpName').value;
         const buy = Number(document.getElementById('mpBuy').value);
         const sell = Number(document.getElementById('mpSell').value);
         const qty = Number(document.getElementById('mpQty').value);
         const unit = document.getElementById('mpUnit').value;
 
-        // Check for Low Selling Price
         if (sell < buy) {
-            document.getElementById('priceWarningMsg').innerHTML = `
-                Buying Price: ${formatMoney(buy)}<br>
-                Selling Price: ${formatMoney(sell)}<br>
-                <strong>Loss per Unit: ${formatMoney(sell - buy)}</strong>
-            `;
+            document.getElementById('priceWarningMsg').innerHTML = `Loss: ${formatMoney(sell - buy)} per unit`;
             document.getElementById('priceWarningModal').style.display = 'flex';
-            
-            // Set up the "Save Anyway" button dynamically to avoid duplicate listeners
-            const confirmBtn = document.getElementById('btnConfirmSaveAny');
-            confirmBtn.onclick = async () => {
+            document.getElementById('btnConfirmSaveAny').onclick = async () => {
                  document.getElementById('priceWarningModal').style.display = 'none';
-                 await finalizeProductSave({ name, buy, sell, qty, unit });
+                 await finalizeProductSave(id, { name, buy, sell, qty, unit });
             };
-            return; // Stop here, wait for user confirmation
+            return;
         }
-
-        // If price is fine, proceed immediately
-        await finalizeProductSave({ name, buy, sell, qty, unit });
+        await finalizeProductSave(id, { name, buy, sell, qty, unit });
     };
 
-    // Helper function to commit to Firestore
-    async function finalizeProductSave(data) {
-        // Add Auto-Date
-        data.dateAdded = new Date().toISOString();
-
-        await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/products`), data);
+    async function finalizeProductSave(id, data) {
+        // Determine Action Type
+        const isEdit = !!id;
         
-        // Clear UI and Refresh
+        if(isEdit) {
+            // Log Changes (Simple logic: we just log that it was edited)
+            const oldP = productsCache.find(x => x.id === id);
+            await updateDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/products`, id), data);
+            await logInventory(data.name, 'EDIT', `Stock updated to ${data.qty}`, data.qty - oldP.qty, data.qty);
+        } else {
+            // New Batch
+            data.dateAdded = new Date().toISOString();
+            await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/products`), data);
+            await logInventory(data.name, 'ADD', 'New Stock Batch', data.qty, data.qty);
+        }
+
         document.getElementById('prodModal').style.display = 'none';
-        
-        // Clear inputs for next time
-        document.getElementById('mpName').value = '';
-        document.getElementById('mpBuy').value = '';
-        document.getElementById('mpSell').value = '';
-        document.getElementById('mpQty').value = '';
-        document.getElementById('mpUnit').value = '';
-
         loadProducts();
     }
+
+    window.deleteProduct = async (id, name) => {
+        if(!confirm('Delete this product batch?')) return;
+        const p = productsCache.find(x => x.id === id);
+        
+        await deleteDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/products`, id));
+        await logInventory(name, 'DELETE', 'Product Deleted', -p.qty, 0);
+        
+        loadProducts();
+    };
+
+    // --- INVENTORY LOGGING ---
+    async function logInventory(name, action, desc, change, finalQty) {
+        const log = {
+            date: new Date().toISOString(),
+            productName: name,
+            action, // ADD, EDIT, DELETE, SALE
+            description: desc,
+            quantityChange: change,
+            finalQty: finalQty
+        };
+        await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/inventory_logs`), log);
+    }
+
+    window.openInventoryReport = () => {
+        document.getElementById('invReportModal').style.display = 'flex';
+        generateInventoryReport();
+    };
+
+    window.generateInventoryReport = async () => {
+        const filter = document.getElementById('invReportFilter').value;
+        const tbody = document.querySelector('#invReportTable tbody');
+        tbody.innerHTML = '<tr><td colspan="5">Loading...</td></tr>';
+
+        // Query all logs (in production, use compound queries for date range)
+        const q = query(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/inventory_logs`), orderBy('date', 'desc'));
+        const snap = await getDocs(q);
+        
+        const now = new Date();
+        const logs = [];
+        snap.forEach(d => logs.push(d.data()));
+
+        const filtered = logs.filter(l => {
+            const d = new Date(l.date);
+            if(filter === 'daily') return d.toDateString() === now.toDateString();
+            if(filter === 'monthly') return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+            if(filter === 'yearly') return d.getFullYear() === now.getFullYear();
+            return true;
+        });
+
+        tbody.innerHTML = filtered.map(l => `
+            <tr>
+                <td>${new Date(l.date).toLocaleString()}</td>
+                <td>${l.productName}</td>
+                <td><span style="padding:2px 6px; border-radius:4px; font-size:11px; background:${l.action==='SALE'?'#dcfce7':l.action==='DELETE'?'#fee2e2':'#e0f2fe'}">${l.action}</span></td>
+                <td style="color:${l.quantityChange<0?'red':'green'}">${l.quantityChange}</td>
+                <td>${l.finalQty}</td>
+            </tr>
+        `).join('');
+    };
 
     // --- POS ---
     function renderPosGrid() {
         const grid = document.getElementById('posGrid');
-        grid.innerHTML = productsCache.map(p => `
-            <div onclick="addToCart('${p.id}')" style="background:#f9fafb; padding:10px; border-radius:8px; cursor:pointer; text-align:center; border:1px solid #e5e7eb;">
-                <div style="font-weight:600; font-size:13px;">${p.name}</div>
-                <div style="color:var(--primary); font-weight:700;">${formatMoney(p.sell)}</div>
-                <div style="font-size:11px; color:#9ca3af;">Stock: ${p.qty} ${p.unit || ''}</div>
-            </div>
-        `).join('');
+        const term = document.getElementById('posSearch').value.toLowerCase();
+        
+        grid.innerHTML = productsCache
+            .filter(p => p.qty > 0 && p.name.toLowerCase().includes(term)) // HIDE OUT OF STOCK
+            .map(p => {
+                const date = new Date(p.dateAdded).toLocaleDateString();
+                return `
+                <div onclick="addToCart('${p.id}')" style="background:white; padding:10px; border-radius:8px; cursor:pointer; text-align:center; border:1px solid #e5e7eb; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
+                    <div style="font-weight:600; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${p.name}</div>
+                    <div style="color:var(--primary); font-weight:700;">${formatMoney(p.sell)}</div>
+                    <div style="font-size:10px; color:#9ca3af; margin-top:4px;">Stock: ${p.qty} | ${date}</div>
+                </div>`;
+            }).join('');
     }
 
-    window.filterPos = (txt) => {
-        const term = txt.toLowerCase();
-        const cards = document.querySelectorAll('#posGrid > div');
-        cards.forEach(card => {
-            const name = card.querySelector('div').textContent.toLowerCase();
-            card.style.display = name.includes(term) ? 'block' : 'none';
-        });
-    };
+    window.filterPos = () => renderPosGrid();
 
     window.addToCart = (id) => {
         const p = productsCache.find(x => x.id === id);
         if(p.qty < 1) return alert("Out of Stock");
         const exist = cart.find(x => x.id === id);
-        if(exist) exist.qty++; else cart.push({...p, qty: 1});
+        if(exist) {
+            if(exist.qty >= p.qty) return alert("Max stock reached");
+            exist.qty++;
+        } else {
+            cart.push({...p, qty: 1});
+        }
         renderCart();
     };
 
     function renderCart() {
         const con = document.getElementById('cartItems');
         let total = 0;
-        con.innerHTML = cart.map(i => {
+        con.innerHTML = cart.map((i, idx) => {
             total += i.sell * i.qty;
-            return `<div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:14px;">
-                <span>${i.name} x${i.qty}</span>
-                <strong>${formatMoney(i.sell * i.qty)}</strong>
+            return `<div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:13px; align-items:center;">
+                <span>${i.name} (${i.qty})</span>
+                <div>
+                    <strong>${formatMoney(i.sell * i.qty)}</strong>
+                    <button class="btn btn-danger" style="padding:2px 6px; font-size:10px; margin-left:5px;" onclick="removeFromCart(${idx})">X</button>
+                </div>
             </div>`;
         }).join('');
         document.getElementById('cartTotal').textContent = formatMoney(total);
     }
 
+    window.removeFromCart = (idx) => {
+        cart.splice(idx, 1);
+        renderCart();
+    };
+
     window.checkout = async () => {
         if(!cart.length) return;
-        const sale = {
+        const customer = document.getElementById('posCustomer').value || 'Walk-in';
+        
+        // 1. Save Sale
+        const saleData = {
             date: new Date().toISOString(),
             total: cart.reduce((a,b)=>a+(b.sell*b.qty),0),
-            items: cart, // Stores snapshot of buy/sell prices at time of sale
-            customer: document.getElementById('posCustomer').value || 'Walk-in'
+            items: cart,
+            customer
         };
+        await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/sales`), saleData);
         
-        // Save Sale
-        await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/sales`), sale);
-        
-        // Update Stock
+        // 2. Update Stock & Log
         for(let item of cart) {
              const ref = doc(db, `users/${currentUser.uid}/shops/${currentShopId}/products`, item.id);
              const original = productsCache.find(x => x.id === item.id);
-             await updateDoc(ref, { qty: original.qty - item.qty });
+             const newQty = original.qty - item.qty;
+             
+             await updateDoc(ref, { qty: newQty });
+             await logInventory(item.name, 'SALE', `Sold to ${customer}`, -item.qty, newQty);
         }
 
         cart = []; renderCart(); 
         await loadProducts();
-        updateDashboard(); // Update stats immediately
-        alert("Sale Saved!");
+        updateDashboard();
+        alert("Sale Completed!");
     };
 
-    // --- EMPLOYEES & PAYROLL (Advanced Logic) ---
+    // --- EMPLOYEES & PAYROLL (Same as before) ---
     async function loadEmployees() {
         const snap = await getDocs(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/employees`));
         const grid = document.getElementById('empGrid');
@@ -614,16 +684,12 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
 
         snap.forEach(d => {
             const e = {id: d.id, ...d.data()};
-            
-            // Add to Grid
             grid.innerHTML += `
             <div class="card" style="margin:0;">
                 <div style="font-weight:700;">${e.name}</div>
                 <div style="color:#6b7280; font-size:13px;">${e.role}</div>
                 <div style="margin-top:10px; font-weight:600; color:var(--primary)">${formatMoney(e.baseSalary)}/mo</div>
             </div>`;
-
-            // Add to Selects
             const opt = `<option value="${e.id}" data-salary="${e.baseSalary}">${e.name}</option>`;
             select1.innerHTML += opt;
             select2.innerHTML += opt;
@@ -640,19 +706,17 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
         loadEmployees();
     };
 
-    // --- PAYROLL CORE LOGIC ---
     window.saveDailyLog = async () => {
         const empId = document.getElementById('payEmpSelect').value;
         const log = {
             date: document.getElementById('payDate').value,
-            status: document.getElementById('payStatus').value, // 'P' or 'LWP'
+            status: document.getElementById('payStatus').value, 
             ot: Number(document.getElementById('payOT').value),
             advance: Number(document.getElementById('payAdv').value),
             timestamp: new Date()
         };
-        
         await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/employees/${empId}/logs`), log);
-        alert("Daily Log Saved Successfully");
+        alert("Daily Log Saved");
     };
 
     window.calculateSalary = async () => {
@@ -661,13 +725,10 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
         const sel = document.getElementById('calcEmpSelect');
         const baseSalary = Number(sel.options[sel.selectedIndex].dataset.salary);
 
-        // 1. Fetch Logs
         const q = collection(db, `users/${currentUser.uid}/shops/${currentShopId}/employees/${empId}/logs`);
         const snap = await getDocs(q);
         
-        let lwpDays = 0;
-        let totalOtHours = 0;
-        let totalAdvance = 0;
+        let lwpDays = 0, totalOtHours = 0, totalAdvance = 0;
 
         snap.forEach(d => {
             const data = d.data();
@@ -679,16 +740,12 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
             }
         });
 
-        // 2. The Formula
-        // Assumption: 30 days standard month
         const dailyRate = baseSalary / 30;
-        const hourlyRate = dailyRate / 8; // Assuming 8 hour shift
-
+        const hourlyRate = dailyRate / 8;
         const lwpDeduction = lwpDays * dailyRate;
-        const otPayment = totalOtHours * hourlyRate; // No multiplier, or use *1.5 if required
+        const otPayment = totalOtHours * hourlyRate;
         const netSalary = baseSalary - lwpDeduction - totalAdvance + otPayment;
 
-        // 3. Display
         const slip = document.getElementById('salarySlip');
         slip.style.display = 'block';
         slip.innerHTML = `
@@ -703,13 +760,10 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
         `;
     };
 
-    // --- DASHBOARD STATS (UPDATED WITH FILTER & PROFIT) ---
     window.updateDashboard = () => {
-        // Update Static Counters
         document.getElementById('dashLow').textContent = productsCache.filter(p => p.qty < 5).length;
         document.getElementById('dashEmp').textContent = document.querySelectorAll('#empGrid .card').length;
 
-        // Filter Sales
         const filter = document.getElementById('dashTimeFilter').value;
         const now = new Date();
         let totalRevenue = 0;
@@ -717,20 +771,15 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
 
         const filteredSales = salesCache.filter(sale => {
             const saleDate = new Date(sale.date);
-            if (filter === 'daily') {
-                return saleDate.toDateString() === now.toDateString();
-            } else if (filter === 'monthly') {
-                return saleDate.getMonth() === now.getMonth() && saleDate.getFullYear() === now.getFullYear();
-            } else if (filter === 'yearly') {
-                return saleDate.getFullYear() === now.getFullYear();
-            }
+            if (filter === 'daily') return saleDate.toDateString() === now.toDateString();
+            if (filter === 'monthly') return saleDate.getMonth() === now.getMonth() && saleDate.getFullYear() === now.getFullYear();
+            if (filter === 'yearly') return saleDate.getFullYear() === now.getFullYear();
             return true;
         });
 
-        // Calculate Revenue and Profit
         filteredSales.forEach(sale => {
             totalRevenue += sale.total;
-            if (sale.items && Array.isArray(sale.items)) {
+            if (sale.items) {
                 sale.items.forEach(item => {
                     const buyPrice = item.buy || 0;
                     const sellPrice = item.sell || 0;
@@ -743,24 +792,24 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
         document.getElementById('dashSales').textContent = formatMoney(totalRevenue);
         document.getElementById('dashProfit').textContent = formatMoney(totalProfit);
 
-        // Chart Data (Mocking logic to show activity for visual purposes)
         if(window.myChart) window.myChart.destroy();
         const ctx = document.getElementById('salesChart');
         window.myChart = new Chart(ctx, {
             type: 'bar',
             data: {
-                labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+                labels: ['Period 1', 'Period 2', 'Period 3', 'Period 4'],
                 datasets: [{ 
-                    label: 'Income', 
-                    data: [totalRevenue * 0.1, totalRevenue * 0.3, totalRevenue * 0.2, totalRevenue * 0.4], // Placeholder distribution
-                    backgroundColor: '#4F46E5', 
-                    borderRadius: 5 
+                    label: 'Revenue', 
+                    data: [totalRevenue * 0.2, totalRevenue * 0.5, totalRevenue * 0.1, totalRevenue * 0.2], 
+                    backgroundColor: '#4F46E5', borderRadius: 5 
                 }]
             },
             options: { responsive: true, maintainAspectRatio: false }
         });
     };
 
+    // Attach global functions to window
+    window.removeFromCart = removeFromCart;
 </script>
 </body>
 </html>
