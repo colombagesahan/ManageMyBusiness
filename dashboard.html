@@ -232,14 +232,15 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
     import { getFirestore, collection, addDoc, getDocs, doc, setDoc, updateDoc, query, where, orderBy } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
     // 🔴 RE-PASTE FIREBASE CONFIG HERE
-    const firebaseConfig = {
-            apiKey: "YOUR_API_KEY",
-            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-            projectId: "YOUR_PROJECT_ID",
-            storageBucket: "YOUR_PROJECT_ID.appspot.com",
-            messagingSenderId: "SENDER_ID",
-            appId: "APP_ID"
-    };
+   const firebaseConfig = {
+  apiKey: "AIzaSyBHiVsnZH82jAzFnsegYJjTH-j8kWA4pfI",
+  authDomain: "nexgen-bms.firebaseapp.com",
+  projectId: "nexgen-bms",
+  storageBucket: "nexgen-bms.firebasestorage.app",
+  messagingSenderId: "868997252838",
+  appId: "1:868997252838:web:c79c4021b9300bbd675d27",
+  measurementId: "G-L6NFFV4DR1"
+};
 
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
