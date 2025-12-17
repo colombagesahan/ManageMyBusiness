@@ -42,10 +42,15 @@ body { background: var(--bg); display: flex; height: 100vh; overflow: hidden; co
 .grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px; }
 input, select { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; margin-bottom: 10px; font-size: 14px; outline: none; }
 input:focus { border-color: var(--primary); ring: 2px solid var(--primary); }
-input:disabled, select:disabled { background: #f3f4f6; cursor: not-allowed; color: #9ca3af; } /* Disabled state style */
+input:disabled, select:disabled { background: #f3f4f6; cursor: not-allowed; color: #9ca3af; } 
 table { width: 100%; border-collapse: collapse; font-size: 14px; }
 th { text-align: left; padding: 12px; background: #f9fafb; color: #6b7280; font-weight: 600; border-bottom: 1px solid #e5e7eb; white-space: nowrap; }
 td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
+
+/* --- IMAGES --- */
+.prod-thumb { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; border: 1px solid #e5e7eb; }
+.prod-preview { width: 100%; height: 150px; object-fit: contain; border: 2px dashed #d1d5db; border-radius: 8px; margin-bottom: 10px; display: none; }
+.note-box { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; padding: 12px; border-radius: 8px; font-size: 13px; margin-bottom: 15px; line-height: 1.4; }
 
 /* --- VIEWS --- */
 .view { display: none; animation: fade 0.2s; } .view.active { display: block; }
@@ -85,10 +90,10 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 </head>
 <body>
 
-<!-- NEW: TOAST CONTAINER -->
+<!-- TOAST CONTAINER -->
 <div class="toast-container" id="toastContainer"></div>
 
-<!-- NEW: LOADING OVERLAY -->
+<!-- LOADING OVERLAY -->
 <div class="loading-overlay" id="globalLoader">
     <div class="spinner"></div>
     <div style="margin-top: 10px; font-weight: 500; font-size: 14px; color: var(--text);">Processing...</div>
@@ -183,7 +188,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
             </div>
             <div class="card" style="overflow-x:auto;">
                 <table id="prodTable">
-                    <thead><tr><th>Date Added</th><th>Name</th><th>Buy</th><th>Sell</th><th>Stock</th><th>Action</th></tr></thead>
+                    <thead><tr><th>Image</th><th>Date Added</th><th>Name</th><th>Buy</th><th>Sell</th><th>Stock</th><th>Action</th></tr></thead>
                     <tbody></tbody>
                 </table>
             </div>
@@ -254,7 +259,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
     </div>
 </main>
 
-<!-- CHAT BOT (New) -->
+<!-- CHAT BOT -->
 <div class="chat-fab" onclick="toggleChat()">
     <i class="ri-customer-service-2-line"></i>
 </div>
@@ -292,20 +297,34 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 
 <!-- Add/Edit Product -->
 <div id="prodModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:100;">
-    <div class="card" style="width:400px; margin:0;">
+    <div class="card" style="width:450px; margin:0; max-height: 90vh; overflow-y: auto;">
         <h3 id="prodModalTitle">Add Product</h3>
+        
+        <!-- EXPLANATORY NOTE BOX -->
+        <div class="note-box">
+            <i class="ri-information-fill" style="margin-right:5px;"></i>
+            <strong>Batch Management:</strong> Always use <b>+ Add Product</b> for new stock (even same items). Only use "Edit" to fix mistakes or re-price current stock.
+        </div>
+
         <input type="hidden" id="mpId">
+        
+        <label style="font-size:12px; font-weight:600;">Product Image (Required)</label>
+        <input type="file" id="mpPhoto" accept="image/*" style="margin-bottom:10px;">
+        <img id="mpPhotoPreview" class="prod-preview" alt="Preview">
+
         <input id="mpName" placeholder="Product Name">
-        <input id="mpBuy" type="number" placeholder="Buy Price">
-        <input id="mpSell" type="number" placeholder="Sell Price">
+        <input id="mpBuy" type="number" placeholder="Buy Price (>= 0)">
+        <input id="mpSell" type="number" placeholder="Sell Price (> 0)">
+        
         <div style="display:flex; gap:10px; margin-bottom:10px;">
-            <input id="mpQty" type="number" placeholder="Stock Qty" style="flex:1; margin-bottom:0;">
+            <input id="mpQty" type="number" placeholder="Stock Qty (> 0)" style="flex:1; margin-bottom:0;">
             <select id="mpUnit" style="flex:1; margin-bottom:0;">
                 <option value="">No Unit (pcs)</option>
                 <option value="kg">kg</option><option value="g">g</option>
                 <option value="l">l</option><option value="ml">ml</option><option value="m">m</option>
             </select>
         </div>
+        
         <div style="display:flex; gap:10px; margin-top:10px;">
             <button class="btn btn-primary" onclick="saveProduct()">Save</button>
             <button class="btn btn-danger" onclick="document.getElementById('prodModal').style.display='none'">Cancel</button>
@@ -390,7 +409,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
     let cart = [];
     let salesCache = [];
 
-    // --- NEW: UI HELPERS ---
+    // --- UTILS ---
     function showToast(message, type = 'success') {
         const container = document.getElementById('toastContainer');
         const toast = document.createElement('div');
@@ -407,6 +426,14 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
     function toggleLoader(show) {
         document.getElementById('globalLoader').style.display = show ? 'flex' : 'none';
     }
+
+    // Helper: File to Base64
+    const toBase64 = file => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+    });
 
     const worldCurrencies = [
         { code: "USD", symbol: "$" }, { code: "EUR", symbol: "€" }, { code: "GBP", symbol: "£" },
@@ -514,7 +541,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         const snap = await getDocs(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/products`));
         productsCache = [];
         snap.forEach(d => productsCache.push({id: d.id, ...d.data()}));
-        // Sort by Date Descending
         productsCache.sort((a,b) => new Date(b.dateAdded) - new Date(a.dateAdded));
         renderProducts();
         renderPosGrid();
@@ -527,14 +553,18 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         const filtered = productsCache.filter(p => p.name.toLowerCase().includes(term));
 
         if(filtered.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 20px; color: #9ca3af;">No products found. Add one to get started!</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 20px; color: #9ca3af;">No products found. Add one to get started!</td></tr>';
             return;
         }
 
         tbody.innerHTML = filtered.map(p => {
                 const dateStr = p.dateAdded ? new Date(p.dateAdded).toLocaleDateString() : '-';
+                // Use a default icon if image is missing/broken, though validation enforces it.
+                const imgTag = p.image ? `<img src="${p.image}" class="prod-thumb" onclick="window.open(this.src)">` : '<i class="ri-image-line"></i>';
+                
                 return `
                 <tr>
+                    <td>${imgTag}</td>
                     <td style="font-size:12px; color:#666;">${dateStr}</td>
                     <td>${p.name}</td>
                     <td>${formatMoney(p.buy)}</td>
@@ -550,7 +580,19 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 
     window.filterProducts = () => renderProducts();
 
-    // Reset Modal for adding new
+    // UI: Image Preview
+    document.getElementById('mpPhoto').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if(file) {
+            const reader = new FileReader();
+            reader.onload = function(ev) {
+                document.getElementById('mpPhotoPreview').src = ev.target.result;
+                document.getElementById('mpPhotoPreview').style.display = 'block';
+            }
+            reader.readAsDataURL(file);
+        }
+    });
+
     window.prepareAddProduct = () => {
         document.getElementById('mpId').value = '';
         document.getElementById('prodModalTitle').textContent = 'Add Product';
@@ -559,17 +601,20 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         document.getElementById('mpSell').value = '';
         document.getElementById('mpQty').value = '';
         document.getElementById('mpUnit').value = '';
+        document.getElementById('mpPhoto').value = '';
+        document.getElementById('mpPhotoPreview').style.display = 'none';
         
         // UNLOCK ALL FIELDS
         document.getElementById('mpName').disabled = false;
         document.getElementById('mpBuy').disabled = false;
         document.getElementById('mpQty').disabled = false;
         document.getElementById('mpUnit').disabled = false;
+        // Require photo for new adds
+        document.getElementById('mpPhoto').disabled = false;
 
         openModal('prodModal');
     };
 
-    // Load existing for editing
     window.editProduct = (id) => {
         const p = productsCache.find(x => x.id === id);
         if(!p) return;
@@ -580,48 +625,77 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         document.getElementById('mpSell').value = p.sell;
         document.getElementById('mpQty').value = p.qty;
         document.getElementById('mpUnit').value = p.unit || '';
+        
+        if(p.image) {
+            document.getElementById('mpPhotoPreview').src = p.image;
+            document.getElementById('mpPhotoPreview').style.display = 'block';
+        }
 
-        // LOCK FIELDS EXCEPT SELLING PRICE
+        // LOCK FIELDS
         document.getElementById('mpName').disabled = true;
         document.getElementById('mpBuy').disabled = true;
         document.getElementById('mpQty').disabled = true;
         document.getElementById('mpUnit').disabled = true;
+        // Optionally lock photo on edit if strict batching desires
+        document.getElementById('mpPhoto').disabled = true; 
 
         openModal('prodModal');
     };
 
     window.saveProduct = async () => {
         const id = document.getElementById('mpId').value;
-        const name = document.getElementById('mpName').value;
-        const buy = Number(document.getElementById('mpBuy').value);
-        const sell = Number(document.getElementById('mpSell').value);
-        const qty = Number(document.getElementById('mpQty').value);
+        const name = document.getElementById('mpName').value.trim();
+        const buy = parseFloat(document.getElementById('mpBuy').value);
+        const sell = parseFloat(document.getElementById('mpSell').value);
+        const qty = parseFloat(document.getElementById('mpQty').value);
         const unit = document.getElementById('mpUnit').value;
+        const fileInput = document.getElementById('mpPhoto');
 
+        // VALIDATION
+        if(!name) return showToast("Product Name is required", "error");
+        if(isNaN(buy) || buy < 0) return showToast("Buy Price must be 0 or higher", "error");
+        if(isNaN(sell) || sell <= 0) return showToast("Sell Price must be greater than 0", "error");
+        if(isNaN(qty) || qty <= 0) return showToast("Quantity must be greater than 0", "error");
+
+        let imageBase64 = null;
+        
+        // If Adding New Product (No ID), Image is mandatory
+        if(!id) {
+            if(fileInput.files.length === 0) return showToast("Product Image is required", "error");
+            // Basic size check (optional)
+            if(fileInput.files[0].size > 500000) return showToast("Image too large. Max 500KB", "error"); // 500KB limit
+            imageBase64 = await toBase64(fileInput.files[0]);
+        } 
+        // If Editing, keep old image if no new one
+        else {
+             const p = productsCache.find(x => x.id === id);
+             imageBase64 = p.image; // Keep existing
+        }
+
+        const productData = { name, buy, sell, qty, unit, image: imageBase64 };
+
+        // Price Warning Check
         if (sell < buy) {
             document.getElementById('priceWarningMsg').innerHTML = `Loss: ${formatMoney(sell - buy)} per unit`;
             document.getElementById('priceWarningModal').style.display = 'flex';
             document.getElementById('btnConfirmSaveAny').onclick = async () => {
                  document.getElementById('priceWarningModal').style.display = 'none';
-                 await finalizeProductSave(id, { name, buy, sell, qty, unit });
+                 await finalizeProductSave(id, productData);
             };
             return;
         }
-        await finalizeProductSave(id, { name, buy, sell, qty, unit });
+        await finalizeProductSave(id, productData);
     };
 
     async function finalizeProductSave(id, data) {
         toggleLoader(true);
-        // Determine Action Type
         const isEdit = !!id;
         
         if(isEdit) {
-            // Log Changes (Simple logic: we just log that it was edited)
             const oldP = productsCache.find(x => x.id === id);
-            await updateDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/products`, id), data);
-            await logInventory(data.name, 'EDIT', `Stock updated to ${data.qty}`, data.qty - oldP.qty, data.qty);
+            await updateDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/products`, id), { sell: data.sell }); // Only update sell price in edit
+            await logInventory(data.name, 'EDIT', `Price updated: ${formatMoney(oldP.sell)} -> ${formatMoney(data.sell)}`, 0, data.qty);
         } else {
-            // New Batch
             data.dateAdded = new Date().toISOString();
             await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/products`), data);
             await logInventory(data.name, 'ADD', 'New Stock Batch', data.qty, data.qty);
@@ -650,7 +724,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         const log = {
             date: new Date().toISOString(),
             productName: name,
-            action, // ADD, EDIT, DELETE, SALE
+            action, 
             description: desc,
             quantityChange: change,
             finalQty: finalQty
@@ -668,7 +742,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         const tbody = document.querySelector('#invReportTable tbody');
         tbody.innerHTML = '<tr><td colspan="5">Loading...</td></tr>';
 
-        // Query all logs (in production, use compound queries for date range)
         const q = query(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/inventory_logs`), orderBy('date', 'desc'));
         const snap = await getDocs(q);
         
@@ -715,8 +788,10 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         grid.innerHTML = filtered
             .map(p => {
                 const date = new Date(p.dateAdded).toLocaleDateString();
+                const imgTag = p.image ? `<img src="${p.image}" style="width:100%; height:80px; object-fit:contain; margin-bottom:5px;">` : '';
                 return `
                 <div onclick="addToCart('${p.id}')" style="background:white; padding:10px; border-radius:8px; cursor:pointer; text-align:center; border:1px solid #e5e7eb; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
+                    ${imgTag}
                     <div style="font-weight:600; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${p.name}</div>
                     <div style="color:var(--primary); font-weight:700;">${formatMoney(p.sell)}</div>
                     <div style="font-size:10px; color:#9ca3af; margin-top:4px;">Stock: ${p.qty} | ${date}</div>
