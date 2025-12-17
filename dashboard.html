@@ -42,6 +42,7 @@ body { background: var(--bg); display: flex; height: 100vh; overflow: hidden; co
 .grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px; }
 input, select { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; margin-bottom: 10px; font-size: 14px; outline: none; }
 input:focus { border-color: var(--primary); ring: 2px solid var(--primary); }
+input:disabled, select:disabled { background: #f3f4f6; cursor: not-allowed; color: #9ca3af; } /* Disabled state style */
 table { width: 100%; border-collapse: collapse; font-size: 14px; }
 th { text-align: left; padding: 12px; background: #f9fafb; color: #6b7280; font-weight: 600; border-bottom: 1px solid #e5e7eb; white-space: nowrap; }
 td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
@@ -506,6 +507,13 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         document.getElementById('mpSell').value = '';
         document.getElementById('mpQty').value = '';
         document.getElementById('mpUnit').value = '';
+        
+        // UNLOCK ALL FIELDS
+        document.getElementById('mpName').disabled = false;
+        document.getElementById('mpBuy').disabled = false;
+        document.getElementById('mpQty').disabled = false;
+        document.getElementById('mpUnit').disabled = false;
+
         openModal('prodModal');
     };
 
@@ -520,6 +528,13 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         document.getElementById('mpSell').value = p.sell;
         document.getElementById('mpQty').value = p.qty;
         document.getElementById('mpUnit').value = p.unit || '';
+
+        // LOCK FIELDS EXCEPT SELLING PRICE
+        document.getElementById('mpName').disabled = true;
+        document.getElementById('mpBuy').disabled = true;
+        document.getElementById('mpQty').disabled = true;
+        document.getElementById('mpUnit').disabled = true;
+
         openModal('prodModal');
     };
 
@@ -882,5 +897,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         }, 500);
     };
 </script>
+
 </body>
 </html>
