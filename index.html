@@ -3,70 +3,292 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ManageMyBusiness | Enterprise Management</title>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <title>ManageMyBusiness | The Smart Operating System for Retail</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
     <style>
-        :root { --primary: #6366f1; --dark: #0f172a; }
+        :root { --primary: #6366f1; --primary-dark: #4f46e5; --dark: #0f172a; --light: #f8fafc; --gray: #64748b; }
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }
-        body { background: #f8fafc; color: var(--dark); }
+        body { background: #fff; color: var(--dark); line-height: 1.6; }
+        a { text-decoration: none; color: inherit; transition: 0.3s; }
+        ul { list-style: none; }
         
-        .navbar { display: flex; justify-content: space-between; align-items: center; padding: 20px 5%; background: white; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .logo { font-size: 24px; font-weight: 800; color: var(--primary); display: flex; align-items: center; gap: 8px; }
+        /* Layout Utilities */
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 5%; }
+        .section-padding { padding: 80px 0; }
+        .text-center { text-align: center; }
+        .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; }
         
-        .hero { min-height: 90vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 20px; background: radial-gradient(circle at top, #e0e7ff 0%, transparent 40%); }
-        h1 { font-size: 3.5rem; line-height: 1.1; margin-bottom: 20px; font-weight: 800; letter-spacing: -1px; }
-        h1 span { color: var(--primary); }
-        p { font-size: 1.25rem; color: #64748b; max-width: 600px; margin-bottom: 40px; }
+        /* Navbar */
+        .navbar { display: flex; justify-content: space-between; align-items: center; padding: 20px 5%; background: white; position: sticky; top: 0; z-index: 1000; border-bottom: 1px solid #f1f5f9; }
+        .logo { font-size: 22px; font-weight: 800; color: var(--primary); display: flex; align-items: center; gap: 8px; }
+        .nav-links { display: flex; gap: 30px; font-weight: 500; color: var(--dark); }
+        .nav-links a:hover { color: var(--primary); }
         
-        .btn-google {
-            background: white; color: #333; padding: 16px 32px; border-radius: 50px;
-            font-weight: 600; font-size: 1.1rem; border: 1px solid #e2e8f0;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); cursor: pointer;
-            display: inline-flex; align-items: center; gap: 12px; transition: transform 0.2s;
-        }
-        .btn-google:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
-        
-        .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; padding: 80px 5%; }
-        .feature-card { background: white; padding: 40px; border-radius: 24px; border: 1px solid #f1f5f9; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02); transition: 0.3s; }
-        .feature-card:hover { transform: translateY(-5px); border-color: var(--primary); }
-        .icon-box { width: 50px; height: 50px; background: #e0e7ff; color: var(--primary); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; margin-bottom: 20px; }
+        /* Buttons */
+        .btn { padding: 12px 24px; border-radius: 50px; font-weight: 600; cursor: pointer; border: none; transition: 0.3s; display: inline-flex; align-items: center; gap: 8px; font-size: 1rem; }
+        .btn-primary { background: var(--primary); color: white; box-shadow: 0 4px 10px rgba(99, 102, 241, 0.3); }
+        .btn-primary:hover { background: var(--primary-dark); transform: translateY(-2px); }
+        .btn-outline { border: 1px solid #e2e8f0; background: white; color: var(--dark); }
+        .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+        .btn-google { background: white; color: #333; border: 1px solid #e2e8f0; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .btn-google:hover { box-shadow: 0 4px 10px rgba(0,0,0,0.1); transform: translateY(-1px); }
 
-        @media(max-width: 768px) { h1 { font-size: 2.5rem; } }
+        /* Hero */
+        .hero { padding: 120px 0 80px; text-align: center; background: radial-gradient(circle at 50% 0%, #e0e7ff 0%, #fff 60%); }
+        h1 { font-size: 3.5rem; line-height: 1.1; margin-bottom: 24px; font-weight: 800; letter-spacing: -1px; color: var(--dark); }
+        h1 span { color: var(--primary); background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .hero-sub { font-size: 1.25rem; color: var(--gray); max-width: 700px; margin: 0 auto 40px; }
+        .hero-actions { display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; }
+        .trust-badge { margin-top: 40px; font-size: 0.9rem; color: var(--gray); display: flex; align-items: center; justify-content: center; gap: 10px; }
+
+        /* Features/Benefits */
+        .benefit-card { padding: 30px; border-radius: 20px; background: #fff; border: 1px solid #f1f5f9; transition: 0.3s; }
+        .benefit-card:hover { transform: translateY(-5px); border-color: var(--primary); box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
+        .icon-box { width: 60px; height: 60px; background: #e0e7ff; color: var(--primary); border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 28px; margin-bottom: 20px; }
+        .benefit-card h3 { font-size: 1.25rem; margin-bottom: 10px; font-weight: 700; }
+        .benefit-card p { color: var(--gray); font-size: 0.95rem; }
+
+        /* Social Proof */
+        .testimonials { background: #f8fafc; }
+        .testi-card { background: white; padding: 25px; border-radius: 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.03); }
+        .stars { color: #f59e0b; margin-bottom: 15px; }
+        .user-info { display: flex; align-items: center; gap: 10px; margin-top: 20px; }
+        .user-avatar { width: 40px; height: 40px; background: #cbd5e1; border-radius: 50%; }
+        
+        /* Pricing */
+        .pricing-card { border: 1px solid #e2e8f0; border-radius: 24px; padding: 40px; text-align: left; position: relative; background: white; }
+        .pricing-card.featured { border: 2px solid var(--primary); box-shadow: 0 10px 40px rgba(99, 102, 241, 0.1); }
+        .price { font-size: 2.5rem; font-weight: 800; color: var(--dark); margin: 20px 0 5px; }
+        .price span { font-size: 1rem; color: var(--gray); font-weight: 500; }
+        .plan-features { margin: 30px 0; }
+        .plan-features li { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; color: var(--gray); font-size: 0.95rem; }
+        .plan-features li i { color: var(--success); color: #10b981; }
+        .badge { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: var(--primary); color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; }
+
+        /* Footer */
+        footer { background: #0f172a; color: white; padding: 60px 0 20px; font-size: 0.9rem; }
+        .footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 40px; margin-bottom: 40px; }
+        .footer-logo { font-size: 1.5rem; font-weight: 700; color: white; margin-bottom: 15px; display: block; }
+        .footer-links h4 { color: white; margin-bottom: 20px; font-weight: 600; }
+        .footer-links li { margin-bottom: 10px; }
+        .footer-links a { color: #94a3b8; }
+        .footer-links a:hover { color: white; }
+        .legal { border-top: 1px solid #1e293b; padding-top: 20px; text-align: center; color: #64748b; }
+
+        @media(max-width: 768px) { 
+            h1 { font-size: 2.5rem; } 
+            .nav-links { display: none; }
+            .hero-actions { flex-direction: column; align-items: center; }
+            .footer-grid { grid-template-columns: 1fr; }
+        }
     </style>
 </head>
 <body>
+    <!-- Navbar -->
     <nav class="navbar">
         <div class="logo"><i class="ri-pie-chart-2-fill"></i> ManageMyBusiness</div>
-        <button class="btn-google" style="padding: 8px 16px; font-size: 14px;" id="loginBtnNav">Sign In</button>
+        <ul class="nav-links">
+            <li><a href="#features">Features</a></li>
+            <li><a href="#pricing">Pricing</a></li>
+            <li><a href="#testimonials">Reviews</a></li>
+        </ul>
+        <button class="btn btn-outline" style="padding: 8px 20px; font-size: 14px;" id="loginBtnNav">
+            <i class="ri-login-box-line"></i> Sign In
+        </button>
     </nav>
 
+    <!-- Hero Section -->
     <header class="hero">
-        <h1>Smart Management for <br><span>Modern Business</span></h1>
-        <p>Unlimited shops. Advanced Payroll with OT & LWP. Real-time Inventory. All secured with your Google Account.</p>
-        <button id="loginBtnMain" class="btn-google">
-            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="24" alt="G">
-            Continue with Google
-        </button>
+        <div class="container">
+            <div style="display:inline-block; padding: 6px 12px; background: #e0e7ff; color: var(--primary); border-radius: 30px; font-size: 0.85rem; font-weight: 600; margin-bottom: 20px;">
+                ✨ The #1 ERP for Small Business
+            </div>
+            <h1>Stop Guessing.<br><span>Start Growing.</span></h1>
+            <p class="hero-sub">The all-in-one platform for Inventory, POS, and Payroll. Track every penny, manage multiple shops, and automate your workflow in seconds.</p>
+            
+            <div class="hero-actions">
+                <button id="loginBtnMain" class="btn btn-primary btn-google">
+                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="20" alt="G">
+                    Get Started with Google
+                </button>
+                <button class="btn btn-outline" onclick="document.getElementById('features').scrollIntoView()">
+                    View Demo
+                </button>
+            </div>
+
+            <div class="trust-badge">
+                <i class="ri-shield-check-fill" style="color: #10b981;"></i> Secure Cloud Storage • No Credit Card Required
+            </div>
+        </div>
     </header>
 
-    <section class="features">
-        <div class="feature-card">
-            <div class="icon-box"><i class="ri-store-2-line"></i></div>
-            <h3>Multi-Shop Architecture</h3>
-            <p>Manage multiple businesses from one dashboard. Switch between shops instantly without relogging.</p>
-        </div>
-        <div class="feature-card">
-            <div class="icon-box"><i class="ri-calculator-line"></i></div>
-            <h3>Advanced Payroll AI</h3>
-            <p>Auto-calculate salaries based on Daily Logs: Basic - LWP - Advances + Overtime.</p>
-        </div>
-        <div class="feature-card">
-            <div class="icon-box"><i class="ri-shopping-cart-fill"></i></div>
-            <h3>Smart POS</h3>
-            <p>Lightning fast checkout. Cart management, stock deduction, and thermal invoice printing.</p>
+    <!-- Benefits / Features -->
+    <section id="features" class="section-padding">
+        <div class="container">
+            <div class="text-center" style="margin-bottom: 60px;">
+                <h2 style="font-size: 2.5rem; font-weight: 800; margin-bottom: 10px;">Everything you need to run your shop</h2>
+                <p style="color: var(--gray);">Replace your messy spreadsheets with one smart dashboard.</p>
+            </div>
+            
+            <div class="grid-3">
+                <div class="benefit-card">
+                    <div class="icon-box"><i class="ri-stock-line"></i></div>
+                    <h3>Batch Inventory</h3>
+                    <p>Track new vs. old stock prices automatically. Never lose money on price changes again with our smart batching system.</p>
+                </div>
+                <div class="benefit-card">
+                    <div class="icon-box"><i class="ri-calculator-line"></i></div>
+                    <h3>Automated Payroll</h3>
+                    <p>Stop doing math. We calculate salaries based on daily logs, LWP, advances, and overtime automatically.</p>
+                </div>
+                <div class="benefit-card">
+                    <div class="icon-box"><i class="ri-shopping-cart-2-line"></i></div>
+                    <h3>Lightning POS</h3>
+                    <p>Checkout customers in seconds. Works on mobile, tablet, and desktop. Print thermal receipts instantly.</p>
+                </div>
+                <div class="benefit-card">
+                    <div class="icon-box"><i class="ri-store-3-line"></i></div>
+                    <h3>Multi-Shop Support</h3>
+                    <p>Running a chain? Manage unlimited locations from a single admin account. Switch shops with one click.</p>
+                </div>
+                <div class="benefit-card">
+                    <div class="icon-box"><i class="ri-file-chart-line"></i></div>
+                    <h3>Smart Reports</h3>
+                    <p>Generate daily, monthly, and yearly reports. Know exactly what you sold and how much profit you made.</p>
+                </div>
+                <div class="benefit-card">
+                    <div class="icon-box"><i class="ri-cloud-line"></i></div>
+                    <h3>Cloud Secured</h3>
+                    <p>Your data is encrypted and stored safely on Google Cloud. Access your business from anywhere in the world.</p>
+                </div>
+            </div>
         </div>
     </section>
+
+    <!-- Social Proof -->
+    <section id="testimonials" class="section-padding testimonials">
+        <div class="container">
+            <div class="text-center" style="margin-bottom: 50px;">
+                <h2 style="font-size: 2rem; font-weight: 800;">Trusted by 500+ Business Owners</h2>
+            </div>
+            <div class="grid-3">
+                <div class="testi-card">
+                    <div class="stars"><i class="ri-star-fill"></i><i class="ri-star-fill"></i><i class="ri-star-fill"></i><i class="ri-star-fill"></i><i class="ri-star-fill"></i></div>
+                    <p>"The batch inventory feature saved me so much money. I used to sell new stock at old prices by mistake. Not anymore!"</p>
+                    <div class="user-info">
+                        <div class="user-avatar" style="background: #e2e8f0;"></div>
+                        <div><strong>Sarah J.</strong><br><small style="color:var(--gray)">Retail Owner</small></div>
+                    </div>
+                </div>
+                <div class="testi-card">
+                    <div class="stars"><i class="ri-star-fill"></i><i class="ri-star-fill"></i><i class="ri-star-fill"></i><i class="ri-star-fill"></i><i class="ri-star-fill"></i></div>
+                    <p>"Payroll used to take me 2 days. With ManageMyBusiness, it takes 5 minutes. The auto-calculation is a lifesaver."</p>
+                    <div class="user-info">
+                        <div class="user-avatar" style="background: #e2e8f0;"></div>
+                        <div><strong>Mike T.</strong><br><small style="color:var(--gray)">Restaurant Manager</small></div>
+                    </div>
+                </div>
+                <div class="testi-card">
+                    <div class="stars"><i class="ri-star-fill"></i><i class="ri-star-fill"></i><i class="ri-star-fill"></i><i class="ri-star-fill"></i><i class="ri-star-fill"></i></div>
+                    <p>"Simple, clean, and fast. I can check my sales from home while my staff runs the shop. Highly recommended."</p>
+                    <div class="user-info">
+                        <div class="user-avatar" style="background: #e2e8f0;"></div>
+                        <div><strong>Priya K.</strong><br><small style="color:var(--gray)">Fashion Boutique</small></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pricing -->
+    <section id="pricing" class="section-padding">
+        <div class="container">
+            <div class="text-center" style="margin-bottom: 60px;">
+                <h2 style="font-size: 2.5rem; font-weight: 800;">Simple, Transparent Pricing</h2>
+                <p style="color: var(--gray);">No hidden fees. Cancel anytime.</p>
+            </div>
+            
+            <div class="grid-3">
+                <div class="pricing-card">
+                    <h3>Starter</h3>
+                    <div class="price">$0 <span>/month</span></div>
+                    <p style="color:var(--gray)">Perfect for testing.</p>
+                    <ul class="plan-features">
+                        <li><i class="ri-checkbox-circle-fill"></i> 1 Shop</li>
+                        <li><i class="ri-checkbox-circle-fill"></i> 50 Products</li>
+                        <li><i class="ri-checkbox-circle-fill"></i> Basic Reporting</li>
+                    </ul>
+                    <button class="btn btn-outline" style="width:100%">Current Plan</button>
+                </div>
+                
+                <div class="pricing-card featured">
+                    <div class="badge">MOST POPULAR</div>
+                    <h3>Pro Business</h3>
+                    <div class="price">$29 <span>/month</span></div>
+                    <p style="color:var(--gray)">For growing retailers.</p>
+                    <ul class="plan-features">
+                        <li><i class="ri-checkbox-circle-fill"></i> Unlimited Shops</li>
+                        <li><i class="ri-checkbox-circle-fill"></i> Unlimited Products</li>
+                        <li><i class="ri-checkbox-circle-fill"></i> Advanced Payroll</li>
+                        <li><i class="ri-checkbox-circle-fill"></i> Priority Support</li>
+                    </ul>
+                    <button class="btn btn-primary" style="width:100%">Start Free Trial</button>
+                </div>
+
+                <div class="pricing-card">
+                    <h3>Enterprise</h3>
+                    <div class="price">Custom</div>
+                    <p style="color:var(--gray)">For large chains.</p>
+                    <ul class="plan-features">
+                        <li><i class="ri-checkbox-circle-fill"></i> Custom API Access</li>
+                        <li><i class="ri-checkbox-circle-fill"></i> Dedicated Manager</li>
+                        <li><i class="ri-checkbox-circle-fill"></i> White Labeling</li>
+                    </ul>
+                    <button class="btn btn-outline" style="width:100%">Contact Sales</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="footer-grid">
+                <div>
+                    <span class="footer-logo"><i class="ri-pie-chart-2-fill"></i> ManageMyBusiness</span>
+                    <p style="color: #94a3b8; max-width: 300px;">The all-in-one business operating system designed for modern entrepreneurs.</p>
+                </div>
+                <div class="footer-links">
+                    <h4>Product</h4>
+                    <ul>
+                        <li><a href="#features">Features</a></li>
+                        <li><a href="#pricing">Pricing</a></li>
+                        <li><a href="#">Updates</a></li>
+                    </ul>
+                </div>
+                <div class="footer-links">
+                    <h4>Company</h4>
+                    <ul>
+                        <li><a href="#">About Us</a></li>
+                        <li><a href="#">Careers</a></li>
+                        <li><a href="#">Contact</a></li>
+                    </ul>
+                </div>
+                <div class="footer-links">
+                    <h4>Legal</h4>
+                    <ul>
+                        <li><a href="#">Privacy Policy</a></li>
+                        <li><a href="#">Terms of Service</a></li>
+                        <li><a href="#">Refund Policy</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="legal">
+                &copy; 2025 ManageMyBusiness. All rights reserved.
+            </div>
+        </div>
+    </footer>
 
     <!-- FIREBASE SETUP -->
     <script type="module">
@@ -74,7 +296,7 @@
         import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 
         // 🔴 PASTE YOUR FIREBASE CONFIG HERE
-       const firebaseConfig = {
+        const firebaseConfig = {
   apiKey: "AIzaSyCZrmkX2RsJTbn4j-WmbuCMudWaETMvXwQ",
   authDomain: "managemybusiness-b4afb.firebaseapp.com",
   projectId: "managemybusiness-b4afb",
@@ -94,6 +316,7 @@
                 .catch(err => alert("Login Failed: " + err.message));
         };
 
+        // Attach listeners to both buttons
         document.getElementById('loginBtnNav').addEventListener('click', handleLogin);
         document.getElementById('loginBtnMain').addEventListener('click', handleLogin);
 
