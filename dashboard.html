@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard | NexGen BMS</title>
+<link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+/* --- DESIGN SYSTEM --- */
+:root {
+    --primary: #4F46E5; --bg: #f3f4f6; --card: #ffffff; --text: #1f2937;
+    --sidebar-w: 260px; --header-h: 70px;
+    --danger: #ef4444; --success: #10b981;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
+body { background: var(--bg); display: flex; height: 100vh; overflow: hidden; color: var(--text); }
+
+/* --- SIDEBAR --- */
+.sidebar { width: var(--sidebar-w); background: #111827; color: white; display: flex; flex-direction: column; flex-shrink: 0; transition: 0.3s; z-index: 50; }
+.brand { height: var(--header-h); display: flex; align-items: center; padding: 0 24px; font-weight: 700; font-size: 18px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.nav { padding: 20px 0; overflow-y: auto; flex: 1; }
+.nav-item { display: flex; align-items: center; gap: 12px; padding: 12px 24px; color: #9ca3af; text-decoration: none; cursor: pointer; transition: 0.2s; font-size: 14px; }
+.nav-item:hover, .nav-item.active { color: white; background: rgba(255,255,255,0.05); border-left: 3px solid var(--primary); }
+.nav-group { margin-top: 20px; padding: 0 24px; font-size: 11px; text-transform: uppercase; color: #6b7280; letter-spacing: 1px; font-weight: 700; }
+
+/* --- MAIN --- */
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+.header { height: var(--header-h); background: var(--card); border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; padding: 0 24px; }
+.shop-select { background: #f9fafb; border: 1px solid #e5e7eb; padding: 8px 12px; border-radius: 8px; font-size: 14px; outline: none; min-width: 200px; }
+.content { flex: 1; overflow-y: auto; padding: 24px; }
+
+/* --- COMPONENTS --- */
+.card { background: var(--card); border-radius: 16px; padding: 24px; box-shadow: 0 1px 3px 0 rgba(0,0,0,0.1); margin-bottom: 24px; border: 1px solid #e5e7eb; }
+.btn { padding: 10px 20px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; transition: 0.2s; font-size: 14px; display: inline-flex; align-items: center; gap: 6px; }
+.btn-primary { background: var(--primary); color: white; } .btn-primary:hover { background: #4338ca; }
+.btn-danger { background: var(--danger); color: white; }
+.grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px; }
+input, select { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; margin-bottom: 10px; font-size: 14px; outline: none; }
+input:focus { border-color: var(--primary); ring: 2px solid var(--primary); }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th { text-align: left; padding: 12px; background: #f9fafb; color: #6b7280; font-weight: 600; border-bottom: 1px solid #e5e7eb; }
+td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
+
+/* --- VIEWS --- */
+.view { display: none; animation: fade 0.2s; } .view.active { display: block; }
+@keyframes fade { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+/* --- MOBILE --- */
+@media(max-width: 768px) {
+    .sidebar { position: absolute; left: -100%; height: 100%; width: 80%; }
+    .sidebar.open { left: 0; }
+    .mobile-toggle { display: block; font-size: 24px; cursor: pointer; margin-right: 15px; }
+} .mobile-toggle { display: none; }
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+    <div class="brand"><i class="ri-pie-chart-2-fill" style="margin-right:10px;"></i> NexGen BMS</div>
+    <div class="nav">
+        <div class="nav-group">Main</div>
+        <a class="nav-item active" onclick="loadView('dashboard')"><i class="ri-dashboard-line"></i> Dashboard</a>
+        <a class="nav-item" onclick="loadView('pos')"><i class="ri-shopping-cart-2-line"></i> Smart POS</a>
+        
+        <div class="nav-group">Inventory</div>
+        <a class="nav-item" onclick="loadView('products')"><i class="ri-box-3-line"></i> Products & Stock</a>
+        <a class="nav-item" onclick="loadView('services')"><i class="ri-service-line"></i> Services</a>
+
+        <div class="nav-group">HR & Admin</div>
+        <a class="nav-item" onclick="loadView('employees')"><i class="ri-team-line"></i> Employees</a>
+        <a class="nav-item" onclick="loadView('payroll')"><i class="ri-calculator-line"></i> Payroll Processor</a>
+        <a class="nav-item" onclick="loadView('customers')"><i class="ri-user-heart-line"></i> Customers</a>
+    </div>
+    <div style="padding: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
+        <div style="font-size: 12px; opacity: 0.7;">Logged in as</div>
+        <div id="userEmail" style="font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis;">...</div>
+        <button onclick="logout()" style="color: #f87171; background: none; border: none; margin-top: 10px; cursor: pointer; font-size: 12px;">Logout</button>
+    </div>
+</aside>
+
+<!-- MAIN CONTENT -->
+<main class="main">
+    <header class="header">
+        <div style="display:flex; align-items:center;">
+            <i class="ri-menu-2-line mobile-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')"></i>
+            <h3 id="pageTitle">Overview</h3>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <select class="shop-select" id="shopSelector" onchange="changeShop()">
+                <option value="">Loading Shops...</option>
+            </select>
+            <button class="btn btn-primary" onclick="createNewShop()" style="padding: 8px 12px;">+ Shop</button>
+        </div>
+    </header>
+
+    <div class="content" id="appContent">
+
+        <!-- 1. DASHBOARD HOME -->
+        <div id="view-dashboard" class="view active">
+            <div class="grid-4">
+                <div class="card">
+                    <div style="color:#6b7280; font-size:13px;">Total Sales</div>
+                    <div style="font-size:28px; font-weight:700;" id="dashSales">$0.00</div>
+                </div>
+                <div class="card">
+                    <div style="color:#6b7280; font-size:13px;">Low Stock Items</div>
+                    <div style="font-size:28px; font-weight:700; color:var(--danger)" id="dashLow">0</div>
+                </div>
+                <div class="card">
+                    <div style="color:#6b7280; font-size:13px;">Employees</div>
+                    <div style="font-size:28px; font-weight:700;" id="dashEmp">0</div>
+                </div>
+            </div>
+            <div class="card" style="height: 300px;">
+                <canvas id="salesChart"></canvas>
+            </div>
+        </div>
+
+        <!-- 2. PRODUCTS -->
+        <div id="view-products" class="view">
+            <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
+                <input placeholder="Search products..." style="max-width:300px; margin:0;" id="prodSearch">
+                <button class="btn btn-primary" onclick="openModal('prodModal')">+ Add Product</button>
+            </div>
+            <div class="card" style="overflow-x:auto;">
+                <table id="prodTable">
+                    <thead><tr><th>Name</th><th>Buy</th><th>Sell</th><th>Stock</th><th>Action</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 3. SMART POS -->
+        <div id="view-pos" class="view">
+            <div style="display:grid; grid-template-columns: 2fr 1fr; gap:20px;">
+                <div class="card">
+                    <input id="posSearch" placeholder="Scan barcode or type name..." onkeyup="filterPos(this.value)">
+                    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap:10px; max-height:500px; overflow-y:auto;" id="posGrid"></div>
+                </div>
+                <div class="card" style="display:flex; flex-direction:column;">
+                    <h3>Current Order</h3>
+                    <div id="cartItems" style="flex:1; overflow-y:auto; margin:15px 0;"></div>
+                    <div style="border-top:1px solid #eee; padding-top:10px;">
+                        <div style="display:flex; justify-content:space-between; font-weight:700; font-size:18px;">
+                            <span>Total</span><span id="cartTotal">$0.00</span>
+                        </div>
+                        <input id="posCustomer" placeholder="Customer Name (Optional)" style="margin-top:10px;">
+                        <button class="btn btn-primary" style="width:100%; justify-content:center; margin-top:10px;" onclick="checkout()">Complete Sale</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. EMPLOYEES -->
+        <div id="view-employees" class="view">
+            <div style="text-align:right; margin-bottom:15px;">
+                <button class="btn btn-primary" onclick="openModal('empModal')">+ Add Employee</button>
+            </div>
+            <div class="grid-4" id="empGrid"></div>
+        </div>
+
+        <!-- 5. ADVANCED PAYROLL (The Requested Feature) -->
+        <div id="view-payroll" class="view">
+            <div class="card">
+                <h3>Daily Log Entry</h3>
+                <p style="color:#6b7280; font-size:13px; margin-bottom:15px;">Log attendance, advances, and OT daily.</p>
+                <div class="grid-4" style="align-items:end;">
+                    <div><label>Employee</label><select id="payEmpSelect"></select></div>
+                    <div><label>Date</label><input type="date" id="payDate"></div>
+                    <div><label>Status</label><select id="payStatus"><option value="P">Present</option><option value="LWP">Leave Without Pay (LWP)</option></select></div>
+                    <div><label>OT (Hours)</label><input type="number" id="payOT" value="0"></div>
+                    <div><label>Advance ($)</label><input type="number" id="payAdv" value="0"></div>
+                    <button class="btn btn-primary" onclick="saveDailyLog()">Save Log</button>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3>Calculate Monthly Salary</h3>
+                <div style="display:flex; gap:10px; margin-bottom:15px;">
+                    <select id="calcEmpSelect" style="max-width:200px;"></select>
+                    <select id="calcMonth" style="max-width:150px;">
+                        <option value="0">January</option><option value="1">February</option><option value="2">March</option>
+                        <option value="11">December</option>
+                    </select>
+                    <button class="btn btn-primary" onclick="calculateSalary()">Generate Slip</button>
+                </div>
+                <div id="salarySlip" style="background:#f0fdf4; border:1px solid #bbf7d0; padding:20px; border-radius:12px; display:none;"></div>
+            </div>
+        </div>
+
+    </div>
+</main>
+
+<!-- MODALS -->
+<!-- Add Product Modal -->
+<div id="prodModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:100;">
+    <div class="card" style="width:400px; margin:0;">
+        <h3>Add Product</h3>
+        <input id="mpName" placeholder="Product Name">
+        <input id="mpBuy" type="number" placeholder="Buy Price">
+        <input id="mpSell" type="number" placeholder="Sell Price">
+        <input id="mpQty" type="number" placeholder="Stock Qty">
+        <div style="display:flex; gap:10px; margin-top:10px;">
+            <button class="btn btn-primary" onclick="saveProduct()">Save</button>
+            <button class="btn btn-danger" onclick="document.getElementById('prodModal').style.display='none'">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- Add Employee Modal -->
+<div id="empModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:100;">
+    <div class="card" style="width:400px; margin:0;">
+        <h3>Add Employee</h3>
+        <input id="meName" placeholder="Full Name">
+        <input id="meRole" placeholder="Role">
+        <input id="meSalary" type="number" placeholder="Base Monthly Salary">
+        <div style="display:flex; gap:10px; margin-top:10px;">
+            <button class="btn btn-primary" onclick="saveEmployee()">Save</button>
+            <button class="btn btn-danger" onclick="document.getElementById('empModal').style.display='none'">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- LOGIC -->
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+    import { getAuth, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+    import { getFirestore, collection, addDoc, getDocs, doc, setDoc, updateDoc, query, where, orderBy } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+    // 🔴 RE-PASTE FIREBASE CONFIG HERE
+    const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT_ID.appspot.com",
+            messagingSenderId: "SENDER_ID",
+            appId: "APP_ID"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    let currentUser = null;
+    let currentShopId = null;
+    let productsCache = [];
+    let cart = [];
+
+    // --- AUTH & INIT ---
+    onAuthStateChanged(auth, async (user) => {
+        if (!user) window.location.href = "index.html";
+        currentUser = user;
+        document.getElementById('userEmail').textContent = user.email;
+        await loadShops();
+    });
+
+    window.logout = () => signOut(auth);
+
+    // --- MULTI-SHOP LOGIC ---
+    async function loadShops() {
+        const q = collection(db, `users/${currentUser.uid}/shops`);
+        const snap = await getDocs(q);
+        const select = document.getElementById('shopSelector');
+        select.innerHTML = '';
+        
+        let shops = [];
+        snap.forEach(d => shops.push({id: d.id, ...d.data()}));
+
+        if(shops.length === 0) {
+            await createNewShop(true); // Auto create first shop
+            return;
+        }
+
+        shops.forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s.id; opt.text = s.name;
+            select.appendChild(opt);
+        });
+
+        currentShopId = shops[0].id;
+        select.value = currentShopId;
+        refreshData();
+    }
+
+    window.createNewShop = async (isFirst = false) => {
+        const name = prompt("Enter Business Name:");
+        if(!name) return;
+        const ref = await addDoc(collection(db, `users/${currentUser.uid}/shops`), { name, created: new Date() });
+        if(!isFirst) {
+            await loadShops();
+            document.getElementById('shopSelector').value = ref.id;
+            changeShop();
+        } else {
+            loadShops();
+        }
+    };
+
+    window.changeShop = () => {
+        currentShopId = document.getElementById('shopSelector').value;
+        refreshData();
+    };
+
+    async function refreshData() {
+        if(!currentShopId) return;
+        await loadProducts();
+        await loadEmployees();
+        updateDashboard();
+    }
+
+    // --- NAVIGATION ---
+    window.loadView = (viewName) => {
+        document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+        document.getElementById(`view-${viewName}`).classList.add('active');
+        
+        // Highlight Nav
+        event.currentTarget.classList.add('active');
+        document.getElementById('pageTitle').textContent = viewName.charAt(0).toUpperCase() + viewName.slice(1);
+    };
+
+    window.openModal = (id) => document.getElementById(id).style.display = 'flex';
+
+    // --- PRODUCTS ---
+    async function loadProducts() {
+        const snap = await getDocs(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/products`));
+        productsCache = [];
+        snap.forEach(d => productsCache.push({id: d.id, ...d.data()}));
+        renderProducts();
+        renderPosGrid();
+    }
+
+    function renderProducts() {
+        const tbody = document.querySelector('#prodTable tbody');
+        tbody.innerHTML = productsCache.map(p => `
+            <tr>
+                <td>${p.name}</td>
+                <td>${p.buy}</td>
+                <td>${p.sell}</td>
+                <td style="color:${p.qty<5?'red':'inherit'}">${p.qty}</td>
+                <td><button class="btn btn-danger" style="padding:4px 8px; font-size:12px;">Del</button></td>
+            </tr>
+        `).join('');
+    }
+
+    window.saveProduct = async () => {
+        const data = {
+            name: document.getElementById('mpName').value,
+            buy: Number(document.getElementById('mpBuy').value),
+            sell: Number(document.getElementById('mpSell').value),
+            qty: Number(document.getElementById('mpQty').value)
+        };
+        await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/products`), data);
+        document.getElementById('prodModal').style.display = 'none';
+        loadProducts();
+    };
+
+    // --- POS ---
+    function renderPosGrid() {
+        const grid = document.getElementById('posGrid');
+        grid.innerHTML = productsCache.map(p => `
+            <div onclick="addToCart('${p.id}')" style="background:#f9fafb; padding:10px; border-radius:8px; cursor:pointer; text-align:center; border:1px solid #e5e7eb;">
+                <div style="font-weight:600; font-size:13px;">${p.name}</div>
+                <div style="color:var(--primary); font-weight:700;">$${p.sell}</div>
+                <div style="font-size:11px; color:#9ca3af;">Stock: ${p.qty}</div>
+            </div>
+        `).join('');
+    }
+
+    window.addToCart = (id) => {
+        const p = productsCache.find(x => x.id === id);
+        if(p.qty < 1) return alert("Out of Stock");
+        const exist = cart.find(x => x.id === id);
+        if(exist) exist.qty++; else cart.push({...p, qty: 1});
+        renderCart();
+    };
+
+    function renderCart() {
+        const con = document.getElementById('cartItems');
+        let total = 0;
+        con.innerHTML = cart.map(i => {
+            total += i.sell * i.qty;
+            return `<div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:14px;">
+                <span>${i.name} x${i.qty}</span>
+                <strong>$${(i.sell * i.qty).toFixed(2)}</strong>
+            </div>`;
+        }).join('');
+        document.getElementById('cartTotal').textContent = `$${total.toFixed(2)}`;
+    }
+
+    window.checkout = async () => {
+        if(!cart.length) return;
+        const sale = {
+            date: new Date().toISOString(),
+            total: cart.reduce((a,b)=>a+(b.sell*b.qty),0),
+            items: cart,
+            customer: document.getElementById('posCustomer').value || 'Walk-in'
+        };
+        
+        // Save Sale
+        await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/sales`), sale);
+        
+        // Update Stock
+        for(let item of cart) {
+             const ref = doc(db, `users/${currentUser.uid}/shops/${currentShopId}/products`, item.id);
+             const original = productsCache.find(x => x.id === item.id);
+             await updateDoc(ref, { qty: original.qty - item.qty });
+        }
+
+        cart = []; renderCart(); loadProducts();
+        alert("Sale Saved!");
+    };
+
+    // --- EMPLOYEES & PAYROLL (Advanced Logic) ---
+    async function loadEmployees() {
+        const snap = await getDocs(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/employees`));
+        const grid = document.getElementById('empGrid');
+        const select1 = document.getElementById('payEmpSelect');
+        const select2 = document.getElementById('calcEmpSelect');
+        
+        grid.innerHTML = ''; select1.innerHTML = ''; select2.innerHTML = '';
+
+        snap.forEach(d => {
+            const e = {id: d.id, ...d.data()};
+            
+            // Add to Grid
+            grid.innerHTML += `
+            <div class="card" style="margin:0;">
+                <div style="font-weight:700;">${e.name}</div>
+                <div style="color:#6b7280; font-size:13px;">${e.role}</div>
+                <div style="margin-top:10px; font-weight:600; color:var(--primary)">$${e.baseSalary}/mo</div>
+            </div>`;
+
+            // Add to Selects
+            const opt = `<option value="${e.id}" data-salary="${e.baseSalary}">${e.name}</option>`;
+            select1.innerHTML += opt;
+            select2.innerHTML += opt;
+        });
+    }
+
+    window.saveEmployee = async () => {
+        await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/employees`), {
+            name: document.getElementById('meName').value,
+            role: document.getElementById('meRole').value,
+            baseSalary: Number(document.getElementById('meSalary').value)
+        });
+        document.getElementById('empModal').style.display = 'none';
+        loadEmployees();
+    };
+
+    // --- PAYROLL CORE LOGIC ---
+    window.saveDailyLog = async () => {
+        const empId = document.getElementById('payEmpSelect').value;
+        const log = {
+            date: document.getElementById('payDate').value,
+            status: document.getElementById('payStatus').value, // 'P' or 'LWP'
+            ot: Number(document.getElementById('payOT').value),
+            advance: Number(document.getElementById('payAdv').value),
+            timestamp: new Date()
+        };
+        
+        await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/employees/${empId}/logs`), log);
+        alert("Daily Log Saved Successfully");
+    };
+
+    window.calculateSalary = async () => {
+        const empId = document.getElementById('calcEmpSelect').value;
+        const month = Number(document.getElementById('calcMonth').value);
+        const sel = document.getElementById('calcEmpSelect');
+        const baseSalary = Number(sel.options[sel.selectedIndex].dataset.salary);
+
+        // 1. Fetch Logs
+        const q = collection(db, `users/${currentUser.uid}/shops/${currentShopId}/employees/${empId}/logs`);
+        const snap = await getDocs(q);
+        
+        let lwpDays = 0;
+        let totalOtHours = 0;
+        let totalAdvance = 0;
+
+        snap.forEach(d => {
+            const data = d.data();
+            const logDate = new Date(data.date);
+            if(logDate.getMonth() === month) {
+                if(data.status === 'LWP') lwpDays++;
+                totalOtHours += (data.ot || 0);
+                totalAdvance += (data.advance || 0);
+            }
+        });
+
+        // 2. The Formula
+        // Assumption: 30 days standard month
+        const dailyRate = baseSalary / 30;
+        const hourlyRate = dailyRate / 8; // Assuming 8 hour shift
+
+        const lwpDeduction = lwpDays * dailyRate;
+        const otPayment = totalOtHours * hourlyRate; // No multiplier, or use *1.5 if required
+        const netSalary = baseSalary - lwpDeduction - totalAdvance + otPayment;
+
+        // 3. Display
+        const slip = document.getElementById('salarySlip');
+        slip.style.display = 'block';
+        slip.innerHTML = `
+            <h4 style="margin-bottom:10px; border-bottom:1px solid #bbf7d0; padding-bottom:5px;">Salary Slip</h4>
+            <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>Base Salary:</span> <strong>$${baseSalary.toFixed(2)}</strong></div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:5px; color:#dc2626;"><span>LWP Deduct (${lwpDays} days):</span> <span>-$${lwpDeduction.toFixed(2)}</span></div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:5px; color:#dc2626;"><span>Advances:</span> <span>-$${totalAdvance.toFixed(2)}</span></div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:10px; color:#16a34a;"><span>Overtime (${totalOtHours} hrs):</span> <span>+$${otPayment.toFixed(2)}</span></div>
+            <div style="display:flex; justify-content:space-between; font-size:18px; font-weight:800; border-top:1px solid #bbf7d0; padding-top:5px;">
+                <span>Net Salary:</span> <span>$${netSalary.toFixed(2)}</span>
+            </div>
+        `;
+    };
+
+    // --- DASHBOARD STATS ---
+    function updateDashboard() {
+        document.getElementById('dashLow').textContent = productsCache.filter(p => p.qty < 5).length;
+        // Mocking sales data for visual chart
+        new Chart(document.getElementById('salesChart'), {
+            type: 'bar',
+            data: {
+                labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+                datasets: [{ label: 'Income', data: [500, 1200, 900, 1500], backgroundColor: '#4F46E5', borderRadius: 5 }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+    }
+
+</script>
+</body>
+</html>
