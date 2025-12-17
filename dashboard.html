@@ -240,17 +240,40 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
     </div>
 </div>
 
-<!-- Add Product Modal -->
+<!-- Add Product Modal (UPDATED with Unit Selector) -->
 <div id="prodModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:100;">
     <div class="card" style="width:400px; margin:0;">
         <h3>Add Product</h3>
         <input id="mpName" placeholder="Product Name">
         <input id="mpBuy" type="number" placeholder="Buy Price">
         <input id="mpSell" type="number" placeholder="Sell Price">
-        <input id="mpQty" type="number" placeholder="Stock Qty">
+        <div style="display:flex; gap:10px; margin-bottom:10px;">
+            <input id="mpQty" type="number" placeholder="Stock Qty" style="flex:1; margin-bottom:0;">
+            <select id="mpUnit" style="flex:1; margin-bottom:0;">
+                <option value="">No Unit (pcs)</option>
+                <option value="kg">Kilogram (kg)</option>
+                <option value="g">Gram (g)</option>
+                <option value="l">Liter (l)</option>
+                <option value="ml">Milliliter (ml)</option>
+                <option value="m">Meter (m)</option>
+            </select>
+        </div>
         <div style="display:flex; gap:10px; margin-top:10px;">
             <button class="btn btn-primary" onclick="saveProduct()">Save</button>
             <button class="btn btn-danger" onclick="document.getElementById('prodModal').style.display='none'">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- Price Warning Modal (NEW) -->
+<div id="priceWarningModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:1100;">
+    <div class="card" style="width:350px; margin:0; border-left: 4px solid var(--danger);">
+        <h3 style="color:var(--danger); margin-bottom:10px;">Warning: Negative Profit</h3>
+        <p style="font-size:14px; color:#6b7280; margin-bottom:15px;">You are setting the Selling Price lower than the Buying Price.</p>
+        <div style="background:#fef2f2; color:#b91c1c; padding:10px; border-radius:8px; font-size:13px; margin-bottom:15px;" id="priceWarningMsg"></div>
+        <div style="display:flex; gap:10px;">
+            <button class="btn btn-danger" id="btnConfirmSaveAny">Save Anyway</button>
+            <button class="btn btn-primary" onclick="document.getElementById('priceWarningModal').style.display='none'">Edit Price</button>
         </div>
     </div>
 </div>
@@ -457,23 +480,61 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
                 <td>${p.name}</td>
                 <td>${formatMoney(p.buy)}</td>
                 <td>${formatMoney(p.sell)}</td>
-                <td style="color:${p.qty<5?'red':'inherit'}">${p.qty}</td>
+                <td style="color:${p.qty<5?'red':'inherit'}">${p.qty} ${p.unit || ''}</td>
                 <td><button class="btn btn-danger" style="padding:4px 8px; font-size:12px;">Del</button></td>
             </tr>
         `).join('');
     }
 
+    // UPDATED: Logic to handle Price Check, Unit, and Auto Date
     window.saveProduct = async () => {
-        const data = {
-            name: document.getElementById('mpName').value,
-            buy: Number(document.getElementById('mpBuy').value),
-            sell: Number(document.getElementById('mpSell').value),
-            qty: Number(document.getElementById('mpQty').value)
-        };
-        await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/products`), data);
-        document.getElementById('prodModal').style.display = 'none';
-        loadProducts();
+        const name = document.getElementById('mpName').value;
+        const buy = Number(document.getElementById('mpBuy').value);
+        const sell = Number(document.getElementById('mpSell').value);
+        const qty = Number(document.getElementById('mpQty').value);
+        const unit = document.getElementById('mpUnit').value;
+
+        // Check for Low Selling Price
+        if (sell < buy) {
+            document.getElementById('priceWarningMsg').innerHTML = `
+                Buying Price: ${formatMoney(buy)}<br>
+                Selling Price: ${formatMoney(sell)}<br>
+                <strong>Loss per Unit: ${formatMoney(sell - buy)}</strong>
+            `;
+            document.getElementById('priceWarningModal').style.display = 'flex';
+            
+            // Set up the "Save Anyway" button dynamically to avoid duplicate listeners
+            const confirmBtn = document.getElementById('btnConfirmSaveAny');
+            confirmBtn.onclick = async () => {
+                 document.getElementById('priceWarningModal').style.display = 'none';
+                 await finalizeProductSave({ name, buy, sell, qty, unit });
+            };
+            return; // Stop here, wait for user confirmation
+        }
+
+        // If price is fine, proceed immediately
+        await finalizeProductSave({ name, buy, sell, qty, unit });
     };
+
+    // Helper function to commit to Firestore
+    async function finalizeProductSave(data) {
+        // Add Auto-Date
+        data.dateAdded = new Date().toISOString();
+
+        await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/products`), data);
+        
+        // Clear UI and Refresh
+        document.getElementById('prodModal').style.display = 'none';
+        
+        // Clear inputs for next time
+        document.getElementById('mpName').value = '';
+        document.getElementById('mpBuy').value = '';
+        document.getElementById('mpSell').value = '';
+        document.getElementById('mpQty').value = '';
+        document.getElementById('mpUnit').value = '';
+
+        loadProducts();
+    }
 
     // --- POS ---
     function renderPosGrid() {
@@ -482,7 +543,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
             <div onclick="addToCart('${p.id}')" style="background:#f9fafb; padding:10px; border-radius:8px; cursor:pointer; text-align:center; border:1px solid #e5e7eb;">
                 <div style="font-weight:600; font-size:13px;">${p.name}</div>
                 <div style="color:var(--primary); font-weight:700;">${formatMoney(p.sell)}</div>
-                <div style="font-size:11px; color:#9ca3af;">Stock: ${p.qty}</div>
+                <div style="font-size:11px; color:#9ca3af;">Stock: ${p.qty} ${p.unit || ''}</div>
             </div>
         `).join('');
     }
