@@ -93,7 +93,8 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
             <select class="shop-select" id="shopSelector" onchange="changeShop()">
                 <option value="">Loading Shops...</option>
             </select>
-            <button class="btn btn-primary" onclick="createNewShop()" style="padding: 8px 12px;">+ Shop</button>
+            <button class="btn btn-primary" onclick="openModal('shopModal')" style="padding: 8px 12px;">+ Shop</button>
+            <button class="btn btn-danger" onclick="deleteCurrentShop()" style="padding: 8px 12px;" title="Delete Shop"><i class="ri-delete-bin-line"></i></button>
         </div>
     </header>
 
@@ -101,10 +102,25 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
 
         <!-- 1. DASHBOARD HOME -->
         <div id="view-dashboard" class="view active">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
+                <h4 style="margin:0;">Performance Overview</h4>
+                <select id="dashTimeFilter" style="width: auto; margin:0;" onchange="updateDashboard()">
+                    <option value="daily">Daily (Today)</option>
+                    <option value="monthly" selected>Monthly (This Month)</option>
+                    <option value="yearly">Yearly (This Year)</option>
+                </select>
+            </div>
+
             <div class="grid-4">
                 <div class="card">
                     <div style="color:#6b7280; font-size:13px;">Total Sales</div>
-                    <div style="font-size:28px; font-weight:700;" id="dashSales">$0.00</div>
+                    <div style="font-size:28px; font-weight:700;" id="dashSales">0.00</div>
+                    <div style="font-size:12px; color: #6b7280; margin-top:5px;">Based on selection</div>
+                </div>
+                <div class="card">
+                    <div style="color:#6b7280; font-size:13px;">Total Profit</div>
+                    <div style="font-size:28px; font-weight:700; color:var(--success)" id="dashProfit">0.00</div>
+                    <div style="font-size:12px; color: #6b7280; margin-top:5px;">Net Profit</div>
                 </div>
                 <div class="card">
                     <div style="color:#6b7280; font-size:13px;">Low Stock Items</div>
@@ -146,7 +162,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
                     <div id="cartItems" style="flex:1; overflow-y:auto; margin:15px 0;"></div>
                     <div style="border-top:1px solid #eee; padding-top:10px;">
                         <div style="display:flex; justify-content:space-between; font-weight:700; font-size:18px;">
-                            <span>Total</span><span id="cartTotal">$0.00</span>
+                            <span>Total</span><span id="cartTotal">0.00</span>
                         </div>
                         <input id="posCustomer" placeholder="Customer Name (Optional)" style="margin-top:10px;">
                         <button class="btn btn-primary" style="width:100%; justify-content:center; margin-top:10px;" onclick="checkout()">Complete Sale</button>
@@ -173,7 +189,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
                     <div><label>Date</label><input type="date" id="payDate"></div>
                     <div><label>Status</label><select id="payStatus"><option value="P">Present</option><option value="LWP">Leave Without Pay (LWP)</option></select></div>
                     <div><label>OT (Hours)</label><input type="number" id="payOT" value="0"></div>
-                    <div><label>Advance ($)</label><input type="number" id="payAdv" value="0"></div>
+                    <div><label>Advance</label><input type="number" id="payAdv" value="0"></div>
                     <button class="btn btn-primary" onclick="saveDailyLog()">Save Log</button>
                 </div>
             </div>
@@ -184,7 +200,9 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
                     <select id="calcEmpSelect" style="max-width:200px;"></select>
                     <select id="calcMonth" style="max-width:150px;">
                         <option value="0">January</option><option value="1">February</option><option value="2">March</option>
-                        <option value="11">December</option>
+                        <option value="3">April</option><option value="4">May</option><option value="5">June</option>
+                        <option value="6">July</option><option value="7">August</option><option value="8">September</option>
+                        <option value="9">October</option><option value="10">November</option><option value="11">December</option>
                     </select>
                     <button class="btn btn-primary" onclick="calculateSalary()">Generate Slip</button>
                 </div>
@@ -192,10 +210,36 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
             </div>
         </div>
 
+        <!-- Placeholder views for other sections to prevent errors if clicked -->
+        <div id="view-services" class="view"><div class="card"><h3>Services</h3><p class="muted">Service management coming soon.</p></div></div>
+        <div id="view-customers" class="view"><div class="card"><h3>Customers</h3><p class="muted">Customer management coming soon.</p></div></div>
+
     </div>
 </main>
 
 <!-- MODALS -->
+
+<!-- New Shop Modal -->
+<div id="shopModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:1000;">
+    <div class="card" style="width:400px; margin:0;">
+        <h3>Create New Shop</h3>
+        <p style="color:#6b7280; font-size:13px; margin-bottom:15px;">Enter shop details and select your local currency.</p>
+        
+        <label style="font-size:12px; font-weight:600;">Shop Name</label>
+        <input id="msName" placeholder="e.g. My Supermarket">
+        
+        <label style="font-size:12px; font-weight:600;">Currency</label>
+        <select id="msCurrency">
+            <!-- Populated via JS -->
+        </select>
+
+        <div style="display:flex; gap:10px; margin-top:15px;">
+            <button class="btn btn-primary" onclick="saveNewShop()">Create Shop</button>
+            <button class="btn btn-danger" onclick="document.getElementById('shopModal').style.display='none'">Cancel</button>
+        </div>
+    </div>
+</div>
+
 <!-- Add Product Modal -->
 <div id="prodModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:100;">
     <div class="card" style="width:400px; margin:0;">
@@ -229,10 +273,10 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
     import { getAuth, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
-    import { getFirestore, collection, addDoc, getDocs, doc, setDoc, updateDoc, query, where, orderBy } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, getDocs, doc, deleteDoc, updateDoc, query, where, orderBy } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
     // 🔴 RE-PASTE FIREBASE CONFIG HERE
-   const firebaseConfig = {
+    const firebaseConfig = {
   apiKey: "AIzaSyBHiVsnZH82jAzFnsegYJjTH-j8kWA4pfI",
   authDomain: "nexgen-bms.firebaseapp.com",
   projectId: "nexgen-bms",
@@ -241,25 +285,44 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
   appId: "1:868997252838:web:c79c4021b9300bbd675d27",
   measurementId: "G-L6NFFV4DR1"
 };
-
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
 
     let currentUser = null;
     let currentShopId = null;
+    let currentCurrency = "$"; // Default
     let productsCache = [];
     let cart = [];
+    let salesCache = [];
+
+    // --- CURRENCIES LIST ---
+    const worldCurrencies = [
+        { code: "USD", symbol: "$" }, { code: "EUR", symbol: "€" }, { code: "GBP", symbol: "£" },
+        { code: "JPY", symbol: "¥" }, { code: "CNY", symbol: "¥" }, { code: "INR", symbol: "₹" },
+        { code: "LKR", symbol: "Rs" }, { code: "AUD", symbol: "A$" }, { code: "CAD", symbol: "C$" },
+        { code: "SGD", symbol: "S$" }, { code: "AED", symbol: "AED" }, { code: "SAR", symbol: "SAR" },
+        { code: "RUB", symbol: "₽" }, { code: "BRL", symbol: "R$" }, { code: "ZAR", symbol: "R" },
+        { code: "KRW", symbol: "₩" }, { code: "TRY", symbol: "₺" }, { code: "IDR", symbol: "Rp" },
+        { code: "MYR", symbol: "RM" }, { code: "PHP", symbol: "₱" }, { code: "VND", symbol: "₫" },
+        { code: "THB", symbol: "฿" }, { code: "PKR", symbol: "Rs" }, { code: "BDT", symbol: "৳" }
+    ];
 
     // --- AUTH & INIT ---
     onAuthStateChanged(auth, async (user) => {
         if (!user) window.location.href = "index.html";
         currentUser = user;
         document.getElementById('userEmail').textContent = user.email;
+        populateCurrencyList();
         await loadShops();
     });
 
     window.logout = () => signOut(auth);
+
+    function populateCurrencyList() {
+        const sel = document.getElementById('msCurrency');
+        sel.innerHTML = worldCurrencies.map(c => `<option value="${c.symbol}">${c.code} (${c.symbol})</option>`).join('');
+    }
 
     // --- MULTI-SHOP LOGIC ---
     async function loadShops() {
@@ -272,36 +335,77 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
         snap.forEach(d => shops.push({id: d.id, ...d.data()}));
 
         if(shops.length === 0) {
-            await createNewShop(true); // Auto create first shop
+            // Force create if no shops
+            document.getElementById('shopModal').style.display = 'flex';
+            // Disable cancel button for first shop
+            document.querySelector('#shopModal .btn-danger').style.display = 'none';
             return;
         }
 
         shops.forEach(s => {
             const opt = document.createElement('option');
             opt.value = s.id; opt.text = s.name;
+            opt.dataset.currency = s.currency || "$";
             select.appendChild(opt);
         });
 
-        currentShopId = shops[0].id;
+        // Restore selection or pick first
+        if(!currentShopId) currentShopId = shops[0].id;
         select.value = currentShopId;
-        refreshData();
+        
+        // Trigger change to set currency
+        changeShop();
     }
 
-    window.createNewShop = async (isFirst = false) => {
-        const name = prompt("Enter Business Name:");
-        if(!name) return;
-        const ref = await addDoc(collection(db, `users/${currentUser.uid}/shops`), { name, created: new Date() });
-        if(!isFirst) {
-            await loadShops();
-            document.getElementById('shopSelector').value = ref.id;
-            changeShop();
-        } else {
-            loadShops();
+    // Replaces simple prompt with Modal
+    window.createNewShop = () => {
+        document.querySelector('#shopModal .btn-danger').style.display = 'block'; // Ensure cancel is visible
+        document.getElementById('msName').value = '';
+        document.getElementById('shopModal').style.display = 'flex';
+    };
+
+    window.saveNewShop = async () => {
+        const name = document.getElementById('msName').value;
+        const currency = document.getElementById('msCurrency').value;
+        
+        if(!name) return alert("Shop Name is required");
+
+        const ref = await addDoc(collection(db, `users/${currentUser.uid}/shops`), { 
+            name, 
+            currency,
+            created: new Date() 
+        });
+
+        document.getElementById('shopModal').style.display = 'none';
+        
+        // Reload shops and select new one
+        await loadShops();
+        document.getElementById('shopSelector').value = ref.id;
+        changeShop();
+    };
+
+    window.deleteCurrentShop = async () => {
+        if(!currentShopId) return;
+        
+        const sel = document.getElementById('shopSelector');
+        const shopName = sel.options[sel.selectedIndex].text;
+
+        if(!confirm(`WARNING: Are you sure you want to delete "${shopName}"?\n\nThis will remove the shop from your list. Data recovery is not guaranteed without a backup.`)) {
+            return;
         }
+
+        // Delete the shop document reference
+        await deleteDoc(doc(db, `users/${currentUser.uid}/shops`, currentShopId));
+        
+        alert("Shop removed.");
+        currentShopId = null;
+        loadShops(); // Refresh list
     };
 
     window.changeShop = () => {
-        currentShopId = document.getElementById('shopSelector').value;
+        const sel = document.getElementById('shopSelector');
+        currentShopId = sel.value;
+        currentCurrency = sel.options[sel.selectedIndex].dataset.currency;
         refreshData();
     };
 
@@ -309,6 +413,12 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
         if(!currentShopId) return;
         await loadProducts();
         await loadEmployees();
+        // Load Sales for Dashboard
+        const q = query(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/sales`), orderBy('date', 'desc'));
+        const snap = await getDocs(q);
+        salesCache = [];
+        snap.forEach(d => salesCache.push({id: d.id, ...d.data()}));
+        
         updateDashboard();
     }
 
@@ -316,14 +426,20 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
     window.loadView = (viewName) => {
         document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
         document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-        document.getElementById(`view-${viewName}`).classList.add('active');
+        const target = document.getElementById(`view-${viewName}`);
+        if(target) target.classList.add('active');
         
         // Highlight Nav
-        event.currentTarget.classList.add('active');
+        if(event && event.currentTarget) event.currentTarget.classList.add('active');
         document.getElementById('pageTitle').textContent = viewName.charAt(0).toUpperCase() + viewName.slice(1);
     };
 
     window.openModal = (id) => document.getElementById(id).style.display = 'flex';
+    
+    // Helper helper for money
+    const formatMoney = (amount) => {
+        return `${currentCurrency}${Number(amount).toFixed(2)}`;
+    };
 
     // --- PRODUCTS ---
     async function loadProducts() {
@@ -339,8 +455,8 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
         tbody.innerHTML = productsCache.map(p => `
             <tr>
                 <td>${p.name}</td>
-                <td>${p.buy}</td>
-                <td>${p.sell}</td>
+                <td>${formatMoney(p.buy)}</td>
+                <td>${formatMoney(p.sell)}</td>
                 <td style="color:${p.qty<5?'red':'inherit'}">${p.qty}</td>
                 <td><button class="btn btn-danger" style="padding:4px 8px; font-size:12px;">Del</button></td>
             </tr>
@@ -365,11 +481,20 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
         grid.innerHTML = productsCache.map(p => `
             <div onclick="addToCart('${p.id}')" style="background:#f9fafb; padding:10px; border-radius:8px; cursor:pointer; text-align:center; border:1px solid #e5e7eb;">
                 <div style="font-weight:600; font-size:13px;">${p.name}</div>
-                <div style="color:var(--primary); font-weight:700;">$${p.sell}</div>
+                <div style="color:var(--primary); font-weight:700;">${formatMoney(p.sell)}</div>
                 <div style="font-size:11px; color:#9ca3af;">Stock: ${p.qty}</div>
             </div>
         `).join('');
     }
+
+    window.filterPos = (txt) => {
+        const term = txt.toLowerCase();
+        const cards = document.querySelectorAll('#posGrid > div');
+        cards.forEach(card => {
+            const name = card.querySelector('div').textContent.toLowerCase();
+            card.style.display = name.includes(term) ? 'block' : 'none';
+        });
+    };
 
     window.addToCart = (id) => {
         const p = productsCache.find(x => x.id === id);
@@ -386,10 +511,10 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
             total += i.sell * i.qty;
             return `<div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:14px;">
                 <span>${i.name} x${i.qty}</span>
-                <strong>$${(i.sell * i.qty).toFixed(2)}</strong>
+                <strong>${formatMoney(i.sell * i.qty)}</strong>
             </div>`;
         }).join('');
-        document.getElementById('cartTotal').textContent = `$${total.toFixed(2)}`;
+        document.getElementById('cartTotal').textContent = formatMoney(total);
     }
 
     window.checkout = async () => {
@@ -397,7 +522,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
         const sale = {
             date: new Date().toISOString(),
             total: cart.reduce((a,b)=>a+(b.sell*b.qty),0),
-            items: cart,
+            items: cart, // Stores snapshot of buy/sell prices at time of sale
             customer: document.getElementById('posCustomer').value || 'Walk-in'
         };
         
@@ -411,7 +536,9 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
              await updateDoc(ref, { qty: original.qty - item.qty });
         }
 
-        cart = []; renderCart(); loadProducts();
+        cart = []; renderCart(); 
+        await loadProducts();
+        updateDashboard(); // Update stats immediately
         alert("Sale Saved!");
     };
 
@@ -432,7 +559,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
             <div class="card" style="margin:0;">
                 <div style="font-weight:700;">${e.name}</div>
                 <div style="color:#6b7280; font-size:13px;">${e.role}</div>
-                <div style="margin-top:10px; font-weight:600; color:var(--primary)">$${e.baseSalary}/mo</div>
+                <div style="margin-top:10px; font-weight:600; color:var(--primary)">${formatMoney(e.baseSalary)}/mo</div>
             </div>`;
 
             // Add to Selects
@@ -505,29 +632,73 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
         slip.style.display = 'block';
         slip.innerHTML = `
             <h4 style="margin-bottom:10px; border-bottom:1px solid #bbf7d0; padding-bottom:5px;">Salary Slip</h4>
-            <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>Base Salary:</span> <strong>$${baseSalary.toFixed(2)}</strong></div>
-            <div style="display:flex; justify-content:space-between; margin-bottom:5px; color:#dc2626;"><span>LWP Deduct (${lwpDays} days):</span> <span>-$${lwpDeduction.toFixed(2)}</span></div>
-            <div style="display:flex; justify-content:space-between; margin-bottom:5px; color:#dc2626;"><span>Advances:</span> <span>-$${totalAdvance.toFixed(2)}</span></div>
-            <div style="display:flex; justify-content:space-between; margin-bottom:10px; color:#16a34a;"><span>Overtime (${totalOtHours} hrs):</span> <span>+$${otPayment.toFixed(2)}</span></div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>Base Salary:</span> <strong>${formatMoney(baseSalary)}</strong></div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:5px; color:#dc2626;"><span>LWP Deduct (${lwpDays} days):</span> <span>-${formatMoney(lwpDeduction)}</span></div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:5px; color:#dc2626;"><span>Advances:</span> <span>-${formatMoney(totalAdvance)}</span></div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:10px; color:#16a34a;"><span>Overtime (${totalOtHours} hrs):</span> <span>+${formatMoney(otPayment)}</span></div>
             <div style="display:flex; justify-content:space-between; font-size:18px; font-weight:800; border-top:1px solid #bbf7d0; padding-top:5px;">
-                <span>Net Salary:</span> <span>$${netSalary.toFixed(2)}</span>
+                <span>Net Salary:</span> <span>${formatMoney(netSalary)}</span>
             </div>
         `;
     };
 
-    // --- DASHBOARD STATS ---
-    function updateDashboard() {
+    // --- DASHBOARD STATS (UPDATED WITH FILTER & PROFIT) ---
+    window.updateDashboard = () => {
+        // Update Static Counters
         document.getElementById('dashLow').textContent = productsCache.filter(p => p.qty < 5).length;
-        // Mocking sales data for visual chart
-        new Chart(document.getElementById('salesChart'), {
+        document.getElementById('dashEmp').textContent = document.querySelectorAll('#empGrid .card').length;
+
+        // Filter Sales
+        const filter = document.getElementById('dashTimeFilter').value;
+        const now = new Date();
+        let totalRevenue = 0;
+        let totalProfit = 0;
+
+        const filteredSales = salesCache.filter(sale => {
+            const saleDate = new Date(sale.date);
+            if (filter === 'daily') {
+                return saleDate.toDateString() === now.toDateString();
+            } else if (filter === 'monthly') {
+                return saleDate.getMonth() === now.getMonth() && saleDate.getFullYear() === now.getFullYear();
+            } else if (filter === 'yearly') {
+                return saleDate.getFullYear() === now.getFullYear();
+            }
+            return true;
+        });
+
+        // Calculate Revenue and Profit
+        filteredSales.forEach(sale => {
+            totalRevenue += sale.total;
+            if (sale.items && Array.isArray(sale.items)) {
+                sale.items.forEach(item => {
+                    const buyPrice = item.buy || 0;
+                    const sellPrice = item.sell || 0;
+                    const qty = item.qty || 1;
+                    totalProfit += (sellPrice - buyPrice) * qty;
+                });
+            }
+        });
+
+        document.getElementById('dashSales').textContent = formatMoney(totalRevenue);
+        document.getElementById('dashProfit').textContent = formatMoney(totalProfit);
+
+        // Chart Data (Mocking logic to show activity for visual purposes)
+        if(window.myChart) window.myChart.destroy();
+        const ctx = document.getElementById('salesChart');
+        window.myChart = new Chart(ctx, {
             type: 'bar',
             data: {
                 labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
-                datasets: [{ label: 'Income', data: [500, 1200, 900, 1500], backgroundColor: '#4F46E5', borderRadius: 5 }]
+                datasets: [{ 
+                    label: 'Income', 
+                    data: [totalRevenue * 0.1, totalRevenue * 0.3, totalRevenue * 0.2, totalRevenue * 0.4], // Placeholder distribution
+                    backgroundColor: '#4F46E5', 
+                    borderRadius: 5 
+                }]
             },
             options: { responsive: true, maintainAspectRatio: false }
         });
-    }
+    };
 
 </script>
 </body>
