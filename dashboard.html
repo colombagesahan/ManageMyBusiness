@@ -46,12 +46,17 @@ body { background: var(--bg); display: flex; height: 100vh; overflow: hidden; co
 .btn-warning { background: var(--warning); color: white; }
 .btn-ghost { background: transparent; border: 1px solid #d1d5db; color: var(--text); }
 .grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px; }
-input, select { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; margin-bottom: 10px; font-size: 14px; outline: none; }
+input, select, textarea { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; margin-bottom: 10px; font-size: 14px; outline: none; }
 input:focus { border-color: var(--primary); ring: 2px solid var(--primary); }
-input:disabled, select:disabled { background: #f3f4f6; cursor: not-allowed; color: #9ca3af; } 
+input:disabled, select:disabled, textarea:disabled { background: #f3f4f6; cursor: not-allowed; color: #9ca3af; } 
 table { width: 100%; border-collapse: collapse; font-size: 14px; }
 th { text-align: left; padding: 12px; background: #f9fafb; color: #6b7280; font-weight: 600; border-bottom: 1px solid #e5e7eb; white-space: nowrap; }
 td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
+
+/* --- PROFILE SPECIAL --- */
+.logo-preview-box { width: 150px; height: 150px; border: 2px dashed #d1d5db; border-radius: 12px; display: flex; align-items: center; justify-content: center; overflow: hidden; margin-bottom: 10px; background: #f9fafb; }
+.logo-preview-box img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.text-logo-preview { font-weight: bold; text-align: center; }
 
 /* --- IMAGES --- */
 .prod-thumb { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; border: 1px solid #e5e7eb; cursor: pointer; }
@@ -109,10 +114,11 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
     <div class="nav">
         <div class="nav-group">Main</div>
         <a class="nav-item active" onclick="loadView('dashboard')"><i class="ri-dashboard-line"></i> Dashboard</a>
+        <!-- NEW PROFILE TAB -->
+        <a class="nav-item" onclick="loadView('profile')"><i class="ri-user-settings-line"></i> Profile</a>
         <a class="nav-item" onclick="loadView('pos')"><i class="ri-shopping-cart-2-line"></i> Smart POS</a>
         
         <div class="nav-group">Inventory</div>
-        <!-- NEW TAB -->
         <a class="nav-item" onclick="loadView('catalog')"><i class="ri-archive-line"></i> Add Products</a>
         <a class="nav-item" onclick="loadView('products')"><i class="ri-box-3-line"></i> Add Stock</a>
         <a class="nav-item" onclick="loadView('services')"><i class="ri-service-line"></i> Services</a>
@@ -138,10 +144,11 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         </div>
         <div style="display: flex; gap: 10px; align-items: center;">
             <select class="shop-select" id="shopSelector" onchange="changeShop()">
-                <option value="">Loading Shops...</option>
+                <option value="">Loading Businesses...</option>
             </select>
-            <button class="btn btn-primary" onclick="openModal('shopModal')">+ Shop</button>
-            <button class="btn btn-danger" onclick="deleteCurrentShop()" title="Delete Shop"><i class="ri-delete-bin-line"></i></button>
+            <!-- Changed to + Business -->
+            <button class="btn btn-primary" onclick="openModal('shopModal')">+ Business</button>
+            <button class="btn btn-danger" onclick="deleteCurrentShop()" title="Delete Business"><i class="ri-delete-bin-line"></i></button>
         </div>
     </header>
 
@@ -180,6 +187,57 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
             </div>
             <div class="card" style="height: 300px;">
                 <canvas id="salesChart"></canvas>
+            </div>
+        </div>
+
+        <!-- NEW PROFILE VIEW -->
+        <div id="view-profile" class="view">
+            <div class="card">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                    <h3 style="margin:0;">Business Profile</h3>
+                    <button class="btn btn-warning" id="btnEditProfile" onclick="unlockProfile()">Edit Profile</button>
+                </div>
+                <div id="profileWarning" class="note-box" style="background:#fee2e2; border-color:#fecaca; color:#991b1b; display:none;">
+                    <i class="ri-error-warning-fill"></i> Please complete your profile to enable all features.
+                </div>
+
+                <div style="display:grid; grid-template-columns: 200px 1fr; gap:30px;">
+                    <!-- Logo Section -->
+                    <div>
+                        <label style="font-size:12px; font-weight:700;">BUSINESS LOGO</label>
+                        <div class="logo-preview-box" id="profLogoContainer">
+                            <span id="logoPlaceholder">No Logo</span>
+                        </div>
+                        <div id="profInputsLogo">
+                            <input type="file" id="profLogoFile" accept="image/*" style="font-size:11px;">
+                            <div style="margin-top:10px; border-top:1px solid #eee; padding-top:10px;">
+                                <label style="font-size:11px;">Or use Business Name as Logo:</label>
+                                <select id="profLogoFont">
+                                    <option value="'Plus Jakarta Sans'">Sans Serif</option>
+                                    <option value="serif">Serif</option>
+                                    <option value="monospace">Monospace</option>
+                                    <option value="cursive">Cursive</option>
+                                </select>
+                                <input type="color" id="profLogoColor" value="#4F46E5" style="height:40px;">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Details Section -->
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;" id="profFields">
+                        <div><label style="font-size:12px;">Business Owner Name *</label><input id="profOwner" placeholder="Enter full name"></div>
+                        <div><label style="font-size:12px;">Reg No / NIC / License *</label><input id="profReg" placeholder="Registration or ID number"></div>
+                        <div style="grid-column: span 2;"><label style="font-size:12px;">Business Address *</label><textarea id="profAddress" rows="2" placeholder="Full business address"></textarea></div>
+                        <div><label style="font-size:12px;">Phone Number 1 *</label><input id="profPhone1" placeholder="Primary phone"></div>
+                        <div><label style="font-size:12px;">Phone Number 2 (Optional)</label><input id="profPhone2" placeholder="Secondary phone"></div>
+                        <div><label style="font-size:12px;">WhatsApp Number *</label><input id="profWhatsapp" placeholder="WhatsApp number"></div>
+                        <div><label style="font-size:12px;">Email Address (Optional)</label><input id="profEmail" placeholder="Business email"></div>
+                    </div>
+                </div>
+                
+                <div style="text-align:right; margin-top:20px; border-top:1px solid #eee; padding-top:20px;">
+                    <button class="btn btn-primary" id="btnSaveProfile" onclick="saveProfile()" style="padding:10px 30px;">Save Profile</button>
+                </div>
             </div>
         </div>
 
@@ -302,15 +360,15 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 
 <!-- MODALS -->
 
-<!-- New Shop -->
+<!-- New Business (Changed from Shop) -->
 <div id="shopModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:1000;">
     <div class="card" style="width:400px; margin:0;">
-        <h3>Create New Shop</h3>
+        <h3>Create New Business</h3>
         <input id="msName" placeholder="e.g. My Supermarket">
         <label style="font-size:12px;">Currency</label>
         <select id="msCurrency"></select>
         <div style="display:flex; gap:10px; margin-top:15px;">
-            <button class="btn btn-primary" onclick="saveNewShop()">Create Shop</button>
+            <button class="btn btn-primary" onclick="saveNewShop()">Create Business</button>
             <button class="btn btn-danger" onclick="document.getElementById('shopModal').style.display='none'">Cancel</button>
         </div>
     </div>
@@ -463,7 +521,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
     import { getAuth, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
-    import { getFirestore, collection, addDoc, getDocs, doc, deleteDoc, updateDoc, query, where, orderBy, setDoc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, getDocs, doc, deleteDoc, updateDoc, query, where, orderBy, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
     // 🔴 RE-PASTE FIREBASE CONFIG HERE
     const firebaseConfig = {
@@ -487,6 +545,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
     let cart = [];
     let salesCache = [];
     let compressedImageBase64 = null; // Store compressed image
+    let profileCache = null;
 
     // --- UTILS ---
     function showToast(message, type = 'success') {
@@ -634,7 +693,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         sel.innerHTML = worldCurrencies.map(c => `<option value="${c.symbol}">${c.code} (${c.symbol})</option>`).join('');
     }
 
-    // --- SHOPS ---
+    // --- SHOPS (BUSINESSES) ---
     async function loadShops() {
         toggleLoader(true);
         const q = collection(db, `users/${currentUser.uid}/shops`);
@@ -664,7 +723,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
     window.saveNewShop = async () => {
         const name = document.getElementById('msName').value;
         const currency = document.getElementById('msCurrency').value;
-        if(!name) return showToast("Shop Name required", "error");
+        if(!name) return showToast("Business Name required", "error");
         
         toggleLoader(true);
         const ref = await addDoc(collection(db, `users/${currentUser.uid}/shops`), { name, currency, created: new Date() });
@@ -672,16 +731,16 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         await loadShops();
         document.getElementById('shopSelector').value = ref.id;
         changeShop();
-        showToast("Shop created successfully!");
+        showToast("Business created successfully!");
     };
 
     window.deleteCurrentShop = async () => {
-        if(!confirm("Delete this shop and all data? Cannot be undone.")) return;
+        if(!confirm("Delete this business and all data? Cannot be undone.")) return;
         toggleLoader(true);
         await deleteDoc(doc(db, `users/${currentUser.uid}/shops`, currentShopId));
         currentShopId = null;
         loadShops();
-        showToast("Shop deleted");
+        showToast("Business deleted");
     };
 
     window.changeShop = () => {
@@ -694,6 +753,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
     async function refreshData() {
         if(!currentShopId) return;
         toggleLoader(true);
+        await loadProfile(); // Load Profile First to check lock
         await loadCatalog(); // Load Base Products
         await loadProducts(); // Load Stock
         await loadEmployees();
@@ -705,11 +765,110 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         toggleLoader(false);
     }
 
+    // --- PROFILE LOGIC ---
+    async function loadProfile() {
+        const docRef = doc(db, `users/${currentUser.uid}/shops/${currentShopId}/settings`, 'profile');
+        const snap = await getDoc(docRef);
+        const warn = document.getElementById('profileWarning');
+        
+        if (snap.exists()) {
+            profileCache = snap.data();
+            warn.style.display = 'none';
+            fillProfileData(profileCache);
+            lockProfile(true);
+        } else {
+            profileCache = null;
+            warn.style.display = 'block';
+            lockProfile(false);
+            // Clear fields
+            document.querySelectorAll('#profFields input, #profFields textarea').forEach(i => i.value = '');
+            document.getElementById('profLogoContainer').innerHTML = '<span>No Logo</span>';
+        }
+    }
+
+    function fillProfileData(p) {
+        document.getElementById('profOwner').value = p.ownerName || '';
+        document.getElementById('profReg').value = p.regNo || '';
+        document.getElementById('profAddress').value = p.address || '';
+        document.getElementById('profPhone1').value = p.phone1 || '';
+        document.getElementById('profPhone2').value = p.phone2 || '';
+        document.getElementById('profWhatsapp').value = p.whatsapp || '';
+        document.getElementById('profEmail').value = p.email || '';
+        
+        const container = document.getElementById('profLogoContainer');
+        if(p.logoImage) {
+            container.innerHTML = `<img src="${p.logoImage}">`;
+        } else {
+            const shopName = document.getElementById('shopSelector').options[document.getElementById('shopSelector').selectedIndex].text;
+            container.innerHTML = `<div class="text-logo-preview" style="font-family:${p.logoFont}; color:${p.logoColor}; font-size:20px;">${shopName}</div>`;
+        }
+    }
+
+    window.lockProfile = (lock) => {
+        document.querySelectorAll('#profFields input, #profFields textarea, #profLogoFont, #profLogoColor, #profLogoFile').forEach(i => i.disabled = lock);
+        document.getElementById('btnSaveProfile').style.display = lock ? 'none' : 'inline-flex';
+        document.getElementById('btnEditProfile').style.display = lock ? 'inline-flex' : 'none';
+        document.getElementById('profInputsLogo').style.display = lock ? 'none' : 'block';
+    }
+
+    window.unlockProfile = () => lockProfile(false);
+
+    window.saveProfile = async () => {
+        const data = {
+            ownerName: document.getElementById('profOwner').value.trim(),
+            regNo: document.getElementById('profReg').value.trim(),
+            address: document.getElementById('profAddress').value.trim(),
+            phone1: document.getElementById('profPhone1').value.trim(),
+            phone2: document.getElementById('profPhone2').value.trim(),
+            whatsapp: document.getElementById('profWhatsapp').value.trim(),
+            email: document.getElementById('profEmail').value.trim(),
+            logoFont: document.getElementById('profLogoFont').value,
+            logoColor: document.getElementById('profLogoColor').value,
+            logoImage: compressedImageBase64 || (profileCache ? profileCache.logoImage : null)
+        };
+
+        if(!data.ownerName || !data.regNo || !data.address || !data.phone1 || !data.whatsapp) {
+            return showToast("Please fill all required (*) fields", "error");
+        }
+
+        toggleLoader(true);
+        await setDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/settings`, 'profile'), data);
+        await loadProfile();
+        toggleLoader(false);
+        showToast("Profile Saved Successfully");
+    };
+
+    document.getElementById('profLogoFile').addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if(file) {
+            const base64 = await compressImageTo100KB(file);
+            compressedImageBase64 = base64;
+            document.getElementById('profLogoContainer').innerHTML = `<img src="${base64}">`;
+        }
+    });
+
     window.loadView = (viewName) => {
+        // Enforce Profile Check (Rule: profile must be complete)
+        if(viewName !== 'profile' && viewName !== 'dashboard' && !profileCache) {
+            showToast("Complete Business Profile first", "error");
+            loadView('profile');
+            return;
+        }
+
         document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
         document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-        document.getElementById(`view-${viewName}`).classList.add('active');
-        if(event && event.currentTarget) event.currentTarget.classList.add('active');
+        
+        const target = document.getElementById(`view-${viewName}`);
+        if(target) target.classList.add('active');
+        
+        // Handle Active Class on Sidebar Links
+        const navItems = document.querySelectorAll('.nav-item');
+        navItems.forEach(item => {
+            if(item.getAttribute('onclick').includes(`'${viewName}'`)) {
+                item.classList.add('active');
+            }
+        });
+
         document.getElementById('pageTitle').textContent = viewName.charAt(0).toUpperCase() + viewName.slice(1);
     };
 
@@ -866,7 +1025,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         const term = document.getElementById('prodSearch').value.toLowerCase();
         const tbody = document.querySelector('#prodTable tbody');
         
-        // Search by Name (batch) or SKU (if saved in batch)
         const filtered = productsCache.filter(p => p.name.toLowerCase().includes(term) || (p.sku && p.sku.toLowerCase().includes(term)));
 
         if(filtered.length === 0) {
@@ -903,7 +1061,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         document.getElementById('mpId').value = '';
         document.getElementById('prodModalTitle').textContent = 'Add Stock';
         
-        // Reset Inputs
         document.getElementById('mpBuy').value = '';
         document.getElementById('mpSell').value = '';
         document.getElementById('mpQty').value = '';
@@ -911,16 +1068,13 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         document.getElementById('mpName').value = '';
         document.getElementById('mpImage').value = '';
 
-        // Show/Hide Elements
         document.getElementById('stockSelectContainer').style.display = 'block';
         document.getElementById('stockPreview').style.display = 'none';
         
-        // Enable Fields
         document.getElementById('mpBuy').disabled = false;
         document.getElementById('mpQty').disabled = false;
         document.getElementById('mpUnit').disabled = false;
 
-        // Populate Dropdown
         const sel = document.getElementById('stockBaseSelect');
         sel.innerHTML = '<option value="">-- Choose Product --</option>';
         catalogCache.forEach(p => {
@@ -936,8 +1090,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         if(opt.value) {
             document.getElementById('mpName').value = opt.dataset.name;
             document.getElementById('mpImage').value = opt.dataset.img;
-            
-            // Show Preview
             document.getElementById('stockPreview').style.display = 'block';
             document.getElementById('mpPhotoPreview').src = opt.dataset.img;
             document.getElementById('mpNameDisplay').textContent = opt.dataset.name;
@@ -952,7 +1104,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         document.getElementById('mpId').value = p.id;
         document.getElementById('prodModalTitle').textContent = 'Update Price';
         
-        // Populate inputs
         document.getElementById('mpBuy').value = p.buy;
         document.getElementById('mpSell').value = p.sell;
         document.getElementById('mpQty').value = p.qty;
@@ -960,18 +1111,14 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         document.getElementById('mpName').value = p.name;
         document.getElementById('mpImage').value = p.image;
 
-        // UI for Edit Mode: Hide Select, Show Static Preview
         document.getElementById('stockSelectContainer').style.display = 'none';
         document.getElementById('stockPreview').style.display = 'block';
         document.getElementById('mpPhotoPreview').src = p.image;
         document.getElementById('mpNameDisplay').textContent = p.name;
 
-        // LOCK FIELDS - User can ONLY change Sell Price
         document.getElementById('mpBuy').disabled = true;
         document.getElementById('mpQty').disabled = true;
         document.getElementById('mpUnit').disabled = true;
-        
-        // Only Sell Price is editable
         document.getElementById('mpSell').disabled = false;
 
         openModal('prodModal');
@@ -986,7 +1133,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         const name = document.getElementById('mpName').value;
         const image = document.getElementById('mpImage').value;
         
-        // Get SKU from select if adding new
         let sku = "";
         if(!id) {
              const sel = document.getElementById('stockBaseSelect');
@@ -994,19 +1140,16 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
              if(!opt.value) return showToast("Please select a product", "error");
              sku = opt.dataset.sku;
         } else {
-            // If editing, pull SKU from existing record
             const p = productsCache.find(x => x.id === id);
             sku = p ? p.sku : "";
         }
 
-        // VALIDATION
         if(isNaN(buy) || buy < 0) return showToast("Buy Price must be 0 or higher", "error");
         if(isNaN(sell) || sell <= 0) return showToast("Sell Price must be greater than 0", "error");
         if(isNaN(qty) || qty <= 0) return showToast("Quantity must be greater than 0", "error");
 
         const stockData = { name, buy, sell, qty, unit, image, sku };
 
-        // Price Warning Check
         if (sell < buy) {
             document.getElementById('priceWarningMsg').innerHTML = `Loss: ${formatMoney(sell - buy)} per unit`;
             document.getElementById('priceWarningModal').style.display = 'flex';
@@ -1025,7 +1168,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         
         if(isEdit) {
             const oldP = productsCache.find(x => x.id === id);
-            // In Edit, we only allow updating Sell Price (enforced by disabled inputs, but good to filter data)
             await updateDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/products`, id), { 
                 sell: data.sell
             });
@@ -1068,7 +1210,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 
     window.openInventoryReport = () => {
         document.getElementById('invReportModal').style.display = 'flex';
-        // Setup Date Pickers Defaults
         const now = new Date();
         document.getElementById('invDateInput').valueAsDate = now;
         document.getElementById('invMonthInput').value = now.toISOString().slice(0, 7);
@@ -1080,8 +1221,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         }
         
         toggleReportInputs();
-        
-        // HIDE SECTIONS INITIALLY to ensure user selects filter and clicks 'Get Report'
         document.getElementById('invExportSection').style.display = 'none';
         document.getElementById('invTableContainer').style.display = 'none';
         document.querySelector('#invReportTable tbody').innerHTML = '';
@@ -1096,42 +1235,33 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 
     window.generateInventoryReport = async () => {
         const tbody = document.querySelector('#invReportTable tbody');
-        
-        // Show table container for loading state
         document.getElementById('invTableContainer').style.display = 'block';
-        // Hide exports until loaded
         document.getElementById('invExportSection').style.display = 'none';
-        
         tbody.innerHTML = '<tr><td colspan="5">Loading...</td></tr>';
 
         const q = query(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/inventory_logs`), orderBy('date', 'desc'));
         const snap = await getDocs(q);
-        
         const type = document.getElementById('invReportType').value;
         
         let targetStr = "";
-        if(type === 'date') targetStr = document.getElementById('invDateInput').value; // yyyy-mm-dd
-        else if(type === 'month') targetStr = document.getElementById('invMonthInput').value; // yyyy-mm
-        else if(type === 'year') targetStr = document.getElementById('invYearInput').value; // yyyy
+        if(type === 'date') targetStr = document.getElementById('invDateInput').value;
+        else if(type === 'month') targetStr = document.getElementById('invMonthInput').value;
+        else if(type === 'year') targetStr = document.getElementById('invYearInput').value;
 
         const logs = [];
         snap.forEach(d => logs.push(d.data()));
 
         const filtered = logs.filter(l => {
             const d = new Date(l.date);
-            // Format d to match target
             let dStr = "";
             if(type === 'date') dStr = d.toISOString().split('T')[0];
             else if(type === 'month') dStr = d.toISOString().slice(0, 7);
             else if(type === 'year') dStr = d.getFullYear().toString();
-            
             return dStr === targetStr;
         });
 
         if (filtered.length === 0) {
             tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No logs found for this period.</td></tr>';
-            // Even if empty, we show buttons so user can print "No records" if needed, 
-            // or we could keep hidden. Based on request "display ... content report", showing empty content is fine.
             document.getElementById('invExportSection').style.display = 'block';
             return;
         }
@@ -1146,7 +1276,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
             </tr>
         `).join('');
         
-        // Show exports after successful render
         document.getElementById('invExportSection').style.display = 'block';
     };
 
@@ -1173,14 +1302,11 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         const table = document.getElementById('invReportTable');
         let csv = [];
         const rows = table.querySelectorAll('tr');
-        
         for (let i = 0; i < rows.length; i++) {
             let row = [], cols = rows[i].querySelectorAll("td, th");
-            for (let j = 0; j < cols.length; j++) 
-                row.push(cols[j].innerText.replace(/,/g, "")); // Clean commas
+            for (let j = 0; j < cols.length; j++) row.push(cols[j].innerText.replace(/,/g, ""));
             csv.push(row.join(","));        
         }
-        
         const csvFile = new Blob([csv.join("\n")], {type: "text/csv"});
         const downloadLink = document.createElement("a");
         downloadLink.download = `inventory_report_${new Date().getTime()}.csv`;
@@ -1194,47 +1320,29 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
     window.sendWhatsApp = async () => {
         const number = document.getElementById('waNumber').value;
         if (!number) return showToast("Enter WhatsApp number", "error");
-
         const rows = document.querySelectorAll('#invReportTable tbody tr');
         if(rows.length === 0 || rows[0].innerText.includes("No logs")) return showToast("No data to send", "error");
 
         toggleLoader(true);
-
         try {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
-            
-            // Title
             doc.text("Inventory Log Report", 14, 15);
             doc.setFontSize(10);
             const filterInfo = document.getElementById('invReportType').value; 
-            // Add date info based on selection
             let dateVal = "";
             if(filterInfo === 'date') dateVal = document.getElementById('invDateInput').value;
             else if(filterInfo === 'month') dateVal = document.getElementById('invMonthInput').value;
             else dateVal = document.getElementById('invYearInput').value;
-            
             doc.text(`Filter: ${filterInfo.toUpperCase()} - ${dateVal}`, 14, 22);
-
-            // Table
             doc.autoTable({ html: '#invReportTable', startY: 30 });
-
             const pdfBlob = doc.output('blob');
             const file = new File([pdfBlob], "Inventory_Report.pdf", { type: "application/pdf" });
-
-            // Try Web Share API (Mobile standard) to directly share the file
             if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                await navigator.share({
-                    files: [file],
-                    title: 'Inventory Report',
-                    text: 'Here is the inventory report PDF.'
-                });
+                await navigator.share({ files: [file], title: 'Inventory Report', text: 'Here is the inventory report PDF.' });
                 showToast("Shared successfully");
             } else {
-                // Fallback for Desktop: Download & Link to WhatsApp
                 doc.save("Inventory_Report.pdf");
-                
-                // Slight delay to allow download to start
                 setTimeout(() => {
                     const msg = encodeURIComponent("Here is the Inventory Report (PDF). Please drag and drop the downloaded file here.");
                     const url = `https://wa.me/${number}?text=${msg}`;
@@ -1243,7 +1351,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
                 }, 1000);
             }
         } catch (err) {
-            console.error(err);
             showToast("Error generating PDF: " + err.message, "error");
         } finally {
             toggleLoader(false);
@@ -1255,16 +1362,12 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
     function renderPosGrid() {
         const grid = document.getElementById('posGrid');
         const term = document.getElementById('posSearch').value.toLowerCase();
-        
         const filtered = productsCache.filter(p => p.qty > 0 && p.name.toLowerCase().includes(term));
-
         if(filtered.length === 0) {
             grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: #9ca3af; padding: 20px;">No items match or out of stock</div>';
             return;
         }
-
-        grid.innerHTML = filtered
-            .map(p => {
+        grid.innerHTML = filtered.map(p => {
                 const date = new Date(p.dateAdded).toLocaleDateString();
                 const imgTag = p.image ? `<img src="${p.image}" style="width:100%; height:80px; object-fit:contain; margin-bottom:5px;">` : '';
                 return `
@@ -1316,9 +1419,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
     window.checkout = async () => {
         if(!cart.length) return showToast("Cart is empty!", "error");
         const customer = document.getElementById('posCustomer').value || 'Walk-in';
-        
         toggleLoader(true);
-        // 1. Save Sale
         const saleData = {
             date: new Date().toISOString(),
             total: cart.reduce((a,b)=>a+(b.sell*b.qty),0),
@@ -1326,17 +1427,13 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
             customer
         };
         await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/sales`), saleData);
-        
-        // 2. Update Stock & Log
         for(let item of cart) {
              const ref = doc(db, `users/${currentUser.uid}/shops/${currentShopId}/products`, item.id);
              const original = productsCache.find(x => x.id === item.id);
              const newQty = original.qty - item.qty;
-             
              await updateDoc(ref, { qty: newQty });
              await logInventory(item.name, 'SALE', `Sold to ${customer}`, -item.qty, newQty);
         }
-
         cart = []; renderCart(); 
         await loadProducts();
         updateDashboard();
@@ -1344,21 +1441,17 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         showToast("Sale Completed!", "success");
     };
 
-    // --- EMPLOYEES & PAYROLL (Same as before) ---
+    // --- EMPLOYEES & PAYROLL ---
     async function loadEmployees() {
         const snap = await getDocs(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/employees`));
         const grid = document.getElementById('empGrid');
         const select1 = document.getElementById('payEmpSelect');
         const select2 = document.getElementById('calcEmpSelect');
-        
         grid.innerHTML = ''; select1.innerHTML = ''; select2.innerHTML = '';
-
-        // Empty state check
         if(snap.empty) {
             grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 20px; color: #6b7280;">No employees added.</div>';
             return;
         }
-
         snap.forEach(d => {
             const e = {id: d.id, ...d.data()};
             grid.innerHTML += `
@@ -1406,13 +1499,10 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         const month = Number(document.getElementById('calcMonth').value);
         const sel = document.getElementById('calcEmpSelect');
         const baseSalary = Number(sel.options[sel.selectedIndex].dataset.salary);
-
         toggleLoader(true);
         const q = collection(db, `users/${currentUser.uid}/shops/${currentShopId}/employees/${empId}/logs`);
         const snap = await getDocs(q);
-        
         let lwpDays = 0, totalOtHours = 0, totalAdvance = 0;
-
         snap.forEach(d => {
             const data = d.data();
             const logDate = new Date(data.date);
@@ -1422,13 +1512,11 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
                 totalAdvance += (data.advance || 0);
             }
         });
-
         const dailyRate = baseSalary / 30;
         const hourlyRate = dailyRate / 8;
         const lwpDeduction = lwpDays * dailyRate;
         const otPayment = totalOtHours * hourlyRate;
         const netSalary = baseSalary - lwpDeduction - totalAdvance + otPayment;
-
         const slip = document.getElementById('salarySlip');
         slip.style.display = 'block';
         slip.innerHTML = `
@@ -1447,12 +1535,10 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
     window.updateDashboard = () => {
         document.getElementById('dashLow').textContent = productsCache.filter(p => p.qty < 5).length;
         document.getElementById('dashEmp').textContent = document.querySelectorAll('#empGrid .card').length;
-
         const filter = document.getElementById('dashTimeFilter').value;
         const now = new Date();
         let totalRevenue = 0;
         let totalProfit = 0;
-
         const filteredSales = salesCache.filter(sale => {
             const saleDate = new Date(sale.date);
             if (filter === 'daily') return saleDate.toDateString() === now.toDateString();
@@ -1460,7 +1546,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
             if (filter === 'yearly') return saleDate.getFullYear() === now.getFullYear();
             return true;
         });
-
         filteredSales.forEach(sale => {
             totalRevenue += sale.total;
             if (sale.items) {
@@ -1472,28 +1557,20 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
                 });
             }
         });
-
         document.getElementById('dashSales').textContent = formatMoney(totalRevenue);
         document.getElementById('dashProfit').textContent = formatMoney(totalProfit);
-
         if(window.myChart) window.myChart.destroy();
         const ctx = document.getElementById('salesChart');
         window.myChart = new Chart(ctx, {
             type: 'bar',
             data: {
                 labels: ['Period 1', 'Period 2', 'Period 3', 'Period 4'],
-                datasets: [{ 
-                    label: 'Revenue', 
-                    data: [totalRevenue * 0.2, totalRevenue * 0.5, totalRevenue * 0.1, totalRevenue * 0.2], 
-                    backgroundColor: '#4F46E5', borderRadius: 5 
-                }]
+                datasets: [{ label: 'Revenue', data: [totalRevenue * 0.2, totalRevenue * 0.5, totalRevenue * 0.1, totalRevenue * 0.2], backgroundColor: '#4F46E5', borderRadius: 5 }]
             },
             options: { responsive: true, maintainAspectRatio: false }
         });
     };
 
-    // Attach global functions to window
-    window.removeFromCart = removeFromCart;
     window.toggleChat = () => {
         const w = document.getElementById('supportChat');
         w.style.display = w.style.display === 'flex' ? 'none' : 'flex';
@@ -1502,28 +1579,24 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         const content = document.getElementById('chatContent');
         const userMsg = document.createElement('div');
         userMsg.className = 'chat-msg user';
-        
         let response = "";
-        
         if(topic === 'batch') {
             userMsg.textContent = "How do I handle new prices?";
-            response = `<b>Batch Management:</b><br>If a new stock arrives with a <b>different price</b>:<br>1. Click <b>+ Add Product</b> (Do NOT edit existing).<br>2. Use exact same name.<br>3. Enter new prices and quantity.<br>This creates a separate batch.`;
+            response = `<b>Batch Management:</b><br>If a new stock arrives with a <b>different price</b>:<br>1. Click <b>+ Add Product</b> (Do NOT edit existing).<br>2. Use exact same name.<br>3. Enter new prices and quantity.`;
         } else if(topic === 'edit') {
             userMsg.textContent = "When to use Edit?";
-            response = `<b>Use Edit ONLY for corrections:</b><br>- Spelling mistakes.<br>- Wrong entry (e.g. typed 50 instead of 500).<br>- Updating price of <b>existing</b> stock on shelf.<br>❌ Do NOT use Edit for new shipments with new costs.`;
+            response = `<b>Use Edit ONLY for corrections:</b><br>- Spelling mistakes.<br>- Wrong entry.<br>❌ Do NOT use Edit for new shipments.`;
         } else if(topic === 'pos') {
             userMsg.textContent = "POS Help";
-            response = `<b>POS Logic:</b><br>- Products with <b>0 Stock</b> are hidden.<br>- You may see duplicate names: check the <b>Price</b> and <b>Date</b> on the card.<br>- Always sell old batches (cheaper/older date) first to clear stock.`;
+            response = `<b>POS Logic:</b><br>- Products with <b>0 Stock</b> are hidden.<br>- Check the <b>Price</b> and <b>Date</b> on cards.`;
         } else if(topic === 'payroll') {
             userMsg.textContent = "Payroll Math";
-            response = `<b>Formula:</b><br>(Basic Salary - LWP Deductions - Advances) + Overtime.<br><i>LWP is calculated based on a 30-day month daily rate.</i>`;
+            response = `<b>Formula:</b><br>(Basic Salary - LWP Deductions - Advances) + Overtime.`;
         } else if(topic === 'price') {
              userMsg.textContent = "New Stock Prices";
-             response = `<b>Scenario:</b> Old stock bought at $100, new at $120?<br>1. Add new product with $120 Buy Price.<br>2. POS will show both batches.<br>3. Sell old $100 batch first until it disappears.`;
+             response = `<b>Scenario:</b> Old stock $100, new at $120?<br>1. Add new product with $120 Buy Price.`;
         }
-
         content.appendChild(userMsg);
-        
         setTimeout(() => {
             const botMsg = document.createElement('div');
             botMsg.className = 'chat-msg bot';
