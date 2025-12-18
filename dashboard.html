@@ -112,7 +112,9 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         <a class="nav-item" onclick="loadView('pos')"><i class="ri-shopping-cart-2-line"></i> Smart POS</a>
         
         <div class="nav-group">Inventory</div>
-        <a class="nav-item" onclick="loadView('products')"><i class="ri-box-3-line"></i> Products & Stock</a>
+        <!-- NEW TAB -->
+        <a class="nav-item" onclick="loadView('catalog')"><i class="ri-archive-line"></i> Add Products</a>
+        <a class="nav-item" onclick="loadView('products')"><i class="ri-box-3-line"></i> Add Stock</a>
         <a class="nav-item" onclick="loadView('services')"><i class="ri-service-line"></i> Services</a>
 
         <div class="nav-group">HR & Admin</div>
@@ -181,18 +183,32 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
             </div>
         </div>
 
-        <!-- 2. PRODUCTS -->
+        <!-- 1.5 NEW ADD PRODUCTS TAB (Base Catalog) -->
+        <div id="view-catalog" class="view">
+            <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
+                <input placeholder="Search products by Name or SKU..." style="width:250px; margin:0;" id="catSearch" onkeyup="filterCatalog(this.value)">
+                <button class="btn btn-primary" onclick="prepareAddBaseProduct()">+ Create Base Product</button>
+            </div>
+            <div class="card" style="overflow-x:auto;">
+                <table id="catTable">
+                    <thead><tr><th>Image</th><th>SKU</th><th>Name</th><th>Created</th><th>Action</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 2. ADD STOCK (Formerly Products) -->
         <div id="view-products" class="view">
             <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
                 <div style="display:flex; gap:10px;">
-                    <input placeholder="Search products..." style="width:250px; margin:0;" id="prodSearch" onkeyup="filterProducts(this.value)">
+                    <input placeholder="Search stock batches..." style="width:250px; margin:0;" id="prodSearch" onkeyup="filterProducts(this.value)">
                     <button class="btn btn-ghost" onclick="openInventoryReport()"><i class="ri-file-list-3-line"></i> Report</button>
                 </div>
-                <button class="btn btn-primary" onclick="prepareAddProduct()">+ Add Product</button>
+                <button class="btn btn-primary" onclick="prepareAddStock()">+ Add Stock</button>
             </div>
             <div class="card" style="overflow-x:auto;">
                 <table id="prodTable">
-                    <thead><tr><th>Image</th><th>Date Added</th><th>Name</th><th>Buy</th><th>Sell</th><th>Stock</th><th>Action</th></tr></thead>
+                    <thead><tr><th>Image</th><th>Date Added</th><th>Name / SKU</th><th>Buy</th><th>Sell</th><th>Stock</th><th>Action</th></tr></thead>
                     <tbody></tbody>
                 </table>
             </div>
@@ -300,29 +316,58 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
     </div>
 </div>
 
-<!-- Add/Edit Product -->
+<!-- BASE PRODUCT MODAL (For Add Products Tab) -->
+<div id="baseProductModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:100;">
+    <div class="card" style="width:400px; margin:0;">
+        <h3>Create Base Product</h3>
+        <input type="hidden" id="bpId">
+        <label style="font-size:12px; font-weight:600;">Product Image (Required)</label>
+        <div style="display: flex; gap: 5px; align-items: center; margin-bottom: 10px;">
+             <input type="file" id="bpPhoto" accept="image/*" style="margin-bottom:0; flex:1;">
+             <button class="btn btn-danger" id="btnRemoveBpImage" onclick="removeBaseProductImage()" style="display:none; padding: 6px 10px; font-size: 11px;">Remove</button>
+        </div>
+        <div id="bpImageInfo" style="font-size:11px; color:#666;"></div>
+        <img id="bpPhotoPreview" class="prod-preview" alt="Preview">
+
+        <input id="bpName" placeholder="Product Name (Required)">
+        <div id="bpSkuDisplay" style="font-size:12px; color:#6b7280; margin-bottom:10px;">SKU will be auto-generated</div>
+
+        <div style="display:flex; gap:10px; margin-top:10px;">
+            <button class="btn btn-primary" onclick="saveBaseProduct()">Save Product</button>
+            <button class="btn btn-danger" onclick="document.getElementById('baseProductModal').style.display='none'">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- ADD STOCK MODAL (Renamed/Refactored) -->
 <div id="prodModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:100;">
     <div class="card" style="width:450px; margin:0; max-height: 90vh; overflow-y: auto;">
-        <h3 id="prodModalTitle">Add Product</h3>
+        <h3 id="prodModalTitle">Add Stock</h3>
         
-        <!-- EXPLANATORY NOTE BOX -->
+        <!-- Updated Note -->
         <div class="note-box">
             <i class="ri-information-fill" style="margin-right:5px;"></i>
-            Batch Management: Always use <b>+ Add Product</b> for new stock (even same items). Only use "Edit" to re-price current stock or update image.
+            Batch Management: Always use <b>+ Add Stock</b> when adding new stock (even for the same items). Use “Edit” only to update the price of existing stock.
         </div>
 
         <input type="hidden" id="mpId">
+        <input type="hidden" id="mpName"> <!-- Hidden, populated by select -->
+        <input type="hidden" id="mpImage"> <!-- Hidden, populated by select -->
         
-        <label style="font-size:12px; font-weight:600;">Product Image (Required)</label>
-        <div style="display: flex; gap: 5px; align-items: center; margin-bottom: 10px;">
-             <input type="file" id="mpPhoto" accept="image/*" style="margin-bottom:0; flex:1;">
-             <button class="btn btn-danger" id="btnRemoveImage" onclick="removeProductImage()" style="display:none; padding: 6px 10px; font-size: 11px;">Remove</button>
+        <!-- Selection Dropdown -->
+        <div id="stockSelectContainer">
+            <label style="font-size:12px; font-weight:600;">Select Product</label>
+            <select id="stockBaseSelect" onchange="onBaseProductSelect()">
+                <option value="">-- Choose Product --</option>
+            </select>
         </div>
-       
-        <div id="imageInfo" style="font-size:11px; color:#666;"></div>
-        <img id="mpPhotoPreview" class="prod-preview" alt="Preview">
 
-        <input id="mpName" placeholder="Product Name">
+        <!-- Preview for Update Mode or Selected Item -->
+        <div id="stockPreview" style="display:none; margin-bottom:10px; text-align:center;">
+            <img id="mpPhotoPreview" class="prod-preview" style="display:block; margin:0 auto 10px auto; width:100px; height:100px;" alt="Preview">
+            <div id="mpNameDisplay" style="font-weight:600; font-size:14px;"></div>
+        </div>
+
         <input id="mpBuy" type="number" placeholder="Buy Price (>= 0)">
         <input id="mpSell" type="number" placeholder="Sell Price (> 0)">
         
@@ -336,7 +381,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         </div>
         
         <div style="display:flex; gap:10px; margin-top:10px;">
-            <button class="btn btn-primary" onclick="saveProduct()">Save</button>
+            <button class="btn btn-primary" onclick="saveStock()">Save</button>
             <button class="btn btn-danger" onclick="document.getElementById('prodModal').style.display='none'">Cancel</button>
         </div>
     </div>
@@ -438,6 +483,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
     let currentShopId = null;
     let currentCurrency = "$";
     let productsCache = [];
+    let catalogCache = []; // NEW: Cache for base products
     let cart = [];
     let salesCache = [];
     let compressedImageBase64 = null; // Store compressed image
@@ -460,7 +506,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         document.getElementById('globalLoader').style.display = show ? 'flex' : 'none';
     }
 
-    // --- COMPRESSION LOGIC (Integrated from your provided snippet) ---
+    // --- COMPRESSION LOGIC ---
     async function compressImageTo100KB(file) {
         // --- 1. Helpers for Compression ---
         function readFileAsArrayBuffer(f) {
@@ -517,7 +563,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
             }
         }
 
-        // --- 2. Main Logic ---
         const TARGET_KB = 100;
         const targetBytes = TARGET_KB * 1024;
         const [ab, url] = await Promise.all([readFileAsArrayBuffer(file), readFileAsDataURL(file)]);
@@ -532,10 +577,9 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
             i.src = url;
         });
 
-        // Smart Resize Logic
         let w = img.width, h = img.height;
         const swap = [5,6,7,8].includes(orientation);
-        if(Math.max(w, h) > 1200) { // Limit max dimension first
+        if(Math.max(w, h) > 1200) { 
             const r = 1200 / Math.max(w, h);
             w = Math.round(w * r); h = Math.round(h * r);
         }
@@ -544,41 +588,29 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         let ctx = canvas.getContext('2d');
         
         let quality = 0.9;
-        let blob = null;
-
-        // Loop to reduce quality until target size
+        
         while(true) {
             canvas.width = swap ? h : w;
             canvas.height = swap ? w : h;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
-            // Handle Orientation
             ctx.save();
             if (swap) {
                 ctx.translate(canvas.width/2, canvas.height/2);
                 if(orientation===5 || orientation===6) ctx.rotate(90*Math.PI/180); 
                 else ctx.rotate(-90*Math.PI/180);
-                // Simplify: just draw image 
-                // Note: Full orientation logic is complex, for this snippet we trust standard draw if not swapping heavily
-                // A simpler robust approach for just rotation:
-                ctx.drawImage(img, -w/2, -h/2, w, h); // Simplified logic for common rotations
+                ctx.drawImage(img, -w/2, -h/2, w, h); 
             } else {
                 ctx.drawImage(img, 0, 0, w, h);
             }
             ctx.restore();
-
-            // To get Base64 directly, we use toDataURL, but to check size we need Blob logic usually.
-            // For simplicity in this Single File, we will use toDataURL and check string length approx.
-            // Base64 size ~= Blob size * 1.33. 
-            // 100KB blob ~= 133KB string.
             
             const dataURL = canvas.toDataURL('image/jpeg', quality);
             if(dataURL.length < (targetBytes * 1.35) || quality < 0.2) {
-                return dataURL; // Return Base64 string directly
+                return dataURL; 
             }
-            
             quality -= 0.1;
-            w *= 0.9; h *= 0.9; // Scale down if quality drop isn't enough
+            w *= 0.9; h *= 0.9; 
         }
     }
 
@@ -662,7 +694,8 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
     async function refreshData() {
         if(!currentShopId) return;
         toggleLoader(true);
-        await loadProducts();
+        await loadCatalog(); // Load Base Products
+        await loadProducts(); // Load Stock
         await loadEmployees();
         const q = query(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/sales`), orderBy('date', 'desc'));
         const snap = await getDocs(q);
@@ -683,7 +716,143 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
     window.openModal = (id) => document.getElementById(id).style.display = 'flex';
     const formatMoney = (a) => `${currentCurrency}${Number(a).toFixed(2)}`;
 
-    // --- PRODUCTS & INVENTORY LOGIC ---
+    // --- 1. CATALOG (Add Products) LOGIC ---
+    async function loadCatalog() {
+        const snap = await getDocs(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/base_products`));
+        catalogCache = [];
+        snap.forEach(d => catalogCache.push({id: d.id, ...d.data()}));
+        catalogCache.sort((a,b) => new Date(b.created) - new Date(a.created));
+        renderCatalog();
+    }
+
+    function renderCatalog() {
+        const term = document.getElementById('catSearch').value.toLowerCase();
+        const tbody = document.querySelector('#catTable tbody');
+        const filtered = catalogCache.filter(p => p.name.toLowerCase().includes(term) || (p.sku && p.sku.toLowerCase().includes(term)));
+
+        if(filtered.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 20px; color: #9ca3af;">No base products found. Create one!</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = filtered.map(p => {
+            const dateStr = p.created ? new Date(p.created).toLocaleDateString() : '-';
+            const imgTag = p.image ? `<img src="${p.image}" class="prod-thumb" onclick="window.open(this.src)">` : '<i class="ri-image-line"></i>';
+            return `
+            <tr>
+                <td>${imgTag}</td>
+                <td style="font-family:monospace; font-size:12px;">${p.sku || '-'}</td>
+                <td>${p.name}</td>
+                <td style="font-size:12px; color:#666;">${dateStr}</td>
+                <td>
+                    <button class="btn btn-warning" style="padding:4px 8px;" onclick="editBaseProduct('${p.id}')">Edit Img</button>
+                    <button class="btn btn-danger" style="padding:4px 8px;" onclick="deleteBaseProduct('${p.id}')"><i class="ri-delete-bin-line"></i></button>
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    window.filterCatalog = () => renderCatalog();
+
+    window.prepareAddBaseProduct = () => {
+        document.getElementById('bpId').value = '';
+        document.getElementById('bpName').value = '';
+        document.getElementById('bpName').disabled = false;
+        document.getElementById('bpPhoto').value = '';
+        document.getElementById('bpPhotoPreview').style.display = 'none';
+        document.getElementById('btnRemoveBpImage').style.display = 'none';
+        document.getElementById('bpImageInfo').textContent = '';
+        compressedImageBase64 = null;
+        openModal('baseProductModal');
+    };
+
+    window.editBaseProduct = (id) => {
+        const p = catalogCache.find(x => x.id === id);
+        if(!p) return;
+        document.getElementById('bpId').value = p.id;
+        document.getElementById('bpName').value = p.name;
+        document.getElementById('bpName').disabled = true; // Cannot change name
+        
+        document.getElementById('bpPhoto').value = '';
+        compressedImageBase64 = p.image;
+        if(p.image) {
+            document.getElementById('bpPhotoPreview').src = p.image;
+            document.getElementById('bpPhotoPreview').style.display = 'block';
+            document.getElementById('btnRemoveBpImage').style.display = 'block';
+        } else {
+            document.getElementById('bpPhotoPreview').style.display = 'none';
+            document.getElementById('btnRemoveBpImage').style.display = 'none';
+        }
+        document.getElementById('bpImageInfo').textContent = '';
+        openModal('baseProductModal');
+    };
+
+    // Base Product Image Handler
+    document.getElementById('bpPhoto').addEventListener('change', async function(e) {
+        const file = e.target.files[0];
+        if(file) {
+            document.getElementById('bpImageInfo').textContent = "Compressing...";
+            try {
+                const base64 = await compressImageTo100KB(file);
+                compressedImageBase64 = base64;
+                document.getElementById('bpPhotoPreview').src = base64;
+                document.getElementById('bpPhotoPreview').style.display = 'block';
+                document.getElementById('btnRemoveBpImage').style.display = 'block';
+                document.getElementById('bpImageInfo').textContent = `Ready (${(base64.length * 0.75 / 1024).toFixed(0)} KB)`;
+            } catch (err) {
+                alert("Image error");
+            }
+        }
+    });
+
+    window.removeBaseProductImage = () => {
+        document.getElementById('bpPhoto').value = '';
+        document.getElementById('bpPhotoPreview').src = '';
+        document.getElementById('bpPhotoPreview').style.display = 'none';
+        document.getElementById('btnRemoveBpImage').style.display = 'none';
+        compressedImageBase64 = null;
+    };
+
+    window.saveBaseProduct = async () => {
+        const id = document.getElementById('bpId').value;
+        const name = document.getElementById('bpName').value.trim();
+        
+        if(!name) return showToast("Product Name Required", "error");
+        if(!id && !compressedImageBase64) return showToast("Image Required", "error");
+
+        toggleLoader(true);
+        if(id) {
+            // Update existing (Only Image allowed to change)
+            await updateDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/base_products`, id), {
+                image: compressedImageBase64
+            });
+        } else {
+            // Create New
+            const sku = Date.now().toString(36).toUpperCase(); // Simple unique SKU
+            await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/base_products`), {
+                name, 
+                image: compressedImageBase64,
+                sku,
+                created: new Date().toISOString()
+            });
+        }
+        document.getElementById('baseProductModal').style.display = 'none';
+        await loadCatalog();
+        toggleLoader(false);
+        showToast("Base Product Saved");
+    };
+
+    window.deleteBaseProduct = async (id) => {
+        if(!confirm("Delete this Base Product?")) return;
+        toggleLoader(true);
+        await deleteDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/base_products`, id));
+        await loadCatalog();
+        toggleLoader(false);
+        showToast("Base Product Deleted");
+    };
+
+
+    // --- 2. STOCK (Add Stock) LOGIC ---
     async function loadProducts() {
         const snap = await getDocs(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/products`));
         productsCache = [];
@@ -697,10 +866,11 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         const term = document.getElementById('prodSearch').value.toLowerCase();
         const tbody = document.querySelector('#prodTable tbody');
         
-        const filtered = productsCache.filter(p => p.name.toLowerCase().includes(term));
+        // Search by Name (batch) or SKU (if saved in batch)
+        const filtered = productsCache.filter(p => p.name.toLowerCase().includes(term) || (p.sku && p.sku.toLowerCase().includes(term)));
 
         if(filtered.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 20px; color: #9ca3af;">No products found. Add one to get started!</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 20px; color: #9ca3af;">No stock batches found. Add Stock!</td></tr>';
             return;
         }
 
@@ -712,12 +882,15 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
                 <tr>
                     <td>${imgTag}</td>
                     <td style="font-size:12px; color:#666;">${dateStr}</td>
-                    <td>${p.name}</td>
+                    <td>
+                        <div>${p.name}</div>
+                        <div style="font-size:11px; color:#6b7280; font-family:monospace;">${p.sku || ''}</div>
+                    </td>
                     <td>${formatMoney(p.buy)}</td>
                     <td>${formatMoney(p.sell)}</td>
                     <td style="color:${p.qty<5?'red':'inherit'}">${p.qty} ${p.unit||''}</td>
                     <td>
-                        <button class="btn btn-warning" style="padding:4px 8px;" onclick="editProduct('${p.id}')">Edit</button>
+                        <button class="btn btn-warning" style="padding:4px 8px;" onclick="editStock('${p.id}')">Edit</button>
                         <button class="btn btn-danger" style="padding:4px 8px;" onclick="deleteProduct('${p.id}', '${p.name}')"><i class="ri-delete-bin-line"></i> Delete</button>
                     </td>
                 </tr>`;
@@ -726,114 +899,112 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 
     window.filterProducts = () => renderProducts();
 
-    // UI: Image Preview & Compression Trigger
-    document.getElementById('mpPhoto').addEventListener('change', async function(e) {
-        const file = e.target.files[0];
-        if(file) {
-            document.getElementById('imageInfo').textContent = "Compressing... Please wait.";
-            try {
-                // Run compression
-                const base64 = await compressImageTo100KB(file);
-                compressedImageBase64 = base64; // Store global
-                
-                document.getElementById('mpPhotoPreview').src = base64;
-                document.getElementById('mpPhotoPreview').style.display = 'block';
-                document.getElementById('btnRemoveImage').style.display = 'block'; // Show remove button
-                document.getElementById('imageInfo').textContent = `Compressed to approx ${(base64.length * 0.75 / 1024).toFixed(0)} KB`;
-            } catch (err) {
-                alert("Image error: " + err.message);
-                document.getElementById('imageInfo').textContent = "Error processing image.";
-            }
-        }
-    });
-    
-    window.removeProductImage = () => {
-        document.getElementById('mpPhoto').value = '';
-        document.getElementById('mpPhotoPreview').src = '';
-        document.getElementById('mpPhotoPreview').style.display = 'none';
-        document.getElementById('btnRemoveImage').style.display = 'none';
-        document.getElementById('imageInfo').textContent = '';
-        compressedImageBase64 = null;
-    };
-
-    window.prepareAddProduct = () => {
+    window.prepareAddStock = () => {
         document.getElementById('mpId').value = '';
-        document.getElementById('prodModalTitle').textContent = 'Add Product';
-        document.getElementById('mpName').value = '';
+        document.getElementById('prodModalTitle').textContent = 'Add Stock';
+        
+        // Reset Inputs
         document.getElementById('mpBuy').value = '';
         document.getElementById('mpSell').value = '';
         document.getElementById('mpQty').value = '';
         document.getElementById('mpUnit').value = '';
-        document.getElementById('mpPhoto').value = '';
-        document.getElementById('mpPhotoPreview').style.display = 'none';
-        document.getElementById('btnRemoveImage').style.display = 'none';
-        document.getElementById('imageInfo').textContent = '';
-        compressedImageBase64 = null;
+        document.getElementById('mpName').value = '';
+        document.getElementById('mpImage').value = '';
+
+        // Show/Hide Elements
+        document.getElementById('stockSelectContainer').style.display = 'block';
+        document.getElementById('stockPreview').style.display = 'none';
         
-        // UNLOCK ALL FIELDS
-        document.getElementById('mpName').disabled = false;
+        // Enable Fields
         document.getElementById('mpBuy').disabled = false;
         document.getElementById('mpQty').disabled = false;
         document.getElementById('mpUnit').disabled = false;
-        document.getElementById('mpPhoto').disabled = false;
+
+        // Populate Dropdown
+        const sel = document.getElementById('stockBaseSelect');
+        sel.innerHTML = '<option value="">-- Choose Product --</option>';
+        catalogCache.forEach(p => {
+            sel.innerHTML += `<option value="${p.id}" data-img="${p.image||''}" data-name="${p.name}" data-sku="${p.sku}">${p.name} (${p.sku})</option>`;
+        });
 
         openModal('prodModal');
     };
 
-    window.editProduct = (id) => {
+    window.onBaseProductSelect = () => {
+        const sel = document.getElementById('stockBaseSelect');
+        const opt = sel.options[sel.selectedIndex];
+        if(opt.value) {
+            document.getElementById('mpName').value = opt.dataset.name;
+            document.getElementById('mpImage').value = opt.dataset.img;
+            
+            // Show Preview
+            document.getElementById('stockPreview').style.display = 'block';
+            document.getElementById('mpPhotoPreview').src = opt.dataset.img;
+            document.getElementById('mpNameDisplay').textContent = opt.dataset.name;
+        } else {
+            document.getElementById('stockPreview').style.display = 'none';
+        }
+    };
+
+    window.editStock = (id) => {
         const p = productsCache.find(x => x.id === id);
         if(!p) return;
         document.getElementById('mpId').value = p.id;
-        document.getElementById('prodModalTitle').textContent = 'Update Product Stock/Price';
-        document.getElementById('mpName').value = p.name;
+        document.getElementById('prodModalTitle').textContent = 'Update Price';
+        
+        // Populate inputs
         document.getElementById('mpBuy').value = p.buy;
         document.getElementById('mpSell').value = p.sell;
         document.getElementById('mpQty').value = p.qty;
         document.getElementById('mpUnit').value = p.unit || '';
-        
-        // Reset image handling
-        document.getElementById('mpPhoto').value = ''; // clear input to allow re-selection
-        compressedImageBase64 = p.image; // Use existing if no new one picked
-        if(p.image) {
-            document.getElementById('mpPhotoPreview').src = p.image;
-            document.getElementById('mpPhotoPreview').style.display = 'block';
-            document.getElementById('btnRemoveImage').style.display = 'block';
-        } else {
-            document.getElementById('mpPhotoPreview').style.display = 'none';
-            document.getElementById('btnRemoveImage').style.display = 'none';
-        }
-        document.getElementById('imageInfo').textContent = '';
+        document.getElementById('mpName').value = p.name;
+        document.getElementById('mpImage').value = p.image;
 
-        // LOCK FIELDS except Sell Price and Photo
-        document.getElementById('mpName').disabled = true;
+        // UI for Edit Mode: Hide Select, Show Static Preview
+        document.getElementById('stockSelectContainer').style.display = 'none';
+        document.getElementById('stockPreview').style.display = 'block';
+        document.getElementById('mpPhotoPreview').src = p.image;
+        document.getElementById('mpNameDisplay').textContent = p.name;
+
+        // LOCK FIELDS - User can ONLY change Sell Price
         document.getElementById('mpBuy').disabled = true;
         document.getElementById('mpQty').disabled = true;
         document.getElementById('mpUnit').disabled = true;
-        document.getElementById('mpPhoto').disabled = false; // Allow image update
+        
+        // Only Sell Price is editable
+        document.getElementById('mpSell').disabled = false;
 
         openModal('prodModal');
     };
 
-    window.saveProduct = async () => {
+    window.saveStock = async () => {
         const id = document.getElementById('mpId').value;
-        const name = document.getElementById('mpName').value.trim();
         const buy = parseFloat(document.getElementById('mpBuy').value);
         const sell = parseFloat(document.getElementById('mpSell').value);
         const qty = parseFloat(document.getElementById('mpQty').value);
         const unit = document.getElementById('mpUnit').value;
+        const name = document.getElementById('mpName').value;
+        const image = document.getElementById('mpImage').value;
+        
+        // Get SKU from select if adding new
+        let sku = "";
+        if(!id) {
+             const sel = document.getElementById('stockBaseSelect');
+             const opt = sel.options[sel.selectedIndex];
+             if(!opt.value) return showToast("Please select a product", "error");
+             sku = opt.dataset.sku;
+        } else {
+            // If editing, pull SKU from existing record
+            const p = productsCache.find(x => x.id === id);
+            sku = p ? p.sku : "";
+        }
 
-        // STRICT VALIDATION
-        if(!name) return showToast("Product Name is required", "error");
+        // VALIDATION
         if(isNaN(buy) || buy < 0) return showToast("Buy Price must be 0 or higher", "error");
         if(isNaN(sell) || sell <= 0) return showToast("Sell Price must be greater than 0", "error");
         if(isNaN(qty) || qty <= 0) return showToast("Quantity must be greater than 0", "error");
 
-        // Photo Validation: Only required for new products
-        if(!id && !compressedImageBase64) {
-            return showToast("Product Image is REQUIRED", "error");
-        }
-
-        const productData = { name, buy, sell, qty, unit, image: compressedImageBase64 };
+        const stockData = { name, buy, sell, qty, unit, image, sku };
 
         // Price Warning Check
         if (sell < buy) {
@@ -841,23 +1012,22 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
             document.getElementById('priceWarningModal').style.display = 'flex';
             document.getElementById('btnConfirmSaveAny').onclick = async () => {
                  document.getElementById('priceWarningModal').style.display = 'none';
-                 await finalizeProductSave(id, productData);
+                 await finalizeStockSave(id, stockData);
             };
             return;
         }
-        await finalizeProductSave(id, productData);
+        await finalizeStockSave(id, stockData);
     };
 
-    async function finalizeProductSave(id, data) {
+    async function finalizeStockSave(id, data) {
         toggleLoader(true);
         const isEdit = !!id;
         
         if(isEdit) {
             const oldP = productsCache.find(x => x.id === id);
-            // In Edit, we update Sell Price AND Image
+            // In Edit, we only allow updating Sell Price (enforced by disabled inputs, but good to filter data)
             await updateDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/products`, id), { 
-                sell: data.sell,
-                image: data.image 
+                sell: data.sell
             });
             await logInventory(data.name, 'EDIT', `Price updated: ${formatMoney(oldP.sell)} -> ${formatMoney(data.sell)}`, 0, data.qty);
         } else {
@@ -869,19 +1039,18 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         document.getElementById('prodModal').style.display = 'none';
         await loadProducts();
         toggleLoader(false);
-        showToast("Product saved successfully!");
+        showToast("Stock saved successfully!");
     }
 
     window.deleteProduct = async (id, name) => {
-        if(!confirm('Delete this product batch? This will remove it from stock permanently.')) return;
+        if(!confirm('Delete this stock batch?')) return;
         const p = productsCache.find(x => x.id === id);
         toggleLoader(true);
         await deleteDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/products`, id));
-        await logInventory(name, 'DELETE', 'Product Deleted', -p.qty, 0);
-        
+        await logInventory(name, 'DELETE', 'Batch Deleted', -p.qty, 0);
         loadProducts();
         toggleLoader(false);
-        showToast("Product batch deleted");
+        showToast("Batch deleted");
     };
 
     // --- INVENTORY LOGGING ---
