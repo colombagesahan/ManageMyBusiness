@@ -10,6 +10,9 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <!-- Exif.js for Image Orientation Fixing -->
 <script src="https://cdn.jsdelivr.net/npm/exif-js"></script>
+<!-- jsPDF for PDF Generation -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
 
 <style>
 /* --- DESIGN SYSTEM --- */
@@ -380,7 +383,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
                 <button class="btn btn-ghost" onclick="downloadCSV()"><i class="ri-file-excel-2-line"></i> CSV</button>
                 <div style="border-left:1px solid #d1d5db; height:20px; margin:0 5px;"></div>
                 <input id="waNumber" placeholder="9477xxxxxxx" style="width:140px; margin:0;">
-                <button class="btn btn-success" style="background:#25D366; color:white;" onclick="sendWhatsApp()"><i class="ri-whatsapp-line"></i> Send</button>
+                <button class="btn btn-success" style="background:#25D366; color:white;" onclick="sendWhatsApp()"><i class="ri-whatsapp-line"></i> Share PDF</button>
             </div>
         </div>
 
@@ -999,27 +1002,63 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         document.body.removeChild(downloadLink);
     };
 
-    window.sendWhatsApp = () => {
+    window.sendWhatsApp = async () => {
         const number = document.getElementById('waNumber').value;
         if (!number) return showToast("Enter WhatsApp number", "error");
-        
+
         const rows = document.querySelectorAll('#invReportTable tbody tr');
         if(rows.length === 0 || rows[0].innerText.includes("No logs")) return showToast("No data to send", "error");
 
-        let msg = "Inventory Report Summary:\n";
-        // To avoid URL length limits, we only take first 20 rows or summary
-        let count = 0;
-        rows.forEach(row => {
-            if(count > 15) return; // Limit
-            const cols = row.querySelectorAll('td');
-            // Format: Date - Item (Action): Change
-            msg += `${cols[0].innerText.split(',')[0]} - ${cols[1].innerText} (${cols[2].innerText}): ${cols[3].innerText}\n`;
-            count++;
-        });
-        if(rows.length > 15) msg += `...and ${rows.length - 15} more records.`;
+        toggleLoader(true);
 
-        const url = `https://wa.me/${number}?text=${encodeURIComponent(msg)}`;
-        window.open(url, '_blank');
+        try {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // Title
+            doc.text("Inventory Log Report", 14, 15);
+            doc.setFontSize(10);
+            const filterInfo = document.getElementById('invReportType').value; 
+            // Add date info based on selection
+            let dateVal = "";
+            if(filterInfo === 'date') dateVal = document.getElementById('invDateInput').value;
+            else if(filterInfo === 'month') dateVal = document.getElementById('invMonthInput').value;
+            else dateVal = document.getElementById('invYearInput').value;
+            
+            doc.text(`Filter: ${filterInfo.toUpperCase()} - ${dateVal}`, 14, 22);
+
+            // Table
+            doc.autoTable({ html: '#invReportTable', startY: 30 });
+
+            const pdfBlob = doc.output('blob');
+            const file = new File([pdfBlob], "Inventory_Report.pdf", { type: "application/pdf" });
+
+            // Try Web Share API (Mobile standard) to directly share the file
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({
+                    files: [file],
+                    title: 'Inventory Report',
+                    text: 'Here is the inventory report PDF.'
+                });
+                showToast("Shared successfully");
+            } else {
+                // Fallback for Desktop: Download & Link to WhatsApp
+                doc.save("Inventory_Report.pdf");
+                
+                // Slight delay to allow download to start
+                setTimeout(() => {
+                    const msg = encodeURIComponent("Here is the Inventory Report (PDF). Please drag and drop the downloaded file here.");
+                    const url = `https://wa.me/${number}?text=${msg}`;
+                    window.open(url, '_blank');
+                    alert("PDF Downloaded. Please drag and drop it into the WhatsApp chat.");
+                }, 1000);
+            }
+        } catch (err) {
+            console.error(err);
+            showToast("Error generating PDF: " + err.message, "error");
+        } finally {
+            toggleLoader(false);
+        }
     };
 
 
