@@ -305,13 +305,17 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         <!-- EXPLANATORY NOTE BOX -->
         <div class="note-box">
             <i class="ri-information-fill" style="margin-right:5px;"></i>
-            Batch Management: Always use <b>+ Add Product</b> for new stock (even same items). Only use "Edit" to re-price current stock.
+            Batch Management: Always use <b>+ Add Product</b> for new stock (even same items). Only use "Edit" to re-price current stock or update image.
         </div>
 
         <input type="hidden" id="mpId">
         
         <label style="font-size:12px; font-weight:600;">Product Image (Required)</label>
-        <input type="file" id="mpPhoto" accept="image/*" style="margin-bottom:10px;">
+        <div style="display: flex; gap: 5px; align-items: center; margin-bottom: 10px;">
+             <input type="file" id="mpPhoto" accept="image/*" style="margin-bottom:0; flex:1;">
+             <button class="btn btn-danger" id="btnRemoveImage" onclick="removeProductImage()" style="display:none; padding: 6px 10px; font-size: 11px;">Remove</button>
+        </div>
+       
         <div id="imageInfo" style="font-size:11px; color:#666;"></div>
         <img id="mpPhotoPreview" class="prod-preview" alt="Preview">
 
@@ -349,19 +353,37 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 
 <!-- Inventory Report -->
 <div id="invReportModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:100;">
-    <div class="card" style="width:600px; height:80vh; display:flex; flex-direction:column; margin:0;">
+    <div class="card" style="width:700px; height:80vh; display:flex; flex-direction:column; margin:0;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
             <h3>Inventory Log Report</h3>
             <button class="btn btn-ghost" onclick="document.getElementById('invReportModal').style.display='none'">Close</button>
         </div>
-        <div style="display:flex; gap:10px; margin-bottom:15px;">
-            <select id="invReportFilter" onchange="generateInventoryReport()">
-                <option value="daily">Today</option>
-                <option value="monthly" selected>This Month</option>
-                <option value="yearly">This Year</option>
-            </select>
-            <button class="btn btn-primary" onclick="generateInventoryReport()">Refresh</button>
+        
+        <div style="background:#f9fafb; padding:15px; border-radius:8px; border:1px solid #e5e7eb; margin-bottom:15px;">
+            <div style="font-weight:600; font-size:12px; color:#6b7280; margin-bottom:5px;">FILTER</div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                <select id="invReportType" onchange="toggleReportInputs()" style="width:150px; margin:0;">
+                    <option value="date">Specific Date</option>
+                    <option value="month">Specific Month</option>
+                    <option value="year">Specific Year</option>
+                </select>
+                <!-- Dynamic Inputs -->
+                <input type="date" id="invDateInput" style="width:auto; margin:0;">
+                <input type="month" id="invMonthInput" style="width:auto; margin:0; display:none;">
+                <select id="invYearInput" style="width:auto; margin:0; display:none;"></select>
+                <button class="btn btn-primary" onclick="generateInventoryReport()">Get Report</button>
+            </div>
+            
+            <div style="font-weight:600; font-size:12px; color:#6b7280; margin:10px 0 5px 0;">EXPORT & SHARE</div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+                <button class="btn btn-ghost" onclick="printReport()"><i class="ri-printer-line"></i> Print</button>
+                <button class="btn btn-ghost" onclick="downloadCSV()"><i class="ri-file-excel-2-line"></i> CSV</button>
+                <div style="border-left:1px solid #d1d5db; height:20px; margin:0 5px;"></div>
+                <input id="waNumber" placeholder="9477xxxxxxx" style="width:140px; margin:0;">
+                <button class="btn btn-success" style="background:#25D366; color:white;" onclick="sendWhatsApp()"><i class="ri-whatsapp-line"></i> Send</button>
+            </div>
         </div>
+
         <div style="overflow-y:auto; flex:1; border:1px solid #eee; border-radius:8px;">
             <table id="invReportTable" style="width:100%;">
                 <thead><tr style="background:#f9fafb;"><th>Date</th><th>Product</th><th>Action</th><th>Change</th><th>Qty</th></tr></thead>
@@ -709,6 +731,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
                 
                 document.getElementById('mpPhotoPreview').src = base64;
                 document.getElementById('mpPhotoPreview').style.display = 'block';
+                document.getElementById('btnRemoveImage').style.display = 'block'; // Show remove button
                 document.getElementById('imageInfo').textContent = `Compressed to approx ${(base64.length * 0.75 / 1024).toFixed(0)} KB`;
             } catch (err) {
                 alert("Image error: " + err.message);
@@ -716,6 +739,15 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
             }
         }
     });
+    
+    window.removeProductImage = () => {
+        document.getElementById('mpPhoto').value = '';
+        document.getElementById('mpPhotoPreview').src = '';
+        document.getElementById('mpPhotoPreview').style.display = 'none';
+        document.getElementById('btnRemoveImage').style.display = 'none';
+        document.getElementById('imageInfo').textContent = '';
+        compressedImageBase64 = null;
+    };
 
     window.prepareAddProduct = () => {
         document.getElementById('mpId').value = '';
@@ -727,6 +759,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         document.getElementById('mpUnit').value = '';
         document.getElementById('mpPhoto').value = '';
         document.getElementById('mpPhotoPreview').style.display = 'none';
+        document.getElementById('btnRemoveImage').style.display = 'none';
         document.getElementById('imageInfo').textContent = '';
         compressedImageBase64 = null;
         
@@ -752,21 +785,24 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         document.getElementById('mpUnit').value = p.unit || '';
         
         // Reset image handling
+        document.getElementById('mpPhoto').value = ''; // clear input to allow re-selection
         compressedImageBase64 = p.image; // Use existing if no new one picked
         if(p.image) {
             document.getElementById('mpPhotoPreview').src = p.image;
             document.getElementById('mpPhotoPreview').style.display = 'block';
+            document.getElementById('btnRemoveImage').style.display = 'block';
         } else {
             document.getElementById('mpPhotoPreview').style.display = 'none';
+            document.getElementById('btnRemoveImage').style.display = 'none';
         }
         document.getElementById('imageInfo').textContent = '';
 
-        // LOCK FIELDS
+        // LOCK FIELDS except Sell Price and Photo
         document.getElementById('mpName').disabled = true;
         document.getElementById('mpBuy').disabled = true;
         document.getElementById('mpQty').disabled = true;
         document.getElementById('mpUnit').disabled = true;
-        document.getElementById('mpPhoto').disabled = true; 
+        document.getElementById('mpPhoto').disabled = false; // Allow image update
 
         openModal('prodModal');
     };
@@ -785,7 +821,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         if(isNaN(sell) || sell <= 0) return showToast("Sell Price must be greater than 0", "error");
         if(isNaN(qty) || qty <= 0) return showToast("Quantity must be greater than 0", "error");
 
-        // Photo Validation
+        // Photo Validation: Only required for new products
         if(!id && !compressedImageBase64) {
             return showToast("Product Image is REQUIRED", "error");
         }
@@ -811,7 +847,11 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         
         if(isEdit) {
             const oldP = productsCache.find(x => x.id === id);
-            await updateDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/products`, id), { sell: data.sell });
+            // In Edit, we update Sell Price AND Image
+            await updateDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/products`, id), { 
+                sell: data.sell,
+                image: data.image 
+            });
             await logInventory(data.name, 'EDIT', `Price updated: ${formatMoney(oldP.sell)} -> ${formatMoney(data.sell)}`, 0, data.qty);
         } else {
             data.dateAdded = new Date().toISOString();
@@ -852,27 +892,54 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 
     window.openInventoryReport = () => {
         document.getElementById('invReportModal').style.display = 'flex';
+        // Setup Date Pickers Defaults
+        const now = new Date();
+        document.getElementById('invDateInput').valueAsDate = now;
+        document.getElementById('invMonthInput').value = now.toISOString().slice(0, 7);
+        
+        const yearSel = document.getElementById('invYearInput');
+        yearSel.innerHTML = '';
+        for(let y = now.getFullYear(); y >= 2020; y--) {
+            yearSel.innerHTML += `<option value="${y}">${y}</option>`;
+        }
+        
+        toggleReportInputs();
         generateInventoryReport();
     };
 
+    window.toggleReportInputs = () => {
+        const type = document.getElementById('invReportType').value;
+        document.getElementById('invDateInput').style.display = type === 'date' ? 'block' : 'none';
+        document.getElementById('invMonthInput').style.display = type === 'month' ? 'block' : 'none';
+        document.getElementById('invYearInput').style.display = type === 'year' ? 'block' : 'none';
+    };
+
     window.generateInventoryReport = async () => {
-        const filter = document.getElementById('invReportFilter').value;
         const tbody = document.querySelector('#invReportTable tbody');
         tbody.innerHTML = '<tr><td colspan="5">Loading...</td></tr>';
 
         const q = query(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/inventory_logs`), orderBy('date', 'desc'));
         const snap = await getDocs(q);
         
-        const now = new Date();
+        const type = document.getElementById('invReportType').value;
+        
+        let targetStr = "";
+        if(type === 'date') targetStr = document.getElementById('invDateInput').value; // yyyy-mm-dd
+        else if(type === 'month') targetStr = document.getElementById('invMonthInput').value; // yyyy-mm
+        else if(type === 'year') targetStr = document.getElementById('invYearInput').value; // yyyy
+
         const logs = [];
         snap.forEach(d => logs.push(d.data()));
 
         const filtered = logs.filter(l => {
             const d = new Date(l.date);
-            if(filter === 'daily') return d.toDateString() === now.toDateString();
-            if(filter === 'monthly') return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-            if(filter === 'yearly') return d.getFullYear() === now.getFullYear();
-            return true;
+            // Format d to match target
+            let dStr = "";
+            if(type === 'date') dStr = d.toISOString().split('T')[0];
+            else if(type === 'month') dStr = d.toISOString().slice(0, 7);
+            else if(type === 'year') dStr = d.getFullYear().toString();
+            
+            return dStr === targetStr;
         });
 
         if (filtered.length === 0) {
@@ -890,6 +957,71 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
             </tr>
         `).join('');
     };
+
+    // --- EXPORT & SHARE FUNCTIONS ---
+    window.printReport = () => {
+        const tableContent = document.getElementById('invReportTable').outerHTML;
+        const type = document.getElementById('invReportType').value;
+        const dateVal = type === 'date' ? document.getElementById('invDateInput').value : 
+                        type === 'month' ? document.getElementById('invMonthInput').value : 
+                        document.getElementById('invYearInput').value;
+        
+        const printWindow = window.open('', '', 'height=600,width=800');
+        printWindow.document.write('<html><head><title>Inventory Report</title>');
+        printWindow.document.write('<style>body{font-family:sans-serif;} table{width:100%;border-collapse:collapse;} th,td{border:1px solid #ddd;padding:8px;text-align:left;} th{background-color:#f2f2f2;}</style>');
+        printWindow.document.write('</head><body>');
+        printWindow.document.write(`<h2>Inventory Log Report (${type}: ${dateVal})</h2>`);
+        printWindow.document.write(tableContent);
+        printWindow.document.write('</body></html>');
+        printWindow.document.close();
+        printWindow.print();
+    };
+
+    window.downloadCSV = () => {
+        const table = document.getElementById('invReportTable');
+        let csv = [];
+        const rows = table.querySelectorAll('tr');
+        
+        for (let i = 0; i < rows.length; i++) {
+            let row = [], cols = rows[i].querySelectorAll("td, th");
+            for (let j = 0; j < cols.length; j++) 
+                row.push(cols[j].innerText.replace(/,/g, "")); // Clean commas
+            csv.push(row.join(","));        
+        }
+        
+        const csvFile = new Blob([csv.join("\n")], {type: "text/csv"});
+        const downloadLink = document.createElement("a");
+        downloadLink.download = `inventory_report_${new Date().getTime()}.csv`;
+        downloadLink.href = window.URL.createObjectURL(csvFile);
+        downloadLink.style.display = "none";
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+    };
+
+    window.sendWhatsApp = () => {
+        const number = document.getElementById('waNumber').value;
+        if (!number) return showToast("Enter WhatsApp number", "error");
+        
+        const rows = document.querySelectorAll('#invReportTable tbody tr');
+        if(rows.length === 0 || rows[0].innerText.includes("No logs")) return showToast("No data to send", "error");
+
+        let msg = "Inventory Report Summary:\n";
+        // To avoid URL length limits, we only take first 20 rows or summary
+        let count = 0;
+        rows.forEach(row => {
+            if(count > 15) return; // Limit
+            const cols = row.querySelectorAll('td');
+            // Format: Date - Item (Action): Change
+            msg += `${cols[0].innerText.split(',')[0]} - ${cols[1].innerText} (${cols[2].innerText}): ${cols[3].innerText}\n`;
+            count++;
+        });
+        if(rows.length > 15) msg += `...and ${rows.length - 15} more records.`;
+
+        const url = `https://wa.me/${number}?text=${encodeURIComponent(msg)}`;
+        window.open(url, '_blank');
+    };
+
 
     // --- POS ---
     function renderPosGrid() {
