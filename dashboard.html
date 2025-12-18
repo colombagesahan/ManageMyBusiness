@@ -377,17 +377,21 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
                 <button class="btn btn-primary" onclick="generateInventoryReport()">Get Report</button>
             </div>
             
-            <div style="font-weight:600; font-size:12px; color:#6b7280; margin:10px 0 5px 0;">EXPORT & SHARE</div>
-            <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-                <button class="btn btn-ghost" onclick="printReport()"><i class="ri-printer-line"></i> Print</button>
-                <button class="btn btn-ghost" onclick="downloadCSV()"><i class="ri-file-excel-2-line"></i> CSV</button>
-                <div style="border-left:1px solid #d1d5db; height:20px; margin:0 5px;"></div>
-                <input id="waNumber" placeholder="9477xxxxxxx" style="width:140px; margin:0;">
-                <button class="btn btn-success" style="background:#25D366; color:white;" onclick="sendWhatsApp()"><i class="ri-whatsapp-line"></i> Share PDF</button>
+            <!-- Export Section Wrapped in Hidden Div -->
+            <div id="invExportSection" style="display:none;">
+                <div style="font-weight:600; font-size:12px; color:#6b7280; margin:10px 0 5px 0;">EXPORT & SHARE</div>
+                <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+                    <button class="btn btn-ghost" onclick="printReport()"><i class="ri-printer-line"></i> Print</button>
+                    <button class="btn btn-ghost" onclick="downloadCSV()"><i class="ri-file-excel-2-line"></i> CSV</button>
+                    <div style="border-left:1px solid #d1d5db; height:20px; margin:0 5px;"></div>
+                    <input id="waNumber" placeholder="9477xxxxxxx" style="width:140px; margin:0;">
+                    <button class="btn btn-success" style="background:#25D366; color:white;" onclick="sendWhatsApp()"><i class="ri-whatsapp-line"></i> Share PDF</button>
+                </div>
             </div>
         </div>
 
-        <div style="overflow-y:auto; flex:1; border:1px solid #eee; border-radius:8px;">
+        <!-- Table Container Wrapped for Visibility Control -->
+        <div id="invTableContainer" style="overflow-y:auto; flex:1; border:1px solid #eee; border-radius:8px; display:none;">
             <table id="invReportTable" style="width:100%;">
                 <thead><tr style="background:#f9fafb;"><th>Date</th><th>Product</th><th>Action</th><th>Change</th><th>Qty</th></tr></thead>
                 <tbody></tbody>
@@ -907,7 +911,11 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         }
         
         toggleReportInputs();
-        generateInventoryReport();
+        
+        // HIDE SECTIONS INITIALLY to ensure user selects filter and clicks 'Get Report'
+        document.getElementById('invExportSection').style.display = 'none';
+        document.getElementById('invTableContainer').style.display = 'none';
+        document.querySelector('#invReportTable tbody').innerHTML = '';
     };
 
     window.toggleReportInputs = () => {
@@ -919,6 +927,12 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 
     window.generateInventoryReport = async () => {
         const tbody = document.querySelector('#invReportTable tbody');
+        
+        // Show table container for loading state
+        document.getElementById('invTableContainer').style.display = 'block';
+        // Hide exports until loaded
+        document.getElementById('invExportSection').style.display = 'none';
+        
         tbody.innerHTML = '<tr><td colspan="5">Loading...</td></tr>';
 
         const q = query(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/inventory_logs`), orderBy('date', 'desc'));
@@ -947,6 +961,9 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 
         if (filtered.length === 0) {
             tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No logs found for this period.</td></tr>';
+            // Even if empty, we show buttons so user can print "No records" if needed, 
+            // or we could keep hidden. Based on request "display ... content report", showing empty content is fine.
+            document.getElementById('invExportSection').style.display = 'block';
             return;
         }
 
@@ -959,6 +976,9 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
                 <td>${l.finalQty}</td>
             </tr>
         `).join('');
+        
+        // Show exports after successful render
+        document.getElementById('invExportSection').style.display = 'block';
     };
 
     // --- EXPORT & SHARE FUNCTIONS ---
