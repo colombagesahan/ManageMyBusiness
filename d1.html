@@ -1,0 +1,1611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard | ManageMyBusiness</title>
+<link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<!-- Chart.js for Graphs -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- Exif.js for Image Orientation Fixing -->
+<script src="https://cdn.jsdelivr.net/npm/exif-js"></script>
+<!-- jsPDF for PDF Generation -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+
+<style>
+/* --- DESIGN SYSTEM --- */
+:root {
+    --primary: #4F46E5; --bg: #f3f4f6; --card: #ffffff; --text: #1f2937;
+    --sidebar-w: 260px; --header-h: 70px;
+    --danger: #ef4444; --success: #10b981; --warning: #f59e0b;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
+body { background: var(--bg); display: flex; height: 100vh; overflow: hidden; color: var(--text); }
+
+/* --- SIDEBAR --- */
+.sidebar { width: var(--sidebar-w); background: #111827; color: white; display: flex; flex-direction: column; flex-shrink: 0; transition: 0.3s; z-index: 50; }
+.brand { height: var(--header-h); display: flex; align-items: center; padding: 0 24px; font-weight: 700; font-size: 18px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.nav { padding: 20px 0; overflow-y: auto; flex: 1; }
+.nav-item { display: flex; align-items: center; gap: 12px; padding: 12px 24px; color: #9ca3af; text-decoration: none; cursor: pointer; transition: 0.2s; font-size: 14px; }
+.nav-item:hover, .nav-item.active { color: white; background: rgba(255,255,255,0.05); border-left: 3px solid var(--primary); }
+.nav-group { margin-top: 20px; padding: 0 24px; font-size: 11px; text-transform: uppercase; color: #6b7280; letter-spacing: 1px; font-weight: 700; }
+
+/* --- MAIN --- */
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+.header { height: var(--header-h); background: var(--card); border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; padding: 0 24px; }
+.shop-select { background: #f9fafb; border: 1px solid #e5e7eb; padding: 8px 12px; border-radius: 8px; font-size: 14px; outline: none; min-width: 200px; }
+.content { flex: 1; overflow-y: auto; padding: 24px; }
+
+/* --- COMPONENTS --- */
+.card { background: var(--card); border-radius: 16px; padding: 24px; box-shadow: 0 1px 3px 0 rgba(0,0,0,0.1); margin-bottom: 24px; border: 1px solid #e5e7eb; }
+.btn { padding: 8px 16px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; transition: 0.2s; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; }
+.btn-primary { background: var(--primary); color: white; } .btn-primary:hover { background: #4338ca; }
+.btn-danger { background: var(--danger); color: white; }
+.btn-warning { background: var(--warning); color: white; }
+.btn-ghost { background: transparent; border: 1px solid #d1d5db; color: var(--text); }
+.grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px; }
+input, select, textarea { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; margin-bottom: 10px; font-size: 14px; outline: none; }
+input:focus { border-color: var(--primary); ring: 2px solid var(--primary); }
+input:disabled, select:disabled, textarea:disabled { background: #f3f4f6; cursor: not-allowed; color: #9ca3af; } 
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th { text-align: left; padding: 12px; background: #f9fafb; color: #6b7280; font-weight: 600; border-bottom: 1px solid #e5e7eb; white-space: nowrap; }
+td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
+
+/* --- PROFILE SPECIAL --- */
+.logo-preview-box { width: 150px; height: 150px; border: 2px dashed #d1d5db; border-radius: 12px; display: flex; align-items: center; justify-content: center; overflow: hidden; margin-bottom: 10px; background: #f9fafb; }
+.logo-preview-box img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.text-logo-preview { font-weight: bold; text-align: center; }
+
+/* --- IMAGES --- */
+.prod-thumb { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; border: 1px solid #e5e7eb; cursor: pointer; }
+.prod-preview { width: 100%; height: 150px; object-fit: contain; border: 2px dashed #d1d5db; border-radius: 8px; margin-bottom: 10px; display: none; }
+.note-box { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; padding: 12px; border-radius: 8px; font-size: 13px; margin-bottom: 15px; line-height: 1.4; }
+
+/* --- VIEWS --- */
+.view { display: none; animation: fade 0.2s; } .view.active { display: block; }
+@keyframes fade { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+/* --- CHAT BOT STYLES --- */
+.chat-fab { position: fixed; bottom: 20px; right: 20px; width: 50px; height: 50px; background: var(--primary); border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; font-size: 24px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 2000; transition: 0.3s; }
+.chat-fab:hover { transform: scale(1.1); }
+.chat-window { position: fixed; bottom: 80px; right: 20px; width: 340px; height: 480px; background: white; border-radius: 12px; box-shadow: 0 5px 25px rgba(0,0,0,0.15); z-index: 2000; display: none; flex-direction: column; overflow: hidden; border: 1px solid #e5e7eb; }
+.chat-header { background: var(--primary); color: white; padding: 12px 15px; font-weight: 600; display: flex; justify-content: space-between; align-items: center; font-size: 14px; }
+.chat-body { flex: 1; padding: 15px; overflow-y: auto; background: #f9fafb; display: flex; flex-direction: column; gap: 10px; }
+.chat-msg { max-width: 85%; padding: 10px 12px; border-radius: 10px; font-size: 13px; line-height: 1.4; animation: fade 0.2s; }
+.chat-msg.bot { background: white; border: 1px solid #e5e7eb; align-self: flex-start; color: var(--text); border-bottom-left-radius: 2px; }
+.chat-msg.user { background: var(--primary); color: white; align-self: flex-end; border-bottom-right-radius: 2px; }
+.chat-options { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 5px; }
+.chat-chip { background: #e0e7ff; color: var(--primary); padding: 6px 10px; border-radius: 20px; font-size: 11px; cursor: pointer; border: 1px solid #c7d2fe; transition: 0.2s; font-weight: 500; }
+.chat-chip:hover { background: var(--primary); color: white; border-color: var(--primary); }
+
+/* --- TOAST & LOADER --- */
+.toast-container { position: fixed; top: 20px; right: 20px; z-index: 3000; display: flex; flex-direction: column; gap: 10px; }
+.toast { background: white; color: var(--text); padding: 12px 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 10px; border-left: 4px solid var(--primary); animation: slideIn 0.3s; font-size: 14px; min-width: 250px; }
+.toast.success { border-left-color: var(--success); }
+.toast.error { border-left-color: var(--danger); }
+@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+.loading-overlay { position: fixed; inset: 0; background: rgba(255,255,255,0.7); backdrop-filter: blur(2px); z-index: 4000; display: none; align-items: center; justify-content: center; flex-direction: column; }
+.spinner { width: 40px; height: 40px; border: 4px solid #e5e7eb; border-top: 4px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+/* --- MOBILE --- */
+@media(max-width: 768px) {
+    .sidebar { position: absolute; left: -100%; height: 100%; width: 80%; }
+    .sidebar.open { left: 0; }
+    .mobile-toggle { display: block; font-size: 24px; cursor: pointer; margin-right: 15px; }
+} .mobile-toggle { display: none; }
+</style>
+</head>
+<body>
+
+<!-- TOAST & LOADER -->
+<div class="toast-container" id="toastContainer"></div>
+<div class="loading-overlay" id="globalLoader">
+    <div class="spinner"></div>
+    <div style="margin-top: 10px; font-weight: 500; font-size: 14px; color: var(--text);">Processing...</div>
+</div>
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+    <div class="brand"><i class="ri-pie-chart-2-fill" style="margin-right:10px;"></i> ManageMyBusiness</div>
+    <div class="nav">
+        <div class="nav-group">Main</div>
+        <a class="nav-item active" onclick="loadView('dashboard')"><i class="ri-dashboard-line"></i> Dashboard</a>
+        <!-- NEW PROFILE TAB -->
+        <a class="nav-item" onclick="loadView('profile')"><i class="ri-user-settings-line"></i> Profile</a>
+        <a class="nav-item" onclick="loadView('pos')"><i class="ri-shopping-cart-2-line"></i> Smart POS</a>
+        
+        <div class="nav-group">Inventory</div>
+        <a class="nav-item" onclick="loadView('catalog')"><i class="ri-archive-line"></i> Add Products</a>
+        <a class="nav-item" onclick="loadView('products')"><i class="ri-box-3-line"></i> Add Stock</a>
+        <a class="nav-item" onclick="loadView('services')"><i class="ri-service-line"></i> Services</a>
+
+        <div class="nav-group">HR & Admin</div>
+        <a class="nav-item" onclick="loadView('employees')"><i class="ri-team-line"></i> Employees</a>
+        <a class="nav-item" onclick="loadView('payroll')"><i class="ri-calculator-line"></i> Payroll Processor</a>
+        <a class="nav-item" onclick="loadView('customers')"><i class="ri-user-heart-line"></i> Customers</a>
+    </div>
+    <div style="padding: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
+        <div style="font-size: 12px; opacity: 0.7;">Logged in as</div>
+        <div id="userEmail" style="font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis;">...</div>
+        <button onclick="logout()" style="color: #f87171; background: none; border: none; margin-top: 10px; cursor: pointer; font-size: 12px;">Logout</button>
+    </div>
+</aside>
+
+<!-- MAIN CONTENT -->
+<main class="main">
+    <header class="header">
+        <div style="display:flex; align-items:center;">
+            <i class="ri-menu-2-line mobile-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')"></i>
+            <h3 id="pageTitle">Overview</h3>
+        </div>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <select class="shop-select" id="shopSelector" onchange="changeShop()">
+                <option value="">Loading Businesses...</option>
+            </select>
+            <!-- Changed to + Business -->
+            <button class="btn btn-primary" onclick="openModal('shopModal')">+ Business</button>
+            <button class="btn btn-danger" onclick="deleteCurrentShop()" title="Delete Business"><i class="ri-delete-bin-line"></i></button>
+        </div>
+    </header>
+
+    <div class="content" id="appContent">
+
+        <!-- 1. DASHBOARD HOME -->
+        <div id="view-dashboard" class="view active">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
+                <h4 style="margin:0;">Performance Overview</h4>
+                <select id="dashTimeFilter" style="width: auto; margin:0;" onchange="updateDashboard()">
+                    <option value="daily">Daily (Today)</option>
+                    <option value="monthly" selected>Monthly (This Month)</option>
+                    <option value="yearly">Yearly (This Year)</option>
+                </select>
+            </div>
+
+            <div class="grid-4">
+                <div class="card">
+                    <div style="color:#6b7280; font-size:13px;">Total Sales</div>
+                    <div style="font-size:28px; font-weight:700;" id="dashSales">0.00</div>
+                    <div style="font-size:12px; color: #6b7280; margin-top:5px;">Based on selection</div>
+                </div>
+                <div class="card">
+                    <div style="color:#6b7280; font-size:13px;">Total Profit</div>
+                    <div style="font-size:28px; font-weight:700; color:var(--success)" id="dashProfit">0.00</div>
+                    <div style="font-size:12px; color: #6b7280; margin-top:5px;">Net Profit</div>
+                </div>
+                <div class="card">
+                    <div style="color:#6b7280; font-size:13px;">Low Stock Items</div>
+                    <div style="font-size:28px; font-weight:700; color:var(--danger)" id="dashLow">0</div>
+                </div>
+                <div class="card">
+                    <div style="color:#6b7280; font-size:13px;">Employees</div>
+                    <div style="font-size:28px; font-weight:700;" id="dashEmp">0</div>
+                </div>
+            </div>
+            <div class="card" style="height: 300px;">
+                <canvas id="salesChart"></canvas>
+            </div>
+        </div>
+
+        <!-- NEW PROFILE VIEW -->
+        <div id="view-profile" class="view">
+            <div class="card">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                    <h3 style="margin:0;">Business Profile</h3>
+                    <button class="btn btn-warning" id="btnEditProfile" onclick="unlockProfile()">Edit Profile</button>
+                </div>
+                <div id="profileWarning" class="note-box" style="background:#fee2e2; border-color:#fecaca; color:#991b1b; display:none;">
+                    <i class="ri-error-warning-fill"></i> Please complete your profile to enable all features.
+                </div>
+
+                <div style="display:grid; grid-template-columns: 200px 1fr; gap:30px;">
+                    <!-- Logo Section -->
+                    <div>
+                        <label style="font-size:12px; font-weight:700;">BUSINESS LOGO</label>
+                        <div class="logo-preview-box" id="profLogoContainer">
+                            <span id="logoPlaceholder">No Logo</span>
+                        </div>
+                        <div id="profInputsLogo">
+                            <input type="file" id="profLogoFile" accept="image/*" style="font-size:11px;">
+                            <div style="margin-top:10px; border-top:1px solid #eee; padding-top:10px;">
+                                <label style="font-size:11px;">Or use Business Name as Logo:</label>
+                                <select id="profLogoFont">
+                                    <option value="'Plus Jakarta Sans'">Sans Serif</option>
+                                    <option value="serif">Serif</option>
+                                    <option value="monospace">Monospace</option>
+                                    <option value="cursive">Cursive</option>
+                                </select>
+                                <input type="color" id="profLogoColor" value="#4F46E5" style="height:40px;">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Details Section -->
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;" id="profFields">
+                        <div><label style="font-size:12px;">Business Owner Name *</label><input id="profOwner" placeholder="Enter full name"></div>
+                        <div><label style="font-size:12px;">Reg No / NIC / License *</label><input id="profReg" placeholder="Registration or ID number"></div>
+                        <div style="grid-column: span 2;"><label style="font-size:12px;">Business Address *</label><textarea id="profAddress" rows="2" placeholder="Full business address"></textarea></div>
+                        <div><label style="font-size:12px;">Phone Number 1 *</label><input id="profPhone1" placeholder="Primary phone"></div>
+                        <div><label style="font-size:12px;">Phone Number 2 (Optional)</label><input id="profPhone2" placeholder="Secondary phone"></div>
+                        <div><label style="font-size:12px;">WhatsApp Number *</label><input id="profWhatsapp" placeholder="WhatsApp number"></div>
+                        <div><label style="font-size:12px;">Email Address (Optional)</label><input id="profEmail" placeholder="Business email"></div>
+                    </div>
+                </div>
+                
+                <div style="text-align:right; margin-top:20px; border-top:1px solid #eee; padding-top:20px;">
+                    <button class="btn btn-primary" id="btnSaveProfile" onclick="saveProfile()" style="padding:10px 30px;">Save Profile</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 1.5 NEW ADD PRODUCTS TAB (Base Catalog) -->
+        <div id="view-catalog" class="view">
+            <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
+                <input placeholder="Search products by Name or SKU..." style="width:250px; margin:0;" id="catSearch" onkeyup="filterCatalog(this.value)">
+                <button class="btn btn-primary" onclick="prepareAddBaseProduct()">+ Create Base Product</button>
+            </div>
+            <div class="card" style="overflow-x:auto;">
+                <table id="catTable">
+                    <thead><tr><th>Image</th><th>SKU</th><th>Name</th><th>Created</th><th>Action</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 2. ADD STOCK (Formerly Products) -->
+        <div id="view-products" class="view">
+            <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
+                <div style="display:flex; gap:10px;">
+                    <input placeholder="Search stock batches..." style="width:250px; margin:0;" id="prodSearch" onkeyup="filterProducts(this.value)">
+                    <button class="btn btn-ghost" onclick="openInventoryReport()"><i class="ri-file-list-3-line"></i> Report</button>
+                </div>
+                <button class="btn btn-primary" onclick="prepareAddStock()">+ Add Stock</button>
+            </div>
+            <div class="card" style="overflow-x:auto;">
+                <table id="prodTable">
+                    <thead><tr><th>Image</th><th>Date Added</th><th>Name / SKU</th><th>Buy</th><th>Sell</th><th>Stock</th><th>Action</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 3. SMART POS -->
+        <div id="view-pos" class="view">
+            <div style="display:grid; grid-template-columns: 2fr 1fr; gap:20px;">
+                <div class="card">
+                    <input id="posSearch" placeholder="Scan barcode or type name..." onkeyup="filterPos(this.value)">
+                    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap:10px; max-height:500px; overflow-y:auto;" id="posGrid"></div>
+                </div>
+                <div class="card" style="display:flex; flex-direction:column;">
+                    <h3>Current Order</h3>
+                    <div id="cartItems" style="flex:1; overflow-y:auto; margin:15px 0;"></div>
+                    <div style="border-top:1px solid #eee; padding-top:10px;">
+                        <div style="display:flex; justify-content:space-between; font-weight:700; font-size:18px;">
+                            <span>Total</span><span id="cartTotal">0.00</span>
+                        </div>
+                        <input id="posCustomer" placeholder="Customer Name (Optional)" style="margin-top:10px;">
+                        <button class="btn btn-primary" style="width:100%; justify-content:center; margin-top:10px;" onclick="checkout()">Complete Sale</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. EMPLOYEES -->
+        <div id="view-employees" class="view">
+            <div style="text-align:right; margin-bottom:15px;">
+                <button class="btn btn-primary" onclick="openModal('empModal')">+ Add Employee</button>
+            </div>
+            <div class="grid-4" id="empGrid"></div>
+        </div>
+
+        <!-- 5. PAYROLL -->
+        <div id="view-payroll" class="view">
+            <div class="card">
+                <h3>Daily Log Entry</h3>
+                <div class="grid-4" style="align-items:end;">
+                    <div><label>Employee</label><select id="payEmpSelect"></select></div>
+                    <div><label>Date</label><input type="date" id="payDate"></div>
+                    <div><label>Status</label><select id="payStatus"><option value="P">Present</option><option value="LWP">Leave Without Pay (LWP)</option></select></div>
+                    <div><label>OT (Hours)</label><input type="number" id="payOT" value="0"></div>
+                    <div><label>Advance</label><input type="number" id="payAdv" value="0"></div>
+                    <button class="btn btn-primary" onclick="saveDailyLog()">Save Log</button>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3>Calculate Monthly Salary</h3>
+                <div style="display:flex; gap:10px; margin-bottom:15px;">
+                    <select id="calcEmpSelect" style="max-width:200px;"></select>
+                    <select id="calcMonth" style="max-width:150px;">
+                        <option value="0">January</option><option value="1">February</option><option value="2">March</option>
+                        <option value="3">April</option><option value="4">May</option><option value="5">June</option>
+                        <option value="6">July</option><option value="7">August</option><option value="8">September</option>
+                        <option value="9">October</option><option value="10">November</option><option value="11">December</option>
+                    </select>
+                    <button class="btn btn-primary" onclick="calculateSalary()">Generate Slip</button>
+                </div>
+                <div id="salarySlip" style="background:#f0fdf4; border:1px solid #bbf7d0; padding:20px; border-radius:12px; display:none;"></div>
+            </div>
+        </div>
+
+        <div id="view-services" class="view"><div class="card"><h3>Services</h3><p class="muted">Coming soon.</p></div></div>
+        <div id="view-customers" class="view"><div class="card"><h3>Customers</h3><p class="muted">Coming soon.</p></div></div>
+
+    </div>
+</main>
+
+<!-- CHAT BOT -->
+<div class="chat-fab" onclick="toggleChat()">
+    <i class="ri-customer-service-2-line"></i>
+</div>
+<div class="chat-window" id="supportChat">
+    <div class="chat-header">
+        <span><i class="ri-robot-2-line" style="margin-right:5px;"></i> Auto-Support</span>
+        <i class="ri-close-line" style="cursor:pointer; font-size:18px;" onclick="toggleChat()"></i>
+    </div>
+    <div class="chat-body" id="chatContent">
+        <div class="chat-msg bot">Hello! I can explain how to use this dashboard. Click a topic below:</div>
+        <div class="chat-options" id="chatOptions">
+            <div class="chat-chip" onclick="askBot('batch')">Add vs Edit Product?</div>
+             <div class="chat-chip" onclick="askBot('edit')">When to use Edit?</div>
+            <div class="chat-chip" onclick="askBot('price')">New Stock Prices</div>
+            <div class="chat-chip" onclick="askBot('pos')">POS Help</div>
+            <div class="chat-chip" onclick="askBot('payroll')">Payroll Math</div>
+        </div>
+    </div>
+</div>
+
+<!-- MODALS -->
+
+<!-- New Business (Changed from Shop) -->
+<div id="shopModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:1000;">
+    <div class="card" style="width:400px; margin:0;">
+        <h3>Create New Business</h3>
+        <input id="msName" placeholder="e.g. My Supermarket">
+        <label style="font-size:12px;">Currency</label>
+        <select id="msCurrency"></select>
+        <div style="display:flex; gap:10px; margin-top:15px;">
+            <button class="btn btn-primary" onclick="saveNewShop()">Create Business</button>
+            <button class="btn btn-danger" onclick="document.getElementById('shopModal').style.display='none'">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- BASE PRODUCT MODAL (For Add Products Tab) -->
+<div id="baseProductModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:100;">
+    <div class="card" style="width:400px; margin:0;">
+        <h3>Create Base Product</h3>
+        <input type="hidden" id="bpId">
+        <label style="font-size:12px; font-weight:600;">Product Image (Required)</label>
+        <div style="display: flex; gap: 5px; align-items: center; margin-bottom: 10px;">
+             <input type="file" id="bpPhoto" accept="image/*" style="margin-bottom:0; flex:1;">
+             <button class="btn btn-danger" id="btnRemoveBpImage" onclick="removeBaseProductImage()" style="display:none; padding: 6px 10px; font-size: 11px;">Remove</button>
+        </div>
+        <div id="bpImageInfo" style="font-size:11px; color:#666;"></div>
+        <img id="bpPhotoPreview" class="prod-preview" alt="Preview">
+
+        <input id="bpName" placeholder="Product Name (Required)">
+        <div id="bpSkuDisplay" style="font-size:12px; color:#6b7280; margin-bottom:10px;">SKU will be auto-generated</div>
+
+        <div style="display:flex; gap:10px; margin-top:10px;">
+            <button class="btn btn-primary" onclick="saveBaseProduct()">Save Product</button>
+            <button class="btn btn-danger" onclick="document.getElementById('baseProductModal').style.display='none'">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- ADD STOCK MODAL (Renamed/Refactored) -->
+<div id="prodModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:100;">
+    <div class="card" style="width:450px; margin:0; max-height: 90vh; overflow-y: auto;">
+        <h3 id="prodModalTitle">Add Stock</h3>
+        
+        <!-- Updated Note -->
+        <div class="note-box">
+            <i class="ri-information-fill" style="margin-right:5px;"></i>
+            Batch Management: Always use <b>+ Add Stock</b> when adding new stock (even for the same items). Use “Edit” only to update the price of existing stock.
+        </div>
+
+        <input type="hidden" id="mpId">
+        <input type="hidden" id="mpName"> <!-- Hidden, populated by select -->
+        <input type="hidden" id="mpImage"> <!-- Hidden, populated by select -->
+        
+        <!-- Selection Dropdown -->
+        <div id="stockSelectContainer">
+            <label style="font-size:12px; font-weight:600;">Select Product</label>
+            <select id="stockBaseSelect" onchange="onBaseProductSelect()">
+                <option value="">-- Choose Product --</option>
+            </select>
+        </div>
+
+        <!-- Preview for Update Mode or Selected Item -->
+        <div id="stockPreview" style="display:none; margin-bottom:10px; text-align:center;">
+            <img id="mpPhotoPreview" class="prod-preview" style="display:block; margin:0 auto 10px auto; width:100px; height:100px;" alt="Preview">
+            <div id="mpNameDisplay" style="font-weight:600; font-size:14px;"></div>
+        </div>
+
+        <input id="mpBuy" type="number" placeholder="Buy Price (>= 0)">
+        <input id="mpSell" type="number" placeholder="Sell Price (> 0)">
+        
+        <div style="display:flex; gap:10px; margin-bottom:10px;">
+            <input id="mpQty" type="number" placeholder="Stock Qty (> 0)" style="flex:1; margin-bottom:0;">
+            <select id="mpUnit" style="flex:1; margin-bottom:0;">
+                <option value="">No Unit (pcs)</option>
+                <option value="kg">kg</option><option value="g">g</option>
+                <option value="l">l</option><option value="ml">ml</option><option value="m">m</option>
+            </select>
+        </div>
+        
+        <div style="display:flex; gap:10px; margin-top:10px;">
+            <button class="btn btn-primary" onclick="saveStock()">Save</button>
+            <button class="btn btn-danger" onclick="document.getElementById('prodModal').style.display='none'">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- Price Warning -->
+<div id="priceWarningModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:1100;">
+    <div class="card" style="width:350px; margin:0; border-left: 4px solid var(--danger);">
+        <h3 style="color:var(--danger);">Warning: Negative Profit</h3>
+        <div id="priceWarningMsg" style="margin:10px 0; font-size:14px;"></div>
+        <div style="display:flex; gap:10px;">
+            <button class="btn btn-danger" id="btnConfirmSaveAny">Save Anyway</button>
+            <button class="btn btn-primary" onclick="document.getElementById('priceWarningModal').style.display='none'">Edit Price</button>
+        </div>
+    </div>
+</div>
+
+<!-- Inventory Report -->
+<div id="invReportModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:100;">
+    <div class="card" style="width:700px; height:80vh; display:flex; flex-direction:column; margin:0;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+            <h3>Inventory Log Report</h3>
+            <button class="btn btn-ghost" onclick="document.getElementById('invReportModal').style.display='none'">Close</button>
+        </div>
+        
+        <div style="background:#f9fafb; padding:15px; border-radius:8px; border:1px solid #e5e7eb; margin-bottom:15px;">
+            <div style="font-weight:600; font-size:12px; color:#6b7280; margin-bottom:5px;">FILTER</div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                <select id="invReportType" onchange="toggleReportInputs()" style="width:150px; margin:0;">
+                    <option value="date">Specific Date</option>
+                    <option value="month">Specific Month</option>
+                    <option value="year">Specific Year</option>
+                </select>
+                <!-- Dynamic Inputs -->
+                <input type="date" id="invDateInput" style="width:auto; margin:0;">
+                <input type="month" id="invMonthInput" style="width:auto; margin:0; display:none;">
+                <select id="invYearInput" style="width:auto; margin:0; display:none;"></select>
+                <button class="btn btn-primary" onclick="generateInventoryReport()">Get Report</button>
+            </div>
+            
+            <!-- Export Section Wrapped in Hidden Div -->
+            <div id="invExportSection" style="display:none;">
+                <div style="font-weight:600; font-size:12px; color:#6b7280; margin:10px 0 5px 0;">EXPORT & SHARE</div>
+                <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+                    <button class="btn btn-ghost" onclick="printReport()"><i class="ri-printer-line"></i> Print</button>
+                    <button class="btn btn-ghost" onclick="downloadCSV()"><i class="ri-file-excel-2-line"></i> CSV</button>
+                    <div style="border-left:1px solid #d1d5db; height:20px; margin:0 5px;"></div>
+                    <input id="waNumber" placeholder="9477xxxxxxx" style="width:140px; margin:0;">
+                    <button class="btn btn-success" style="background:#25D366; color:white;" onclick="sendWhatsApp()"><i class="ri-whatsapp-line"></i> Share PDF</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Table Container Wrapped for Visibility Control -->
+        <div id="invTableContainer" style="overflow-y:auto; flex:1; border:1px solid #eee; border-radius:8px; display:none;">
+            <table id="invReportTable" style="width:100%;">
+                <thead><tr style="background:#f9fafb;"><th>Date</th><th>Product</th><th>Action</th><th>Change</th><th>Qty</th></tr></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Employee Modal -->
+<div id="empModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:100;">
+    <div class="card" style="width:400px; margin:0;">
+        <h3>Add Employee</h3>
+        <input id="meName" placeholder="Full Name">
+        <input id="meRole" placeholder="Role">
+        <input id="meSalary" type="number" placeholder="Base Monthly Salary">
+        <div style="display:flex; gap:10px; margin-top:10px;">
+            <button class="btn btn-primary" onclick="saveEmployee()">Save</button>
+            <button class="btn btn-danger" onclick="document.getElementById('empModal').style.display='none'">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- LOGIC -->
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+    import { getAuth, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+    import { getFirestore, collection, addDoc, getDocs, doc, deleteDoc, updateDoc, query, where, orderBy, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+    // 🔴 RE-PASTE FIREBASE CONFIG HERE
+    const firebaseConfig = {
+        apiKey: "AIzaSyCZrmkX2RsJTbn4j-WmbuCMudWaETMvXwQ",
+        authDomain: "managemybusiness-b4afb.firebaseapp.com",
+        projectId: "managemybusiness-b4afb",
+        storageBucket: "managemybusiness-b4afb.firebasestorage.app",
+        messagingSenderId: "237936848306",
+        appId: "1:237936848306:web:91a996c3d1d3ceda3b48ab",
+        measurementId: "G-7KPL8EDQ5H"
+    };
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    let currentUser = null;
+    let currentShopId = null;
+    let currentCurrency = "$";
+    let productsCache = [];
+    let catalogCache = []; // NEW: Cache for base products
+    let cart = [];
+    let salesCache = [];
+    let compressedImageBase64 = null; // Store compressed image
+    let profileCache = null;
+
+    // --- UTILS ---
+    function showToast(message, type = 'success') {
+        const container = document.getElementById('toastContainer');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        const icon = type === 'success' ? 'check-line' : 'error-warning-line';
+        toast.innerHTML = `<i class="ri-${icon}" style="font-size:18px;"></i> ${message}`;
+        container.appendChild(toast);
+        setTimeout(() => {
+            toast.style.animation = 'slideIn 0.3s reverse';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
+    function toggleLoader(show) {
+        document.getElementById('globalLoader').style.display = show ? 'flex' : 'none';
+    }
+
+    // --- COMPRESSION LOGIC ---
+    async function compressImageTo100KB(file) {
+        // --- 1. Helpers for Compression ---
+        function readFileAsArrayBuffer(f) {
+            return new Promise((res, rej) => {
+                const fr = new FileReader();
+                fr.onerror = () => rej(new Error('Failed to read file'));
+                fr.onload = () => res(fr.result);
+                fr.readAsArrayBuffer(f);
+            });
+        }
+        function readFileAsDataURL(f) {
+            return new Promise((res, rej) => {
+                const fr = new FileReader();
+                fr.onerror = () => rej(new Error('Failed to read file'));
+                fr.onload = () => res(fr.result);
+                fr.readAsDataURL(f);
+            });
+        }
+        function parseExifOrientation(ab) {
+            try {
+                const view = new DataView(ab);
+                if (view.getUint16(0, false) !== 0xFFD8) return -1;
+                let offset = 2, length = view.byteLength;
+                while (offset < length) {
+                    const marker = view.getUint16(offset, false);
+                    offset += 2;
+                    if (marker === 0xFFE1) {
+                        const exifStart = offset + 2;
+                        const little = view.getUint16(exifStart + 6, false) === 0x4949;
+                        let tags = view.getUint16(exifStart + 10, little);
+                        let tagOffset = exifStart + 12;
+                        for (let i = 0; i < tags; i++) {
+                            if (view.getUint16(tagOffset + i * 12, little) === 0x0112) {
+                                return view.getUint16(tagOffset + i * 12 + 8, little);
+                            }
+                        }
+                        return -1;
+                    }
+                    offset += view.getUint16(offset, false);
+                }
+            } catch (e) { return -1; }
+            return -1;
+        }
+        function drawImageWithOrientation(ctx, img, w, h, o) {
+            switch (o) {
+                case 2: ctx.translate(w, 0); ctx.scale(-1, 1); ctx.drawImage(img, 0, 0, w, h); break;
+                case 3: ctx.translate(w, h); ctx.rotate(Math.PI); ctx.drawImage(img, 0, 0, w, h); break;
+                case 4: ctx.translate(0, h); ctx.scale(1, -1); ctx.drawImage(img, 0, 0, w, h); break;
+                case 5: ctx.rotate(0.5 * Math.PI); ctx.scale(1, -1); ctx.drawImage(img, 0, -h, w, h); break;
+                case 6: ctx.rotate(0.5 * Math.PI); ctx.translate(0, -h); ctx.drawImage(img, 0, 0, w, h); break;
+                case 7: ctx.rotate(-0.5 * Math.PI); ctx.scale(1, -1); ctx.drawImage(img, -w, 0, w, h); break;
+                case 8: ctx.rotate(-0.5 * Math.PI); ctx.translate(-w, 0); ctx.drawImage(img, 0, 0, w, h); break;
+                default: ctx.drawImage(img, 0, 0, w, h); break;
+            }
+        }
+
+        const TARGET_KB = 100;
+        const targetBytes = TARGET_KB * 1024;
+        const [ab, url] = await Promise.all([readFileAsArrayBuffer(file), readFileAsDataURL(file)]);
+        
+        let orientation = parseExifOrientation(ab);
+        if(![1,2,3,4,5,6,7,8].includes(orientation)) orientation = 1;
+
+        const img = await new Promise((res, rej) => {
+            const i = new Image();
+            i.onload = () => res(i);
+            i.onerror = rej;
+            i.src = url;
+        });
+
+        let w = img.width, h = img.height;
+        const swap = [5,6,7,8].includes(orientation);
+        if(Math.max(w, h) > 1200) { 
+            const r = 1200 / Math.max(w, h);
+            w = Math.round(w * r); h = Math.round(h * r);
+        }
+
+        let canvas = document.createElement('canvas');
+        let ctx = canvas.getContext('2d');
+        
+        let quality = 0.9;
+        
+        while(true) {
+            canvas.width = swap ? h : w;
+            canvas.height = swap ? w : h;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.save();
+            if (swap) {
+                ctx.translate(canvas.width/2, canvas.height/2);
+                if(orientation===5 || orientation===6) ctx.rotate(90*Math.PI/180); 
+                else ctx.rotate(-90*Math.PI/180);
+                ctx.drawImage(img, -w/2, -h/2, w, h); 
+            } else {
+                ctx.drawImage(img, 0, 0, w, h);
+            }
+            ctx.restore();
+            
+            const dataURL = canvas.toDataURL('image/jpeg', quality);
+            if(dataURL.length < (targetBytes * 1.35) || quality < 0.2) {
+                return dataURL; 
+            }
+            quality -= 0.1;
+            w *= 0.9; h *= 0.9; 
+        }
+    }
+
+    const worldCurrencies = [
+        { code: "USD", symbol: "$" }, { code: "EUR", symbol: "€" }, { code: "GBP", symbol: "£" },
+        { code: "JPY", symbol: "¥" }, { code: "LKR", symbol: "Rs" }, { code: "INR", symbol: "₹" }
+    ];
+
+    onAuthStateChanged(auth, async (user) => {
+        if (!user) window.location.href = "index.html";
+        currentUser = user;
+        document.getElementById('userEmail').textContent = user.email;
+        populateCurrencyList();
+        await loadShops();
+    });
+
+    window.logout = () => signOut(auth);
+
+    function populateCurrencyList() {
+        const sel = document.getElementById('msCurrency');
+        sel.innerHTML = worldCurrencies.map(c => `<option value="${c.symbol}">${c.code} (${c.symbol})</option>`).join('');
+    }
+
+    // --- SHOPS (BUSINESSES) ---
+    async function loadShops() {
+        toggleLoader(true);
+        const q = collection(db, `users/${currentUser.uid}/shops`);
+        const snap = await getDocs(q);
+        const select = document.getElementById('shopSelector');
+        select.innerHTML = '';
+        let shops = [];
+        snap.forEach(d => shops.push({id: d.id, ...d.data()}));
+
+        if(shops.length === 0) {
+            toggleLoader(false);
+            document.getElementById('shopModal').style.display = 'flex';
+            document.querySelector('#shopModal .btn-danger').style.display = 'none';
+            return;
+        }
+        shops.forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s.id; opt.text = s.name;
+            opt.dataset.currency = s.currency || "$";
+            select.appendChild(opt);
+        });
+        if(!currentShopId) currentShopId = shops[0].id;
+        select.value = currentShopId;
+        changeShop();
+    }
+
+    window.saveNewShop = async () => {
+        const name = document.getElementById('msName').value;
+        const currency = document.getElementById('msCurrency').value;
+        if(!name) return showToast("Business Name required", "error");
+        
+        toggleLoader(true);
+        const ref = await addDoc(collection(db, `users/${currentUser.uid}/shops`), { name, currency, created: new Date() });
+        document.getElementById('shopModal').style.display = 'none';
+        await loadShops();
+        document.getElementById('shopSelector').value = ref.id;
+        changeShop();
+        showToast("Business created successfully!");
+    };
+
+    window.deleteCurrentShop = async () => {
+        if(!confirm("Delete this business and all data? Cannot be undone.")) return;
+        toggleLoader(true);
+        await deleteDoc(doc(db, `users/${currentUser.uid}/shops`, currentShopId));
+        currentShopId = null;
+        loadShops();
+        showToast("Business deleted");
+    };
+
+    window.changeShop = () => {
+        const sel = document.getElementById('shopSelector');
+        currentShopId = sel.value;
+        currentCurrency = sel.options[sel.selectedIndex].dataset.currency;
+        refreshData();
+    };
+
+    async function refreshData() {
+        if(!currentShopId) return;
+        toggleLoader(true);
+        await loadProfile(); // Load Profile First to check lock
+        await loadCatalog(); // Load Base Products
+        await loadProducts(); // Load Stock
+        await loadEmployees();
+        const q = query(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/sales`), orderBy('date', 'desc'));
+        const snap = await getDocs(q);
+        salesCache = [];
+        snap.forEach(d => salesCache.push({id: d.id, ...d.data()}));
+        updateDashboard();
+        toggleLoader(false);
+    }
+
+    // --- PROFILE LOGIC ---
+    async function loadProfile() {
+        const docRef = doc(db, `users/${currentUser.uid}/shops/${currentShopId}/settings`, 'profile');
+        const snap = await getDoc(docRef);
+        const warn = document.getElementById('profileWarning');
+        
+        if (snap.exists()) {
+            profileCache = snap.data();
+            warn.style.display = 'none';
+            fillProfileData(profileCache);
+            lockProfile(true);
+        } else {
+            profileCache = null;
+            warn.style.display = 'block';
+            lockProfile(false);
+            // Clear fields
+            document.querySelectorAll('#profFields input, #profFields textarea').forEach(i => i.value = '');
+            document.getElementById('profLogoContainer').innerHTML = '<span>No Logo</span>';
+        }
+    }
+
+    function fillProfileData(p) {
+        document.getElementById('profOwner').value = p.ownerName || '';
+        document.getElementById('profReg').value = p.regNo || '';
+        document.getElementById('profAddress').value = p.address || '';
+        document.getElementById('profPhone1').value = p.phone1 || '';
+        document.getElementById('profPhone2').value = p.phone2 || '';
+        document.getElementById('profWhatsapp').value = p.whatsapp || '';
+        document.getElementById('profEmail').value = p.email || '';
+        
+        const container = document.getElementById('profLogoContainer');
+        if(p.logoImage) {
+            container.innerHTML = `<img src="${p.logoImage}">`;
+        } else {
+            const shopName = document.getElementById('shopSelector').options[document.getElementById('shopSelector').selectedIndex].text;
+            container.innerHTML = `<div class="text-logo-preview" style="font-family:${p.logoFont}; color:${p.logoColor}; font-size:20px;">${shopName}</div>`;
+        }
+    }
+
+    window.lockProfile = (lock) => {
+        document.querySelectorAll('#profFields input, #profFields textarea, #profLogoFont, #profLogoColor, #profLogoFile').forEach(i => i.disabled = lock);
+        document.getElementById('btnSaveProfile').style.display = lock ? 'none' : 'inline-flex';
+        document.getElementById('btnEditProfile').style.display = lock ? 'inline-flex' : 'none';
+        document.getElementById('profInputsLogo').style.display = lock ? 'none' : 'block';
+    }
+
+    window.unlockProfile = () => lockProfile(false);
+
+    window.saveProfile = async () => {
+        const data = {
+            ownerName: document.getElementById('profOwner').value.trim(),
+            regNo: document.getElementById('profReg').value.trim(),
+            address: document.getElementById('profAddress').value.trim(),
+            phone1: document.getElementById('profPhone1').value.trim(),
+            phone2: document.getElementById('profPhone2').value.trim(),
+            whatsapp: document.getElementById('profWhatsapp').value.trim(),
+            email: document.getElementById('profEmail').value.trim(),
+            logoFont: document.getElementById('profLogoFont').value,
+            logoColor: document.getElementById('profLogoColor').value,
+            logoImage: compressedImageBase64 || (profileCache ? profileCache.logoImage : null)
+        };
+
+        if(!data.ownerName || !data.regNo || !data.address || !data.phone1 || !data.whatsapp) {
+            return showToast("Please fill all required (*) fields", "error");
+        }
+
+        toggleLoader(true);
+        await setDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/settings`, 'profile'), data);
+        await loadProfile();
+        toggleLoader(false);
+        showToast("Profile Saved Successfully");
+    };
+
+    document.getElementById('profLogoFile').addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if(file) {
+            const base64 = await compressImageTo100KB(file);
+            compressedImageBase64 = base64;
+            document.getElementById('profLogoContainer').innerHTML = `<img src="${base64}">`;
+        }
+    });
+
+    window.loadView = (viewName) => {
+        // Enforce Profile Check (Rule: profile must be complete)
+        if(viewName !== 'profile' && viewName !== 'dashboard' && !profileCache) {
+            showToast("Complete Business Profile first", "error");
+            loadView('profile');
+            return;
+        }
+
+        document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+        
+        const target = document.getElementById(`view-${viewName}`);
+        if(target) target.classList.add('active');
+        
+        // Handle Active Class on Sidebar Links
+        const navItems = document.querySelectorAll('.nav-item');
+        navItems.forEach(item => {
+            if(item.getAttribute('onclick').includes(`'${viewName}'`)) {
+                item.classList.add('active');
+            }
+        });
+
+        document.getElementById('pageTitle').textContent = viewName.charAt(0).toUpperCase() + viewName.slice(1);
+    };
+
+    window.openModal = (id) => document.getElementById(id).style.display = 'flex';
+    const formatMoney = (a) => `${currentCurrency}${Number(a).toFixed(2)}`;
+
+    // --- 1. CATALOG (Add Products) LOGIC ---
+    async function loadCatalog() {
+        const snap = await getDocs(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/base_products`));
+        catalogCache = [];
+        snap.forEach(d => catalogCache.push({id: d.id, ...d.data()}));
+        catalogCache.sort((a,b) => new Date(b.created) - new Date(a.created));
+        renderCatalog();
+    }
+
+    function renderCatalog() {
+        const term = document.getElementById('catSearch').value.toLowerCase();
+        const tbody = document.querySelector('#catTable tbody');
+        const filtered = catalogCache.filter(p => p.name.toLowerCase().includes(term) || (p.sku && p.sku.toLowerCase().includes(term)));
+
+        if(filtered.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 20px; color: #9ca3af;">No base products found. Create one!</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = filtered.map(p => {
+            const dateStr = p.created ? new Date(p.created).toLocaleDateString() : '-';
+            const imgTag = p.image ? `<img src="${p.image}" class="prod-thumb" onclick="window.open(this.src)">` : '<i class="ri-image-line"></i>';
+            return `
+            <tr>
+                <td>${imgTag}</td>
+                <td style="font-family:monospace; font-size:12px;">${p.sku || '-'}</td>
+                <td>${p.name}</td>
+                <td style="font-size:12px; color:#666;">${dateStr}</td>
+                <td>
+                    <button class="btn btn-warning" style="padding:4px 8px;" onclick="editBaseProduct('${p.id}')">Edit Img</button>
+                    <button class="btn btn-danger" style="padding:4px 8px;" onclick="deleteBaseProduct('${p.id}')"><i class="ri-delete-bin-line"></i></button>
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    window.filterCatalog = () => renderCatalog();
+
+    window.prepareAddBaseProduct = () => {
+        document.getElementById('bpId').value = '';
+        document.getElementById('bpName').value = '';
+        document.getElementById('bpName').disabled = false;
+        document.getElementById('bpPhoto').value = '';
+        document.getElementById('bpPhotoPreview').style.display = 'none';
+        document.getElementById('btnRemoveBpImage').style.display = 'none';
+        document.getElementById('bpImageInfo').textContent = '';
+        compressedImageBase64 = null;
+        openModal('baseProductModal');
+    };
+
+    window.editBaseProduct = (id) => {
+        const p = catalogCache.find(x => x.id === id);
+        if(!p) return;
+        document.getElementById('bpId').value = p.id;
+        document.getElementById('bpName').value = p.name;
+        document.getElementById('bpName').disabled = true; // Cannot change name
+        
+        document.getElementById('bpPhoto').value = '';
+        compressedImageBase64 = p.image;
+        if(p.image) {
+            document.getElementById('bpPhotoPreview').src = p.image;
+            document.getElementById('bpPhotoPreview').style.display = 'block';
+            document.getElementById('btnRemoveBpImage').style.display = 'block';
+        } else {
+            document.getElementById('bpPhotoPreview').style.display = 'none';
+            document.getElementById('btnRemoveBpImage').style.display = 'none';
+        }
+        document.getElementById('bpImageInfo').textContent = '';
+        openModal('baseProductModal');
+    };
+
+    // Base Product Image Handler
+    document.getElementById('bpPhoto').addEventListener('change', async function(e) {
+        const file = e.target.files[0];
+        if(file) {
+            document.getElementById('bpImageInfo').textContent = "Compressing...";
+            try {
+                const base64 = await compressImageTo100KB(file);
+                compressedImageBase64 = base64;
+                document.getElementById('bpPhotoPreview').src = base64;
+                document.getElementById('bpPhotoPreview').style.display = 'block';
+                document.getElementById('btnRemoveBpImage').style.display = 'block';
+                document.getElementById('bpImageInfo').textContent = `Ready (${(base64.length * 0.75 / 1024).toFixed(0)} KB)`;
+            } catch (err) {
+                alert("Image error");
+            }
+        }
+    });
+
+    window.removeBaseProductImage = () => {
+        document.getElementById('bpPhoto').value = '';
+        document.getElementById('bpPhotoPreview').src = '';
+        document.getElementById('bpPhotoPreview').style.display = 'none';
+        document.getElementById('btnRemoveBpImage').style.display = 'none';
+        compressedImageBase64 = null;
+    };
+
+    window.saveBaseProduct = async () => {
+        const id = document.getElementById('bpId').value;
+        const name = document.getElementById('bpName').value.trim();
+        
+        if(!name) return showToast("Product Name Required", "error");
+        if(!id && !compressedImageBase64) return showToast("Image Required", "error");
+
+        toggleLoader(true);
+        if(id) {
+            // Update existing (Only Image allowed to change)
+            await updateDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/base_products`, id), {
+                image: compressedImageBase64
+            });
+        } else {
+            // Create New
+            const sku = Date.now().toString(36).toUpperCase(); // Simple unique SKU
+            await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/base_products`), {
+                name, 
+                image: compressedImageBase64,
+                sku,
+                created: new Date().toISOString()
+            });
+        }
+        document.getElementById('baseProductModal').style.display = 'none';
+        await loadCatalog();
+        toggleLoader(false);
+        showToast("Base Product Saved");
+    };
+
+    window.deleteBaseProduct = async (id) => {
+        if(!confirm("Delete this Base Product?")) return;
+        toggleLoader(true);
+        await deleteDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/base_products`, id));
+        await loadCatalog();
+        toggleLoader(false);
+        showToast("Base Product Deleted");
+    };
+
+
+    // --- 2. STOCK (Add Stock) LOGIC ---
+    async function loadProducts() {
+        const snap = await getDocs(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/products`));
+        productsCache = [];
+        snap.forEach(d => productsCache.push({id: d.id, ...d.data()}));
+        productsCache.sort((a,b) => new Date(b.dateAdded) - new Date(a.dateAdded));
+        renderProducts();
+        renderPosGrid();
+    }
+
+    function renderProducts() {
+        const term = document.getElementById('prodSearch').value.toLowerCase();
+        const tbody = document.querySelector('#prodTable tbody');
+        
+        const filtered = productsCache.filter(p => p.name.toLowerCase().includes(term) || (p.sku && p.sku.toLowerCase().includes(term)));
+
+        if(filtered.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 20px; color: #9ca3af;">No stock batches found. Add Stock!</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = filtered.map(p => {
+                const dateStr = p.dateAdded ? new Date(p.dateAdded).toLocaleDateString() : '-';
+                const imgTag = p.image ? `<img src="${p.image}" class="prod-thumb" onclick="window.open(this.src)">` : '<i class="ri-image-line"></i>';
+                
+                return `
+                <tr>
+                    <td>${imgTag}</td>
+                    <td style="font-size:12px; color:#666;">${dateStr}</td>
+                    <td>
+                        <div>${p.name}</div>
+                        <div style="font-size:11px; color:#6b7280; font-family:monospace;">${p.sku || ''}</div>
+                    </td>
+                    <td>${formatMoney(p.buy)}</td>
+                    <td>${formatMoney(p.sell)}</td>
+                    <td style="color:${p.qty<5?'red':'inherit'}">${p.qty} ${p.unit||''}</td>
+                    <td>
+                        <button class="btn btn-warning" style="padding:4px 8px;" onclick="editStock('${p.id}')">Edit</button>
+                        <button class="btn btn-danger" style="padding:4px 8px;" onclick="deleteProduct('${p.id}', '${p.name}')"><i class="ri-delete-bin-line"></i> Delete</button>
+                    </td>
+                </tr>`;
+            }).join('');
+    }
+
+    window.filterProducts = () => renderProducts();
+
+    window.prepareAddStock = () => {
+        document.getElementById('mpId').value = '';
+        document.getElementById('prodModalTitle').textContent = 'Add Stock';
+        
+        document.getElementById('mpBuy').value = '';
+        document.getElementById('mpSell').value = '';
+        document.getElementById('mpQty').value = '';
+        document.getElementById('mpUnit').value = '';
+        document.getElementById('mpName').value = '';
+        document.getElementById('mpImage').value = '';
+
+        document.getElementById('stockSelectContainer').style.display = 'block';
+        document.getElementById('stockPreview').style.display = 'none';
+        
+        document.getElementById('mpBuy').disabled = false;
+        document.getElementById('mpQty').disabled = false;
+        document.getElementById('mpUnit').disabled = false;
+
+        const sel = document.getElementById('stockBaseSelect');
+        sel.innerHTML = '<option value="">-- Choose Product --</option>';
+        catalogCache.forEach(p => {
+            sel.innerHTML += `<option value="${p.id}" data-img="${p.image||''}" data-name="${p.name}" data-sku="${p.sku}">${p.name} (${p.sku})</option>`;
+        });
+
+        openModal('prodModal');
+    };
+
+    window.onBaseProductSelect = () => {
+        const sel = document.getElementById('stockBaseSelect');
+        const opt = sel.options[sel.selectedIndex];
+        if(opt.value) {
+            document.getElementById('mpName').value = opt.dataset.name;
+            document.getElementById('mpImage').value = opt.dataset.img;
+            document.getElementById('stockPreview').style.display = 'block';
+            document.getElementById('mpPhotoPreview').src = opt.dataset.img;
+            document.getElementById('mpNameDisplay').textContent = opt.dataset.name;
+        } else {
+            document.getElementById('stockPreview').style.display = 'none';
+        }
+    };
+
+    window.editStock = (id) => {
+        const p = productsCache.find(x => x.id === id);
+        if(!p) return;
+        document.getElementById('mpId').value = p.id;
+        document.getElementById('prodModalTitle').textContent = 'Update Price';
+        
+        document.getElementById('mpBuy').value = p.buy;
+        document.getElementById('mpSell').value = p.sell;
+        document.getElementById('mpQty').value = p.qty;
+        document.getElementById('mpUnit').value = p.unit || '';
+        document.getElementById('mpName').value = p.name;
+        document.getElementById('mpImage').value = p.image;
+
+        document.getElementById('stockSelectContainer').style.display = 'none';
+        document.getElementById('stockPreview').style.display = 'block';
+        document.getElementById('mpPhotoPreview').src = p.image;
+        document.getElementById('mpNameDisplay').textContent = p.name;
+
+        document.getElementById('mpBuy').disabled = true;
+        document.getElementById('mpQty').disabled = true;
+        document.getElementById('mpUnit').disabled = true;
+        document.getElementById('mpSell').disabled = false;
+
+        openModal('prodModal');
+    };
+
+    window.saveStock = async () => {
+        const id = document.getElementById('mpId').value;
+        const buy = parseFloat(document.getElementById('mpBuy').value);
+        const sell = parseFloat(document.getElementById('mpSell').value);
+        const qty = parseFloat(document.getElementById('mpQty').value);
+        const unit = document.getElementById('mpUnit').value;
+        const name = document.getElementById('mpName').value;
+        const image = document.getElementById('mpImage').value;
+        
+        let sku = "";
+        if(!id) {
+             const sel = document.getElementById('stockBaseSelect');
+             const opt = sel.options[sel.selectedIndex];
+             if(!opt.value) return showToast("Please select a product", "error");
+             sku = opt.dataset.sku;
+        } else {
+            const p = productsCache.find(x => x.id === id);
+            sku = p ? p.sku : "";
+        }
+
+        if(isNaN(buy) || buy < 0) return showToast("Buy Price must be 0 or higher", "error");
+        if(isNaN(sell) || sell <= 0) return showToast("Sell Price must be greater than 0", "error");
+        if(isNaN(qty) || qty <= 0) return showToast("Quantity must be greater than 0", "error");
+
+        const stockData = { name, buy, sell, qty, unit, image, sku };
+
+        if (sell < buy) {
+            document.getElementById('priceWarningMsg').innerHTML = `Loss: ${formatMoney(sell - buy)} per unit`;
+            document.getElementById('priceWarningModal').style.display = 'flex';
+            document.getElementById('btnConfirmSaveAny').onclick = async () => {
+                 document.getElementById('priceWarningModal').style.display = 'none';
+                 await finalizeStockSave(id, stockData);
+            };
+            return;
+        }
+        await finalizeStockSave(id, stockData);
+    };
+
+    async function finalizeStockSave(id, data) {
+        toggleLoader(true);
+        const isEdit = !!id;
+        
+        if(isEdit) {
+            const oldP = productsCache.find(x => x.id === id);
+            await updateDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/products`, id), { 
+                sell: data.sell
+            });
+            await logInventory(data.name, 'EDIT', `Price updated: ${formatMoney(oldP.sell)} -> ${formatMoney(data.sell)}`, 0, data.qty);
+        } else {
+            data.dateAdded = new Date().toISOString();
+            await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/products`), data);
+            await logInventory(data.name, 'ADD', 'New Stock Batch', data.qty, data.qty);
+        }
+
+        document.getElementById('prodModal').style.display = 'none';
+        await loadProducts();
+        toggleLoader(false);
+        showToast("Stock saved successfully!");
+    }
+
+    window.deleteProduct = async (id, name) => {
+        if(!confirm('Delete this stock batch?')) return;
+        const p = productsCache.find(x => x.id === id);
+        toggleLoader(true);
+        await deleteDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/products`, id));
+        await logInventory(name, 'DELETE', 'Batch Deleted', -p.qty, 0);
+        loadProducts();
+        toggleLoader(false);
+        showToast("Batch deleted");
+    };
+
+    // --- INVENTORY LOGGING ---
+    async function logInventory(name, action, desc, change, finalQty) {
+        const log = {
+            date: new Date().toISOString(),
+            productName: name,
+            action, 
+            description: desc,
+            quantityChange: change,
+            finalQty: finalQty
+        };
+        await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/inventory_logs`), log);
+    }
+
+    window.openInventoryReport = () => {
+        document.getElementById('invReportModal').style.display = 'flex';
+        const now = new Date();
+        document.getElementById('invDateInput').valueAsDate = now;
+        document.getElementById('invMonthInput').value = now.toISOString().slice(0, 7);
+        
+        const yearSel = document.getElementById('invYearInput');
+        yearSel.innerHTML = '';
+        for(let y = now.getFullYear(); y >= 2020; y--) {
+            yearSel.innerHTML += `<option value="${y}">${y}</option>`;
+        }
+        
+        toggleReportInputs();
+        document.getElementById('invExportSection').style.display = 'none';
+        document.getElementById('invTableContainer').style.display = 'none';
+        document.querySelector('#invReportTable tbody').innerHTML = '';
+    };
+
+    window.toggleReportInputs = () => {
+        const type = document.getElementById('invReportType').value;
+        document.getElementById('invDateInput').style.display = type === 'date' ? 'block' : 'none';
+        document.getElementById('invMonthInput').style.display = type === 'month' ? 'block' : 'none';
+        document.getElementById('invYearInput').style.display = type === 'year' ? 'block' : 'none';
+    };
+
+    window.generateInventoryReport = async () => {
+        const tbody = document.querySelector('#invReportTable tbody');
+        document.getElementById('invTableContainer').style.display = 'block';
+        document.getElementById('invExportSection').style.display = 'none';
+        tbody.innerHTML = '<tr><td colspan="5">Loading...</td></tr>';
+
+        const q = query(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/inventory_logs`), orderBy('date', 'desc'));
+        const snap = await getDocs(q);
+        const type = document.getElementById('invReportType').value;
+        
+        let targetStr = "";
+        if(type === 'date') targetStr = document.getElementById('invDateInput').value;
+        else if(type === 'month') targetStr = document.getElementById('invMonthInput').value;
+        else if(type === 'year') targetStr = document.getElementById('invYearInput').value;
+
+        const logs = [];
+        snap.forEach(d => logs.push(d.data()));
+
+        const filtered = logs.filter(l => {
+            const d = new Date(l.date);
+            let dStr = "";
+            if(type === 'date') dStr = d.toISOString().split('T')[0];
+            else if(type === 'month') dStr = d.toISOString().slice(0, 7);
+            else if(type === 'year') dStr = d.getFullYear().toString();
+            return dStr === targetStr;
+        });
+
+        if (filtered.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No logs found for this period.</td></tr>';
+            document.getElementById('invExportSection').style.display = 'block';
+            return;
+        }
+
+        tbody.innerHTML = filtered.map(l => `
+            <tr>
+                <td>${new Date(l.date).toLocaleString()}</td>
+                <td>${l.productName}</td>
+                <td><span style="padding:2px 6px; border-radius:4px; font-size:11px; background:${l.action==='SALE'?'#dcfce7':l.action==='DELETE'?'#fee2e2':'#e0f2fe'}">${l.action}</span></td>
+                <td style="color:${l.quantityChange<0?'red':'green'}">${l.quantityChange}</td>
+                <td>${l.finalQty}</td>
+            </tr>
+        `).join('');
+        
+        document.getElementById('invExportSection').style.display = 'block';
+    };
+
+    // --- EXPORT & SHARE FUNCTIONS ---
+    window.printReport = () => {
+        const tableContent = document.getElementById('invReportTable').outerHTML;
+        const type = document.getElementById('invReportType').value;
+        const dateVal = type === 'date' ? document.getElementById('invDateInput').value : 
+                        type === 'month' ? document.getElementById('invMonthInput').value : 
+                        document.getElementById('invYearInput').value;
+        
+        const printWindow = window.open('', '', 'height=600,width=800');
+        printWindow.document.write('<html><head><title>Inventory Report</title>');
+        printWindow.document.write('<style>body{font-family:sans-serif;} table{width:100%;border-collapse:collapse;} th,td{border:1px solid #ddd;padding:8px;text-align:left;} th{background-color:#f2f2f2;}</style>');
+        printWindow.document.write('</head><body>');
+        printWindow.document.write(`<h2>Inventory Log Report (${type}: ${dateVal})</h2>`);
+        printWindow.document.write(tableContent);
+        printWindow.document.write('</body></html>');
+        printWindow.document.close();
+        printWindow.print();
+    };
+
+    window.downloadCSV = () => {
+        const table = document.getElementById('invReportTable');
+        let csv = [];
+        const rows = table.querySelectorAll('tr');
+        for (let i = 0; i < rows.length; i++) {
+            let row = [], cols = rows[i].querySelectorAll("td, th");
+            for (let j = 0; j < cols.length; j++) row.push(cols[j].innerText.replace(/,/g, ""));
+            csv.push(row.join(","));        
+        }
+        const csvFile = new Blob([csv.join("\n")], {type: "text/csv"});
+        const downloadLink = document.createElement("a");
+        downloadLink.download = `inventory_report_${new Date().getTime()}.csv`;
+        downloadLink.href = window.URL.createObjectURL(csvFile);
+        downloadLink.style.display = "none";
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+    };
+
+    window.sendWhatsApp = async () => {
+        const number = document.getElementById('waNumber').value;
+        if (!number) return showToast("Enter WhatsApp number", "error");
+        const rows = document.querySelectorAll('#invReportTable tbody tr');
+        if(rows.length === 0 || rows[0].innerText.includes("No logs")) return showToast("No data to send", "error");
+
+        toggleLoader(true);
+        try {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            doc.text("Inventory Log Report", 14, 15);
+            doc.setFontSize(10);
+            const filterInfo = document.getElementById('invReportType').value; 
+            let dateVal = "";
+            if(filterInfo === 'date') dateVal = document.getElementById('invDateInput').value;
+            else if(filterInfo === 'month') dateVal = document.getElementById('invMonthInput').value;
+            else dateVal = document.getElementById('invYearInput').value;
+            doc.text(`Filter: ${filterInfo.toUpperCase()} - ${dateVal}`, 14, 22);
+            doc.autoTable({ html: '#invReportTable', startY: 30 });
+            const pdfBlob = doc.output('blob');
+            const file = new File([pdfBlob], "Inventory_Report.pdf", { type: "application/pdf" });
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({ files: [file], title: 'Inventory Report', text: 'Here is the inventory report PDF.' });
+                showToast("Shared successfully");
+            } else {
+                doc.save("Inventory_Report.pdf");
+                setTimeout(() => {
+                    const msg = encodeURIComponent("Here is the Inventory Report (PDF). Please drag and drop the downloaded file here.");
+                    const url = `https://wa.me/${number}?text=${msg}`;
+                    window.open(url, '_blank');
+                    alert("PDF Downloaded. Please drag and drop it into the WhatsApp chat.");
+                }, 1000);
+            }
+        } catch (err) {
+            showToast("Error generating PDF: " + err.message, "error");
+        } finally {
+            toggleLoader(false);
+        }
+    };
+
+
+    // --- POS ---
+    function renderPosGrid() {
+        const grid = document.getElementById('posGrid');
+        const term = document.getElementById('posSearch').value.toLowerCase();
+        const filtered = productsCache.filter(p => p.qty > 0 && p.name.toLowerCase().includes(term));
+        if(filtered.length === 0) {
+            grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: #9ca3af; padding: 20px;">No items match or out of stock</div>';
+            return;
+        }
+        grid.innerHTML = filtered.map(p => {
+                const date = new Date(p.dateAdded).toLocaleDateString();
+                const imgTag = p.image ? `<img src="${p.image}" style="width:100%; height:80px; object-fit:contain; margin-bottom:5px;">` : '';
+                return `
+                <div onclick="addToCart('${p.id}')" style="background:white; padding:10px; border-radius:8px; cursor:pointer; text-align:center; border:1px solid #e5e7eb; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
+                    ${imgTag}
+                    <div style="font-weight:600; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${p.name}</div>
+                    <div style="color:var(--primary); font-weight:700;">${formatMoney(p.sell)}</div>
+                    <div style="font-size:10px; color:#9ca3af; margin-top:4px;">Stock: ${p.qty} | ${date}</div>
+                </div>`;
+            }).join('');
+    }
+
+    window.filterPos = () => renderPosGrid();
+
+    window.addToCart = (id) => {
+        const p = productsCache.find(x => x.id === id);
+        if(p.qty < 1) return showToast("Out of Stock", "error");
+        const exist = cart.find(x => x.id === id);
+        if(exist) {
+            if(exist.qty >= p.qty) return showToast("Max stock reached", "error");
+            exist.qty++;
+        } else {
+            cart.push({...p, qty: 1});
+        }
+        renderCart();
+    };
+
+    function renderCart() {
+        const con = document.getElementById('cartItems');
+        let total = 0;
+        con.innerHTML = cart.map((i, idx) => {
+            total += i.sell * i.qty;
+            return `<div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:13px; align-items:center;">
+                <span>${i.name} (${i.qty})</span>
+                <div>
+                    <strong>${formatMoney(i.sell * i.qty)}</strong>
+                    <button class="btn btn-danger" style="padding:2px 6px; font-size:10px; margin-left:5px;" onclick="removeFromCart(${idx})">X</button>
+                </div>
+            </div>`;
+        }).join('');
+        document.getElementById('cartTotal').textContent = formatMoney(total);
+    }
+
+    window.removeFromCart = (idx) => {
+        cart.splice(idx, 1);
+        renderCart();
+    };
+
+    window.checkout = async () => {
+        if(!cart.length) return showToast("Cart is empty!", "error");
+        const customer = document.getElementById('posCustomer').value || 'Walk-in';
+        toggleLoader(true);
+        const saleData = {
+            date: new Date().toISOString(),
+            total: cart.reduce((a,b)=>a+(b.sell*b.qty),0),
+            items: cart,
+            customer
+        };
+        await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/sales`), saleData);
+        for(let item of cart) {
+             const ref = doc(db, `users/${currentUser.uid}/shops/${currentShopId}/products`, item.id);
+             const original = productsCache.find(x => x.id === item.id);
+             const newQty = original.qty - item.qty;
+             await updateDoc(ref, { qty: newQty });
+             await logInventory(item.name, 'SALE', `Sold to ${customer}`, -item.qty, newQty);
+        }
+        cart = []; renderCart(); 
+        await loadProducts();
+        updateDashboard();
+        toggleLoader(false);
+        showToast("Sale Completed!", "success");
+    };
+
+    // --- EMPLOYEES & PAYROLL ---
+    async function loadEmployees() {
+        const snap = await getDocs(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/employees`));
+        const grid = document.getElementById('empGrid');
+        const select1 = document.getElementById('payEmpSelect');
+        const select2 = document.getElementById('calcEmpSelect');
+        grid.innerHTML = ''; select1.innerHTML = ''; select2.innerHTML = '';
+        if(snap.empty) {
+            grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 20px; color: #6b7280;">No employees added.</div>';
+            return;
+        }
+        snap.forEach(d => {
+            const e = {id: d.id, ...d.data()};
+            grid.innerHTML += `
+            <div class="card" style="margin:0;">
+                <div style="font-weight:700;">${e.name}</div>
+                <div style="color:#6b7280; font-size:13px;">${e.role}</div>
+                <div style="margin-top:10px; font-weight:600; color:var(--primary)">${formatMoney(e.baseSalary)}/mo</div>
+            </div>`;
+            const opt = `<option value="${e.id}" data-salary="${e.baseSalary}">${e.name}</option>`;
+            select1.innerHTML += opt;
+            select2.innerHTML += opt;
+        });
+    }
+
+    window.saveEmployee = async () => {
+        toggleLoader(true);
+        await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/employees`), {
+            name: document.getElementById('meName').value,
+            role: document.getElementById('meRole').value,
+            baseSalary: Number(document.getElementById('meSalary').value)
+        });
+        document.getElementById('empModal').style.display = 'none';
+        loadEmployees();
+        toggleLoader(false);
+        showToast("Employee added");
+    };
+
+    window.saveDailyLog = async () => {
+        toggleLoader(true);
+        const empId = document.getElementById('payEmpSelect').value;
+        const log = {
+            date: document.getElementById('payDate').value,
+            status: document.getElementById('payStatus').value, 
+            ot: Number(document.getElementById('payOT').value),
+            advance: Number(document.getElementById('payAdv').value),
+            timestamp: new Date()
+        };
+        await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/employees/${empId}/logs`), log);
+        toggleLoader(false);
+        showToast("Daily Log Saved");
+    };
+
+    window.calculateSalary = async () => {
+        const empId = document.getElementById('calcEmpSelect').value;
+        const month = Number(document.getElementById('calcMonth').value);
+        const sel = document.getElementById('calcEmpSelect');
+        const baseSalary = Number(sel.options[sel.selectedIndex].dataset.salary);
+        toggleLoader(true);
+        const q = collection(db, `users/${currentUser.uid}/shops/${currentShopId}/employees/${empId}/logs`);
+        const snap = await getDocs(q);
+        let lwpDays = 0, totalOtHours = 0, totalAdvance = 0;
+        snap.forEach(d => {
+            const data = d.data();
+            const logDate = new Date(data.date);
+            if(logDate.getMonth() === month) {
+                if(data.status === 'LWP') lwpDays++;
+                totalOtHours += (data.ot || 0);
+                totalAdvance += (data.advance || 0);
+            }
+        });
+        const dailyRate = baseSalary / 30;
+        const hourlyRate = dailyRate / 8;
+        const lwpDeduction = lwpDays * dailyRate;
+        const otPayment = totalOtHours * hourlyRate;
+        const netSalary = baseSalary - lwpDeduction - totalAdvance + otPayment;
+        const slip = document.getElementById('salarySlip');
+        slip.style.display = 'block';
+        slip.innerHTML = `
+            <h4 style="margin-bottom:10px; border-bottom:1px solid #bbf7d0; padding-bottom:5px;">Salary Slip</h4>
+            <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>Base Salary:</span> <strong>${formatMoney(baseSalary)}</strong></div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:5px; color:#dc2626;"><span>LWP Deduct (${lwpDays} days):</span> <span>-${formatMoney(lwpDeduction)}</span></div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:5px; color:#dc2626;"><span>Advances:</span> <span>-${formatMoney(totalAdvance)}</span></div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:10px; color:#16a34a;"><span>Overtime (${totalOtHours} hrs):</span> <span>+${formatMoney(otPayment)}</span></div>
+            <div style="display:flex; justify-content:space-between; font-size:18px; font-weight:800; border-top:1px solid #bbf7d0; padding-top:5px;">
+                <span>Net Salary:</span> <span>${formatMoney(netSalary)}</span>
+            </div>
+        `;
+        toggleLoader(false);
+    };
+
+    window.updateDashboard = () => {
+        document.getElementById('dashLow').textContent = productsCache.filter(p => p.qty < 5).length;
+        document.getElementById('dashEmp').textContent = document.querySelectorAll('#empGrid .card').length;
+        const filter = document.getElementById('dashTimeFilter').value;
+        const now = new Date();
+        let totalRevenue = 0;
+        let totalProfit = 0;
+        const filteredSales = salesCache.filter(sale => {
+            const saleDate = new Date(sale.date);
+            if (filter === 'daily') return saleDate.toDateString() === now.toDateString();
+            if (filter === 'monthly') return saleDate.getMonth() === now.getMonth() && saleDate.getFullYear() === now.getFullYear();
+            if (filter === 'yearly') return saleDate.getFullYear() === now.getFullYear();
+            return true;
+        });
+        filteredSales.forEach(sale => {
+            totalRevenue += sale.total;
+            if (sale.items) {
+                sale.items.forEach(item => {
+                    const buyPrice = item.buy || 0;
+                    const sellPrice = item.sell || 0;
+                    const qty = item.qty || 1;
+                    totalProfit += (sellPrice - buyPrice) * qty;
+                });
+            }
+        });
+        document.getElementById('dashSales').textContent = formatMoney(totalRevenue);
+        document.getElementById('dashProfit').textContent = formatMoney(totalProfit);
+        if(window.myChart) window.myChart.destroy();
+        const ctx = document.getElementById('salesChart');
+        window.myChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Period 1', 'Period 2', 'Period 3', 'Period 4'],
+                datasets: [{ label: 'Revenue', data: [totalRevenue * 0.2, totalRevenue * 0.5, totalRevenue * 0.1, totalRevenue * 0.2], backgroundColor: '#4F46E5', borderRadius: 5 }]
+            },
+            options: { responsive: true, maintainAspectRatio: false }
+        });
+    };
+
+    window.toggleChat = () => {
+        const w = document.getElementById('supportChat');
+        w.style.display = w.style.display === 'flex' ? 'none' : 'flex';
+    };
+    window.askBot = (topic) => {
+        const content = document.getElementById('chatContent');
+        const userMsg = document.createElement('div');
+        userMsg.className = 'chat-msg user';
+        let response = "";
+        if(topic === 'batch') {
+            userMsg.textContent = "How do I handle new prices?";
+            response = `<b>Batch Management:</b><br>If a new stock arrives with a <b>different price</b>:<br>1. Click <b>+ Add Product</b> (Do NOT edit existing).<br>2. Use exact same name.<br>3. Enter new prices and quantity.`;
+        } else if(topic === 'edit') {
+            userMsg.textContent = "When to use Edit?";
+            response = `<b>Use Edit ONLY for corrections:</b><br>- Spelling mistakes.<br>- Wrong entry.<br>❌ Do NOT use Edit for new shipments.`;
+        } else if(topic === 'pos') {
+            userMsg.textContent = "POS Help";
+            response = `<b>POS Logic:</b><br>- Products with <b>0 Stock</b> are hidden.<br>- Check the <b>Price</b> and <b>Date</b> on cards.`;
+        } else if(topic === 'payroll') {
+            userMsg.textContent = "Payroll Math";
+            response = `<b>Formula:</b><br>(Basic Salary - LWP Deductions - Advances) + Overtime.`;
+        } else if(topic === 'price') {
+             userMsg.textContent = "New Stock Prices";
+             response = `<b>Scenario:</b> Old stock $100, new at $120?<br>1. Add new product with $120 Buy Price.`;
+        }
+        content.appendChild(userMsg);
+        setTimeout(() => {
+            const botMsg = document.createElement('div');
+            botMsg.className = 'chat-msg bot';
+            botMsg.innerHTML = response;
+            content.appendChild(botMsg);
+            content.scrollTop = content.scrollHeight;
+        }, 500);
+    };
+</script>
+
+</body>
+</html>
