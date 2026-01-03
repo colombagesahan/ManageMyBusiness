@@ -176,6 +176,17 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 
         <!-- 1. DASHBOARD HOME -->
         <div id="view-dashboard" class="view active">
+            
+            <!-- NEW: DELETION WARNING BANNER -->
+            <div id="deletionBanner" style="display:none; background:#fee2e2; border:1px solid #ef4444; color:#b91c1c; padding:15px; border-radius:8px; margin-bottom:20px; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+                <div style="flex: 1; min-width: 250px;">
+                    <strong style="display:block; margin-bottom:5px;"><i class="ri-alarm-warning-fill"></i> Warning: Scheduled for Deletion</strong>
+                    Your shop is scheduled for auto-deletion in <span id="delTimer" style="font-weight:700; font-family:monospace; background:rgba(255,255,255,0.5); padding:2px 6px; border-radius:4px;"></span>.<br>
+                    <span style="font-size:13px; opacity:0.9;">This action cannot be undone once completed.</span>
+                </div>
+                <button class="btn btn-primary" onclick="cancelShopDeletion()" style="white-space:nowrap;">Stop Deletion</button>
+            </div>
+
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
                 <h4 style="margin:0;">Performance Overview</h4>
                 <select id="dashTimeFilter" style="width: auto; margin:0;" onchange="updateDashboard()">
@@ -721,6 +732,8 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
     let compressedImageBase64 = null; 
     let profileCache = null;
     let currentOtherFees = [];
+    let shopsCache = []; // NEW: To store shop data locally
+    let deletionInterval = null; // NEW: Timer reference
 
     // --- UTILS ---
     function showToast(message, type = 'success') {
@@ -875,22 +888,27 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         const snap = await getDocs(q);
         const select = document.getElementById('shopSelector');
         select.innerHTML = '';
-        let shops = [];
-        snap.forEach(d => shops.push({id: d.id, ...d.data()}));
+        shopsCache = []; // Reset local cache
+        snap.forEach(d => shopsCache.push({id: d.id, ...d.data()}));
 
-        if(shops.length === 0) {
+        if(shopsCache.length === 0) {
             toggleLoader(false);
             document.getElementById('shopModal').style.display = 'flex';
             document.querySelector('#shopModal .btn-danger').style.display = 'none';
             return;
         }
-        shops.forEach(s => {
+        shopsCache.forEach(s => {
             const opt = document.createElement('option');
             opt.value = s.id; opt.text = s.name;
             opt.dataset.currency = s.currency || "$";
             select.appendChild(opt);
         });
-        if(!currentShopId) currentShopId = shops[0].id;
+        if(!currentShopId) currentShopId = shopsCache[0].id;
+        
+        // Ensure dropdown reflects currentShopId if it still exists, else pick first
+        const exists = shopsCache.find(s => s.id === currentShopId);
+        if(!exists) currentShopId = shopsCache[0].id;
+        
         select.value = currentShopId;
         changeShop();
     }
@@ -909,19 +927,96 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         showToast("Business created successfully!");
     };
 
+    // --- NEW: MODIFIED DELETE LOGIC (SOFT DELETE) ---
     window.deleteCurrentShop = async () => {
         if(!confirm("Delete this business and all data? Cannot be undone.")) return;
+        
+        toggleLoader(true);
+        // Instead of deleting immediately, set a scheduled timestamp
+        await updateDoc(doc(db, `users/${currentUser.uid}/shops`, currentShopId), {
+            deleteScheduledAt: new Date().toISOString()
+        });
+        
+        await loadShops(); // Reload to pick up the new state
+        toggleLoader(false);
+        showToast("Business scheduled for deletion in 72 hours.");
+    };
+
+    window.cancelShopDeletion = async () => {
+        toggleLoader(true);
+        // Remove the scheduled timestamp
+        await updateDoc(doc(db, `users/${currentUser.uid}/shops`, currentShopId), {
+            deleteScheduledAt: null 
+        });
+        await loadShops();
+        toggleLoader(false);
+        showToast("Deletion cancelled.");
+    };
+
+    async function permanentlyDeleteShop() {
+        // Triggered when timer expires
         toggleLoader(true);
         await deleteDoc(doc(db, `users/${currentUser.uid}/shops`, currentShopId));
         currentShopId = null;
-        loadShops();
-        showToast("Business deleted");
-    };
+        if(deletionInterval) clearInterval(deletionInterval);
+        await loadShops();
+        showToast("Business permanently deleted.");
+    }
+
+    // --- NEW: DELETION TIMER LOGIC ---
+    function handleDeletionState(shopData) {
+        const banner = document.getElementById('deletionBanner');
+        const timerSpan = document.getElementById('delTimer');
+        
+        // Clear existing interval to prevent duplicates
+        if(deletionInterval) {
+            clearInterval(deletionInterval);
+            deletionInterval = null;
+        }
+
+        if(!shopData.deleteScheduledAt) {
+            banner.style.display = 'none';
+            return;
+        }
+
+        // Logic if deletion is scheduled
+        const scheduledTime = new Date(shopData.deleteScheduledAt);
+        const deadline = new Date(scheduledTime.getTime() + (72 * 60 * 60 * 1000)); // 72 hours later
+
+        banner.style.display = 'flex';
+
+        const updateTimer = () => {
+            const now = new Date();
+            const diff = deadline - now;
+
+            if (diff <= 0) {
+                // Time expired -> Actually delete
+                clearInterval(deletionInterval);
+                permanentlyDeleteShop();
+                return;
+            }
+
+            // Format Remaining Time
+            const hrs = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const secs = Math.floor((diff % (1000 * 60)) / 1000);
+            timerSpan.textContent = `${hrs}h ${mins}m ${secs}s`;
+        };
+
+        updateTimer(); // Run immediately
+        deletionInterval = setInterval(updateTimer, 1000); // Run every second
+    }
 
     window.changeShop = () => {
         const sel = document.getElementById('shopSelector');
         currentShopId = sel.value;
-        currentCurrency = sel.options[sel.selectedIndex].dataset.currency;
+        const currentShopData = shopsCache.find(s => s.id === currentShopId);
+        
+        if (currentShopData) {
+            currentCurrency = currentShopData.currency || "$";
+            handleDeletionState(currentShopData); // Check for deletion status
+        }
+        
         refreshData();
     };
 
