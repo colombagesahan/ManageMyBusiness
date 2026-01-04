@@ -3,326 +3,348 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ManageMyBusiness | The Smart Operating System for Retail</title>
+    <title>ManageMyBusiness | The All-In-One Business OS</title>
+    <meta name="description" content="POS, Inventory, Payroll, and CRM in one simple dashboard.">
+    
+    <!-- FONTS & ICONS -->
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    
+    <!-- LEMON SQUEEZY SCRIPT -->
+    <script src="https://app.lemonsqueezy.com/js/lemon.js" defer></script>
+
     <style>
-        :root { --primary: #6366f1; --primary-dark: #4f46e5; --dark: #0f172a; --light: #f8fafc; --gray: #64748b; }
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }
-        body { background: #fff; color: var(--dark); line-height: 1.6; }
-        a { text-decoration: none; color: inherit; transition: 0.3s; }
-        ul { list-style: none; }
+        :root {
+            --primary: #4F46E5;
+            --primary-dark: #4338ca;
+            --text-main: #1f2937;
+            --text-light: #6b7280;
+            --bg: #ffffff;
+            --bg-alt: #f9fafb;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; scroll-behavior: smooth; }
+        body { color: var(--text-main); line-height: 1.6; }
         
-        /* Layout Utilities */
-        .container { max-width: 1200px; margin: 0 auto; padding: 0 5%; }
-        .section-padding { padding: 80px 0; }
-        .text-center { text-align: center; }
-        .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; }
+        /* UTILITIES */
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+        .btn { display: inline-flex; align-items: center; justify-content: center; padding: 12px 24px; border-radius: 8px; font-weight: 600; text-decoration: none; transition: 0.3s; cursor: pointer; border: none; font-size: 15px; }
+        .btn-primary { background: var(--primary); color: white; box-shadow: 0 4px 14px 0 rgba(79, 70, 229, 0.39); }
+        .btn-primary:hover { background: var(--primary-dark); transform: translateY(-1px); }
+        .btn-outline { border: 1px solid #e5e7eb; background: white; color: var(--text-main); }
+        .btn-outline:hover { border-color: var(--text-main); }
         
-        /* Navbar */
-        .navbar { display: flex; justify-content: space-between; align-items: center; padding: 20px 5%; background: white; position: sticky; top: 0; z-index: 1000; border-bottom: 1px solid #f1f5f9; }
-        .logo { font-size: 22px; font-weight: 800; color: var(--primary); display: flex; align-items: center; gap: 8px; }
-        .nav-links { display: flex; gap: 30px; font-weight: 500; color: var(--dark); }
+        /* NAVBAR */
+        .navbar { height: 80px; display: flex; align-items: center; position: sticky; top: 0; background: rgba(255,255,255,0.9); backdrop-filter: blur(10px); z-index: 1000; border-bottom: 1px solid #f3f4f6; }
+        .nav-content { display: flex; justify-content: space-between; align-items: center; width: 100%; }
+        .logo { font-size: 20px; font-weight: 800; color: var(--text-main); display: flex; align-items: center; gap: 8px; text-decoration: none; }
+        .nav-links { display: flex; gap: 30px; }
+        .nav-links a { text-decoration: none; color: var(--text-light); font-weight: 500; font-size: 14px; transition: 0.2s; }
         .nav-links a:hover { color: var(--primary); }
         
-        /* Buttons */
-        .btn { padding: 12px 24px; border-radius: 50px; font-weight: 600; cursor: pointer; border: none; transition: 0.3s; display: inline-flex; align-items: center; gap: 8px; font-size: 1rem; }
-        .btn-primary { background: var(--primary); color: white; box-shadow: 0 4px 10px rgba(99, 102, 241, 0.3); }
-        .btn-primary:hover { background: var(--primary-dark); transform: translateY(-2px); }
-        .btn-outline { border: 1px solid #e2e8f0; background: white; color: var(--dark); }
-        .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
-        .btn-google { background: white; color: #333; border: 1px solid #e2e8f0; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-        .btn-google:hover { box-shadow: 0 4px 10px rgba(0,0,0,0.1); transform: translateY(-1px); }
+        /* HERO */
+        .hero { padding: 100px 0 60px 0; text-align: center; background: radial-gradient(circle at 50% 0%, #eef2ff 0%, #ffffff 70%); }
+        .hero h1 { font-size: 56px; line-height: 1.1; margin-bottom: 20px; font-weight: 800; letter-spacing: -1px; }
+        .hero p { font-size: 20px; color: var(--text-light); max-width: 600px; margin: 0 auto 40px auto; }
+        .hero-img { margin-top: 60px; border-radius: 12px; box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.15); border: 1px solid #e5e7eb; width: 100%; max-width: 1000px; }
 
-        /* Hero */
-        .hero { padding: 120px 0 80px; text-align: center; background: radial-gradient(circle at 50% 0%, #e0e7ff 0%, #fff 60%); }
-        h1 { font-size: 3.5rem; line-height: 1.1; margin-bottom: 24px; font-weight: 800; letter-spacing: -1px; color: var(--dark); }
-        h1 span { color: var(--primary); background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .hero-sub { font-size: 1.25rem; color: var(--gray); max-width: 700px; margin: 0 auto 40px; }
-        .hero-actions { display: flex; gap: 15px; justify-content: center; flex-wrap: wrap; }
-        .trust-badge { margin-top: 40px; font-size: 0.9rem; color: var(--gray); display: flex; align-items: center; justify-content: center; gap: 10px; }
+        /* FEATURES */
+        .section { padding: 80px 0; }
+        .section-title { text-align: center; margin-bottom: 60px; }
+        .section-title h2 { font-size: 36px; font-weight: 700; margin-bottom: 10px; }
+        .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; }
+        .feature-card { padding: 30px; border-radius: 16px; background: white; border: 1px solid #f3f4f6; transition: 0.3s; }
+        .feature-card:hover { border-color: var(--primary); box-shadow: 0 10px 30px -10px rgba(79, 70, 229, 0.1); }
+        .icon-box { width: 50px; height: 50px; background: #eef2ff; color: var(--primary); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 24px; margin-bottom: 20px; }
 
-        /* Features/Benefits */
-        .benefit-card { padding: 30px; border-radius: 20px; background: #fff; border: 1px solid #f1f5f9; transition: 0.3s; }
-        .benefit-card:hover { transform: translateY(-5px); border-color: var(--primary); box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
-        .icon-box { width: 60px; height: 60px; background: #e0e7ff; color: var(--primary); border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 28px; margin-bottom: 20px; }
-        .benefit-card h3 { font-size: 1.25rem; margin-bottom: 10px; font-weight: 700; }
-        .benefit-card p { color: var(--gray); font-size: 0.95rem; }
+        /* PRICING (Important for Payment Gateway) */
+        .bg-alt { background: var(--bg-alt); }
+        .price-card { background: white; padding: 40px; border-radius: 20px; border: 1px solid #e5e7eb; position: relative; }
+        .price-card.popular { border: 2px solid var(--primary); box-shadow: 0 20px 40px -10px rgba(79, 70, 229, 0.2); }
+        .badge { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: var(--primary); color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; text-transform: uppercase; }
+        .price { font-size: 42px; font-weight: 800; margin: 20px 0; color: var(--text-main); }
+        .price span { font-size: 16px; color: var(--text-light); font-weight: 500; }
+        .check-list { list-style: none; margin: 30px 0; }
+        .check-list li { display: flex; gap: 10px; margin-bottom: 15px; color: var(--text-light); font-size: 15px; }
+        .check-list i { color: var(--primary); }
 
-        /* Social Proof */
-        .testimonials { background: #f8fafc; }
-        .testi-card { background: white; padding: 25px; border-radius: 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.03); }
-        .stars { color: #f59e0b; margin-bottom: 15px; }
-        .user-info { display: flex; align-items: center; gap: 10px; margin-top: 20px; }
-        .user-avatar { width: 40px; height: 40px; background: #cbd5e1; border-radius: 50%; }
+        /* FOOTER & LEGAL */
+        footer { background: #111827; color: #9ca3af; padding: 60px 0 30px 0; font-size: 14px; }
+        .footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 40px; margin-bottom: 50px; }
+        .footer-col h4 { color: white; margin-bottom: 20px; font-weight: 600; }
+        .footer-col a { display: block; color: #9ca3af; text-decoration: none; margin-bottom: 10px; transition: 0.2s; }
+        .footer-col a:hover { color: white; }
+        .legal-row { border-top: 1px solid rgba(255,255,255,0.1); padding-top: 30px; display: flex; justify-content: space-between; }
+
+        /* MODALS */
+        .legal-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 2000; display: none; align-items: center; justify-content: center; }
+        .legal-content { background: white; padding: 40px; width: 600px; max-height: 80vh; overflow-y: auto; border-radius: 12px; position: relative; }
+        .close-modal { position: absolute; top: 20px; right: 20px; cursor: pointer; font-size: 24px; }
         
-        /* Pricing */
-        .pricing-card { border: 1px solid #e2e8f0; border-radius: 24px; padding: 40px; text-align: left; position: relative; background: white; }
-        .pricing-card.featured { border: 2px solid var(--primary); box-shadow: 0 10px 40px rgba(99, 102, 241, 0.1); }
-        .price { font-size: 2.5rem; font-weight: 800; color: var(--dark); margin: 20px 0 5px; }
-        .price span { font-size: 1rem; color: var(--gray); font-weight: 500; }
-        .plan-features { margin: 30px 0; }
-        .plan-features li { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; color: var(--gray); font-size: 0.95rem; }
-        .plan-features li i { color: var(--success); color: #10b981; }
-        .badge { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: var(--primary); color: white; padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; }
-
-        /* Footer */
-        footer { background: #0f172a; color: white; padding: 60px 0 20px; font-size: 0.9rem; }
-        .footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 40px; margin-bottom: 40px; }
-        .footer-logo { font-size: 1.5rem; font-weight: 700; color: white; margin-bottom: 15px; display: block; }
-        .footer-links h4 { color: white; margin-bottom: 20px; font-weight: 600; }
-        .footer-links li { margin-bottom: 10px; }
-        .footer-links a { color: #94a3b8; }
-        .footer-links a:hover { color: white; }
-        .legal { border-top: 1px solid #1e293b; padding-top: 20px; text-align: center; color: #64748b; }
-
-        @media(max-width: 768px) { 
-            h1 { font-size: 2.5rem; } 
+        /* RESPONSIVE */
+        @media(max-width: 768px) {
+            .hero h1 { font-size: 36px; }
             .nav-links { display: none; }
-            .hero-actions { flex-direction: column; align-items: center; }
             .footer-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
 <body>
-    <!-- Navbar -->
+
+    <!-- NAVBAR -->
     <nav class="navbar">
-        <div class="logo"><i class="ri-pie-chart-2-fill"></i> ManageMyBusiness</div>
-        <ul class="nav-links">
-            <li><a href="#features">Features</a></li>
-            <li><a href="#pricing">Pricing</a></li>
-            <li><a href="#testimonials">Reviews</a></li>
-        </ul>
-        <button class="btn btn-outline" style="padding: 8px 20px; font-size: 14px;" id="loginBtnNav">
-            <i class="ri-login-box-line"></i> Sign In
-        </button>
+        <div class="container nav-content">
+            <a href="#" class="logo"><i class="ri-pie-chart-2-fill" style="color:var(--primary);"></i> ManageMyBusiness</a>
+            <div class="nav-links">
+                <a href="#features">Features</a>
+                <a href="#pricing">Pricing</a>
+                <a href="#contact">Contact</a>
+            </div>
+            <div style="display:flex; gap:10px;">
+                <button class="btn btn-outline" onclick="login()">Login</button>
+                <button class="btn btn-primary" onclick="login()">Get Started</button>
+            </div>
+        </div>
     </nav>
 
-    <!-- Hero Section -->
-    <header class="hero">
+    <!-- HERO SECTION -->
+    <section class="hero">
         <div class="container">
-            <div style="display:inline-block; padding: 6px 12px; background: #e0e7ff; color: var(--primary); border-radius: 30px; font-size: 0.85rem; font-weight: 600; margin-bottom: 20px;">
-                ✨ The #1 ERP for Small Business
-            </div>
-            <h1>Stop Guessing.<br><span>Start Growing.</span></h1>
-            <p class="hero-sub">The all-in-one platform for Inventory, POS, and Payroll. Track every penny, manage multiple shops, and automate your workflow in seconds.</p>
+            <h1>Run your entire business<br>from one tab.</h1>
+            <p>The all-in-one Smart POS, Inventory Manager, and Payroll system designed for growing businesses.</p>
+            <button class="btn btn-primary" onclick="login()" style="font-size: 18px; padding: 15px 35px;">Start for Free <i class="ri-arrow-right-line" style="margin-left:8px;"></i></button>
+            <div style="margin-top:15px; font-size:13px; color:#6b7280;">No credit card required for free plan.</div>
             
-            <div class="hero-actions">
-                <button id="loginBtnMain" class="btn btn-primary btn-google">
-                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="20" alt="G">
-                    Get Started with Google
-                </button>
-                <button class="btn btn-outline" onclick="document.getElementById('features').scrollIntoView()">
-                    View Demo
-                </button>
-            </div>
-
-            <div class="trust-badge">
-                <i class="ri-shield-check-fill" style="color: #10b981;"></i> Secure Cloud Storage • No Credit Card Required
+            <!-- Dashboard Preview (CSS Placeholder) -->
+            <div class="hero-img" style="background:white; height:500px; margin: 60px auto 0 auto; display:flex; align-items:center; justify-content:center; flex-direction:column; overflow:hidden;">
+                <img src="https://via.placeholder.com/1000x500/eef2ff/4f46e5?text=Dashboard+Preview" alt="Dashboard" style="width:100%; height:100%; object-fit:cover;">
             </div>
         </div>
-    </header>
+    </section>
 
-    <!-- Benefits / Features -->
-    <section id="features" class="section-padding">
+    <!-- FEATURES -->
+    <section id="features" class="section">
         <div class="container">
-            <div class="text-center" style="margin-bottom: 60px;">
-                <h2 style="font-size: 2.5rem; font-weight: 800; margin-bottom: 10px;">Everything you need to run your shop</h2>
-                <p style="color: var(--gray);">Replace your messy spreadsheets with one smart dashboard.</p>
+            <div class="section-title">
+                <h2>Everything you need to grow</h2>
+                <p>Replace your messy spreadsheets with one powerful tool.</p>
             </div>
-            
             <div class="grid-3">
-                <div class="benefit-card">
-                    <div class="icon-box"><i class="ri-stock-line"></i></div>
-                    <h3>Batch Inventory</h3>
-                    <p>Track new vs. old stock prices automatically. Never lose money on price changes again with our smart batching system.</p>
-                </div>
-                <div class="benefit-card">
-                    <div class="icon-box"><i class="ri-calculator-line"></i></div>
-                    <h3>Automated Payroll</h3>
-                    <p>Stop doing math. We calculate salaries based on daily logs, LWP, advances, and overtime automatically.</p>
-                </div>
-                <div class="benefit-card">
+                <div class="feature-card">
                     <div class="icon-box"><i class="ri-shopping-cart-2-line"></i></div>
-                    <h3>Lightning POS</h3>
-                    <p>Checkout customers in seconds. Works on mobile, tablet, and desktop. Print thermal receipts instantly.</p>
+                    <h3>Smart POS</h3>
+                    <p style="color:#6b7280; font-size:14px; margin-top:10px;">Fast checkout with barcode scanning, automated receipt generation, and "Pay Later" tracking.</p>
                 </div>
-                <div class="benefit-card">
-                    <div class="icon-box"><i class="ri-store-3-line"></i></div>
-                    <h3>Multi-Shop Support</h3>
-                    <p>Running a chain? Manage unlimited locations from a single admin account. Switch shops with one click.</p>
+                <div class="feature-card">
+                    <div class="icon-box"><i class="ri-archive-line"></i></div>
+                    <h3>Inventory & Stock</h3>
+                    <p style="color:#6b7280; font-size:14px; margin-top:10px;">Real-time stock tracking with low-stock alerts. Handle batches, expiry, and costs easily.</p>
                 </div>
-                <div class="benefit-card">
+                <div class="feature-card">
+                    <div class="icon-box"><i class="ri-team-line"></i></div>
+                    <h3>HR & Payroll</h3>
+                    <p style="color:#6b7280; font-size:14px; margin-top:10px;">Manage employees, track attendance, and generate salary slips with automatic calculations.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon-box"><i class="ri-user-heart-line"></i></div>
+                    <h3>Customer CRM</h3>
+                    <p style="color:#6b7280; font-size:14px; margin-top:10px;">Store customer details, track purchase history, and set reminders for follow-ups.</p>
+                </div>
+                <div class="feature-card">
                     <div class="icon-box"><i class="ri-file-chart-line"></i></div>
-                    <h3>Smart Reports</h3>
-                    <p>Generate daily, monthly, and yearly reports. Know exactly what you sold and how much profit you made.</p>
+                    <h3>Reports & Analytics</h3>
+                    <p style="color:#6b7280; font-size:14px; margin-top:10px;">Visualize your sales, profit, and growth with daily, monthly, and yearly charts.</p>
                 </div>
-                <div class="benefit-card">
-                    <div class="icon-box"><i class="ri-cloud-line"></i></div>
-                    <h3>Cloud Secured</h3>
-                    <p>Your data is encrypted and stored safely on Google Cloud. Access your business from anywhere in the world.</p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Social Proof -->
-    <section id="testimonials" class="section-padding testimonials">
-        <div class="container">
-            <div class="text-center" style="margin-bottom: 50px;">
-                <h2 style="font-size: 2rem; font-weight: 800;">Trusted by 500+ Business Owners</h2>
-            </div>
-            <div class="grid-3">
-                <div class="testi-card">
-                    <div class="stars"><i class="ri-star-fill"></i><i class="ri-star-fill"></i><i class="ri-star-fill"></i><i class="ri-star-fill"></i><i class="ri-star-fill"></i></div>
-                    <p>"The batch inventory feature saved me so much money. I used to sell new stock at old prices by mistake. Not anymore!"</p>
-                    <div class="user-info">
-                        <div class="user-avatar" style="background: #e2e8f0;"></div>
-                        <div><strong>Sarah J.</strong><br><small style="color:var(--gray)">Retail Owner</small></div>
-                    </div>
-                </div>
-                <div class="testi-card">
-                    <div class="stars"><i class="ri-star-fill"></i><i class="ri-star-fill"></i><i class="ri-star-fill"></i><i class="ri-star-fill"></i><i class="ri-star-fill"></i></div>
-                    <p>"Payroll used to take me 2 days. With ManageMyBusiness, it takes 5 minutes. The auto-calculation is a lifesaver."</p>
-                    <div class="user-info">
-                        <div class="user-avatar" style="background: #e2e8f0;"></div>
-                        <div><strong>Mike T.</strong><br><small style="color:var(--gray)">Restaurant Manager</small></div>
-                    </div>
-                </div>
-                <div class="testi-card">
-                    <div class="stars"><i class="ri-star-fill"></i><i class="ri-star-fill"></i><i class="ri-star-fill"></i><i class="ri-star-fill"></i><i class="ri-star-fill"></i></div>
-                    <p>"Simple, clean, and fast. I can check my sales from home while my staff runs the shop. Highly recommended."</p>
-                    <div class="user-info">
-                        <div class="user-avatar" style="background: #e2e8f0;"></div>
-                        <div><strong>Priya K.</strong><br><small style="color:var(--gray)">Fashion Boutique</small></div>
-                    </div>
+                <div class="feature-card">
+                    <div class="icon-box"><i class="ri-robot-2-line"></i></div>
+                    <h3>AI Assistant</h3>
+                    <p style="color:#6b7280; font-size:14px; margin-top:10px;">Built-in support bot to help you navigate the system and answer your questions.</p>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Pricing -->
-    <section id="pricing" class="section-padding">
+    <!-- PRICING (Required for Approval) -->
+    <section id="pricing" class="section bg-alt">
         <div class="container">
-            <div class="text-center" style="margin-bottom: 60px;">
-                <h2 style="font-size: 2.5rem; font-weight: 800;">Simple, Transparent Pricing</h2>
-                <p style="color: var(--gray);">No hidden fees. Cancel anytime.</p>
+            <div class="section-title">
+                <h2>Simple, transparent pricing</h2>
+                <p>Choose the plan that fits your business stage.</p>
             </div>
-            
             <div class="grid-3">
-                <div class="pricing-card">
+                <!-- FREE PLAN -->
+                <div class="price-card">
                     <h3>Starter</h3>
-                    <div class="price">$0 <span>/month</span></div>
-                    <p style="color:var(--gray)">Perfect for testing.</p>
-                    <ul class="plan-features">
-                        <li><i class="ri-checkbox-circle-fill"></i> 1 Shop</li>
-                        <li><i class="ri-checkbox-circle-fill"></i> 50 Products</li>
-                        <li><i class="ri-checkbox-circle-fill"></i> Basic Reporting</li>
+                    <div class="price">$0 <span>/mo</span></div>
+                    <p style="font-size:14px; color:#6b7280;">For small shops just getting started.</p>
+                    <button class="btn btn-outline" onclick="login()" style="width:100%; margin-top:20px;">Get Started Free</button>
+                    <ul class="check-list">
+                        <li><i class="ri-check-line"></i> 1 Shop</li>
+                        <li><i class="ri-check-line"></i> 50 Products Limit</li>
+                        <li><i class="ri-check-line"></i> Basic POS</li>
+                        <li><i class="ri-close-line" style="color:#ccc;"></i> No Payroll</li>
                     </ul>
-                    <button class="btn btn-outline" style="width:100%">Current Plan</button>
-                </div>
-                
-                <div class="pricing-card featured">
-                    <div class="badge">MOST POPULAR</div>
-                    <h3>Pro Business</h3>
-                    <div class="price">$29 <span>/month</span></div>
-                    <p style="color:var(--gray)">For growing retailers.</p>
-                    <ul class="plan-features">
-                        <li><i class="ri-checkbox-circle-fill"></i> Unlimited Shops</li>
-                        <li><i class="ri-checkbox-circle-fill"></i> Unlimited Products</li>
-                        <li><i class="ri-checkbox-circle-fill"></i> Advanced Payroll</li>
-                        <li><i class="ri-checkbox-circle-fill"></i> Priority Support</li>
-                    </ul>
-                    <button class="btn btn-primary" style="width:100%">Start Free Trial</button>
                 </div>
 
-                <div class="pricing-card">
-                    <h3>Enterprise</h3>
-                    <div class="price">Custom</div>
-                    <p style="color:var(--gray)">For large chains.</p>
-                    <ul class="plan-features">
-                        <li><i class="ri-checkbox-circle-fill"></i> Custom API Access</li>
-                        <li><i class="ri-checkbox-circle-fill"></i> Dedicated Manager</li>
-                        <li><i class="ri-checkbox-circle-fill"></i> White Labeling</li>
+                <!-- PRO PLAN (Lemon Squeezy Integration) -->
+                <div class="price-card popular">
+                    <span class="badge">Most Popular</span>
+                    <h3>Pro Business</h3>
+                    <div class="price">$29 <span>/mo</span></div>
+                    <p style="font-size:14px; color:#6b7280;">For growing businesses needing full power.</p>
+                    
+                    <!-- LEMON SQUEEZY BUTTON -->
+                    <!-- REPLACE THE HREF WITH YOUR ACTUAL CHECKOUT URL -->
+                    <a href="https://your-store.lemonsqueezy.com/checkout/buy/..." class="btn btn-primary lemonsqueezy-button" style="width:100%; margin-top:20px;">
+                        Upgrade to Pro
+                    </a>
+                    
+                    <ul class="check-list">
+                        <li><i class="ri-check-line"></i> Unlimited Shops</li>
+                        <li><i class="ri-check-line"></i> Unlimited Products</li>
+                        <li><i class="ri-check-line"></i> HR & Payroll Suite</li>
+                        <li><i class="ri-check-line"></i> Advanced Reporting</li>
+                        <li><i class="ri-check-line"></i> Priority Support</li>
                     </ul>
-                    <button class="btn btn-outline" style="width:100%">Contact Sales</button>
                 </div>
+
+                <!-- ENTERPRISE -->
+                <div class="price-card">
+                    <h3>Enterprise</h3>
+                    <div class="price">$99 <span>/mo</span></div>
+                    <p style="font-size:14px; color:#6b7280;">For large chains and franchises.</p>
+                    <a href="mailto:sales@managemybusiness.com" class="btn btn-outline" style="width:100%; margin-top:20px;">Contact Sales</a>
+                    <ul class="check-list">
+                        <li><i class="ri-check-line"></i> Dedicated Server</li>
+                        <li><i class="ri-check-line"></i> Custom Features</li>
+                        <li><i class="ri-check-line"></i> API Access</li>
+                        <li><i class="ri-check-line"></i> 24/7 Phone Support</li>
+                    </ul>
+                </div>
+            </div>
+            <div style="text-align:center; margin-top:30px; font-size:13px; color:#9ca3af;">
+                Prices are in USD. Secure payment processing by Lemon Squeezy.
             </div>
         </div>
     </section>
 
-    <!-- Footer -->
-    <footer>
+    <!-- FOOTER (Mandatory for Approval) -->
+    <footer id="contact">
         <div class="container">
             <div class="footer-grid">
-                <div>
-                    <span class="footer-logo"><i class="ri-pie-chart-2-fill"></i> ManageMyBusiness</span>
-                    <p style="color: #94a3b8; max-width: 300px;">The all-in-one business operating system designed for modern entrepreneurs.</p>
+                <div class="footer-col">
+                    <a href="#" class="logo" style="color:white; margin-bottom:15px;"><i class="ri-pie-chart-2-fill"></i> ManageMyBusiness</a>
+                    <p>Empowering small businesses with professional tools. Manage sales, stock, and staff effortlessly.</p>
                 </div>
-                <div class="footer-links">
+                <div class="footer-col">
                     <h4>Product</h4>
-                    <ul>
-                        <li><a href="#features">Features</a></li>
-                        <li><a href="#pricing">Pricing</a></li>
-                        <li><a href="#">Updates</a></li>
-                    </ul>
+                    <a href="#features">Features</a>
+                    <a href="#pricing">Pricing</a>
+                    <a href="#" onclick="login()">Login</a>
                 </div>
-                <div class="footer-links">
+                <div class="footer-col">
                     <h4>Company</h4>
-                    <ul>
-                        <li><a href="#">About Us</a></li>
-                        <li><a href="#">Careers</a></li>
-                        <li><a href="#">Contact</a></li>
-                    </ul>
+                    <a href="#" onclick="openLegal('about')">About Us</a>
+                    <a href="mailto:support@managemybusiness.com">Contact Support</a>
                 </div>
-                <div class="footer-links">
-                    <h4>Legal</h4>
-                    <ul>
-                        <li><a href="#">Privacy Policy</a></li>
-                        <li><a href="#">Terms of Service</a></li>
-                        <li><a href="#">Refund Policy</a></li>
-                    </ul>
+                <div class="footer-col">
+                    <!-- EDIT THIS ADDRESS TO YOUR REAL ADDRESS FOR APPROVAL -->
+                    <h4>Contact</h4>
+                    <p style="margin-bottom:10px;">123 Business Street,<br>Colombo 03, Sri Lanka</p>
+                    <p>support@managemybusiness.com</p>
+                    <p>+94 77 123 4567</p>
                 </div>
             </div>
-            <div class="legal">
-                &copy; 2025 ManageMyBusiness. All rights reserved.
+            <div class="legal-row">
+                <div>&copy; 2024 ManageMyBusiness. All rights reserved.</div>
+                <div style="display:flex; gap:20px;">
+                    <a href="#" onclick="openLegal('privacy')" style="color:#9ca3af; text-decoration:none;">Privacy Policy</a>
+                    <a href="#" onclick="openLegal('terms')" style="color:#9ca3af; text-decoration:none;">Terms of Service</a>
+                    <a href="#" onclick="openLegal('refund')" style="color:#9ca3af; text-decoration:none;">Refund Policy</a>
+                </div>
             </div>
         </div>
     </footer>
 
-    <!-- FIREBASE SETUP -->
+    <!-- LEGAL MODAL (Generic Template) -->
+    <div id="legalModal" class="legal-modal">
+        <div class="legal-content">
+            <i class="ri-close-line close-modal" onclick="document.getElementById('legalModal').style.display='none'"></i>
+            <h2 id="legalTitle" style="margin-bottom:20px;"></h2>
+            <div id="legalBody" style="font-size:14px; color:#4b5563; line-height:1.7;"></div>
+        </div>
+    </div>
+
+    <!-- FIREBASE LOGIC -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 
-        // 🔴 PASTE YOUR FIREBASE CONFIG HERE
+        // PASTE YOUR FIREBASE CONFIG HERE
         const firebaseConfig = {
-  apiKey: "AIzaSyCZrmkX2RsJTbn4j-WmbuCMudWaETMvXwQ",
-  authDomain: "managemybusiness-b4afb.firebaseapp.com",
-  projectId: "managemybusiness-b4afb",
-  storageBucket: "managemybusiness-b4afb.firebasestorage.app",
-  messagingSenderId: "237936848306",
-  appId: "1:237936848306:web:91a996c3d1d3ceda3b48ab",
-  measurementId: "G-7KPL8EDQ5H"
-};
+            apiKey: "AIzaSyCZrmkX2RsJTbn4j-WmbuCMudWaETMvXwQ",
+            authDomain: "managemybusiness-b4afb.firebaseapp.com",
+            projectId: "managemybusiness-b4afb",
+            storageBucket: "managemybusiness-b4afb.firebasestorage.app",
+            messagingSenderId: "237936848306",
+            appId: "1:237936848306:web:91a996c3d1d3ceda3b48ab",
+            measurementId: "G-7KPL8EDQ5H"
+        };
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const provider = new GoogleAuthProvider();
 
-        const handleLogin = () => {
-            signInWithPopup(auth, provider)
-                .then(() => window.location.href = "dashboard.html")
-                .catch(err => alert("Login Failed: " + err.message));
-        };
-
-        // Attach listeners to both buttons
-        document.getElementById('loginBtnNav').addEventListener('click', handleLogin);
-        document.getElementById('loginBtnMain').addEventListener('click', handleLogin);
-
-        onAuthStateChanged(auth, user => {
-            if(user) window.location.href = "dashboard.html";
+        // Check if already logged in
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                // User is signed in, redirect to dashboard
+                window.location.href = "dashboard.html";
+            }
         });
+
+        // Login Function
+        window.login = () => {
+            signInWithPopup(auth, provider)
+                .then((result) => {
+                    window.location.href = "dashboard.html";
+                }).catch((error) => {
+                    console.error(error);
+                    alert("Login failed: " + error.message);
+                });
+        };
+    </script>
+
+    <!-- LEGAL TEXT SCRIPT (For Display Purposes) -->
+    <script>
+        function openLegal(type) {
+            const modal = document.getElementById('legalModal');
+            const title = document.getElementById('legalTitle');
+            const body = document.getElementById('legalBody');
+            
+            modal.style.display = 'flex';
+            
+            if(type === 'privacy') {
+                title.innerText = "Privacy Policy";
+                body.innerHTML = "<p><strong>1. Data Collection:</strong> We collect your email and profile data to provide our services.</p><p><strong>2. Data Usage:</strong> We do not sell your data. It is used solely for the functionality of the dashboard.</p><p><strong>3. Security:</strong> We use industry-standard encryption (SSL) and Firebase security rules.</p>";
+            } else if(type === 'terms') {
+                title.innerText = "Terms of Service";
+                body.innerHTML = "<p><strong>1. Acceptance:</strong> By using ManageMyBusiness, you agree to these terms.</p><p><strong>2. Usage:</strong> You are responsible for the activity that occurs under your account.</p><p><strong>3. Termination:</strong> We reserve the right to terminate accounts that violate our policies.</p>";
+            } else if(type === 'refund') {
+                title.innerText = "Refund Policy";
+                body.innerHTML = "<p><strong>14-Day Money Back Guarantee:</strong> If you are not satisfied with the Pro plan, contact us within 14 days for a full refund.</p><p><strong>Cancellation:</strong> You can cancel your subscription at any time via the Lemon Squeezy dashboard.</p>";
+            } else if(type === 'about') {
+                title.innerText = "About Us";
+                body.innerHTML = "<p>ManageMyBusiness is dedicated to helping small entrepreneurs in Sri Lanka and globally to streamline their operations.</p>";
+            }
+        }
+        
+        // Close modal on outside click
+        window.onclick = function(event) {
+            const modal = document.getElementById('legalModal');
+            if (event.target == modal) {
+                modal.style.display = "none";
+            }
+        }
     </script>
 </body>
 </html>
