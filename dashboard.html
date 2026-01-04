@@ -711,7 +711,51 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         </div>
     </div>
 </div>
+<!-- CUSTOMER MODAL (ADD/EDIT) -->
+<div id="customerModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:2000;">
+    <div class="card" style="width:400px; margin:0;">
+        <h3>Manage Customer</h3>
+        <label style="font-size:12px;">Customer Name *</label>
+        <input id="custName" placeholder="Full Name">
+        
+        <label style="font-size:12px;">Phone Number (ID) *</label>
+        <input id="custPhone" placeholder="e.g. 0771234567" type="number">
+        <div style="font-size:11px; color:#6b7280; margin-bottom:10px;">This will be used as the Customer ID.</div>
 
+        <label style="font-size:12px;">WhatsApp Number (Optional)</label>
+        <input id="custWhatsapp" placeholder="e.g. 9477..." type="number">
+
+        <label style="font-size:12px;">Email Address (Optional)</label>
+        <input id="custEmail" placeholder="customer@example.com">
+
+        <label style="font-size:12px;">Address (Optional)</label>
+        <textarea id="custAddress" rows="2" placeholder="Full Address"></textarea>
+
+        <div style="display:flex; gap:10px; margin-top:10px;">
+            <button class="btn btn-primary" onclick="saveCustomer()">Save Customer</button>
+            <button class="btn btn-danger" onclick="document.getElementById('customerModal').style.display='none'">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- CUSTOMER NOTE MODAL -->
+<div id="custNoteModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:2000;">
+    <div class="card" style="width:400px; margin:0;">
+        <h3>Add Note for Customer</h3>
+        <input type="hidden" id="targetCustId">
+        <textarea id="custNoteInput" rows="4" placeholder="Enter note here..."></textarea>
+        
+        <!-- Display Previous Notes -->
+        <div style="font-size:12px; font-weight:600; margin-top:10px; margin-bottom:5px;">History:</div>
+        <div id="custNoteHistory" style="background:#f9fafb; padding:10px; border-radius:8px; height:100px; overflow-y:auto; border:1px solid #e5e7eb; font-size:12px;"></div>
+
+        <div style="display:flex; gap:10px; margin-top:15px;">
+            <button class="btn btn-primary" onclick="saveCustomerNote()">Save Note</button>
+            <button class="btn btn-danger" onclick="document.getElementById('custNoteModal').style.display='none'">Close</button>
+        </div>
+    </div>
+</div>
+    
 <!-- LOGIC -->
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
