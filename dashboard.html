@@ -453,7 +453,18 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         </div>
 
         <div id="view-services" class="view"><div class="card"><h3>Services</h3><p class="muted">Coming soon.</p></div></div>
-        <div id="view-customers" class="view"><div class="card"><h3>Customers</h3><p class="muted">Coming soon.</p></div></div>
+        <!-- REPLACEMENT FOR view-customers -->
+<div id="view-customers" class="view">
+    <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
+        <div style="display:flex; gap:10px; flex:1;">
+            <input placeholder="Search by Phone (ID) or Name..." style="width:250px; margin:0;" id="custSearch" onkeyup="filterCustomers()">
+        </div>
+        <button class="btn btn-primary" onclick="openModal('customerModal')">+ Add Customer</button>
+    </div>
+    
+    <!-- Customer List/Grid -->
+    <div class="grid-4" id="customerGrid"></div>
+</div>
 
     </div>
 </main>
