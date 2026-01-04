@@ -28,9 +28,10 @@ body { background: var(--bg); display: flex; height: 100vh; overflow: hidden; co
 .sidebar { width: var(--sidebar-w); background: #111827; color: white; display: flex; flex-direction: column; flex-shrink: 0; transition: 0.3s; z-index: 50; }
 .brand { height: var(--header-h); display: flex; align-items: center; padding: 0 24px; font-weight: 700; font-size: 18px; border-bottom: 1px solid rgba(255,255,255,0.1); }
 .nav { padding: 20px 0; overflow-y: auto; flex: 1; }
-.nav-item { display: flex; align-items: center; gap: 12px; padding: 12px 24px; color: #9ca3af; text-decoration: none; cursor: pointer; transition: 0.2s; font-size: 14px; }
+.nav-item { display: flex; align-items: center; gap: 12px; padding: 12px 24px; color: #9ca3af; text-decoration: none; cursor: pointer; transition: 0.2s; font-size: 14px; position: relative; }
 .nav-item:hover, .nav-item.active { color: white; background: rgba(255,255,255,0.05); border-left: 3px solid var(--primary); }
 .nav-group { margin-top: 20px; padding: 0 24px; font-size: 11px; text-transform: uppercase; color: #6b7280; letter-spacing: 1px; font-weight: 700; }
+.badge-dot { position: absolute; right: 20px; top: 16px; width: 8px; height: 8px; background: var(--danger); border-radius: 50%; display: none; }
 
 /* --- MAIN --- */
 .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; }
@@ -45,6 +46,7 @@ body { background: var(--bg); display: flex; height: 100vh; overflow: hidden; co
 .btn-danger { background: var(--danger); color: white; }
 .btn-warning { background: var(--warning); color: white; }
 .btn-ghost { background: transparent; border: 1px solid #d1d5db; color: var(--text); }
+.btn-success { background: var(--success); color: white; }
 .grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px; }
 input, select, textarea { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; margin-bottom: 10px; font-size: 14px; outline: none; }
 input:focus { border-color: var(--primary); ring: 2px solid var(--primary); }
@@ -52,6 +54,7 @@ input:disabled, select:disabled, textarea:disabled { background: #f3f4f6; cursor
 table { width: 100%; border-collapse: collapse; font-size: 14px; }
 th { text-align: left; padding: 12px; background: #f9fafb; color: #6b7280; font-weight: 600; border-bottom: 1px solid #e5e7eb; white-space: nowrap; }
 td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
+.row-danger { background-color: #fee2e2; }
 
 /* --- PROFILE SPECIAL --- */
 .logo-preview-box { width: 150px; height: 150px; border: 2px dashed #d1d5db; border-radius: 12px; display: flex; align-items: center; justify-content: center; overflow: hidden; margin-bottom: 10px; background: #f9fafb; }
@@ -91,6 +94,12 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 .spinner { width: 40px; height: 40px; border: 4px solid #e5e7eb; border-top: 4px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
+/* --- ALERT POPUP DASHBOARD --- */
+.alert-dashboard-popup { position: fixed; bottom: 20px; left: 20px; width: 300px; background: white; border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.2); border-left: 5px solid var(--warning); padding: 15px; z-index: 2500; display: none; animation: slideUp 0.3s; }
+.alert-dashboard-popup h4 { margin-bottom: 5px; color: var(--warning); display: flex; justify-content: space-between; align-items: center; }
+.alert-dashboard-popup p { font-size: 13px; color: #555; margin-bottom: 10px; }
+@keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
 /* --- MOBILE --- */
 @media(max-width: 768px) {
     .sidebar { position: absolute; left: -100%; height: 100%; width: 80%; }
@@ -108,6 +117,13 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
     <div style="margin-top: 10px; font-weight: 500; font-size: 14px; color: var(--text);">Processing...</div>
 </div>
 
+<!-- ALERT POPUP ON DASHBOARD -->
+<div class="alert-dashboard-popup" id="dashboardAlertPopup">
+    <h4><span><i class="ri-alarm-warning-line"></i> Alert Triggered</span> <i class="ri-close-line" style="cursor:pointer; color:black;" onclick="closeDashboardPopup()"></i></h4>
+    <p id="dashboardAlertMsg">You have a new reminder.</p>
+    <button class="btn btn-warning" style="width:100%; justify-content:center;" onclick="loadView('alerts')">View Alerts</button>
+</div>
+
 <!-- SIDEBAR -->
 <aside class="sidebar" id="sidebar">
     <div class="brand"><i class="ri-pie-chart-2-fill" style="margin-right:10px;"></i> ManageMyBusiness</div>
@@ -116,7 +132,11 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         <a class="nav-item active" onclick="loadView('dashboard')"><i class="ri-dashboard-line"></i> Dashboard</a>
         <!-- NEW PROFILE TAB -->
         <a class="nav-item" onclick="loadView('profile')"><i class="ri-user-settings-line"></i> Profile</a>
+        
+        <div class="nav-group">Sales & POS</div>
         <a class="nav-item" onclick="loadView('pos')"><i class="ri-shopping-cart-2-line"></i> Smart POS</a>
+        <a class="nav-item" onclick="loadView('orders')"><i class="ri-file-list-3-line"></i> Orders</a>
+        <a class="nav-item" onclick="loadView('alerts')"><i class="ri-alarm-line"></i> Alerts <span class="badge-dot" id="alertBadge"></span></a>
         
         <div class="nav-group">Inventory</div>
         <a class="nav-item" onclick="loadView('catalog')"><i class="ri-archive-line"></i> Add Products</a>
@@ -156,6 +176,17 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 
         <!-- 1. DASHBOARD HOME -->
         <div id="view-dashboard" class="view active">
+            
+            <!-- NEW: DELETION WARNING BANNER -->
+            <div id="deletionBanner" style="display:none; background:#fee2e2; border:1px solid #ef4444; color:#b91c1c; padding:15px; border-radius:8px; margin-bottom:20px; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+                <div style="flex: 1; min-width: 250px;">
+                    <strong style="display:block; margin-bottom:5px;"><i class="ri-alarm-warning-fill"></i> Warning: Scheduled for Deletion</strong>
+                    Your shop is scheduled for auto-deletion in <span id="delTimer" style="font-weight:700; font-family:monospace; background:rgba(255,255,255,0.5); padding:2px 6px; border-radius:4px;"></span>.<br>
+                    <span style="font-size:13px; opacity:0.9;">This action cannot be undone once completed.</span>
+                </div>
+                <button class="btn btn-primary" onclick="cancelShopDeletion()" style="white-space:nowrap;">Stop Deletion</button>
+            </div>
+
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
                 <h4 style="margin:0;">Performance Overview</h4>
                 <select id="dashTimeFilter" style="width: auto; margin:0;" onchange="updateDashboard()">
@@ -243,13 +274,21 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 
         <!-- 1.5 NEW ADD PRODUCTS TAB (Base Catalog) -->
         <div id="view-catalog" class="view">
-            <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
-                <input placeholder="Search products by Name or SKU..." style="width:250px; margin:0;" id="catSearch" onkeyup="filterCatalog(this.value)">
-                <button class="btn btn-primary" onclick="prepareAddBaseProduct()">+ Create Base Product</button>
+            <div style="display:flex; flex-wrap:wrap; justify-content:space-between; gap:10px; margin-bottom:15px;">
+                <div style="display:flex; gap:10px; flex:1;">
+                    <input placeholder="Search products by Name or SKU..." style="width:250px; margin:0;" id="catSearch" onkeyup="filterCatalog()">
+                    <select id="catFilterCategory" style="width:150px; margin:0;" onchange="filterCatalog()">
+                        <option value="All">All Categories</option>
+                    </select>
+                </div>
+                <div style="display:flex; gap:10px;">
+                    <button class="btn btn-ghost" onclick="openModal('categoryModal')"><i class="ri-folder-add-line"></i> Manage Categories</button>
+                    <button class="btn btn-primary" onclick="prepareAddBaseProduct()">+ Create Base Product</button>
+                </div>
             </div>
             <div class="card" style="overflow-x:auto;">
                 <table id="catTable">
-                    <thead><tr><th>Image</th><th>SKU</th><th>Name</th><th>Created</th><th>Action</th></tr></thead>
+                    <thead><tr><th>Image</th><th>SKU</th><th>Name</th><th>Category</th><th>Created</th><th>Action</th></tr></thead>
                     <tbody></tbody>
                 </table>
             </div>
@@ -259,14 +298,17 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         <div id="view-products" class="view">
             <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
                 <div style="display:flex; gap:10px;">
-                    <input placeholder="Search stock batches..." style="width:250px; margin:0;" id="prodSearch" onkeyup="filterProducts(this.value)">
+                    <input placeholder="Search stock batches..." style="width:250px; margin:0;" id="prodSearch" onkeyup="filterProducts()">
+                    <select id="stockFilterCategory" style="width:150px; margin:0;" onchange="filterProducts()">
+                        <option value="All">All Categories</option>
+                    </select>
                     <button class="btn btn-ghost" onclick="openInventoryReport()"><i class="ri-file-list-3-line"></i> Report</button>
                 </div>
                 <button class="btn btn-primary" onclick="prepareAddStock()">+ Add Stock</button>
             </div>
             <div class="card" style="overflow-x:auto;">
                 <table id="prodTable">
-                    <thead><tr><th>Image</th><th>Date Added</th><th>Name / SKU</th><th>Buy</th><th>Sell</th><th>Stock</th><th>Action</th></tr></thead>
+                    <thead><tr><th>Image</th><th>Date Added</th><th>Name / SKU</th><th>Category</th><th>Buy</th><th>Sell</th><th>Stock</th><th>Action</th></tr></thead>
                     <tbody></tbody>
                 </table>
             </div>
@@ -274,23 +316,102 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 
         <!-- 3. SMART POS -->
         <div id="view-pos" class="view">
-            <div style="display:grid; grid-template-columns: 2fr 1fr; gap:20px;">
-                <div class="card">
-                    <input id="posSearch" placeholder="Scan barcode or type name..." onkeyup="filterPos(this.value)">
-                    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap:10px; max-height:500px; overflow-y:auto;" id="posGrid"></div>
-                </div>
+            <div style="display:grid; grid-template-columns: 1.5fr 1fr; gap:20px;">
+                <!-- Left: Product Grid -->
                 <div class="card" style="display:flex; flex-direction:column;">
-                    <h3>Current Order</h3>
-                    <div id="cartItems" style="flex:1; overflow-y:auto; margin:15px 0;"></div>
+                    <div style="display:flex; gap:10px; margin-bottom:10px;">
+                        <input id="posSearch" placeholder="Scan barcode or type name..." onkeyup="filterPos()" style="margin:0;">
+                        <select id="posFilterCategory" style="width:150px; margin:0;" onchange="filterPos()">
+                            <option value="All">All Categories</option>
+                        </select>
+                    </div>
+                    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap:10px; flex:1; overflow-y:auto; min-height: 400px;" id="posGrid"></div>
+                </div>
+
+                <!-- Right: Current Order Panel -->
+                <div class="card" style="display:flex; flex-direction:column; padding:15px; overflow-y:auto; max-height: calc(100vh - 120px);">
+                    <h3 style="margin-bottom:10px;">Current Order</h3>
+                    
+                    <!-- Customer Details -->
+                    <div style="background:#f9fafb; padding:10px; border-radius:8px; margin-bottom:10px; border:1px solid #e5e7eb;">
+                         <input id="posCustName" placeholder="Customer Name *" style="margin-bottom:5px; font-size:13px;">
+                         <input id="posCustPhone" placeholder="Customer Phone *" style="margin-bottom:5px; font-size:13px;">
+                         <textarea id="posCustAddr" placeholder="Address (Required for Pay Later)" rows="1" style="font-size:13px; margin-bottom:0;"></textarea>
+                    </div>
+
+                    <!-- Cart Items -->
+                    <div id="cartItems" style="flex:1; overflow-y:auto; margin-bottom:15px; border-bottom:1px solid #eee; min-height:150px;"></div>
+                    
+                    <!-- Fees & Discount -->
+                    <div style="margin-bottom:10px;">
+                        <div style="font-size:12px; font-weight:600; margin-bottom:5px;">Other Fees</div>
+                        <div id="feeList"></div>
+                        <div style="display:flex; gap:5px; margin-top:5px;">
+                            <input id="newFeeName" placeholder="Fee Name" style="margin:0; font-size:12px;">
+                            <input id="newFeeAmount" type="number" placeholder="Amt" style="margin:0; width:70px; font-size:12px;">
+                            <button class="btn btn-ghost" onclick="addFee()" style="padding:5px;">+</button>
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom:10px; display:flex; gap:5px;">
+                        <select id="discountType" style="margin:0; width:100px; font-size:12px;">
+                            <option value="amount">Disc (Amt)</option>
+                            <option value="percent">Disc (%)</option>
+                        </select>
+                        <input id="discountValue" type="number" placeholder="0" style="margin:0; font-size:12px;" onkeyup="renderCart()">
+                    </div>
+
+                    <!-- Payment Method -->
+                    <div style="margin-bottom:10px;">
+                        <label style="font-size:12px; font-weight:600;">Payment Method</label>
+                        <select id="posPaymentMethod" style="margin:0; font-size:13px;" onchange="renderCart()">
+                            <option value="Cash">Cash</option>
+                            <option value="Online Transfer">Online Bank Transfer</option>
+                            <option value="Bank Deposit">Cash Deposit at Bank</option>
+                            <option value="Cheque">Cheque Payment</option>
+                            <option value="Debit Card">Debit Card</option>
+                            <option value="Credit Card">Credit Card</option>
+                            <option value="Pay Later">Pay Later (Credit)</option>
+                        </select>
+                    </div>
+
+                    <!-- Totals & Checkout -->
                     <div style="border-top:1px solid #eee; padding-top:10px;">
-                        <div style="display:flex; justify-content:space-between; font-weight:700; font-size:18px;">
+                        <div style="display:flex; justify-content:space-between; font-size:13px;"><span>Subtotal:</span><span id="cartSubtotal">0.00</span></div>
+                        <div style="display:flex; justify-content:space-between; font-size:13px; color:var(--danger);"><span>Discount:</span><span id="cartDiscount">0.00</span></div>
+                        <div style="display:flex; justify-content:space-between; font-size:13px; color:var(--primary);"><span>Fees:</span><span id="cartFees">0.00</span></div>
+                        <div style="display:flex; justify-content:space-between; font-weight:700; font-size:18px; margin-top:5px;">
                             <span>Total</span><span id="cartTotal">0.00</span>
                         </div>
-                        <input id="posCustomer" placeholder="Customer Name (Optional)" style="margin-top:10px;">
-                        <button class="btn btn-primary" style="width:100%; justify-content:center; margin-top:10px;" onclick="checkout()">Complete Sale</button>
+                        <button class="btn btn-primary" style="width:100%; justify-content:center; margin-top:10px;" onclick="checkout()">Complete Sale & Bill</button>
                     </div>
                 </div>
             </div>
+        </div>
+
+        <!-- NEW: ORDERS TAB -->
+        <div id="view-orders" class="view">
+            <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
+                 <h3>All Orders</h3>
+                 <button class="btn btn-ghost" onclick="loadOrders()"><i class="ri-refresh-line"></i> Refresh</button>
+            </div>
+            <div class="card" style="overflow-x:auto;">
+                <table id="ordersTable">
+                    <thead><tr><th>Date</th><th>Customer</th><th>Pay Method</th><th>Total</th><th>Status</th><th>Actions</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- NEW: ALERTS TAB -->
+        <div id="view-alerts" class="view">
+             <h3>Reminders & Alerts</h3>
+             <div class="card" style="overflow-x:auto;">
+                 <table id="alertsTable">
+                     <thead><tr><th>Target Date</th><th>Frequency</th><th>Message</th><th>Order Ref</th><th>Status</th><th>Action</th></tr></thead>
+                     <tbody></tbody>
+                 </table>
+             </div>
         </div>
 
         <!-- 4. EMPLOYEES -->
@@ -374,6 +495,25 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
     </div>
 </div>
 
+<!-- CATEGORY MODAL -->
+<div id="categoryModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:2000;">
+    <div class="card" style="width:400px; margin:0;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
+            <h3>Manage Categories</h3>
+            <i class="ri-close-line" style="cursor:pointer; font-size:24px;" onclick="document.getElementById('categoryModal').style.display='none'"></i>
+        </div>
+        <div style="display:flex; gap:10px; margin-bottom:20px;">
+            <input id="catNameInput" placeholder="New Category Name" style="margin:0;">
+            <button class="btn btn-primary" onclick="saveCategory()">Add</button>
+        </div>
+        <div style="max-height:300px; overflow-y:auto; border:1px solid #e5e7eb; border-radius:8px;">
+            <table id="catListTable" style="margin:0;">
+                <tbody id="catListBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
 <!-- BASE PRODUCT MODAL (For Add Products Tab) -->
 <div id="baseProductModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:100;">
     <div class="card" style="width:400px; margin:0;">
@@ -387,8 +527,13 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         <div id="bpImageInfo" style="font-size:11px; color:#666;"></div>
         <img id="bpPhotoPreview" class="prod-preview" alt="Preview">
 
+        <label style="font-size:12px;">Category</label>
+        <select id="bpCategory">
+            <option value="">Uncategorized</option>
+        </select>
+
         <input id="bpName" placeholder="Product Name (Required)">
-        <div id="bpSkuDisplay" style="font-size:12px; color:#6b7280; margin-bottom:10px;">SKU will be auto-generated</div>
+        <div id="bpSkuDisplay" style="font-size:12px; color:#6b7280; margin-bottom:10px;">SKU will be auto-generated sequentially (e.g. 000001)</div>
 
         <div style="display:flex; gap:10px; margin-top:10px;">
             <button class="btn btn-primary" onclick="saveBaseProduct()">Save Product</button>
@@ -411,6 +556,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         <input type="hidden" id="mpId">
         <input type="hidden" id="mpName"> <!-- Hidden, populated by select -->
         <input type="hidden" id="mpImage"> <!-- Hidden, populated by select -->
+        <input type="hidden" id="mpCategory"> <!-- Hidden, populated by select -->
         
         <!-- Selection Dropdown -->
         <div id="stockSelectContainer">
@@ -517,11 +663,49 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
     </div>
 </div>
 
+<!-- ORDER NOTE MODAL -->
+<div id="orderNoteModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:2000;">
+    <div class="card" style="width:400px; margin:0;">
+        <h3>Add Note to Order</h3>
+        <input type="hidden" id="noteOrderId">
+        <textarea id="noteInput" rows="4" placeholder="Enter note here..."></textarea>
+        <div style="display:flex; gap:10px; margin-top:10px;">
+            <button class="btn btn-primary" onclick="saveOrderNote()">Save Note</button>
+            <button class="btn btn-danger" onclick="document.getElementById('orderNoteModal').style.display='none'">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- CREATE ALERT MODAL -->
+<div id="createAlertModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:2000;">
+    <div class="card" style="width:400px; margin:0;">
+        <h3>Create Reminder Alert</h3>
+        <input type="hidden" id="alertOrderId">
+        <label style="font-size:12px;">Message</label>
+        <input id="alertMsg" placeholder="e.g. Follow up on payment">
+        <label style="font-size:12px;">Alert Date & Time</label>
+        <input id="alertDate" type="datetime-local">
+        <label style="font-size:12px;">Frequency</label>
+        <select id="alertFreq">
+            <option value="once">Once</option>
+            <option value="daily">Daily</option>
+            <option value="monthly">Monthly</option>
+            <option value="3month">Every 3 Months</option>
+            <option value="6month">Every 6 Months</option>
+            <option value="yearly">Yearly</option>
+        </select>
+        <div style="display:flex; gap:10px; margin-top:10px;">
+            <button class="btn btn-primary" onclick="saveAlert()">Create Alert</button>
+            <button class="btn btn-danger" onclick="document.getElementById('createAlertModal').style.display='none'">Cancel</button>
+        </div>
+    </div>
+</div>
+
 <!-- LOGIC -->
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
     import { getAuth, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
-    import { getFirestore, collection, addDoc, getDocs, doc, deleteDoc, updateDoc, query, where, orderBy, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, getDocs, doc, deleteDoc, updateDoc, query, where, orderBy, setDoc, getDoc, runTransaction } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
     // 🔴 RE-PASTE FIREBASE CONFIG HERE
     const firebaseConfig = {
@@ -541,11 +725,15 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
     let currentShopId = null;
     let currentCurrency = "$";
     let productsCache = [];
-    let catalogCache = []; // NEW: Cache for base products
+    let catalogCache = []; 
+    let categoriesCache = []; 
     let cart = [];
     let salesCache = [];
-    let compressedImageBase64 = null; // Store compressed image
+    let compressedImageBase64 = null; 
     let profileCache = null;
+    let currentOtherFees = [];
+    let shopsCache = []; // NEW: To store shop data locally
+    let deletionInterval = null; // NEW: Timer reference
 
     // --- UTILS ---
     function showToast(message, type = 'success') {
@@ -700,22 +888,27 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         const snap = await getDocs(q);
         const select = document.getElementById('shopSelector');
         select.innerHTML = '';
-        let shops = [];
-        snap.forEach(d => shops.push({id: d.id, ...d.data()}));
+        shopsCache = []; // Reset local cache
+        snap.forEach(d => shopsCache.push({id: d.id, ...d.data()}));
 
-        if(shops.length === 0) {
+        if(shopsCache.length === 0) {
             toggleLoader(false);
             document.getElementById('shopModal').style.display = 'flex';
             document.querySelector('#shopModal .btn-danger').style.display = 'none';
             return;
         }
-        shops.forEach(s => {
+        shopsCache.forEach(s => {
             const opt = document.createElement('option');
             opt.value = s.id; opt.text = s.name;
             opt.dataset.currency = s.currency || "$";
             select.appendChild(opt);
         });
-        if(!currentShopId) currentShopId = shops[0].id;
+        if(!currentShopId) currentShopId = shopsCache[0].id;
+        
+        // Ensure dropdown reflects currentShopId if it still exists, else pick first
+        const exists = shopsCache.find(s => s.id === currentShopId);
+        if(!exists) currentShopId = shopsCache[0].id;
+        
         select.value = currentShopId;
         changeShop();
     }
@@ -734,19 +927,96 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         showToast("Business created successfully!");
     };
 
+    // --- NEW: MODIFIED DELETE LOGIC (SOFT DELETE) ---
     window.deleteCurrentShop = async () => {
         if(!confirm("Delete this business and all data? Cannot be undone.")) return;
+        
+        toggleLoader(true);
+        // Instead of deleting immediately, set a scheduled timestamp
+        await updateDoc(doc(db, `users/${currentUser.uid}/shops`, currentShopId), {
+            deleteScheduledAt: new Date().toISOString()
+        });
+        
+        await loadShops(); // Reload to pick up the new state
+        toggleLoader(false);
+        showToast("Business scheduled for deletion in 72 hours.");
+    };
+
+    window.cancelShopDeletion = async () => {
+        toggleLoader(true);
+        // Remove the scheduled timestamp
+        await updateDoc(doc(db, `users/${currentUser.uid}/shops`, currentShopId), {
+            deleteScheduledAt: null 
+        });
+        await loadShops();
+        toggleLoader(false);
+        showToast("Deletion cancelled.");
+    };
+
+    async function permanentlyDeleteShop() {
+        // Triggered when timer expires
         toggleLoader(true);
         await deleteDoc(doc(db, `users/${currentUser.uid}/shops`, currentShopId));
         currentShopId = null;
-        loadShops();
-        showToast("Business deleted");
-    };
+        if(deletionInterval) clearInterval(deletionInterval);
+        await loadShops();
+        showToast("Business permanently deleted.");
+    }
+
+    // --- NEW: DELETION TIMER LOGIC ---
+    function handleDeletionState(shopData) {
+        const banner = document.getElementById('deletionBanner');
+        const timerSpan = document.getElementById('delTimer');
+        
+        // Clear existing interval to prevent duplicates
+        if(deletionInterval) {
+            clearInterval(deletionInterval);
+            deletionInterval = null;
+        }
+
+        if(!shopData.deleteScheduledAt) {
+            banner.style.display = 'none';
+            return;
+        }
+
+        // Logic if deletion is scheduled
+        const scheduledTime = new Date(shopData.deleteScheduledAt);
+        const deadline = new Date(scheduledTime.getTime() + (72 * 60 * 60 * 1000)); // 72 hours later
+
+        banner.style.display = 'flex';
+
+        const updateTimer = () => {
+            const now = new Date();
+            const diff = deadline - now;
+
+            if (diff <= 0) {
+                // Time expired -> Actually delete
+                clearInterval(deletionInterval);
+                permanentlyDeleteShop();
+                return;
+            }
+
+            // Format Remaining Time
+            const hrs = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            const secs = Math.floor((diff % (1000 * 60)) / 1000);
+            timerSpan.textContent = `${hrs}h ${mins}m ${secs}s`;
+        };
+
+        updateTimer(); // Run immediately
+        deletionInterval = setInterval(updateTimer, 1000); // Run every second
+    }
 
     window.changeShop = () => {
         const sel = document.getElementById('shopSelector');
         currentShopId = sel.value;
-        currentCurrency = sel.options[sel.selectedIndex].dataset.currency;
+        const currentShopData = shopsCache.find(s => s.id === currentShopId);
+        
+        if (currentShopData) {
+            currentCurrency = currentShopData.currency || "$";
+            handleDeletionState(currentShopData); // Check for deletion status
+        }
+        
         refreshData();
     };
 
@@ -754,14 +1024,21 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         if(!currentShopId) return;
         toggleLoader(true);
         await loadProfile(); // Load Profile First to check lock
+        await loadCategories(); // Load Categories
         await loadCatalog(); // Load Base Products
         await loadProducts(); // Load Stock
         await loadEmployees();
+        await loadAlerts(); // Check Alerts
+        
         const q = query(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/sales`), orderBy('date', 'desc'));
         const snap = await getDocs(q);
         salesCache = [];
         snap.forEach(d => salesCache.push({id: d.id, ...d.data()}));
         updateDashboard();
+        
+        // Refresh Orders/Alerts View if active
+        if(document.getElementById('view-orders').classList.contains('active')) loadOrders();
+        
         toggleLoader(false);
     }
 
@@ -870,10 +1147,62 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         });
 
         document.getElementById('pageTitle').textContent = viewName.charAt(0).toUpperCase() + viewName.slice(1);
+
+        if(viewName === 'orders') loadOrders();
+        if(viewName === 'alerts') renderAlertsTable();
     };
 
     window.openModal = (id) => document.getElementById(id).style.display = 'flex';
     const formatMoney = (a) => `${currentCurrency}${Number(a).toFixed(2)}`;
+
+
+    // --- 0. CATEGORY LOGIC ---
+    async function loadCategories() {
+        const snap = await getDocs(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/categories`));
+        categoriesCache = [];
+        snap.forEach(d => categoriesCache.push({id: d.id, ...d.data()}));
+        categoriesCache.sort((a,b) => a.name.localeCompare(b.name));
+        
+        // Populate Dropdowns
+        const opts = categoriesCache.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+        const optsWithAll = `<option value="All">All Categories</option>` + opts;
+        const optsWithNone = `<option value="">Uncategorized</option>` + opts;
+
+        document.getElementById('catListBody').innerHTML = categoriesCache.map(c => `
+            <tr>
+                <td style="padding:8px;">${c.name}</td>
+                <td style="padding:8px; text-align:right;">
+                    <button class="btn btn-danger" style="padding:2px 6px; font-size:11px;" onclick="deleteCategory('${c.id}')">Del</button>
+                </td>
+            </tr>
+        `).join('');
+
+        document.getElementById('catFilterCategory').innerHTML = optsWithAll;
+        document.getElementById('stockFilterCategory').innerHTML = optsWithAll;
+        document.getElementById('posFilterCategory').innerHTML = optsWithAll;
+        document.getElementById('bpCategory').innerHTML = optsWithNone;
+    }
+
+    window.saveCategory = async () => {
+        const name = document.getElementById('catNameInput').value.trim();
+        if(!name) return showToast("Category Name required", "error");
+        
+        toggleLoader(true);
+        await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/categories`), { name });
+        document.getElementById('catNameInput').value = '';
+        await loadCategories();
+        toggleLoader(false);
+        showToast("Category Added");
+    };
+
+    window.deleteCategory = async (id) => {
+        if(!confirm("Delete this category?")) return;
+        toggleLoader(true);
+        await deleteDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/categories`, id));
+        await loadCategories();
+        toggleLoader(false);
+        showToast("Category Deleted");
+    };
 
     // --- 1. CATALOG (Add Products) LOGIC ---
     async function loadCatalog() {
@@ -886,22 +1215,31 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 
     function renderCatalog() {
         const term = document.getElementById('catSearch').value.toLowerCase();
+        const catFilter = document.getElementById('catFilterCategory').value;
         const tbody = document.querySelector('#catTable tbody');
-        const filtered = catalogCache.filter(p => p.name.toLowerCase().includes(term) || (p.sku && p.sku.toLowerCase().includes(term)));
+        
+        const filtered = catalogCache.filter(p => {
+            const matchName = p.name.toLowerCase().includes(term) || (p.sku && p.sku.toLowerCase().includes(term));
+            const matchCat = catFilter === 'All' || (p.categoryId === catFilter) || (!p.categoryId && catFilter === "");
+            return matchName && matchCat;
+        });
 
         if(filtered.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 20px; color: #9ca3af;">No base products found. Create one!</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 20px; color: #9ca3af;">No base products found. Create one!</td></tr>';
             return;
         }
 
         tbody.innerHTML = filtered.map(p => {
             const dateStr = p.created ? new Date(p.created).toLocaleDateString() : '-';
             const imgTag = p.image ? `<img src="${p.image}" class="prod-thumb" onclick="window.open(this.src)">` : '<i class="ri-image-line"></i>';
+            const categoryName = categoriesCache.find(c => c.id === p.categoryId)?.name || 'Uncategorized';
+            
             return `
             <tr>
                 <td>${imgTag}</td>
                 <td style="font-family:monospace; font-size:12px;">${p.sku || '-'}</td>
                 <td>${p.name}</td>
+                <td style="font-size:12px; color:#6b7280;">${categoryName}</td>
                 <td style="font-size:12px; color:#666;">${dateStr}</td>
                 <td>
                     <button class="btn btn-warning" style="padding:4px 8px;" onclick="editBaseProduct('${p.id}')">Edit Img</button>
@@ -917,6 +1255,8 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         document.getElementById('bpId').value = '';
         document.getElementById('bpName').value = '';
         document.getElementById('bpName').disabled = false;
+        document.getElementById('bpCategory').value = '';
+        document.getElementById('bpCategory').disabled = false;
         document.getElementById('bpPhoto').value = '';
         document.getElementById('bpPhotoPreview').style.display = 'none';
         document.getElementById('btnRemoveBpImage').style.display = 'none';
@@ -930,7 +1270,9 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         if(!p) return;
         document.getElementById('bpId').value = p.id;
         document.getElementById('bpName').value = p.name;
-        document.getElementById('bpName').disabled = true; // Cannot change name
+        document.getElementById('bpName').disabled = true; // Cannot change name to prevent syncing issues
+        document.getElementById('bpCategory').value = p.categoryId || '';
+        document.getElementById('bpCategory').disabled = false; 
         
         document.getElementById('bpPhoto').value = '';
         compressedImageBase64 = p.image;
@@ -972,26 +1314,47 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         compressedImageBase64 = null;
     };
 
+    // SEQUENTIAL SKU GENERATOR
+    async function generateNextSku() {
+        const counterRef = doc(db, `users/${currentUser.uid}/shops/${currentShopId}/settings`, 'skuCounter');
+        let newSku = "";
+        
+        await runTransaction(db, async (transaction) => {
+            const sfDoc = await transaction.get(counterRef);
+            let count = 0;
+            if (sfDoc.exists()) {
+                count = sfDoc.data().count;
+            }
+            count++;
+            transaction.set(counterRef, { count: count });
+            newSku = String(count).padStart(6, '0');
+        });
+        return newSku;
+    }
+
     window.saveBaseProduct = async () => {
         const id = document.getElementById('bpId').value;
         const name = document.getElementById('bpName').value.trim();
+        const categoryId = document.getElementById('bpCategory').value;
         
         if(!name) return showToast("Product Name Required", "error");
         if(!id && !compressedImageBase64) return showToast("Image Required", "error");
 
         toggleLoader(true);
         if(id) {
-            // Update existing (Only Image allowed to change)
+            // Update existing
             await updateDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/base_products`, id), {
-                image: compressedImageBase64
+                image: compressedImageBase64,
+                categoryId: categoryId
             });
         } else {
-            // Create New
-            const sku = Date.now().toString(36).toUpperCase(); // Simple unique SKU
+            // Create New with Sequential SKU
+            const sku = await generateNextSku();
             await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/base_products`), {
                 name, 
                 image: compressedImageBase64,
                 sku,
+                categoryId,
                 created: new Date().toISOString()
             });
         }
@@ -1023,19 +1386,25 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 
     function renderProducts() {
         const term = document.getElementById('prodSearch').value.toLowerCase();
+        const catFilter = document.getElementById('stockFilterCategory').value;
         const tbody = document.querySelector('#prodTable tbody');
         
-        const filtered = productsCache.filter(p => p.name.toLowerCase().includes(term) || (p.sku && p.sku.toLowerCase().includes(term)));
+        const filtered = productsCache.filter(p => {
+            const matchName = p.name.toLowerCase().includes(term) || (p.sku && p.sku.toLowerCase().includes(term));
+            const matchCat = catFilter === 'All' || (p.categoryId === catFilter) || (!p.categoryId && catFilter === "");
+            return matchName && matchCat;
+        });
 
         if(filtered.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding: 20px; color: #9ca3af;">No stock batches found. Add Stock!</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 20px; color: #9ca3af;">No stock batches found. Add Stock!</td></tr>';
             return;
         }
 
         tbody.innerHTML = filtered.map(p => {
                 const dateStr = p.dateAdded ? new Date(p.dateAdded).toLocaleDateString() : '-';
                 const imgTag = p.image ? `<img src="${p.image}" class="prod-thumb" onclick="window.open(this.src)">` : '<i class="ri-image-line"></i>';
-                
+                const categoryName = categoriesCache.find(c => c.id === p.categoryId)?.name || 'Uncategorized';
+
                 return `
                 <tr>
                     <td>${imgTag}</td>
@@ -1044,6 +1413,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
                         <div>${p.name}</div>
                         <div style="font-size:11px; color:#6b7280; font-family:monospace;">${p.sku || ''}</div>
                     </td>
+                    <td style="font-size:12px;">${categoryName}</td>
                     <td>${formatMoney(p.buy)}</td>
                     <td>${formatMoney(p.sell)}</td>
                     <td style="color:${p.qty<5?'red':'inherit'}">${p.qty} ${p.unit||''}</td>
@@ -1067,6 +1437,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         document.getElementById('mpUnit').value = '';
         document.getElementById('mpName').value = '';
         document.getElementById('mpImage').value = '';
+        document.getElementById('mpCategory').value = '';
 
         document.getElementById('stockSelectContainer').style.display = 'block';
         document.getElementById('stockPreview').style.display = 'none';
@@ -1078,7 +1449,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         const sel = document.getElementById('stockBaseSelect');
         sel.innerHTML = '<option value="">-- Choose Product --</option>';
         catalogCache.forEach(p => {
-            sel.innerHTML += `<option value="${p.id}" data-img="${p.image||''}" data-name="${p.name}" data-sku="${p.sku}">${p.name} (${p.sku})</option>`;
+            sel.innerHTML += `<option value="${p.id}" data-img="${p.image||''}" data-name="${p.name}" data-sku="${p.sku}" data-cat="${p.categoryId||''}">${p.name} (${p.sku})</option>`;
         });
 
         openModal('prodModal');
@@ -1090,6 +1461,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         if(opt.value) {
             document.getElementById('mpName').value = opt.dataset.name;
             document.getElementById('mpImage').value = opt.dataset.img;
+            document.getElementById('mpCategory').value = opt.dataset.cat;
             document.getElementById('stockPreview').style.display = 'block';
             document.getElementById('mpPhotoPreview').src = opt.dataset.img;
             document.getElementById('mpNameDisplay').textContent = opt.dataset.name;
@@ -1110,6 +1482,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         document.getElementById('mpUnit').value = p.unit || '';
         document.getElementById('mpName').value = p.name;
         document.getElementById('mpImage').value = p.image;
+        document.getElementById('mpCategory').value = p.categoryId || '';
 
         document.getElementById('stockSelectContainer').style.display = 'none';
         document.getElementById('stockPreview').style.display = 'block';
@@ -1132,6 +1505,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         const unit = document.getElementById('mpUnit').value;
         const name = document.getElementById('mpName').value;
         const image = document.getElementById('mpImage').value;
+        const categoryId = document.getElementById('mpCategory').value;
         
         let sku = "";
         if(!id) {
@@ -1148,7 +1522,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         if(isNaN(sell) || sell <= 0) return showToast("Sell Price must be greater than 0", "error");
         if(isNaN(qty) || qty <= 0) return showToast("Quantity must be greater than 0", "error");
 
-        const stockData = { name, buy, sell, qty, unit, image, sku };
+        const stockData = { name, buy, sell, qty, unit, image, sku, categoryId };
 
         if (sell < buy) {
             document.getElementById('priceWarningMsg').innerHTML = `Loss: ${formatMoney(sell - buy)} per unit`;
@@ -1362,7 +1736,14 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
     function renderPosGrid() {
         const grid = document.getElementById('posGrid');
         const term = document.getElementById('posSearch').value.toLowerCase();
-        const filtered = productsCache.filter(p => p.qty > 0 && p.name.toLowerCase().includes(term));
+        const catFilter = document.getElementById('posFilterCategory').value;
+
+        const filtered = productsCache.filter(p => {
+            const matchName = p.name.toLowerCase().includes(term);
+            const matchCat = catFilter === 'All' || (p.categoryId === catFilter) || (!p.categoryId && catFilter === "");
+            return p.qty > 0 && matchName && matchCat;
+        });
+
         if(filtered.length === 0) {
             grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: #9ca3af; padding: 20px;">No items match or out of stock</div>';
             return;
@@ -1395,19 +1776,36 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         renderCart();
     };
 
-    function renderCart() {
+    window.renderCart = () => {
         const con = document.getElementById('cartItems');
-        let total = 0;
+        let subtotal = 0;
+        
         con.innerHTML = cart.map((i, idx) => {
-            total += i.sell * i.qty;
+            subtotal += i.sell * i.qty;
             return `<div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:13px; align-items:center;">
-                <span>${i.name} (${i.qty})</span>
+                <div style="flex:1;">
+                   <div style="font-weight:500;">${i.name}</div>
+                   <div style="color:#666; font-size:11px;">${formatMoney(i.sell)} x ${i.qty}</div>
+                </div>
                 <div>
                     <strong>${formatMoney(i.sell * i.qty)}</strong>
                     <button class="btn btn-danger" style="padding:2px 6px; font-size:10px; margin-left:5px;" onclick="removeFromCart(${idx})">X</button>
                 </div>
             </div>`;
         }).join('');
+
+        // Calculations
+        let discountVal = parseFloat(document.getElementById('discountValue').value) || 0;
+        const discountType = document.getElementById('discountType').value;
+        let discountAmt = discountType === 'percent' ? (subtotal * discountVal / 100) : discountVal;
+        
+        let feesTotal = currentOtherFees.reduce((sum, f) => sum + f.amount, 0);
+        let total = subtotal - discountAmt + feesTotal;
+        if(total < 0) total = 0;
+
+        document.getElementById('cartSubtotal').textContent = formatMoney(subtotal);
+        document.getElementById('cartDiscount').textContent = `-${formatMoney(discountAmt)}`;
+        document.getElementById('cartFees').textContent = `+${formatMoney(feesTotal)}`;
         document.getElementById('cartTotal').textContent = formatMoney(total);
     }
 
@@ -1416,30 +1814,342 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         renderCart();
     };
 
+    window.addFee = () => {
+        const name = document.getElementById('newFeeName').value.trim();
+        const amt = parseFloat(document.getElementById('newFeeAmount').value);
+        if(!name || isNaN(amt)) return showToast("Invalid Fee", "error");
+        currentOtherFees.push({ name, amount: amt });
+        document.getElementById('newFeeName').value = '';
+        document.getElementById('newFeeAmount').value = '';
+        renderFees();
+        renderCart();
+    };
+
+    function renderFees() {
+        const list = document.getElementById('feeList');
+        list.innerHTML = currentOtherFees.map((f, i) => `
+            <div style="display:flex; justify-content:space-between; font-size:12px; background:#eee; padding:4px 8px; margin-bottom:4px; border-radius:4px;">
+                <span>${f.name}</span>
+                <span>${formatMoney(f.amount)} <i class="ri-close-circle-fill" style="cursor:pointer; margin-left:5px;" onclick="removeFee(${i})"></i></span>
+            </div>
+        `).join('');
+    }
+
+    window.removeFee = (idx) => {
+        currentOtherFees.splice(idx, 1);
+        renderFees();
+        renderCart();
+    };
+
     window.checkout = async () => {
         if(!cart.length) return showToast("Cart is empty!", "error");
-        const customer = document.getElementById('posCustomer').value || 'Walk-in';
+        
+        const custName = document.getElementById('posCustName').value.trim();
+        const custPhone = document.getElementById('posCustPhone').value.trim();
+        const custAddr = document.getElementById('posCustAddr').value.trim();
+        const paymentMethod = document.getElementById('posPaymentMethod').value;
+        const discountType = document.getElementById('discountType').value;
+        const discountVal = parseFloat(document.getElementById('discountValue').value) || 0;
+        
+        // Validation
+        if(!custName || !custPhone) return showToast("Customer Name & Phone Required", "error");
+        if(paymentMethod === "Pay Later" && !custAddr) return showToast("Address Required for Pay Later", "error");
+
         toggleLoader(true);
+        
+        // Calculate Totals Again for Safety
+        let subtotal = cart.reduce((a,b)=>a+(b.sell*b.qty),0);
+        let discountAmt = discountType === 'percent' ? (subtotal * discountVal / 100) : discountVal;
+        let feesTotal = currentOtherFees.reduce((sum, f) => sum + f.amount, 0);
+        let total = subtotal - discountAmt + feesTotal;
+
         const saleData = {
             date: new Date().toISOString(),
-            total: cart.reduce((a,b)=>a+(b.sell*b.qty),0),
+            subtotal,
+            discountType,
+            discountValue: discountVal,
+            discountAmt,
+            fees: currentOtherFees,
+            feesTotal,
+            total,
             items: cart,
-            customer
+            customer: { name: custName, phone: custPhone, address: custAddr },
+            paymentMethod,
+            notes: [] // Array for future notes
         };
-        await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/sales`), saleData);
-        for(let item of cart) {
-             const ref = doc(db, `users/${currentUser.uid}/shops/${currentShopId}/products`, item.id);
-             const original = productsCache.find(x => x.id === item.id);
-             const newQty = original.qty - item.qty;
-             await updateDoc(ref, { qty: newQty });
-             await logInventory(item.name, 'SALE', `Sold to ${customer}`, -item.qty, newQty);
+
+        try {
+            // Save Sale
+            const docRef = await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/sales`), saleData);
+            
+            // Update Inventory
+            for(let item of cart) {
+                 const ref = doc(db, `users/${currentUser.uid}/shops/${currentShopId}/products`, item.id);
+                 const original = productsCache.find(x => x.id === item.id);
+                 const newQty = original.qty - item.qty;
+                 await updateDoc(ref, { qty: newQty });
+                 await logInventory(item.name, 'SALE', `Sold to ${custName}`, -item.qty, newQty);
+            }
+
+            // Generate Bill
+            generateInvoicePDF({...saleData, id: docRef.id});
+
+            // Reset UI
+            cart = []; currentOtherFees = [];
+            document.getElementById('posCustName').value = '';
+            document.getElementById('posCustPhone').value = '';
+            document.getElementById('posCustAddr').value = '';
+            document.getElementById('discountValue').value = '';
+            renderCart(); renderFees();
+            
+            await loadProducts();
+            updateDashboard();
+            showToast("Sale Completed & Bill Generated!", "success");
+
+        } catch (e) {
+            console.error(e);
+            showToast("Error processing sale", "error");
+        } finally {
+            toggleLoader(false);
         }
-        cart = []; renderCart(); 
-        await loadProducts();
-        updateDashboard();
-        toggleLoader(false);
-        showToast("Sale Completed!", "success");
     };
+
+    // --- ORDERS TAB LOGIC ---
+    window.loadOrders = async () => {
+        toggleLoader(true);
+        const q = query(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/sales`), orderBy('date', 'desc'));
+        const snap = await getDocs(q);
+        const tbody = document.querySelector('#ordersTable tbody');
+        tbody.innerHTML = '';
+        
+        if(snap.empty) {
+             tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">No orders found.</td></tr>';
+        }
+
+        snap.forEach(d => {
+            const o = {id: d.id, ...d.data()};
+            const date = new Date(o.date).toLocaleString();
+            const isPayLater = o.paymentMethod === 'Pay Later';
+            const rowClass = isPayLater ? 'row-danger' : '';
+            
+            tbody.innerHTML += `
+            <tr class="${rowClass}">
+                <td>${date}</td>
+                <td>
+                    <div style="font-weight:600;">${o.customer?.name}</div>
+                    <div style="font-size:11px; color:#666;">${o.customer?.phone}</div>
+                </td>
+                <td>${o.paymentMethod}</td>
+                <td style="font-weight:700;">${formatMoney(o.total)}</td>
+                <td><span style="font-size:11px; padding:2px 6px; background:${isPayLater?'#fee2e2':'#dcfce7'}; border-radius:4px;">${isPayLater ? 'Credit' : 'Paid'}</span></td>
+                <td>
+                    <div style="display:flex; gap:5px;">
+                        <button class="btn btn-ghost" style="padding:4px;" title="Add Note" onclick="openNoteModal('${o.id}')"><i class="ri-sticky-note-line"></i></button>
+                        <button class="btn btn-ghost" style="padding:4px;" title="Create Alert" onclick="openAlertModal('${o.id}')"><i class="ri-alarm-line"></i></button>
+                        <button class="btn btn-ghost" style="padding:4px;" title="Bill" onclick='regenerateBill(${JSON.stringify(o).replace(/'/g, "&#39;")})'><i class="ri-printer-line"></i></button>
+                    </div>
+                </td>
+            </tr>`;
+        });
+        toggleLoader(false);
+    };
+
+    // Notes Logic
+    window.openNoteModal = (id) => {
+        document.getElementById('noteOrderId').value = id;
+        document.getElementById('noteInput').value = '';
+        openModal('orderNoteModal');
+    }
+    
+    window.saveOrderNote = async () => {
+        const id = document.getElementById('noteOrderId').value;
+        const note = document.getElementById('noteInput').value;
+        if(!note) return;
+        toggleLoader(true);
+        const ref = doc(db, `users/${currentUser.uid}/shops/${currentShopId}/sales`, id);
+        // We use arrayUnion to append note
+        const noteObj = { text: note, date: new Date().toISOString() };
+        // Since arrayUnion needs import, let's just read and update for simplicity in this context or assume arrayUnion available if imported. 
+        // For robustness without changing imports significantly, read-modify-write:
+        const snap = await getDoc(ref);
+        const currentNotes = snap.data().notes || [];
+        currentNotes.push(noteObj);
+        await updateDoc(ref, { notes: currentNotes });
+        
+        document.getElementById('orderNoteModal').style.display = 'none';
+        toggleLoader(false);
+        showToast("Note Added");
+    }
+
+    // Alerts Logic
+    window.openAlertModal = (id) => {
+        document.getElementById('alertOrderId').value = id;
+        document.getElementById('createAlertModal').style.display = 'flex';
+    }
+
+    window.saveAlert = async () => {
+        const orderId = document.getElementById('alertOrderId').value;
+        const msg = document.getElementById('alertMsg').value;
+        const date = document.getElementById('alertDate').value;
+        const freq = document.getElementById('alertFreq').value;
+
+        if(!msg || !date) return showToast("Message & Date Required", "error");
+
+        toggleLoader(true);
+        await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/alerts`), {
+            orderId,
+            message: msg,
+            targetDate: date,
+            frequency: freq,
+            status: 'active',
+            createdAt: new Date().toISOString()
+        });
+        document.getElementById('createAlertModal').style.display = 'none';
+        await loadAlerts();
+        toggleLoader(false);
+        showToast("Alert Created");
+    }
+
+    let alertsCache = [];
+    async function loadAlerts() {
+        const q = query(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/alerts`), where('status', '!=', 'closed'));
+        const snap = await getDocs(q);
+        alertsCache = [];
+        snap.forEach(d => alertsCache.push({id: d.id, ...d.data()}));
+        
+        // Check for triggered alerts
+        const now = new Date();
+        let hasNew = false;
+        let triggeredAlert = null;
+
+        for(let a of alertsCache) {
+            const tDate = new Date(a.targetDate);
+            if(tDate <= now && a.status === 'active') {
+                hasNew = true;
+                triggeredAlert = a;
+                // Update status to triggered locally to avoid spam, or handle recurrence
+                if(a.frequency === 'once') {
+                     await updateDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/alerts`, a.id), { status: 'triggered' });
+                } else {
+                     // Calculate next date
+                     let nextDate = new Date(tDate);
+                     if(a.frequency === 'daily') nextDate.setDate(nextDate.getDate() + 1);
+                     if(a.frequency === 'monthly') nextDate.setMonth(nextDate.getMonth() + 1);
+                     if(a.frequency === '3month') nextDate.setMonth(nextDate.getMonth() + 3);
+                     if(a.frequency === '6month') nextDate.setMonth(nextDate.getMonth() + 6);
+                     if(a.frequency === 'yearly') nextDate.setFullYear(nextDate.getFullYear() + 1);
+                     
+                     // Create next alert doc and close old one or just update date
+                     await updateDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/alerts`, a.id), { targetDate: nextDate.toISOString() });
+                     // We still notify user about this instance
+                }
+            }
+        }
+
+        const badge = document.getElementById('alertBadge');
+        if(hasNew) {
+            badge.style.display = 'block';
+            document.getElementById('dashboardAlertMsg').textContent = triggeredAlert.message;
+            document.getElementById('dashboardAlertPopup').style.display = 'block';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+
+    window.closeDashboardPopup = () => {
+        document.getElementById('dashboardAlertPopup').style.display = 'none';
+    }
+
+    window.renderAlertsTable = async () => {
+        // Reload fresh to be sure
+        await loadAlerts();
+        const tbody = document.querySelector('#alertsTable tbody');
+        tbody.innerHTML = '';
+        if(alertsCache.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">No active alerts.</td></tr>';
+            return;
+        }
+        alertsCache.forEach(a => {
+            tbody.innerHTML += `
+            <tr>
+                <td>${new Date(a.targetDate).toLocaleString()}</td>
+                <td>${a.frequency}</td>
+                <td>${a.message}</td>
+                <td style="font-family:monospace; font-size:11px;">${a.orderId}</td>
+                <td>${a.status}</td>
+                <td><button class="btn btn-danger" style="padding:2px 6px; font-size:11px;" onclick="closeAlert('${a.id}')">Close</button></td>
+            </tr>`;
+        });
+    }
+
+    window.closeAlert = async (id) => {
+        if(!confirm("Close this alert?")) return;
+        toggleLoader(true);
+        await updateDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/alerts`, id), { status: 'closed' });
+        await renderAlertsTable();
+        toggleLoader(false);
+    }
+
+    // --- PDF GENERATION ---
+    window.generateInvoicePDF = (order) => {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        
+        // Header
+        doc.setFontSize(18);
+        doc.text("INVOICE", 14, 15);
+        
+        doc.setFontSize(10);
+        const shopName = document.getElementById('shopSelector').options[document.getElementById('shopSelector').selectedIndex].text;
+        doc.text(shopName, 14, 22);
+        doc.text(`Date: ${new Date(order.date).toLocaleString()}`, 14, 27);
+        doc.text(`Order ID: ${order.id.substring(0,8)}`, 14, 32);
+
+        // Customer
+        doc.text("Bill To:", 140, 22);
+        doc.text(order.customer.name, 140, 27);
+        doc.text(order.customer.phone, 140, 32);
+        if(order.customer.address) doc.text(order.customer.address, 140, 37);
+
+        // Table
+        const tableBody = order.items.map(item => [
+            item.name, 
+            item.qty.toString(), 
+            formatMoney(item.sell), 
+            formatMoney(item.sell * item.qty)
+        ]);
+
+        doc.autoTable({
+            head: [['Item', 'Qty', 'Price', 'Total']],
+            body: tableBody,
+            startY: 50,
+            theme: 'grid',
+            headStyles: { fillColor: [79, 70, 229] }
+        });
+
+        let finalY = doc.lastAutoTable.finalY + 10;
+
+        // Totals
+        doc.text(`Subtotal: ${formatMoney(order.subtotal)}`, 140, finalY);
+        doc.text(`Discount: -${formatMoney(order.discountAmt)}`, 140, finalY + 5);
+        doc.text(`Fees: +${formatMoney(order.feesTotal)}`, 140, finalY + 10);
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "bold");
+        doc.text(`Total: ${formatMoney(order.total)}`, 140, finalY + 18);
+        
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        doc.text(`Payment: ${order.paymentMethod}`, 14, finalY + 18);
+
+        // Footer
+        doc.text("Thank you for your business!", 105, 280, null, null, "center");
+
+        doc.save(`Invoice_${order.id.substring(0,6)}.pdf`);
+    }
+
+    window.regenerateBill = (order) => {
+        generateInvoicePDF(order);
+    }
 
     // --- EMPLOYEES & PAYROLL ---
     async function loadEmployees() {
