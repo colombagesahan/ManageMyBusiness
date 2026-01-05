@@ -106,6 +106,45 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
     .sidebar.open { left: 0; }
     .mobile-toggle { display: block; font-size: 24px; cursor: pointer; margin-right: 15px; }
 } .mobile-toggle { display: none; }
+    /* --- BATCH NUMBER STYLES --- */
+.batch-badge { 
+    font-family: monospace; 
+    font-weight: 700; 
+    padding: 2px 6px; 
+    border-radius: 4px; 
+    font-size: 11px;
+    display: inline-block;
+    margin-top: 2px;
+}
+.batch-oldest { 
+    background: #fee2e2; 
+    color: #b91c1c; 
+    border: 1px solid #fca5a5; 
+} /* Red (0001) */
+.batch-latest { 
+    background: #dcfce7; 
+    color: #15803d; 
+    border: 1px solid #86efac; 
+} /* Green (Newest) */
+.batch-mid { 
+    background: #f3f4f6; 
+    color: #4b5563; 
+    border: 1px solid #d1d5db; 
+} /* Grey (In between) */
+
+/* NEW: OUT OF STOCK & DIMMED STYLES */
+.label-out-stock { 
+    background: #6b7280; 
+    color: white; 
+    padding: 2px 6px; 
+    border-radius: 4px; 
+    font-size: 11px; 
+    font-weight: 700; 
+}
+.row-dimmed { 
+    opacity: 0.6; 
+    background-color: #f9fafb;
+}
 </style>
 </head>
 <body>
@@ -615,31 +654,40 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 </div>
 
 <!-- Inventory Report -->
+<!-- Inventory Report (UPDATED) -->
 <div id="invReportModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:100;">
-    <div class="card" style="width:700px; height:80vh; display:flex; flex-direction:column; margin:0;">
+    <div class="card" style="width:800px; height:85vh; display:flex; flex-direction:column; margin:0;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
             <h3>Inventory Log Report</h3>
             <button class="btn btn-ghost" onclick="document.getElementById('invReportModal').style.display='none'">Close</button>
         </div>
         
         <div style="background:#f9fafb; padding:15px; border-radius:8px; border:1px solid #e5e7eb; margin-bottom:15px;">
-            <div style="font-weight:600; font-size:12px; color:#6b7280; margin-bottom:5px;">FILTER</div>
-            <div style="display:flex; gap:10px; flex-wrap:wrap;">
-                <select id="invReportType" onchange="toggleReportInputs()" style="width:150px; margin:0;">
+            <div style="font-weight:600; font-size:12px; color:#6b7280; margin-bottom:5px;">FILTERS</div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+                <!-- Filter Inputs: Added onchange="hideReportResults()" to fix the UX issue -->
+                <select id="invReportType" onchange="toggleReportInputs(); hideReportResults()" style="width:140px; margin:0;">
                     <option value="date">Specific Date</option>
                     <option value="month">Specific Month</option>
                     <option value="year">Specific Year</option>
                 </select>
-                <!-- Dynamic Inputs -->
-                <input type="date" id="invDateInput" style="width:auto; margin:0;">
-                <input type="month" id="invMonthInput" style="width:auto; margin:0; display:none;">
-                <select id="invYearInput" style="width:auto; margin:0; display:none;"></select>
+
+                <input type="date" id="invDateInput" onchange="hideReportResults()" style="width:auto; margin:0;">
+                <input type="month" id="invMonthInput" onchange="hideReportResults()" style="width:auto; margin:0; display:none;">
+                <select id="invYearInput" onchange="hideReportResults()" style="width:auto; margin:0; display:none;"></select>
+
+                <!-- New Product Filter -->
+                <select id="invProductFilter" onchange="hideReportResults()" style="width:200px; margin:0;">
+                    <option value="ALL">All Products</option>
+                    <!-- Populated via JS -->
+                </select>
+
                 <button class="btn btn-primary" onclick="generateInventoryReport()">Get Report</button>
             </div>
             
-            <!-- Export Section Wrapped in Hidden Div -->
-            <div id="invExportSection" style="display:none;">
-                <div style="font-weight:600; font-size:12px; color:#6b7280; margin:10px 0 5px 0;">EXPORT & SHARE</div>
+            <!-- Hidden by default. Only shows AFTER clicking Get Report -->
+            <div id="invExportSection" style="display:none; margin-top:15px; border-top:1px solid #e5e7eb; padding-top:10px;">
+                <div style="font-weight:600; font-size:12px; color:#6b7280; margin-bottom:5px;">EXPORT & SHARE</div>
                 <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
                     <button class="btn btn-ghost" onclick="printReport()"><i class="ri-printer-line"></i> Print</button>
                     <button class="btn btn-ghost" onclick="downloadCSV()"><i class="ri-file-excel-2-line"></i> CSV</button>
@@ -650,10 +698,19 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
             </div>
         </div>
 
-        <!-- Table Container Wrapped for Visibility Control -->
         <div id="invTableContainer" style="overflow-y:auto; flex:1; border:1px solid #eee; border-radius:8px; display:none;">
             <table id="invReportTable" style="width:100%;">
-                <thead><tr style="background:#f9fafb;"><th>Date</th><th>Product</th><th>Action</th><th>Change</th><th>Qty</th></tr></thead>
+                <thead style="position:sticky; top:0; background:#f9fafb; z-index:5;">
+                    <tr>
+                        <th>Date</th>
+                        <th>Product</th>
+                        <th>Batch</th> <!-- New Column -->
+                        <th>Action</th>
+                        <th>Qty Before</th> <!-- New Column -->
+                        <th>Change</th>
+                        <th>Qty After</th>
+                    </tr>
+                </thead>
                 <tbody></tbody>
             </table>
         </div>
@@ -807,6 +864,18 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 
     function toggleLoader(show) {
         document.getElementById('globalLoader').style.display = show ? 'flex' : 'none';
+    }
+     // Helper to format Batch number (e.g. 1 -> 0001)
+    function formatBatch(num) {
+        if(!num) return '0000';
+        return String(num).padStart(4, '0');
+    }
+
+    // UX Fix: Hides results when filters change
+    window.hideReportResults = () => {
+        document.getElementById('invExportSection').style.display = 'none';
+        document.getElementById('invTableContainer').style.display = 'none';
+        document.querySelector('#invReportTable tbody').innerHTML = '';
     }
 
     // --- COMPRESSION LOGIC ---
@@ -1447,6 +1516,23 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         const catFilter = document.getElementById('stockFilterCategory').value;
         const tbody = document.querySelector('#prodTable tbody');
         
+        // 1. Group by SKU to find statistics (Dynamic Latest Logic)
+        const skuStats = {}; 
+
+        productsCache.forEach(p => {
+            if(!p.sku) return;
+            if(!skuStats[p.sku]) {
+                skuStats[p.sku] = { maxWithStock: -1, minWithStock: Infinity };
+            }
+            
+            // Only consider batches with actual stock > 0 for Green/Red logic
+            if(p.qty > 0) {
+                const b = p.batchNumber || 1;
+                if(b > skuStats[p.sku].maxWithStock) skuStats[p.sku].maxWithStock = b;
+                if(b < skuStats[p.sku].minWithStock) skuStats[p.sku].minWithStock = b;
+            }
+        });
+
         const filtered = productsCache.filter(p => {
             const matchName = p.name.toLowerCase().includes(term) || (p.sku && p.sku.toLowerCase().includes(term));
             const matchCat = catFilter === 'All' || (p.categoryId === catFilter) || (!p.categoryId && catFilter === "");
@@ -1463,18 +1549,43 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
                 const imgTag = p.image ? `<img src="${p.image}" class="prod-thumb" onclick="window.open(this.src)">` : '<i class="ri-image-line"></i>';
                 const categoryName = categoriesCache.find(c => c.id === p.categoryId)?.name || 'Uncategorized';
 
+                const batchNum = p.batchNumber || 1;
+                // Default stats if no stock available
+                const stats = skuStats[p.sku] || { maxWithStock: -1, minWithStock: Infinity };
+                
+                let batchClass = 'batch-mid'; // Default Grey
+                let rowClass = '';
+                let stockDisplay = `${p.qty} ${p.unit||''}`;
+
+                if (p.qty <= 0) {
+                    // OUT OF STOCK LOGIC
+                    stockDisplay = `<span class="label-out-stock">Out of Stock</span>`;
+                    rowClass = 'row-dimmed'; 
+                } else {
+                    // HAS STOCK LOGIC
+                    // Priority 1: Oldest Available -> Red
+                    if (batchNum === stats.minWithStock) {
+                        batchClass = 'batch-oldest'; 
+                    } 
+                    // Priority 2: Newest Available (Dynamic) -> Green
+                    else if (batchNum === stats.maxWithStock) {
+                        batchClass = 'batch-latest'; 
+                    }
+                }
+
                 return `
-                <tr>
+                <tr class="${rowClass}">
                     <td>${imgTag}</td>
                     <td style="font-size:12px; color:#666;">${dateStr}</td>
                     <td>
                         <div>${p.name}</div>
                         <div style="font-size:11px; color:#6b7280; font-family:monospace;">${p.sku || ''}</div>
+                        <span class="batch-badge ${batchClass}">Batch: ${formatBatch(batchNum)}</span>
                     </td>
                     <td style="font-size:12px;">${categoryName}</td>
                     <td>${formatMoney(p.buy)}</td>
                     <td>${formatMoney(p.sell)}</td>
-                    <td style="color:${p.qty<5?'red':'inherit'}">${p.qty} ${p.unit||''}</td>
+                    <td style="color:${p.qty<5 && p.qty>0 ?'red':'inherit'}">${stockDisplay}</td>
                     <td>
                         <button class="btn btn-warning" style="padding:4px 8px;" onclick="editStock('${p.id}')">Edit</button>
                         <button class="btn btn-danger" style="padding:4px 8px;" onclick="deleteProduct('${p.id}', '${p.name}')"><i class="ri-delete-bin-line"></i> Delete</button>
@@ -1482,7 +1593,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
                 </tr>`;
             }).join('');
     }
-
     window.filterProducts = () => renderProducts();
 
     window.prepareAddStock = () => {
@@ -1566,6 +1676,8 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         const categoryId = document.getElementById('mpCategory').value;
         
         let sku = "";
+        
+        // Get SKU for batch calculation
         if(!id) {
              const sel = document.getElementById('stockBaseSelect');
              const opt = sel.options[sel.selectedIndex];
@@ -1599,15 +1711,27 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         const isEdit = !!id;
         
         if(isEdit) {
+            // EDIT: Batch number stays the same
             const oldP = productsCache.find(x => x.id === id);
             await updateDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/products`, id), { 
                 sell: data.sell
             });
-            await logInventory(data.name, 'EDIT', `Price updated: ${formatMoney(oldP.sell)} -> ${formatMoney(data.sell)}`, 0, data.qty);
+            // Log with existing batch number
+            await logInventory(data.name, 'EDIT', `Price updated: ${formatMoney(oldP.sell)} -> ${formatMoney(data.sell)}`, 0, data.qty, oldP.batchNumber || 1, data.qty);
         } else {
+            // ADD: Calculate New Batch Number
+            const existingBatches = productsCache.filter(p => p.sku === data.sku);
+            // Find highest batch number and add 1
+            const maxBatch = existingBatches.reduce((max, p) => (p.batchNumber > max ? p.batchNumber : max), 0);
+            const nextBatchNum = maxBatch + 1;
+
             data.dateAdded = new Date().toISOString();
+            data.batchNumber = nextBatchNum; // Save integer 1, 2, 3...
+
             await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/products`), data);
-            await logInventory(data.name, 'ADD', 'New Stock Batch', data.qty, data.qty);
+            
+            // Log with new batch number. Old Qty was 0.
+            await logInventory(data.name, 'ADD', 'New Stock Batch', data.qty, data.qty, nextBatchNum, 0);
         }
 
         document.getElementById('prodModal').style.display = 'none';
@@ -1628,18 +1752,19 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
     };
 
     // --- INVENTORY LOGGING ---
-    async function logInventory(name, action, desc, change, finalQty) {
+   async function logInventory(name, action, desc, change, finalQty, batchNum = 0, initialQty = 0) {
         const log = {
             date: new Date().toISOString(),
             productName: name,
             action, 
             description: desc,
             quantityChange: change,
-            finalQty: finalQty
+            finalQty: finalQty,
+            initialQty: initialQty, // New Field
+            batchNumber: batchNum   // New Field
         };
         await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/inventory_logs`), log);
     }
-
     window.openInventoryReport = () => {
         document.getElementById('invReportModal').style.display = 'flex';
         const now = new Date();
@@ -1652,12 +1777,17 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
             yearSel.innerHTML += `<option value="${y}">${y}</option>`;
         }
         
-        toggleReportInputs();
-        document.getElementById('invExportSection').style.display = 'none';
-        document.getElementById('invTableContainer').style.display = 'none';
-        document.querySelector('#invReportTable tbody').innerHTML = '';
-    };
+        // Populate Product Filter from Catalog Cache (Unique Names)
+        const prodFilter = document.getElementById('invProductFilter');
+        prodFilter.innerHTML = '<option value="ALL">All Products</option>';
+        const uniqueNames = [...new Set(catalogCache.map(p => p.name))].sort();
+        uniqueNames.forEach(n => {
+            prodFilter.innerHTML += `<option value="${n}">${n}</option>`;
+        });
 
+        toggleReportInputs();
+        hideReportResults(); // Ensure results are hidden on open
+    };
     window.toggleReportInputs = () => {
         const type = document.getElementById('invReportType').value;
         document.getElementById('invDateInput').style.display = type === 'date' ? 'block' : 'none';
@@ -1665,15 +1795,17 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         document.getElementById('invYearInput').style.display = type === 'year' ? 'block' : 'none';
     };
 
-    window.generateInventoryReport = async () => {
+   window.generateInventoryReport = async () => {
         const tbody = document.querySelector('#invReportTable tbody');
         document.getElementById('invTableContainer').style.display = 'block';
-        document.getElementById('invExportSection').style.display = 'none';
-        tbody.innerHTML = '<tr><td colspan="5">Loading...</td></tr>';
+        document.getElementById('invExportSection').style.display = 'none'; // Hide buttons while loading
+        tbody.innerHTML = '<tr><td colspan="7">Loading...</td></tr>';
 
         const q = query(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/inventory_logs`), orderBy('date', 'desc'));
         const snap = await getDocs(q);
+        
         const type = document.getElementById('invReportType').value;
+        const productFilter = document.getElementById('invProductFilter').value;
         
         let targetStr = "";
         if(type === 'date') targetStr = document.getElementById('invDateInput').value;
@@ -1689,25 +1821,39 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
             if(type === 'date') dStr = d.toISOString().split('T')[0];
             else if(type === 'month') dStr = d.toISOString().slice(0, 7);
             else if(type === 'year') dStr = d.getFullYear().toString();
-            return dStr === targetStr;
+            
+            const matchDate = dStr === targetStr;
+            const matchProd = productFilter === 'ALL' || l.productName === productFilter;
+            
+            return matchDate && matchProd;
         });
 
         if (filtered.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No logs found for this period.</td></tr>';
-            document.getElementById('invExportSection').style.display = 'block';
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:15px;">No logs found for this selection.</td></tr>';
+            // Do NOT show export buttons if no data
             return;
         }
 
-        tbody.innerHTML = filtered.map(l => `
+        tbody.innerHTML = filtered.map(l => {
+            const bNum = formatBatch(l.batchNumber || 0);
+            const initQ = l.initialQty !== undefined ? l.initialQty : '-';
+            
+            return `
             <tr>
-                <td>${new Date(l.date).toLocaleString()}</td>
+                <td>
+                    <div>${new Date(l.date).toLocaleDateString()}</div>
+                    <div style="font-size:10px; color:#666;">${new Date(l.date).toLocaleTimeString()}</div>
+                </td>
                 <td>${l.productName}</td>
+                <td style="font-family:monospace; font-weight:700;">${bNum}</td>
                 <td><span style="padding:2px 6px; border-radius:4px; font-size:11px; background:${l.action==='SALE'?'#dcfce7':l.action==='DELETE'?'#fee2e2':'#e0f2fe'}">${l.action}</span></td>
-                <td style="color:${l.quantityChange<0?'red':'green'}">${l.quantityChange}</td>
-                <td>${l.finalQty}</td>
+                <td style="color:#6b7280;">${initQ}</td>
+                <td style="color:${l.quantityChange<0?'red':'green'}; font-weight:600;">${l.quantityChange > 0 ? '+'+l.quantityChange : l.quantityChange}</td>
+                <td style="font-weight:700;">${l.finalQty}</td>
             </tr>
-        `).join('');
+        `}).join('');
         
+        // Show buttons now that data is loaded and correct
         document.getElementById('invExportSection').style.display = 'block';
     };
 
@@ -1796,6 +1942,21 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         const term = document.getElementById('posSearch').value.toLowerCase();
         const catFilter = document.getElementById('posFilterCategory').value;
 
+        // Calculate Max Batch for colors (Dynamic Logic)
+        const skuStats = {};
+        productsCache.forEach(p => {
+            if(!p.sku) return;
+             if(!skuStats[p.sku]) {
+                skuStats[p.sku] = { maxWithStock: -1, minWithStock: Infinity };
+            }
+            // Only consider batches with actual stock > 0 for POS Badges
+            if(p.qty > 0) {
+                const b = p.batchNumber || 1;
+                if(b > skuStats[p.sku].maxWithStock) skuStats[p.sku].maxWithStock = b;
+                if(b < skuStats[p.sku].minWithStock) skuStats[p.sku].minWithStock = b;
+            }
+        });
+
         const filtered = productsCache.filter(p => {
             const matchName = p.name.toLowerCase().includes(term);
             const matchCat = catFilter === 'All' || (p.categoryId === catFilter) || (!p.categoryId && catFilter === "");
@@ -1809,10 +1970,23 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         grid.innerHTML = filtered.map(p => {
                 const date = new Date(p.dateAdded).toLocaleDateString();
                 const imgTag = p.image ? `<img src="${p.image}" style="width:100%; height:80px; object-fit:contain; margin-bottom:5px;">` : '';
+                
+                // Batch Logic
+                const batchNum = p.batchNumber || 1;
+                const stats = skuStats[p.sku] || { maxWithStock: -1, minWithStock: Infinity };
+                let batchClass = 'batch-mid';
+                
+                if(batchNum === stats.minWithStock) {
+                     batchClass = 'batch-oldest'; // Red
+                } else if(batchNum === stats.maxWithStock) {
+                     batchClass = 'batch-latest'; // Green
+                }
+
                 return `
-                <div onclick="addToCart('${p.id}')" style="background:white; padding:10px; border-radius:8px; cursor:pointer; text-align:center; border:1px solid #e5e7eb; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
+                <div onclick="addToCart('${p.id}')" style="background:white; padding:10px; border-radius:8px; cursor:pointer; text-align:center; border:1px solid #e5e7eb; box-shadow:0 1px 2px rgba(0,0,0,0.05); position:relative; overflow:hidden;">
+                    <div style="position:absolute; top:5px; right:5px;" class="batch-badge ${batchClass}">${formatBatch(batchNum)}</div>
                     ${imgTag}
-                    <div style="font-weight:600; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${p.name}</div>
+                    <div style="font-weight:600; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-top:5px;">${p.name}</div>
                     <div style="color:var(--primary); font-weight:700;">${formatMoney(p.sell)}</div>
                     <div style="font-size:10px; color:#9ca3af; margin-top:4px;">Stock: ${p.qty} | ${date}</div>
                 </div>`;
@@ -1909,13 +2083,10 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         const discountType = document.getElementById('discountType').value;
         const discountVal = parseFloat(document.getElementById('discountValue').value) || 0;
         
-        // Validation
         if(!custName || !custPhone) return showToast("Customer Name & Phone Required", "error");
         if(paymentMethod === "Pay Later" && !custAddr) return showToast("Address Required for Pay Later", "error");
 
         toggleLoader(true);
-        
-        // Calculate Totals Again for Safety
         let subtotal = cart.reduce((a,b)=>a+(b.sell*b.qty),0);
         let discountAmt = discountType === 'percent' ? (subtotal * discountVal / 100) : discountVal;
         let feesTotal = currentOtherFees.reduce((sum, f) => sum + f.amount, 0);
@@ -1923,36 +2094,28 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 
         const saleData = {
             date: new Date().toISOString(),
-            subtotal,
-            discountType,
-            discountValue: discountVal,
-            discountAmt,
-            fees: currentOtherFees,
-            feesTotal,
-            total,
+            subtotal, discountType, discountValue: discountVal, discountAmt, fees: currentOtherFees, feesTotal, total,
             items: cart,
             customer: { name: custName, phone: custPhone, address: custAddr },
-            paymentMethod,
-            notes: [] // Array for future notes
+            paymentMethod, notes: []
         };
 
         try {
-            // Save Sale
             const docRef = await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/sales`), saleData);
             
-            // Update Inventory
+            // Update Inventory & Log
             for(let item of cart) {
                  const ref = doc(db, `users/${currentUser.uid}/shops/${currentShopId}/products`, item.id);
                  const original = productsCache.find(x => x.id === item.id);
                  const newQty = original.qty - item.qty;
+                 
                  await updateDoc(ref, { qty: newQty });
-                 await logInventory(item.name, 'SALE', `Sold to ${custName}`, -item.qty, newQty);
+                 // PASS Batch Number and Previous Qty
+                 await logInventory(item.name, 'SALE', `Sold to ${custName}`, -item.qty, newQty, original.batchNumber || 1, original.qty);
             }
 
-            // Generate Bill
             generateInvoicePDF({...saleData, id: docRef.id});
 
-            // Reset UI
             cart = []; currentOtherFees = [];
             document.getElementById('posCustName').value = '';
             document.getElementById('posCustPhone').value = '';
