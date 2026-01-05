@@ -106,6 +106,31 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
     .sidebar.open { left: 0; }
     .mobile-toggle { display: block; font-size: 24px; cursor: pointer; margin-right: 15px; }
 } .mobile-toggle { display: none; }
+    /* --- BATCH NUMBER STYLES --- */
+.batch-badge { 
+    font-family: monospace; 
+    font-weight: 700; 
+    padding: 2px 6px; 
+    border-radius: 4px; 
+    font-size: 11px;
+    display: inline-block;
+    margin-top: 2px;
+}
+.batch-oldest { 
+    background: #fee2e2; 
+    color: #b91c1c; 
+    border: 1px solid #fca5a5; 
+} /* Red (0001) */
+.batch-latest { 
+    background: #dcfce7; 
+    color: #15803d; 
+    border: 1px solid #86efac; 
+} /* Green (Newest) */
+.batch-mid { 
+    background: #f3f4f6; 
+    color: #4b5563; 
+    border: 1px solid #d1d5db; 
+} /* Grey (In between) */
 </style>
 </head>
 <body>
@@ -615,31 +640,40 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 </div>
 
 <!-- Inventory Report -->
+<!-- Inventory Report (UPDATED) -->
 <div id="invReportModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:100;">
-    <div class="card" style="width:700px; height:80vh; display:flex; flex-direction:column; margin:0;">
+    <div class="card" style="width:800px; height:85vh; display:flex; flex-direction:column; margin:0;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
             <h3>Inventory Log Report</h3>
             <button class="btn btn-ghost" onclick="document.getElementById('invReportModal').style.display='none'">Close</button>
         </div>
         
         <div style="background:#f9fafb; padding:15px; border-radius:8px; border:1px solid #e5e7eb; margin-bottom:15px;">
-            <div style="font-weight:600; font-size:12px; color:#6b7280; margin-bottom:5px;">FILTER</div>
-            <div style="display:flex; gap:10px; flex-wrap:wrap;">
-                <select id="invReportType" onchange="toggleReportInputs()" style="width:150px; margin:0;">
+            <div style="font-weight:600; font-size:12px; color:#6b7280; margin-bottom:5px;">FILTERS</div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+                <!-- Filter Inputs: Added onchange="hideReportResults()" to fix the UX issue -->
+                <select id="invReportType" onchange="toggleReportInputs(); hideReportResults()" style="width:140px; margin:0;">
                     <option value="date">Specific Date</option>
                     <option value="month">Specific Month</option>
                     <option value="year">Specific Year</option>
                 </select>
-                <!-- Dynamic Inputs -->
-                <input type="date" id="invDateInput" style="width:auto; margin:0;">
-                <input type="month" id="invMonthInput" style="width:auto; margin:0; display:none;">
-                <select id="invYearInput" style="width:auto; margin:0; display:none;"></select>
+
+                <input type="date" id="invDateInput" onchange="hideReportResults()" style="width:auto; margin:0;">
+                <input type="month" id="invMonthInput" onchange="hideReportResults()" style="width:auto; margin:0; display:none;">
+                <select id="invYearInput" onchange="hideReportResults()" style="width:auto; margin:0; display:none;"></select>
+
+                <!-- New Product Filter -->
+                <select id="invProductFilter" onchange="hideReportResults()" style="width:200px; margin:0;">
+                    <option value="ALL">All Products</option>
+                    <!-- Populated via JS -->
+                </select>
+
                 <button class="btn btn-primary" onclick="generateInventoryReport()">Get Report</button>
             </div>
             
-            <!-- Export Section Wrapped in Hidden Div -->
-            <div id="invExportSection" style="display:none;">
-                <div style="font-weight:600; font-size:12px; color:#6b7280; margin:10px 0 5px 0;">EXPORT & SHARE</div>
+            <!-- Hidden by default. Only shows AFTER clicking Get Report -->
+            <div id="invExportSection" style="display:none; margin-top:15px; border-top:1px solid #e5e7eb; padding-top:10px;">
+                <div style="font-weight:600; font-size:12px; color:#6b7280; margin-bottom:5px;">EXPORT & SHARE</div>
                 <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
                     <button class="btn btn-ghost" onclick="printReport()"><i class="ri-printer-line"></i> Print</button>
                     <button class="btn btn-ghost" onclick="downloadCSV()"><i class="ri-file-excel-2-line"></i> CSV</button>
@@ -650,10 +684,19 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
             </div>
         </div>
 
-        <!-- Table Container Wrapped for Visibility Control -->
         <div id="invTableContainer" style="overflow-y:auto; flex:1; border:1px solid #eee; border-radius:8px; display:none;">
             <table id="invReportTable" style="width:100%;">
-                <thead><tr style="background:#f9fafb;"><th>Date</th><th>Product</th><th>Action</th><th>Change</th><th>Qty</th></tr></thead>
+                <thead style="position:sticky; top:0; background:#f9fafb; z-index:5;">
+                    <tr>
+                        <th>Date</th>
+                        <th>Product</th>
+                        <th>Batch</th> <!-- New Column -->
+                        <th>Action</th>
+                        <th>Qty Before</th> <!-- New Column -->
+                        <th>Change</th>
+                        <th>Qty After</th>
+                    </tr>
+                </thead>
                 <tbody></tbody>
             </table>
         </div>
@@ -807,6 +850,18 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 
     function toggleLoader(show) {
         document.getElementById('globalLoader').style.display = show ? 'flex' : 'none';
+    }
+     // Helper to format Batch number (e.g. 1 -> 0001)
+    function formatBatch(num) {
+        if(!num) return '0000';
+        return String(num).padStart(4, '0');
+    }
+
+    // UX Fix: Hides results when filters change
+    window.hideReportResults = () => {
+        document.getElementById('invExportSection').style.display = 'none';
+        document.getElementById('invTableContainer').style.display = 'none';
+        document.querySelector('#invReportTable tbody').innerHTML = '';
     }
 
     // --- COMPRESSION LOGIC ---
@@ -1556,6 +1611,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
     };
 
     window.saveStock = async () => {
+       window.saveStock = async () => {
         const id = document.getElementById('mpId').value;
         const buy = parseFloat(document.getElementById('mpBuy').value);
         const sell = parseFloat(document.getElementById('mpSell').value);
@@ -1566,6 +1622,8 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         const categoryId = document.getElementById('mpCategory').value;
         
         let sku = "";
+        
+        // Get SKU for batch calculation
         if(!id) {
              const sel = document.getElementById('stockBaseSelect');
              const opt = sel.options[sel.selectedIndex];
@@ -1599,15 +1657,27 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         const isEdit = !!id;
         
         if(isEdit) {
+            // EDIT: Batch number stays the same
             const oldP = productsCache.find(x => x.id === id);
             await updateDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/products`, id), { 
                 sell: data.sell
             });
-            await logInventory(data.name, 'EDIT', `Price updated: ${formatMoney(oldP.sell)} -> ${formatMoney(data.sell)}`, 0, data.qty);
+            // Log with existing batch number
+            await logInventory(data.name, 'EDIT', `Price updated: ${formatMoney(oldP.sell)} -> ${formatMoney(data.sell)}`, 0, data.qty, oldP.batchNumber || 1, data.qty);
         } else {
+            // ADD: Calculate New Batch Number
+            const existingBatches = productsCache.filter(p => p.sku === data.sku);
+            // Find highest batch number and add 1
+            const maxBatch = existingBatches.reduce((max, p) => (p.batchNumber > max ? p.batchNumber : max), 0);
+            const nextBatchNum = maxBatch + 1;
+
             data.dateAdded = new Date().toISOString();
+            data.batchNumber = nextBatchNum; // Save integer 1, 2, 3...
+
             await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/products`), data);
-            await logInventory(data.name, 'ADD', 'New Stock Batch', data.qty, data.qty);
+            
+            // Log with new batch number. Old Qty was 0.
+            await logInventory(data.name, 'ADD', 'New Stock Batch', data.qty, data.qty, nextBatchNum, 0);
         }
 
         document.getElementById('prodModal').style.display = 'none';
@@ -1628,18 +1698,19 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
     };
 
     // --- INVENTORY LOGGING ---
-    async function logInventory(name, action, desc, change, finalQty) {
+   async function logInventory(name, action, desc, change, finalQty, batchNum = 0, initialQty = 0) {
         const log = {
             date: new Date().toISOString(),
             productName: name,
             action, 
             description: desc,
             quantityChange: change,
-            finalQty: finalQty
+            finalQty: finalQty,
+            initialQty: initialQty, // New Field
+            batchNumber: batchNum   // New Field
         };
         await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/inventory_logs`), log);
     }
-
     window.openInventoryReport = () => {
         document.getElementById('invReportModal').style.display = 'flex';
         const now = new Date();
