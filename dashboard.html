@@ -165,7 +165,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 
 <!-- ALERT POPUP ON DASHBOARD -->
 <div class="alert-dashboard-popup" id="dashboardAlertPopup">
-    <h4><span><i class="ri-alarm-warning-line"></i> Alert Triggered</span> <i class="ri-close-line" style="cursor:pointer; color:black;" onclick="document.getElementById('dashboardAlertPopup').style.display='none'"></i></h4>
+    <h4><span><i class="ri-alarm-warning-line"></i> Alert Triggered</span> <i class="ri-close-line" style="cursor:pointer; color:black;" onclick="closeDashboardPopup()"></i></h4>
     <p id="dashboardAlertMsg">You have a new reminder.</p>
     <button class="btn btn-warning" style="width:100%; justify-content:center;" onclick="loadView('alerts')">View Alerts</button>
 </div>
@@ -337,11 +337,13 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; background:#f9fafb; padding:15px; border-radius:8px; border:1px solid #e5e7eb; margin-bottom:20px;">
                         <div>
-                            <label style="font-size:12px;">Customer (Search/Type)</label>
-                            <input id="docCustName" placeholder="Customer Name" list="custSuggestions">
-                            <datalist id="custSuggestions"></datalist>
-                            <textarea id="docCustAddr" rows="2" placeholder="Address" style="margin-top:5px;"></textarea>
-                        </div>
+    <label style="font-size:12px;">Customer Details</label>
+    <input id="docCustName" placeholder="Customer Name" list="custSuggestions" style="margin-bottom:5px;">
+    <datalist id="custSuggestions"></datalist>
+    <!-- NEW PHONE INPUT -->
+    <input id="docCustPhone" placeholder="Phone Number" style="margin-bottom:5px;">
+    <textarea id="docCustAddr" rows="2" placeholder="Address" style="margin-top:0;"></textarea>
+</div>
                         <div>
                             <label style="font-size:12px;">Document Details</label>
                             <div style="display:flex; gap:5px;">
@@ -561,11 +563,8 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 
         <!-- NEW: ALERTS TAB -->
         <div id="view-alerts" class="view">
-             <div style="display:flex; justify-content:space-between; align-items:center;">
-                 <h3>Reminders & Alerts</h3>
-                 <button class="btn btn-primary" onclick="openModal('createAlertModal')">+ New Alert</button>
-             </div>
-             <div class="card" style="overflow-x:auto; margin-top:15px;">
+             <h3>Reminders & Alerts</h3>
+             <div class="card" style="overflow-x:auto;">
                  <table id="alertsTable">
                      <thead><tr><th>Target Date</th><th>Frequency</th><th>Message</th><th>Order Ref</th><th>Status</th><th>Action</th></tr></thead>
                      <tbody></tbody>
@@ -612,19 +611,18 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         </div>
 
         <div id="view-services" class="view"><div class="card"><h3>Services</h3><p class="muted">Coming soon.</p></div></div>
-        
         <!-- REPLACEMENT FOR view-customers -->
-        <div id="view-customers" class="view">
-            <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
-                <div style="display:flex; gap:10px; flex:1;">
-                    <input placeholder="Search by Phone (ID) or Name..." style="width:250px; margin:0;" id="custSearch" onkeyup="filterCustomers()">
-                </div>
-                <button class="btn btn-primary" onclick="openModal('customerModal')">+ Add Customer</button>
-            </div>
-            
-            <!-- Customer List/Grid -->
-            <div class="grid-4" id="customerGrid"></div>
+<div id="view-customers" class="view">
+    <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
+        <div style="display:flex; gap:10px; flex:1;">
+            <input placeholder="Search by Phone (ID) or Name..." style="width:250px; margin:0;" id="custSearch" onkeyup="filterCustomers()">
         </div>
+        <button class="btn btn-primary" onclick="openModal('customerModal')">+ Add Customer</button>
+    </div>
+    
+    <!-- Customer List/Grid -->
+    <div class="grid-4" id="customerGrid"></div>
+</div>
 
     </div>
 </main>
@@ -1068,6 +1066,18 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
                 }
             } catch (e) { return -1; }
             return -1;
+        }
+        function drawImageWithOrientation(ctx, img, w, h, o) {
+            switch (o) {
+                case 2: ctx.translate(w, 0); ctx.scale(-1, 1); ctx.drawImage(img, 0, 0, w, h); break;
+                case 3: ctx.translate(w, h); ctx.rotate(Math.PI); ctx.drawImage(img, 0, 0, w, h); break;
+                case 4: ctx.translate(0, h); ctx.scale(1, -1); ctx.drawImage(img, 0, 0, w, h); break;
+                case 5: ctx.rotate(0.5 * Math.PI); ctx.scale(1, -1); ctx.drawImage(img, 0, -h, w, h); break;
+                case 6: ctx.rotate(0.5 * Math.PI); ctx.translate(0, -h); ctx.drawImage(img, 0, 0, w, h); break;
+                case 7: ctx.rotate(-0.5 * Math.PI); ctx.scale(1, -1); ctx.drawImage(img, -w, 0, w, h); break;
+                case 8: ctx.rotate(-0.5 * Math.PI); ctx.translate(-w, 0); ctx.drawImage(img, 0, 0, w, h); break;
+                default: ctx.drawImage(img, 0, 0, w, h); break;
+            }
         }
 
         const TARGET_KB = 100;
@@ -2502,6 +2512,1413 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         renderCart();
     };
 
+    window.checkout = async () => {
+        if(!cart.length) return showToast("Cart is empty!", "error");
+        
+        const custName = document.getElementById('posCustName').value.trim();
+        const custPhone = document.getElementById('posCustPhone').value.trim();
+        const custAddr = document.getElementById('posCustAddr').value.trim();
+        const paymentMethod = document.getElementById('posPaymentMethod').value;
+        const discountType = document.getElementById('discountType').value;
+        const discountVal = parseFloat(document.getElementById('discountValue').value) || 0;
+        
+        if(!custName || !custPhone) return showToast("Customer Name & Phone Required", "error");
+        if(paymentMethod === "Pay Later" && !custAddr) return showToast("Address Required for Pay Later", "error");
+
+        toggleLoader(true);
+        try {
+            // Generate Custom ID first
+            const customId = await generateDailyOrderId();
+
+            let subtotal = cart.reduce((a,b)=>a+(b.sell*b.qty),0);
+            let discountAmt = discountType === 'percent' ? (subtotal * discountVal / 100) : discountVal;
+            let feesTotal = currentOtherFees.reduce((sum, f) => sum + f.amount, 0);
+            let total = subtotal - discountAmt + feesTotal;
+
+            const saleData = {
+                customId, // Save human readable ID
+                date: new Date().toISOString(),
+                subtotal, discountType, discountValue: discountVal, discountAmt, fees: currentOtherFees, feesTotal, total,
+                items: cart,
+                customer: { name: custName, phone: custPhone, address: custAddr },
+                paymentMethod, notes: []
+            };
+
+            const docRef = await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/sales`), saleData);
+            
+            // Update Inventory & Log
+            for(let item of cart) {
+                 const ref = doc(db, `users/${currentUser.uid}/shops/${currentShopId}/products`, item.id);
+                 const original = productsCache.find(x => x.id === item.id);
+                 const newQty = original.qty - item.qty;
+                 
+                 await updateDoc(ref, { qty: newQty });
+                 await logInventory(item.name, 'SALE', `Order #${customId}`, -item.qty, newQty, original.batchNumber || 1, original.qty);
+            }
+
+            // PDF uses customId now
+            generateInvoicePDF({...saleData, id: docRef.id}); 
+
+            cart = []; currentOtherFees = [];
+            document.getElementById('posCustName').value = '';
+            document.getElementById('posCustPhone').value = '';
+            document.getElementById('posCustAddr').value = '';
+            document.getElementById('discountValue').value = '';
+            renderCart(); renderFees();
+            
+            await loadProducts();
+            updateDashboard();
+            showToast("Sale Completed! ID: " + customId, "success");
+
+        } catch (e) {
+            console.error(e);
+            showToast("Error processing sale", "error");
+        } finally {
+            toggleLoader(false);
+        }
+    };
+
+    // --- SEARCH ORDER LOGIC ---
+    window.searchOrder = async () => {
+        const input = document.getElementById('orderSearchInput').value.trim();
+        if(!input) return showToast("Enter Order ID", "error");
+        
+        toggleLoader(true);
+        // Search by customId
+        const q = query(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/sales`), where('customId', '==', input));
+        const snap = await getDocs(q);
+        
+        if(snap.empty) {
+            showToast("Order not found", "error");
+            toggleLoader(false);
+            return;
+        }
+        
+        const orderDoc = snap.docs[0];
+        const order = { id: orderDoc.id, ...orderDoc.data() };
+        
+        // Fetch related refunds
+        const refQ = query(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/refunds`), where('orderRefId', '==', order.customId));
+        const refSnap = await getDocs(refQ);
+        const refunds = [];
+        refSnap.forEach(d => refunds.push(d.data()));
+
+        displayOrderDetails(order, refunds);
+        toggleLoader(false);
+    };
+
+    function displayOrderDetails(order, refunds) {
+        const modal = document.getElementById('orderDetailsModal');
+        const content = document.getElementById('odModalContent');
+        
+        let itemsHtml = order.items.map(i => `
+            <tr>
+                <td>${i.name}</td>
+                <td>${i.qty}</td>
+                <td>${formatMoney(i.sell)}</td>
+                <td>${formatMoney(i.sell * i.qty)}</td>
+            </tr>
+        `).join('');
+
+        let refundHtml = '';
+        if(refunds.length > 0) {
+            refundHtml = `<div class="note-box" style="background:#fee2e2; border-color:#f87171; color:#b91c1c;">
+                <strong><i class="ri-alarm-warning-fill"></i> Refund History:</strong><br>
+                ${refunds.map(r => `• ${r.date.split('T')[0]}: ${r.qty}x ${r.productName} (${r.reason})`).join('<br>')}
+            </div>`;
+        }
+
+        content.innerHTML = `
+            <div style="margin-bottom:15px; display:flex; justify-content:space-between;">
+                <div>
+                    <div style="font-size:18px; font-weight:700;">${order.customId || order.id}</div>
+                    <div style="color:#666; font-size:12px;">${new Date(order.date).toLocaleString()}</div>
+                </div>
+                <div style="text-align:right;">
+                    <div style="font-weight:700;">${order.customer.name}</div>
+                    <div style="font-size:12px;">${order.customer.phone}</div>
+                </div>
+            </div>
+            
+            ${refundHtml}
+
+            <table style="margin-bottom:15px;">
+                <thead style="background:#f3f4f6;"><tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead>
+                <tbody>${itemsHtml}</tbody>
+            </table>
+
+            <div style="text-align:right; font-size:14px;">
+                <div>Subtotal: ${formatMoney(order.subtotal)}</div>
+                ${order.discountAmt ? `<div>Discount: -${formatMoney(order.discountAmt)}</div>` : ''}
+                <div style="font-weight:700; font-size:16px; margin-top:5px;">Total: ${formatMoney(order.total)}</div>
+                <div style="font-size:12px; color:#666; margin-top:5px;">Paid via ${order.paymentMethod}</div>
+            </div>
+        `;
+        modal.style.display = 'flex';
+    }
+
+    // --- REFUNDS TAB LOGIC UPDATE ---
+    
+    window.findOrderForRefund = async () => {
+        const orderId = document.getElementById('refundOrderSearch').value.trim();
+        if(!orderId) return showToast("Enter Order ID", "error");
+        
+        toggleLoader(true);
+        const q = query(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/sales`), where('customId', '==', orderId));
+        const snap = await getDocs(q);
+        
+        if(snap.empty) {
+            showToast("Order not found", "error");
+            document.getElementById('refundStep2').style.display = 'none';
+        } else {
+            selectedRefundOrder = { id: snap.docs[0].id, ...snap.docs[0].data() };
+            
+            // Populate Items Select
+            const sel = document.getElementById('refundItemSelect');
+            sel.innerHTML = '<option value="">-- Select Item --</option>';
+            selectedRefundOrder.items.forEach((item, idx) => {
+                sel.innerHTML += `<option value="${idx}" data-price="${item.sell}" data-qty="${item.qty}">${item.name} (Qty: ${item.qty})</option>`;
+            });
+            
+            document.getElementById('refundStep2').style.display = 'block';
+        }
+        toggleLoader(false);
+    };
+
+    window.fillRefundAmount = () => {
+        const sel = document.getElementById('refundItemSelect');
+        const opt = sel.options[sel.selectedIndex];
+        if(!opt.value && opt.value !== "0") return;
+        
+        const price = parseFloat(opt.dataset.price);
+        const maxQty = parseFloat(opt.dataset.qty);
+        
+        document.getElementById('refundMaxQty').textContent = maxQty;
+        document.getElementById('refundQty').value = 1;
+        document.getElementById('refundAmount').value = price.toFixed(2);
+    };
+
+    window.saveRefund = async () => {
+        if(!selectedRefundOrder) return;
+        
+        const itemIdx = document.getElementById('refundItemSelect').value;
+        if(itemIdx === "") return showToast("Select an item", "error");
+        
+        const item = selectedRefundOrder.items[itemIdx];
+        const reason = document.getElementById('refundReason').value;
+        const qty = parseFloat(document.getElementById('refundQty').value);
+        const amount = parseFloat(document.getElementById('refundAmount').value);
+        const restock = document.getElementById('refundRestock').checked;
+
+        if(qty <= 0 || qty > item.qty) return showToast("Invalid Quantity", "error");
+
+        toggleLoader(true);
+        try {
+            // 1. Save Refund
+            await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/refunds`), {
+                orderRefId: selectedRefundOrder.customId,
+                productName: item.name, 
+                reason, qty, amount, restock, 
+                date: new Date().toISOString()
+            });
+
+            // 2. Restock Logic
+            if(restock) {
+                // Find max batch
+                const sameProds = productsCache.filter(p => p.name === item.name);
+                const maxBatch = sameProds.reduce((max, p) => (p.batchNumber > max ? p.batchNumber : max), 0);
+                
+                await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/products`), {
+                    name: item.name,
+                    sku: item.sku || "",
+                    image: item.image || null,
+                    categoryId: item.categoryId || null,
+                    qty: qty,
+                    buy: 0,
+                    sell: item.sell,
+                    unit: item.unit || '',
+                    dateAdded: new Date().toISOString(),
+                    batchNumber: maxBatch + 1,
+                    isRefund: true
+                });
+                
+                await logInventory(item.name, 'REFUND', `Return from Order #${selectedRefundOrder.customId}`, qty, qty, maxBatch+1, 0);
+            }
+
+            showToast("Refund Processed");
+            // Reset
+            document.getElementById('refundStep2').style.display = 'none';
+            document.getElementById('refundOrderSearch').value = '';
+            selectedRefundOrder = null;
+            await loadProducts();
+
+        } catch(e) {
+            console.error(e);
+            showToast("Error processing refund", "error");
+        } finally {
+            toggleLoader(false);
+        }
+    };
+
+    // --- PROFILE LOGIC ---
+    async function loadProfile() {
+        const docRef = doc(db, `users/${currentUser.uid}/shops/${currentShopId}/settings`, 'profile');
+        const snap = await getDoc(docRef);
+        const warn = document.getElementById('profileWarning');
+        
+        if (snap.exists()) {
+            profileCache = snap.data();
+            warn.style.display = 'none';
+            fillProfileData(profileCache);
+            lockProfile(true);
+        } else {
+            profileCache = null;
+            warn.style.display = 'block';
+            lockProfile(false);
+            // Clear fields
+            document.querySelectorAll('#profFields input, #profFields textarea').forEach(i => i.value = '');
+            document.getElementById('profLogoContainer').innerHTML = '<span>No Logo</span>';
+        }
+    }
+
+    function fillProfileData(p) {
+        document.getElementById('profOwner').value = p.ownerName || '';
+        document.getElementById('profReg').value = p.regNo || '';
+        document.getElementById('profAddress').value = p.address || '';
+        document.getElementById('profPhone1').value = p.phone1 || '';
+        document.getElementById('profPhone2').value = p.phone2 || '';
+        document.getElementById('profWhatsapp').value = p.whatsapp || '';
+        document.getElementById('profEmail').value = p.email || '';
+        
+        const container = document.getElementById('profLogoContainer');
+        if(p.logoImage) {
+            container.innerHTML = `<img src="${p.logoImage}">`;
+        } else {
+            const shopName = document.getElementById('shopSelector').options[document.getElementById('shopSelector').selectedIndex].text;
+            container.innerHTML = `<div class="text-logo-preview" style="font-family:${p.logoFont}; color:${p.logoColor}; font-size:20px;">${shopName}</div>`;
+        }
+    }
+
+    window.lockProfile = (lock) => {
+        document.querySelectorAll('#profFields input, #profFields textarea, #profLogoFont, #profLogoColor, #profLogoFile').forEach(i => i.disabled = lock);
+        document.getElementById('btnSaveProfile').style.display = lock ? 'none' : 'inline-flex';
+        document.getElementById('btnEditProfile').style.display = lock ? 'inline-flex' : 'none';
+        document.getElementById('profInputsLogo').style.display = lock ? 'none' : 'block';
+    }
+
+    window.unlockProfile = () => lockProfile(false);
+
+    window.saveProfile = async () => {
+        const data = {
+            ownerName: document.getElementById('profOwner').value.trim(),
+            regNo: document.getElementById('profReg').value.trim(),
+            address: document.getElementById('profAddress').value.trim(),
+            phone1: document.getElementById('profPhone1').value.trim(),
+            phone2: document.getElementById('profPhone2').value.trim(),
+            whatsapp: document.getElementById('profWhatsapp').value.trim(),
+            email: document.getElementById('profEmail').value.trim(),
+            logoFont: document.getElementById('profLogoFont').value,
+            logoColor: document.getElementById('profLogoColor').value,
+            logoImage: compressedImageBase64 || (profileCache ? profileCache.logoImage : null)
+        };
+
+        if(!data.ownerName || !data.regNo || !data.address || !data.phone1 || !data.whatsapp) {
+            return showToast("Please fill all required (*) fields", "error");
+        }
+
+        toggleLoader(true);
+        await setDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/settings`, 'profile'), data);
+        await loadProfile();
+        toggleLoader(false);
+        showToast("Profile Saved Successfully");
+    };
+
+    document.getElementById('profLogoFile').addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if(file) {
+            const base64 = await compressImageTo100KB(file);
+            compressedImageBase64 = base64;
+            document.getElementById('profLogoContainer').innerHTML = `<img src="${base64}">`;
+        }
+    });
+
+   window.loadView = (viewName) => {
+        // Enforce Profile Check (Rule: profile must be complete)
+        if(viewName !== 'profile' && viewName !== 'dashboard' && !profileCache) {
+            showToast("Complete Business Profile first", "error");
+            loadView('profile');
+            return;
+        }
+
+        document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+        
+        const target = document.getElementById(`view-${viewName}`);
+        if(target) target.classList.add('active');
+        
+        // Handle Active Class on Sidebar Links
+        const navItems = document.querySelectorAll('.nav-item');
+        navItems.forEach(item => {
+            if(item.getAttribute('onclick').includes(`'${viewName}'`)) {
+                item.classList.add('active');
+            }
+        });
+
+        document.getElementById('pageTitle').textContent = viewName.charAt(0).toUpperCase() + viewName.slice(1);
+
+        // --- UPDATED PART IS HERE ---
+        if(viewName === 'orders') loadOrders();
+        if(viewName === 'alerts') renderAlertsTable();
+        if(viewName === 'customers') loadCustomers(); 
+        if(viewName === 'documents') {
+            loadDocumentsHistory();
+            document.getElementById('docDate').valueAsDate = new Date();
+        }
+    };
+    
+    window.openModal = (id) => document.getElementById(id).style.display = 'flex';
+    const formatMoney = (a) => `${currentCurrency}${Number(a).toFixed(2)}`;
+
+
+    // --- 0. CATEGORY LOGIC ---
+    async function loadCategories() {
+        const snap = await getDocs(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/categories`));
+        categoriesCache = [];
+        snap.forEach(d => categoriesCache.push({id: d.id, ...d.data()}));
+        categoriesCache.sort((a,b) => a.name.localeCompare(b.name));
+        
+        // Populate Dropdowns
+        const opts = categoriesCache.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+        const optsWithAll = `<option value="All">All Categories</option>` + opts;
+        const optsWithNone = `<option value="">Uncategorized</option>` + opts;
+
+        document.getElementById('catListBody').innerHTML = categoriesCache.map(c => `
+            <tr>
+                <td style="padding:8px;">${c.name}</td>
+                <td style="padding:8px; text-align:right;">
+                    <button class="btn btn-danger" style="padding:2px 6px; font-size:11px;" onclick="deleteCategory('${c.id}')">Del</button>
+                </td>
+            </tr>
+        `).join('');
+
+        document.getElementById('catFilterCategory').innerHTML = optsWithAll;
+        document.getElementById('stockFilterCategory').innerHTML = optsWithAll;
+        document.getElementById('posFilterCategory').innerHTML = optsWithAll;
+        document.getElementById('bpCategory').innerHTML = optsWithNone;
+    }
+
+    window.saveCategory = async () => {
+        const name = document.getElementById('catNameInput').value.trim();
+        if(!name) return showToast("Category Name required", "error");
+        
+        toggleLoader(true);
+        await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/categories`), { name });
+        document.getElementById('catNameInput').value = '';
+        await loadCategories();
+        toggleLoader(false);
+        showToast("Category Added");
+    };
+
+    window.deleteCategory = async (id) => {
+        if(!confirm("Delete this category?")) return;
+        toggleLoader(true);
+        await deleteDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/categories`, id));
+        await loadCategories();
+        toggleLoader(false);
+        showToast("Category Deleted");
+    };
+
+    // --- 1. CATALOG (Add Products) LOGIC ---
+    async function loadCatalog() {
+        const snap = await getDocs(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/base_products`));
+        catalogCache = [];
+        snap.forEach(d => catalogCache.push({id: d.id, ...d.data()}));
+        catalogCache.sort((a,b) => new Date(b.created) - new Date(a.created));
+        renderCatalog();
+    }
+
+    function renderCatalog() {
+        const term = document.getElementById('catSearch').value.toLowerCase();
+        const catFilter = document.getElementById('catFilterCategory').value;
+        const tbody = document.querySelector('#catTable tbody');
+        
+        const filtered = catalogCache.filter(p => {
+            const matchName = p.name.toLowerCase().includes(term) || (p.sku && p.sku.toLowerCase().includes(term));
+            const matchCat = catFilter === 'All' || (p.categoryId === catFilter) || (!p.categoryId && catFilter === "");
+            return matchName && matchCat;
+        });
+
+        if(filtered.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 20px; color: #9ca3af;">No base products found. Create one!</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = filtered.map(p => {
+            const dateStr = p.created ? new Date(p.created).toLocaleDateString() : '-';
+            const imgTag = p.image ? `<img src="${p.image}" class="prod-thumb" onclick="window.open(this.src)">` : '<i class="ri-image-line"></i>';
+            const categoryName = categoriesCache.find(c => c.id === p.categoryId)?.name || 'Uncategorized';
+            
+            return `
+            <tr>
+                <td>${imgTag}</td>
+                <td style="font-family:monospace; font-size:12px;">${p.sku || '-'}</td>
+                <td>${p.name}</td>
+                <td style="font-size:12px; color:#6b7280;">${categoryName}</td>
+                <td style="font-size:12px; color:#666;">${dateStr}</td>
+                <td>
+                    <button class="btn btn-warning" style="padding:4px 8px;" onclick="editBaseProduct('${p.id}')">Edit Img</button>
+                    <button class="btn btn-danger" style="padding:4px 8px;" onclick="deleteBaseProduct('${p.id}')"><i class="ri-delete-bin-line"></i></button>
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    window.filterCatalog = () => renderCatalog();
+
+    window.prepareAddBaseProduct = () => {
+        document.getElementById('bpId').value = '';
+        document.getElementById('bpName').value = '';
+        document.getElementById('bpName').disabled = false;
+        document.getElementById('bpCategory').value = '';
+        document.getElementById('bpCategory').disabled = false;
+        document.getElementById('bpPhoto').value = '';
+        document.getElementById('bpPhotoPreview').style.display = 'none';
+        document.getElementById('btnRemoveBpImage').style.display = 'none';
+        document.getElementById('bpImageInfo').textContent = '';
+        compressedImageBase64 = null;
+        openModal('baseProductModal');
+    };
+
+    window.editBaseProduct = (id) => {
+        const p = catalogCache.find(x => x.id === id);
+        if(!p) return;
+        document.getElementById('bpId').value = p.id;
+        document.getElementById('bpName').value = p.name;
+        document.getElementById('bpName').disabled = true; // Cannot change name to prevent syncing issues
+        document.getElementById('bpCategory').value = p.categoryId || '';
+        document.getElementById('bpCategory').disabled = false; 
+        
+        document.getElementById('bpPhoto').value = '';
+        compressedImageBase64 = p.image;
+        if(p.image) {
+            document.getElementById('bpPhotoPreview').src = p.image;
+            document.getElementById('bpPhotoPreview').style.display = 'block';
+            document.getElementById('btnRemoveBpImage').style.display = 'block';
+        } else {
+            document.getElementById('bpPhotoPreview').style.display = 'none';
+            document.getElementById('btnRemoveBpImage').style.display = 'none';
+        }
+        document.getElementById('bpImageInfo').textContent = '';
+        openModal('baseProductModal');
+    };
+
+    // Base Product Image Handler
+    document.getElementById('bpPhoto').addEventListener('change', async function(e) {
+        const file = e.target.files[0];
+        if(file) {
+            document.getElementById('bpImageInfo').textContent = "Compressing...";
+            try {
+                const base64 = await compressImageTo100KB(file);
+                compressedImageBase64 = base64;
+                document.getElementById('bpPhotoPreview').src = base64;
+                document.getElementById('bpPhotoPreview').style.display = 'block';
+                document.getElementById('btnRemoveBpImage').style.display = 'block';
+                document.getElementById('bpImageInfo').textContent = `Ready (${(base64.length * 0.75 / 1024).toFixed(0)} KB)`;
+            } catch (err) {
+                alert("Image error");
+            }
+        }
+    });
+
+    window.removeBaseProductImage = () => {
+        document.getElementById('bpPhoto').value = '';
+        document.getElementById('bpPhotoPreview').src = '';
+        document.getElementById('bpPhotoPreview').style.display = 'none';
+        document.getElementById('btnRemoveBpImage').style.display = 'none';
+        compressedImageBase64 = null;
+    };
+
+    // SEQUENTIAL SKU GENERATOR
+    async function generateNextSku() {
+        const counterRef = doc(db, `users/${currentUser.uid}/shops/${currentShopId}/settings`, 'skuCounter');
+        let newSku = "";
+        
+        await runTransaction(db, async (transaction) => {
+            const sfDoc = await transaction.get(counterRef);
+            let count = 0;
+            if (sfDoc.exists()) {
+                count = sfDoc.data().count;
+            }
+            count++;
+            transaction.set(counterRef, { count: count });
+            newSku = String(count).padStart(6, '0');
+        });
+        return newSku;
+    }
+
+    window.saveBaseProduct = async () => {
+        const id = document.getElementById('bpId').value;
+        const name = document.getElementById('bpName').value.trim();
+        const categoryId = document.getElementById('bpCategory').value;
+        
+        if(!name) return showToast("Product Name Required", "error");
+        if(!id && !compressedImageBase64) return showToast("Image Required", "error");
+
+        toggleLoader(true);
+        if(id) {
+            // Update existing
+            await updateDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/base_products`, id), {
+                image: compressedImageBase64,
+                categoryId: categoryId
+            });
+        } else {
+            // Create New with Sequential SKU
+            const sku = await generateNextSku();
+            await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/base_products`), {
+                name, 
+                image: compressedImageBase64,
+                sku,
+                categoryId,
+                created: new Date().toISOString()
+            });
+        }
+        document.getElementById('baseProductModal').style.display = 'none';
+        await loadCatalog();
+        toggleLoader(false);
+        showToast("Base Product Saved");
+    };
+
+    window.deleteBaseProduct = async (id) => {
+        if(!confirm("Delete this Base Product?")) return;
+        toggleLoader(true);
+        await deleteDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/base_products`, id));
+        await loadCatalog();
+        toggleLoader(false);
+        showToast("Base Product Deleted");
+    };
+
+
+    // --- 2. STOCK (Add Stock) LOGIC ---
+    async function loadProducts() {
+        const snap = await getDocs(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/products`));
+        productsCache = [];
+        snap.forEach(d => productsCache.push({id: d.id, ...d.data()}));
+        productsCache.sort((a,b) => new Date(b.dateAdded) - new Date(a.dateAdded));
+        renderProducts();
+        renderPosGrid();
+    }
+
+    function renderProducts() {
+        const term = document.getElementById('prodSearch').value.toLowerCase();
+        const catFilter = document.getElementById('stockFilterCategory').value;
+        const tbody = document.querySelector('#prodTable tbody');
+        
+        // 1. Group by SKU to find statistics (Dynamic Latest Logic)
+        const skuStats = {}; 
+
+        productsCache.forEach(p => {
+            if(!p.sku) return;
+            if(!skuStats[p.sku]) {
+                skuStats[p.sku] = { maxWithStock: -1, minWithStock: Infinity };
+            }
+            
+            // Only consider batches with actual stock > 0 for Green/Red logic
+            if(p.qty > 0) {
+                const b = p.batchNumber || 1;
+                if(b > skuStats[p.sku].maxWithStock) skuStats[p.sku].maxWithStock = b;
+                if(b < skuStats[p.sku].minWithStock) skuStats[p.sku].minWithStock = b;
+            }
+        });
+
+        const filtered = productsCache.filter(p => {
+            const matchName = p.name.toLowerCase().includes(term) || (p.sku && p.sku.toLowerCase().includes(term));
+            const matchCat = catFilter === 'All' || (p.categoryId === catFilter) || (!p.categoryId && catFilter === "");
+            return matchName && matchCat;
+        });
+
+        if(filtered.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 20px; color: #9ca3af;">No stock batches found. Add Stock!</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = filtered.map(p => {
+                const dateStr = p.dateAdded ? new Date(p.dateAdded).toLocaleDateString() : '-';
+                const imgTag = p.image ? `<img src="${p.image}" class="prod-thumb" onclick="window.open(this.src)">` : '<i class="ri-image-line"></i>';
+                const categoryName = categoriesCache.find(c => c.id === p.categoryId)?.name || 'Uncategorized';
+
+                const batchNum = p.batchNumber || 1;
+                const stats = skuStats[p.sku] || { maxWithStock: -1, minWithStock: Infinity };
+                
+                let batchClass = 'batch-mid'; // Default Grey
+                let rowClass = '';
+                let stockDisplay = `${p.qty} ${p.unit||''}`;
+
+                if (p.qty <= 0) {
+                    // OUT OF STOCK LOGIC
+                    stockDisplay = `<span class="label-out-stock">Out of Stock</span>`;
+                    rowClass = 'row-dimmed'; 
+                } else {
+                    // HAS STOCK LOGIC
+                    if (batchNum === stats.minWithStock) {
+                        batchClass = 'batch-oldest'; 
+                    } 
+                    else if (batchNum === stats.maxWithStock) {
+                        batchClass = 'batch-latest'; 
+                    }
+                }
+
+                // If it is a refund batch, override color
+                if(p.isRefund) {
+                    batchClass = 'batch-refund';
+                }
+
+                return `
+                <tr class="${rowClass}">
+                    <td>${imgTag}</td>
+                    <td style="font-size:12px; color:#666;">${dateStr}</td>
+                    <td>
+                        <div>${p.name}</div>
+                        <div style="font-size:11px; color:#6b7280; font-family:monospace;">${p.sku || ''}</div>
+                        <span class="batch-badge ${batchClass}">${p.isRefund ? 'REFUND' : 'Batch: '+formatBatch(batchNum)}</span>
+                    </td>
+                    <td style="font-size:12px;">${categoryName}</td>
+                    <td>${formatMoney(p.buy)}</td>
+                    <td>${formatMoney(p.sell)}</td>
+                    <td style="color:${p.qty<5 && p.qty>0 ?'red':'inherit'}">${stockDisplay}</td>
+                    <td>
+                        <button class="btn btn-warning" style="padding:4px 8px;" onclick="editStock('${p.id}')">Edit</button>
+                        <button class="btn btn-danger" style="padding:4px 8px;" onclick="deleteProduct('${p.id}', '${p.name}')"><i class="ri-delete-bin-line"></i> Delete</button>
+                    </td>
+                </tr>`;
+            }).join('');
+    }
+    window.filterProducts = () => renderProducts();
+
+    window.prepareAddStock = () => {
+        document.getElementById('mpId').value = '';
+        document.getElementById('prodModalTitle').textContent = 'Add Stock';
+        
+        document.getElementById('mpBuy').value = '';
+        document.getElementById('mpSell').value = '';
+        document.getElementById('mpQty').value = '';
+        document.getElementById('mpUnit').value = '';
+        document.getElementById('mpName').value = '';
+        document.getElementById('mpImage').value = '';
+        document.getElementById('mpCategory').value = '';
+
+        document.getElementById('stockSelectContainer').style.display = 'block';
+        document.getElementById('stockPreview').style.display = 'none';
+        
+        document.getElementById('mpBuy').disabled = false;
+        document.getElementById('mpQty').disabled = false;
+        document.getElementById('mpUnit').disabled = false;
+
+        const sel = document.getElementById('stockBaseSelect');
+        sel.innerHTML = '<option value="">-- Choose Product --</option>';
+        catalogCache.forEach(p => {
+            sel.innerHTML += `<option value="${p.id}" data-img="${p.image||''}" data-name="${p.name}" data-sku="${p.sku}" data-cat="${p.categoryId||''}">${p.name} (${p.sku})</option>`;
+        });
+
+        openModal('prodModal');
+    };
+
+    window.onBaseProductSelect = () => {
+        const sel = document.getElementById('stockBaseSelect');
+        const opt = sel.options[sel.selectedIndex];
+        if(opt.value) {
+            document.getElementById('mpName').value = opt.dataset.name;
+            document.getElementById('mpImage').value = opt.dataset.img;
+            document.getElementById('mpCategory').value = opt.dataset.cat;
+            document.getElementById('stockPreview').style.display = 'block';
+            document.getElementById('mpPhotoPreview').src = opt.dataset.img;
+            document.getElementById('mpNameDisplay').textContent = opt.dataset.name;
+        } else {
+            document.getElementById('stockPreview').style.display = 'none';
+        }
+    };
+
+    window.editStock = (id) => {
+        const p = productsCache.find(x => x.id === id);
+        if(!p) return;
+        document.getElementById('mpId').value = p.id;
+        document.getElementById('prodModalTitle').textContent = 'Update Price';
+        
+        document.getElementById('mpBuy').value = p.buy;
+        document.getElementById('mpSell').value = p.sell;
+        document.getElementById('mpQty').value = p.qty;
+        document.getElementById('mpUnit').value = p.unit || '';
+        document.getElementById('mpName').value = p.name;
+        document.getElementById('mpImage').value = p.image;
+        document.getElementById('mpCategory').value = p.categoryId || '';
+
+        document.getElementById('stockSelectContainer').style.display = 'none';
+        document.getElementById('stockPreview').style.display = 'block';
+        document.getElementById('mpPhotoPreview').src = p.image;
+        document.getElementById('mpNameDisplay').textContent = p.name;
+
+        document.getElementById('mpBuy').disabled = true;
+        document.getElementById('mpQty').disabled = true;
+        document.getElementById('mpUnit').disabled = true;
+        document.getElementById('mpSell').disabled = false;
+
+        openModal('prodModal');
+    };
+
+    window.saveStock = async () => {
+        const id = document.getElementById('mpId').value;
+        const buy = parseFloat(document.getElementById('mpBuy').value);
+        const sell = parseFloat(document.getElementById('mpSell').value);
+        const qty = parseFloat(document.getElementById('mpQty').value);
+        const unit = document.getElementById('mpUnit').value;
+        const name = document.getElementById('mpName').value;
+        const image = document.getElementById('mpImage').value;
+        const categoryId = document.getElementById('mpCategory').value;
+        
+        let sku = "";
+        
+        // Get SKU for batch calculation
+        if(!id) {
+             const sel = document.getElementById('stockBaseSelect');
+             const opt = sel.options[sel.selectedIndex];
+             if(!opt.value) return showToast("Please select a product", "error");
+             sku = opt.dataset.sku;
+        } else {
+            const p = productsCache.find(x => x.id === id);
+            sku = p ? p.sku : "";
+        }
+
+        if(isNaN(buy) || buy < 0) return showToast("Buy Price must be 0 or higher", "error");
+        if(isNaN(sell) || sell <= 0) return showToast("Sell Price must be greater than 0", "error");
+        if(isNaN(qty) || qty <= 0) return showToast("Quantity must be greater than 0", "error");
+
+        const stockData = { name, buy, sell, qty, unit, image, sku, categoryId };
+
+        if (sell < buy) {
+            document.getElementById('priceWarningMsg').innerHTML = `Loss: ${formatMoney(sell - buy)} per unit`;
+            document.getElementById('priceWarningModal').style.display = 'flex';
+            document.getElementById('btnConfirmSaveAny').onclick = async () => {
+                 document.getElementById('priceWarningModal').style.display = 'none';
+                 await finalizeStockSave(id, stockData);
+            };
+            return;
+        }
+        await finalizeStockSave(id, stockData);
+    };
+
+    async function finalizeStockSave(id, data) {
+        toggleLoader(true);
+        const isEdit = !!id;
+        
+        if(isEdit) {
+            // EDIT: Batch number stays the same
+            const oldP = productsCache.find(x => x.id === id);
+            await updateDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/products`, id), { 
+                sell: data.sell
+            });
+            // Log with existing batch number
+            await logInventory(data.name, 'EDIT', `Price updated: ${formatMoney(oldP.sell)} -> ${formatMoney(data.sell)}`, 0, data.qty, oldP.batchNumber || 1, data.qty);
+        } else {
+            // ADD: Calculate New Batch Number
+            const existingBatches = productsCache.filter(p => p.sku === data.sku);
+            // Find highest batch number and add 1
+            const maxBatch = existingBatches.reduce((max, p) => (p.batchNumber > max ? p.batchNumber : max), 0);
+            const nextBatchNum = maxBatch + 1;
+
+            data.dateAdded = new Date().toISOString();
+            data.batchNumber = nextBatchNum; // Save integer 1, 2, 3...
+
+            await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/products`), data);
+            
+            // Log with new batch number. Old Qty was 0.
+            await logInventory(data.name, 'ADD', 'New Stock Batch', data.qty, data.qty, nextBatchNum, 0);
+        }
+
+        document.getElementById('prodModal').style.display = 'none';
+        await loadProducts();
+        toggleLoader(false);
+        showToast("Stock saved successfully!");
+    }
+
+    window.deleteProduct = async (id, name) => {
+        if(!confirm('Delete this stock batch?')) return;
+        const p = productsCache.find(x => x.id === id);
+        toggleLoader(true);
+        await deleteDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/products`, id));
+        await logInventory(name, 'DELETE', 'Batch Deleted', -p.qty, 0);
+        loadProducts();
+        toggleLoader(false);
+        showToast("Batch deleted");
+    };
+
+    // --- INVENTORY LOGGING ---
+   async function logInventory(name, action, desc, change, finalQty, batchNum = 0, initialQty = 0) {
+        const log = {
+            date: new Date().toISOString(),
+            productName: name,
+            action, 
+            description: desc,
+            quantityChange: change,
+            finalQty: finalQty,
+            initialQty: initialQty, // New Field
+            batchNumber: batchNum   // New Field
+        };
+        await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/inventory_logs`), log);
+    }
+    window.openInventoryReport = () => {
+        document.getElementById('invReportModal').style.display = 'flex';
+        const now = new Date();
+        document.getElementById('invDateInput').valueAsDate = now;
+        document.getElementById('invMonthInput').value = now.toISOString().slice(0, 7);
+        
+        const yearSel = document.getElementById('invYearInput');
+        yearSel.innerHTML = '';
+        for(let y = now.getFullYear(); y >= 2020; y--) {
+            yearSel.innerHTML += `<option value="${y}">${y}</option>`;
+        }
+        
+        // Populate Product Filter from Catalog Cache (Unique Names)
+        const prodFilter = document.getElementById('invProductFilter');
+        prodFilter.innerHTML = '<option value="ALL">All Products</option>';
+        const uniqueNames = [...new Set(catalogCache.map(p => p.name))].sort();
+        uniqueNames.forEach(n => {
+            prodFilter.innerHTML += `<option value="${n}">${n}</option>`;
+        });
+
+        toggleReportInputs();
+        hideReportResults(); // Ensure results are hidden on open
+    };
+    window.toggleReportInputs = () => {
+        const type = document.getElementById('invReportType').value;
+        document.getElementById('invDateInput').style.display = type === 'date' ? 'block' : 'none';
+        document.getElementById('invMonthInput').style.display = type === 'month' ? 'block' : 'none';
+        document.getElementById('invYearInput').style.display = type === 'year' ? 'block' : 'none';
+    };
+
+   window.generateInventoryReport = async () => {
+        const tbody = document.querySelector('#invReportTable tbody');
+        document.getElementById('invTableContainer').style.display = 'block';
+        document.getElementById('invExportSection').style.display = 'none'; // Hide buttons while loading
+        tbody.innerHTML = '<tr><td colspan="7">Loading...</td></tr>';
+
+        const q = query(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/inventory_logs`), orderBy('date', 'desc'));
+        const snap = await getDocs(q);
+        
+        const type = document.getElementById('invReportType').value;
+        const productFilter = document.getElementById('invProductFilter').value;
+        
+        let targetStr = "";
+        if(type === 'date') targetStr = document.getElementById('invDateInput').value;
+        else if(type === 'month') targetStr = document.getElementById('invMonthInput').value;
+        else if(type === 'year') targetStr = document.getElementById('invYearInput').value;
+
+        const logs = [];
+        snap.forEach(d => logs.push(d.data()));
+
+        const filtered = logs.filter(l => {
+            const d = new Date(l.date);
+            let dStr = "";
+            if(type === 'date') dStr = d.toISOString().split('T')[0];
+            else if(type === 'month') dStr = d.toISOString().slice(0, 7);
+            else if(type === 'year') dStr = d.getFullYear().toString();
+            
+            const matchDate = dStr === targetStr;
+            const matchProd = productFilter === 'ALL' || l.productName === productFilter;
+            
+            return matchDate && matchProd;
+        });
+
+        if (filtered.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:15px;">No logs found for this selection.</td></tr>';
+            // Do NOT show export buttons if no data
+            return;
+        }
+
+        tbody.innerHTML = filtered.map(l => {
+            const bNum = formatBatch(l.batchNumber || 0);
+            const initQ = l.initialQty !== undefined ? l.initialQty : '-';
+            
+            return `
+            <tr>
+                <td>
+                    <div>${new Date(l.date).toLocaleDateString()}</div>
+                    <div style="font-size:10px; color:#666;">${new Date(l.date).toLocaleTimeString()}</div>
+                </td>
+                <td>${l.productName}</td>
+                <td style="font-family:monospace; font-weight:700;">${bNum}</td>
+                <td><span style="padding:2px 6px; border-radius:4px; font-size:11px; background:${l.action==='SALE'?'#dcfce7':l.action==='DELETE'?'#fee2e2':'#e0f2fe'}">${l.action}</span></td>
+                <td style="color:#6b7280;">${initQ}</td>
+                <td style="color:${l.quantityChange<0?'red':'green'}; font-weight:600;">${l.quantityChange > 0 ? '+'+l.quantityChange : l.quantityChange}</td>
+                <td style="font-weight:700;">${l.finalQty}</td>
+            </tr>
+        `}).join('');
+        
+        // Show buttons now that data is loaded and correct
+        document.getElementById('invExportSection').style.display = 'block';
+    };
+
+    // --- EXPORT & SHARE FUNCTIONS ---
+    window.printReport = () => {
+        const tableContent = document.getElementById('invReportTable').outerHTML;
+        const type = document.getElementById('invReportType').value;
+        const dateVal = type === 'date' ? document.getElementById('invDateInput').value : 
+                        type === 'month' ? document.getElementById('invMonthInput').value : 
+                        document.getElementById('invYearInput').value;
+        
+        const printWindow = window.open('', '', 'height=600,width=800');
+        printWindow.document.write('<html><head><title>Inventory Report</title>');
+        printWindow.document.write('<style>body{font-family:sans-serif;} table{width:100%;border-collapse:collapse;} th,td{border:1px solid #ddd;padding:8px;text-align:left;} th{background-color:#f2f2f2;}</style>');
+        printWindow.document.write('</head><body>');
+        printWindow.document.write(`<h2>Inventory Log Report (${type}: ${dateVal})</h2>`);
+        printWindow.document.write(tableContent);
+        printWindow.document.write('</body></html>');
+        printWindow.document.close();
+        printWindow.print();
+    };
+
+    window.downloadCSV = () => {
+        const table = document.getElementById('invReportTable');
+        let csv = [];
+        const rows = table.querySelectorAll('tr');
+        for (let i = 0; i < rows.length; i++) {
+            let row = [], cols = rows[i].querySelectorAll("td, th");
+            for (let j = 0; j < cols.length; j++) row.push(cols[j].innerText.replace(/,/g, ""));
+            csv.push(row.join(","));        
+        }
+        const csvFile = new Blob([csv.join("\n")], {type: "text/csv"});
+        const downloadLink = document.createElement("a");
+        downloadLink.download = `inventory_report_${new Date().getTime()}.csv`;
+        downloadLink.href = window.URL.createObjectURL(csvFile);
+        downloadLink.style.display = "none";
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+    };
+
+    window.sendWhatsApp = async () => {
+        const number = document.getElementById('waNumber').value;
+        if (!number) return showToast("Enter WhatsApp number", "error");
+        const rows = document.querySelectorAll('#invReportTable tbody tr');
+        if(rows.length === 0 || rows[0].innerText.includes("No logs")) return showToast("No data to send", "error");
+
+        toggleLoader(true);
+        try {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            doc.text("Inventory Log Report", 14, 15);
+            doc.setFontSize(10);
+            const filterInfo = document.getElementById('invReportType').value; 
+            let dateVal = "";
+            if(filterInfo === 'date') dateVal = document.getElementById('invDateInput').value;
+            else if(filterInfo === 'month') dateVal = document.getElementById('invMonthInput').value;
+            else dateVal = document.getElementById('invYearInput').value;
+            doc.text(`Filter: ${filterInfo.toUpperCase()} - ${dateVal}`, 14, 22);
+            doc.autoTable({ html: '#invReportTable', startY: 30 });
+            const pdfBlob = doc.output('blob');
+            const file = new File([pdfBlob], "Inventory_Report.pdf", { type: "application/pdf" });
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({ files: [file], title: 'Inventory Report', text: 'Here is the inventory report PDF.' });
+                showToast("Shared successfully");
+            } else {
+                doc.save("Inventory_Report.pdf");
+                setTimeout(() => {
+                    const msg = encodeURIComponent("Here is the Inventory Report (PDF). Please drag and drop the downloaded file here.");
+                    const url = `https://wa.me/${number}?text=${msg}`;
+                    window.open(url, '_blank');
+                    alert("PDF Downloaded. Please drag and drop it into the WhatsApp chat.");
+                }, 1000);
+            }
+        } catch (err) {
+            showToast("Error generating PDF: " + err.message, "error");
+        } finally {
+            toggleLoader(false);
+        }
+    };
+
+
+    // --- POS ---
+    function renderPosGrid() {
+        const grid = document.getElementById('posGrid');
+        const term = document.getElementById('posSearch').value.toLowerCase();
+        const catFilter = document.getElementById('posFilterCategory').value;
+
+        // Calculate Max Batch for colors (Dynamic Logic)
+        const skuStats = {};
+        productsCache.forEach(p => {
+            if(!p.sku) return;
+             if(!skuStats[p.sku]) {
+                skuStats[p.sku] = { maxWithStock: -1, minWithStock: Infinity };
+            }
+            if(p.qty > 0) {
+                const b = p.batchNumber || 1;
+                if(b > skuStats[p.sku].maxWithStock) skuStats[p.sku].maxWithStock = b;
+                if(b < skuStats[p.sku].minWithStock) skuStats[p.sku].minWithStock = b;
+            }
+        });
+
+        const filtered = productsCache.filter(p => {
+            const matchName = p.name.toLowerCase().includes(term);
+            const matchCat = catFilter === 'All' || (p.categoryId === catFilter) || (!p.categoryId && catFilter === "");
+            return p.qty > 0 && matchName && matchCat;
+        });
+
+        if(filtered.length === 0) {
+            grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: #9ca3af; padding: 20px;">No items match or out of stock</div>';
+            return;
+        }
+        grid.innerHTML = filtered.map(p => {
+                const date = new Date(p.dateAdded).toLocaleDateString();
+                const imgTag = p.image ? `<img src="${p.image}" style="width:100%; height:80px; object-fit:contain; margin-bottom:5px;">` : '';
+                
+                // Batch Logic
+                const batchNum = p.batchNumber || 1;
+                const stats = skuStats[p.sku] || { maxWithStock: -1, minWithStock: Infinity };
+                let batchClass = 'batch-mid';
+                
+                if(batchNum === stats.minWithStock) batchClass = 'batch-oldest'; // Red
+                else if(batchNum === stats.maxWithStock) batchClass = 'batch-latest'; // Green
+                
+                // Refund Override
+                if(p.isRefund) batchClass = 'batch-refund';
+
+                return `
+                <div onclick="addToCart('${p.id}')" style="background:white; padding:10px; border-radius:8px; cursor:pointer; text-align:center; border:1px solid #e5e7eb; box-shadow:0 1px 2px rgba(0,0,0,0.05); position:relative; overflow:hidden;">
+                    <div style="position:absolute; top:5px; right:5px;" class="batch-badge ${batchClass}">${p.isRefund ? 'REFUND' : formatBatch(batchNum)}</div>
+                    ${imgTag}
+                    <div style="font-weight:600; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-top:5px;">${p.name}</div>
+                    <div style="color:var(--primary); font-weight:700;">${formatMoney(p.sell)}</div>
+                    <div style="font-size:10px; color:#9ca3af; margin-top:4px;">Stock: ${p.qty} | ${date}</div>
+                </div>`;
+            }).join('');
+    }
+
+    window.filterPos = () => renderPosGrid();
+
+    window.addToCart = (id) => {
+        const p = productsCache.find(x => x.id === id);
+        if(p.qty < 1) return showToast("Out of Stock", "error");
+        const exist = cart.find(x => x.id === id);
+        if(exist) {
+            if(exist.qty >= p.qty) return showToast("Max stock reached", "error");
+            exist.qty++;
+        } else {
+            cart.push({...p, qty: 1});
+        }
+        renderCart();
+    };
+
+    window.renderCart = () => {
+        const con = document.getElementById('cartItems');
+        let subtotal = 0;
+        
+        con.innerHTML = cart.map((i, idx) => {
+            subtotal += i.sell * i.qty;
+            return `<div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:13px; align-items:center;">
+                <div style="flex:1;">
+                   <div style="font-weight:500;">${i.name}</div>
+                   <div style="color:#666; font-size:11px;">${formatMoney(i.sell)} x ${i.qty}</div>
+                </div>
+                <div>
+                    <strong>${formatMoney(i.sell * i.qty)}</strong>
+                    <button class="btn btn-danger" style="padding:2px 6px; font-size:10px; margin-left:5px;" onclick="removeFromCart(${idx})">X</button>
+                </div>
+            </div>`;
+        }).join('');
+
+        // Calculations
+        let discountVal = parseFloat(document.getElementById('discountValue').value) || 0;
+        const discountType = document.getElementById('discountType').value;
+        let discountAmt = discountType === 'percent' ? (subtotal * discountVal / 100) : discountVal;
+        
+        let feesTotal = currentOtherFees.reduce((sum, f) => sum + f.amount, 0);
+        let total = subtotal - discountAmt + feesTotal;
+        if(total < 0) total = 0;
+
+        document.getElementById('cartSubtotal').textContent = formatMoney(subtotal);
+        document.getElementById('cartDiscount').textContent = `-${formatMoney(discountAmt)}`;
+        document.getElementById('cartFees').textContent = `+${formatMoney(feesTotal)}`;
+        document.getElementById('cartTotal').textContent = formatMoney(total);
+    }
+
+    window.removeFromCart = (idx) => {
+        cart.splice(idx, 1);
+        renderCart();
+    };
+
+    window.addFee = () => {
+        const name = document.getElementById('newFeeName').value.trim();
+        const amt = parseFloat(document.getElementById('newFeeAmount').value);
+        if(!name || isNaN(amt)) return showToast("Invalid Fee", "error");
+        currentOtherFees.push({ name, amount: amt });
+        document.getElementById('newFeeName').value = '';
+        document.getElementById('newFeeAmount').value = '';
+        renderFees();
+        renderCart();
+    };
+
+    function renderFees() {
+        const list = document.getElementById('feeList');
+        list.innerHTML = currentOtherFees.map((f, i) => `
+            <div style="display:flex; justify-content:space-between; font-size:12px; background:#eee; padding:4px 8px; margin-bottom:4px; border-radius:4px;">
+                <span>${f.name}</span>
+                <span>${formatMoney(f.amount)} <i class="ri-close-circle-fill" style="cursor:pointer; margin-left:5px;" onclick="removeFee(${i})"></i></span>
+            </div>
+        `).join('');
+    }
+
+    window.removeFee = (idx) => {
+        currentOtherFees.splice(idx, 1);
+        renderFees();
+        renderCart();
+    };
+
+    window.checkout = async () => {
+        if(!cart.length) return showToast("Cart is empty!", "error");
+        
+        const custName = document.getElementById('posCustName').value.trim();
+        const custPhone = document.getElementById('posCustPhone').value.trim();
+        const custAddr = document.getElementById('posCustAddr').value.trim();
+        const paymentMethod = document.getElementById('posPaymentMethod').value;
+        const discountType = document.getElementById('discountType').value;
+        const discountVal = parseFloat(document.getElementById('discountValue').value) || 0;
+        
+        if(!custName || !custPhone) return showToast("Customer Name & Phone Required", "error");
+        if(paymentMethod === "Pay Later" && !custAddr) return showToast("Address Required for Pay Later", "error");
+
+        toggleLoader(true);
+        try {
+            // Generate Custom ID first
+            const customId = await generateDailyOrderId();
+
+            let subtotal = cart.reduce((a,b)=>a+(b.sell*b.qty),0);
+            let discountAmt = discountType === 'percent' ? (subtotal * discountVal / 100) : discountVal;
+            let feesTotal = currentOtherFees.reduce((sum, f) => sum + f.amount, 0);
+            let total = subtotal - discountAmt + feesTotal;
+
+            const saleData = {
+                customId, // Save human readable ID
+                date: new Date().toISOString(),
+                subtotal, discountType, discountValue: discountVal, discountAmt, fees: currentOtherFees, feesTotal, total,
+                items: cart,
+                customer: { name: custName, phone: custPhone, address: custAddr },
+                paymentMethod, notes: []
+            };
+
+            const docRef = await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/sales`), saleData);
+            
+            // Update Inventory & Log
+            for(let item of cart) {
+                 const ref = doc(db, `users/${currentUser.uid}/shops/${currentShopId}/products`, item.id);
+                 const original = productsCache.find(x => x.id === item.id);
+                 const newQty = original.qty - item.qty;
+                 
+                 await updateDoc(ref, { qty: newQty });
+                 await logInventory(item.name, 'SALE', `Order #${customId}`, -item.qty, newQty, original.batchNumber || 1, original.qty);
+            }
+
+            // PDF uses customId now
+            generateInvoicePDF({...saleData, id: docRef.id}); 
+
+            cart = []; currentOtherFees = [];
+            document.getElementById('posCustName').value = '';
+            document.getElementById('posCustPhone').value = '';
+            document.getElementById('posCustAddr').value = '';
+            document.getElementById('discountValue').value = '';
+            renderCart(); renderFees();
+            
+            await loadProducts();
+            updateDashboard();
+            showToast("Sale Completed! ID: " + customId, "success");
+
+        } catch (e) {
+            console.error(e);
+            showToast("Error processing sale", "error");
+        } finally {
+            toggleLoader(false);
+        }
+    };
+
+    // --- SEARCH ORDER LOGIC ---
+    window.searchOrder = async () => {
+        const input = document.getElementById('orderSearchInput').value.trim();
+        if(!input) return showToast("Enter Order ID", "error");
+        
+        toggleLoader(true);
+        // Search by customId
+        const q = query(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/sales`), where('customId', '==', input));
+        const snap = await getDocs(q);
+        
+        if(snap.empty) {
+            showToast("Order not found", "error");
+            toggleLoader(false);
+            return;
+        }
+        
+        const orderDoc = snap.docs[0];
+        const order = { id: orderDoc.id, ...orderDoc.data() };
+        
+        // Fetch related refunds
+        const refQ = query(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/refunds`), where('orderRefId', '==', order.customId));
+        const refSnap = await getDocs(refQ);
+        const refunds = [];
+        refSnap.forEach(d => refunds.push(d.data()));
+
+        displayOrderDetails(order, refunds);
+        toggleLoader(false);
+    };
+
+    function displayOrderDetails(order, refunds) {
+        const modal = document.getElementById('orderDetailsModal');
+        const content = document.getElementById('odModalContent');
+        
+        let itemsHtml = order.items.map(i => `
+            <tr>
+                <td>${i.name}</td>
+                <td>${i.qty}</td>
+                <td>${formatMoney(i.sell)}</td>
+                <td>${formatMoney(i.sell * i.qty)}</td>
+            </tr>
+        `).join('');
+
+        let refundHtml = '';
+        if(refunds.length > 0) {
+            refundHtml = `<div class="note-box" style="background:#fee2e2; border-color:#f87171; color:#b91c1c;">
+                <strong><i class="ri-alarm-warning-fill"></i> Refund History:</strong><br>
+                ${refunds.map(r => `• ${r.date.split('T')[0]}: ${r.qty}x ${r.productName} (${r.reason})`).join('<br>')}
+            </div>`;
+        }
+
+        content.innerHTML = `
+            <div style="margin-bottom:15px; display:flex; justify-content:space-between;">
+                <div>
+                    <div style="font-size:18px; font-weight:700;">${order.customId || order.id}</div>
+                    <div style="color:#666; font-size:12px;">${new Date(order.date).toLocaleString()}</div>
+                </div>
+                <div style="text-align:right;">
+                    <div style="font-weight:700;">${order.customer.name}</div>
+                    <div style="font-size:12px;">${order.customer.phone}</div>
+                </div>
+            </div>
+            
+            ${refundHtml}
+
+            <table style="margin-bottom:15px;">
+                <thead style="background:#f3f4f6;"><tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead>
+                <tbody>${itemsHtml}</tbody>
+            </table>
+
+            <div style="text-align:right; font-size:14px;">
+                <div>Subtotal: ${formatMoney(order.subtotal)}</div>
+                ${order.discountAmt ? `<div>Discount: -${formatMoney(order.discountAmt)}</div>` : ''}
+                <div style="font-weight:700; font-size:16px; margin-top:5px;">Total: ${formatMoney(order.total)}</div>
+                <div style="font-size:12px; color:#666; margin-top:5px;">Paid via ${order.paymentMethod}</div>
+            </div>
+        `;
+        modal.style.display = 'flex';
+    }
+
+    // --- REFUNDS TAB LOGIC UPDATE ---
+    
+    window.findOrderForRefund = async () => {
+        const orderId = document.getElementById('refundOrderSearch').value.trim();
+        if(!orderId) return showToast("Enter Order ID", "error");
+        
+        toggleLoader(true);
+        const q = query(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/sales`), where('customId', '==', orderId));
+        const snap = await getDocs(q);
+        
+        if(snap.empty) {
+            showToast("Order not found", "error");
+            document.getElementById('refundStep2').style.display = 'none';
+        } else {
+            selectedRefundOrder = { id: snap.docs[0].id, ...snap.docs[0].data() };
+            
+            // Populate Items Select
+            const sel = document.getElementById('refundItemSelect');
+            sel.innerHTML = '<option value="">-- Select Item --</option>';
+            selectedRefundOrder.items.forEach((item, idx) => {
+                sel.innerHTML += `<option value="${idx}" data-price="${item.sell}" data-qty="${item.qty}">${item.name} (Qty: ${item.qty})</option>`;
+            });
+            
+            document.getElementById('refundStep2').style.display = 'block';
+        }
+        toggleLoader(false);
+    };
+
+    window.fillRefundAmount = () => {
+        const sel = document.getElementById('refundItemSelect');
+        const opt = sel.options[sel.selectedIndex];
+        if(!opt.value && opt.value !== "0") return;
+        
+        const price = parseFloat(opt.dataset.price);
+        const maxQty = parseFloat(opt.dataset.qty);
+        
+        document.getElementById('refundMaxQty').textContent = maxQty;
+        document.getElementById('refundQty').value = 1;
+        document.getElementById('refundAmount').value = price.toFixed(2);
+    };
+
+    window.saveRefund = async () => {
+        if(!selectedRefundOrder) return;
+        
+        const itemIdx = document.getElementById('refundItemSelect').value;
+        if(itemIdx === "") return showToast("Select an item", "error");
+        
+        const item = selectedRefundOrder.items[itemIdx];
+        const reason = document.getElementById('refundReason').value;
+        const qty = parseFloat(document.getElementById('refundQty').value);
+        const amount = parseFloat(document.getElementById('refundAmount').value);
+        const restock = document.getElementById('refundRestock').checked;
+
+        if(qty <= 0 || qty > item.qty) return showToast("Invalid Quantity", "error");
+
+        toggleLoader(true);
+        try {
+            // 1. Save Refund
+            await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/refunds`), {
+                orderRefId: selectedRefundOrder.customId,
+                productName: item.name, 
+                reason, qty, amount, restock, 
+                date: new Date().toISOString()
+            });
+
+            // 2. Restock Logic
+            if(restock) {
+                // Find max batch
+                const sameProds = productsCache.filter(p => p.name === item.name);
+                const maxBatch = sameProds.reduce((max, p) => (p.batchNumber > max ? p.batchNumber : max), 0);
+                
+                await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/products`), {
+                    name: item.name,
+                    sku: item.sku || "",
+                    image: item.image || null,
+                    categoryId: item.categoryId || null,
+                    qty: qty,
+                    buy: 0,
+                    sell: item.sell,
+                    unit: item.unit || '',
+                    dateAdded: new Date().toISOString(),
+                    batchNumber: maxBatch + 1,
+                    isRefund: true
+                });
+                
+                await logInventory(item.name, 'REFUND', `Return from Order #${selectedRefundOrder.customId}`, qty, qty, maxBatch+1, 0);
+            }
+
+            showToast("Refund Processed");
+            // Reset
+            document.getElementById('refundStep2').style.display = 'none';
+            document.getElementById('refundOrderSearch').value = '';
+            selectedRefundOrder = null;
+            await loadProducts();
+
+        } catch(e) {
+            console.error(e);
+            showToast("Error processing refund", "error");
+        } finally {
+            toggleLoader(false);
+        }
+    };
+
     window.updateDashboard = () => {
         document.getElementById('dashLow').textContent = productsCache.filter(p => p.qty < 5).length;
         document.getElementById('dashEmp').textContent = document.querySelectorAll('#empGrid .card').length;
@@ -2541,332 +3958,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         });
     };
 
-    // --- IMPLEMENTATION OF MISSING FUNCTIONS TO PREVENT ERRORS ---
-
-    // 1. EMPLOYEES
-    window.loadEmployees = async () => {
-        const grid = document.getElementById('empGrid');
-        const sel1 = document.getElementById('payEmpSelect');
-        const sel2 = document.getElementById('calcEmpSelect');
-        const q = collection(db, `users/${currentUser.uid}/shops/${currentShopId}/employees`);
-        const snap = await getDocs(q);
-        
-        let html = '';
-        let opts = '';
-        snap.forEach(d => {
-            const emp = d.data();
-            html += `<div class="card">
-                <h4>${emp.name}</h4>
-                <div style="font-size:12px; color:#666;">${emp.role}</div>
-                <div style="margin-top:5px; font-weight:600;">Salary: ${formatMoney(emp.salary)}</div>
-                <button class="btn btn-danger btn-ghost" style="margin-top:10px;" onclick="deleteEmployee('${d.id}')">Remove</button>
-            </div>`;
-            opts += `<option value="${d.id}" data-salary="${emp.salary}">${emp.name}</option>`;
-        });
-        grid.innerHTML = html || '<div style="color:#666;">No employees added yet.</div>';
-        if(sel1) sel1.innerHTML = opts;
-        if(sel2) sel2.innerHTML = opts;
-    };
-
-    window.saveEmployee = async () => {
-        const name = document.getElementById('meName').value;
-        const role = document.getElementById('meRole').value;
-        const salary = document.getElementById('meSalary').value;
-        if(!name || !salary) return showToast("Name and Salary required", "error");
-        
-        toggleLoader(true);
-        await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/employees`), { name, role, salary: parseFloat(salary) });
-        document.getElementById('empModal').style.display = 'none';
-        await loadEmployees();
-        toggleLoader(false);
-        showToast("Employee added");
-    };
-
-    window.deleteEmployee = async (id) => {
-        if(!confirm("Remove employee?")) return;
-        await deleteDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/employees`, id));
-        loadEmployees();
-    };
-
-    // 2. ORDERS
-    window.loadOrders = async () => {
-        const tbody = document.querySelector('#ordersTable tbody');
-        tbody.innerHTML = '<tr><td colspan="7">Loading...</td></tr>';
-        
-        // Use salesCache populated in refreshData
-        const orders = salesCache; 
-        
-        if(orders.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7">No orders found.</td></tr>';
-            return;
-        }
-
-        tbody.innerHTML = orders.map(o => `
-            <tr>
-                <td>${o.customId || o.id}</td>
-                <td>${new Date(o.date).toLocaleDateString()}</td>
-                <td>${o.customer?.name || 'Guest'}</td>
-                <td>${o.paymentMethod}</td>
-                <td>${formatMoney(o.total)}</td>
-                <td><span style="background:#dcfce7; color:#166534; padding:2px 6px; border-radius:4px; font-size:11px;">Paid</span></td>
-                <td>
-                    <button class="btn btn-ghost" onclick="searchOrderFromList('${o.customId || o.id}')">View</button>
-                </td>
-            </tr>
-        `).join('');
-    };
-    
-    // Helper for "View" button in table
-    window.searchOrderFromList = (id) => {
-        document.getElementById('orderSearchInput').value = id;
-        searchOrder();
-    }
-
-    // 3. ALERTS
-    window.loadAlerts = async () => {
-        const q = query(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/alerts`), orderBy('targetDate', 'asc'));
-        const snap = await getDocs(q);
-        const alerts = [];
-        const now = new Date();
-        let hasActive = false;
-        
-        snap.forEach(d => {
-            const a = {id: d.id, ...d.data()};
-            alerts.push(a);
-            if(!a.dismissed && new Date(a.targetDate) <= now) {
-                hasActive = true;
-                document.getElementById('dashboardAlertMsg').textContent = a.message;
-            }
-        });
-        
-        document.getElementById('alertBadge').style.display = hasActive ? 'block' : 'none';
-        if(hasActive) document.getElementById('dashboardAlertPopup').style.display = 'block';
-        
-        // Store for render
-        window.alertsCache = alerts;
-    };
-
-    window.renderAlertsTable = () => {
-        const tbody = document.querySelector('#alertsTable tbody');
-        if(!window.alertsCache || window.alertsCache.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6">No alerts set.</td></tr>';
-            return;
-        }
-        tbody.innerHTML = window.alertsCache.map(a => `
-            <tr style="${a.dismissed ? 'opacity:0.5' : ''}">
-                <td>${new Date(a.targetDate).toLocaleString()}</td>
-                <td>${a.frequency}</td>
-                <td>${a.message}</td>
-                <td>${a.orderId || '-'}</td>
-                <td>${a.dismissed ? 'Done' : 'Pending'}</td>
-                <td>
-                    <button class="btn btn-danger" onclick="deleteAlert('${a.id}')">Del</button>
-                    ${!a.dismissed ? `<button class="btn btn-primary" onclick="dismissAlert('${a.id}')">Check</button>` : ''}
-                </td>
-            </tr>
-        `).join('');
-    };
-
-    window.saveAlert = async () => {
-        const msg = document.getElementById('alertMsg').value;
-        const dateVal = document.getElementById('alertDate').value;
-        const freq = document.getElementById('alertFreq').value;
-        
-        if(!msg || !dateVal) return showToast("Message and Date required", "error");
-        
-        toggleLoader(true);
-        await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/alerts`), {
-            message: msg,
-            targetDate: dateVal,
-            frequency: freq,
-            created: new Date().toISOString(),
-            dismissed: false
-        });
-        document.getElementById('createAlertModal').style.display = 'none';
-        await loadAlerts();
-        if(document.getElementById('view-alerts').classList.contains('active')) renderAlertsTable();
-        toggleLoader(false);
-        showToast("Alert Created");
-    };
-
-    window.deleteAlert = async (id) => {
-        await deleteDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/alerts`, id));
-        loadAlerts().then(() => renderAlertsTable());
-    };
-    
-    window.dismissAlert = async (id) => {
-        await updateDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/alerts`, id), { dismissed: true });
-        loadAlerts().then(() => renderAlertsTable());
-    }
-
-    // 4. CUSTOMERS
-    window.loadCustomers = async () => {
-        const q = collection(db, `users/${currentUser.uid}/shops/${currentShopId}/customers`);
-        const snap = await getDocs(q);
-        customersCache = [];
-        snap.forEach(d => customersCache.push({id: d.id, ...d.data()}));
-        
-        // Render if view is active
-        if(document.getElementById('view-customers').classList.contains('active')) {
-            filterCustomers();
-        }
-    };
-
-    window.filterCustomers = () => {
-        const term = document.getElementById('custSearch').value.toLowerCase();
-        const grid = document.getElementById('customerGrid');
-        const filtered = customersCache.filter(c => c.name.toLowerCase().includes(term) || c.phone.includes(term));
-        
-        grid.innerHTML = filtered.map(c => `
-            <div class="card">
-                <h4>${c.name}</h4>
-                <div style="color:#666; font-size:12px; margin-bottom:5px;">${c.phone}</div>
-                <div style="font-size:12px;">${c.address || ''}</div>
-                <div style="margin-top:10px;">
-                    <button class="btn btn-warning" onclick="openCustNote('${c.id}')">Notes</button>
-                    ${c.whatsapp ? `<button class="btn btn-success" onclick="window.open('https://wa.me/${c.whatsapp}')"><i class="ri-whatsapp-line"></i></button>` : ''}
-                </div>
-            </div>
-        `).join('');
-    };
-
-    window.saveCustomer = async () => {
-        const name = document.getElementById('custName').value;
-        const phone = document.getElementById('custPhone').value;
-        const wa = document.getElementById('custWhatsapp').value;
-        const email = document.getElementById('custEmail').value;
-        const addr = document.getElementById('custAddress').value;
-
-        if(!name || !phone) return showToast("Name and Phone required", "error");
-
-        toggleLoader(true);
-        // Use phone as ID to prevent duplicates
-        await setDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/customers`, phone), {
-            name, phone, whatsapp: wa, email, address: addr
-        });
-        document.getElementById('customerModal').style.display = 'none';
-        await loadCustomers();
-        toggleLoader(false);
-        showToast("Customer Saved");
-    };
-
-    // 5. DOCUMENTS (Invoice/Quote)
-    window.loadDocumentsHistory = async () => {
-        // Mock implementation or fetch from a 'documents' collection if you create one
-        // For now, let's just show a placeholder or local array if you want persistent history
-        const list = document.getElementById('docHistoryList');
-        list.innerHTML = '<div style="font-size:12px; color:#666;">Generated documents will appear here. (Storage not implemented in this demo)</div>';
-    };
-
-    window.toggleDocType = () => {
-        // Just UI logic if needed
-    };
-
-    window.addDocRow = () => {
-        const tbody = document.getElementById('docItemsBody');
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td><input class="doc-item" placeholder="Item Name"></td>
-            <td><input type="number" class="doc-qty" value="1" style="width:60px;" onkeyup="calcDocTotals()"></td>
-            <td><input type="number" class="doc-price" value="0" style="width:80px;" onkeyup="calcDocTotals()"></td>
-            <td class="doc-row-total">0.00</td>
-            <td><button class="btn btn-danger" onclick="this.closest('tr').remove(); calcDocTotals()">X</button></td>
-        `;
-        tbody.appendChild(tr);
-    };
-
-    window.calcDocTotals = () => {
-        let sub = 0;
-        document.querySelectorAll('#docItemsBody tr').forEach(tr => {
-            const qty = parseFloat(tr.querySelector('.doc-qty').value) || 0;
-            const price = parseFloat(tr.querySelector('.doc-price').value) || 0;
-            const total = qty * price;
-            tr.querySelector('.doc-row-total').textContent = total.toFixed(2);
-            sub += total;
-        });
-        
-        const disc = parseFloat(document.getElementById('docDiscount').value) || 0;
-        const tax = parseFloat(document.getElementById('docTax').value) || 0;
-        
-        // Assuming discount is amount, tax is percent
-        const taxAmt = (sub - disc) * (tax / 100);
-        const total = (sub - disc) + taxAmt;
-
-        document.getElementById('docSubtotal').textContent = sub.toFixed(2);
-        document.getElementById('docTotal').textContent = total.toFixed(2);
-    };
-
-    window.saveDocument = () => {
-        // Collect data
-        const type = document.getElementById('docTypeToggle').value;
-        const id = document.getElementById('docId').value || 'DRAFT';
-        const date = document.getElementById('docDate').value;
-        const customer = document.getElementById('docCustName').value;
-        const items = [];
-        document.querySelectorAll('#docItemsBody tr').forEach(tr => {
-            items.push({
-                name: tr.querySelector('.doc-item').value,
-                qty: tr.querySelector('.doc-qty').value,
-                price: tr.querySelector('.doc-price').value
-            });
-        });
-        
-        // Basic PDF Generation
-        generateInvoicePDF({
-            customId: id,
-            date: date,
-            customer: { name: customer, address: document.getElementById('docCustAddr').value },
-            items: items,
-            subtotal: parseFloat(document.getElementById('docSubtotal').textContent),
-            total: parseFloat(document.getElementById('docTotal').textContent),
-            paymentMethod: type.toUpperCase() // Just as a label
-        });
-        
-        showToast("PDF Generated");
-    };
-
-    // --- PDF GENERATOR ---
-    window.generateInvoicePDF = async (saleData) => {
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        
-        // Header
-        doc.setFontSize(18);
-        doc.text(profileCache?.ownerName || "Business Name", 14, 20);
-        doc.setFontSize(10);
-        doc.text(profileCache?.address || "", 14, 26);
-        doc.text(`Phone: ${profileCache?.phone1 || ""}`, 14, 32);
-
-        // Invoice Info
-        doc.setFontSize(14);
-        doc.text("INVOICE", 150, 20);
-        doc.setFontSize(10);
-        doc.text(`ID: ${saleData.customId || saleData.id}`, 150, 26);
-        doc.text(`Date: ${new Date(saleData.date).toLocaleDateString()}`, 150, 32);
-
-        // Customer
-        doc.text(`Bill To: ${saleData.customer.name}`, 14, 45);
-        
-        // Table
-        const tableBody = saleData.items.map(item => [
-            item.name,
-            item.qty,
-            formatMoney(item.sell || item.price || 0),
-            formatMoney((item.sell || item.price || 0) * item.qty)
-        ]);
-
-        doc.autoTable({
-            startY: 55,
-            head: [['Item', 'Qty', 'Price', 'Total']],
-            body: tableBody,
-        });
-
-        const finalY = doc.lastAutoTable.finalY + 10;
-        doc.text(`Total: ${formatMoney(saleData.total)}`, 150, finalY);
-
-        doc.save(`Invoice_${saleData.customId || 'Draft'}.pdf`);
-    };
-
     window.toggleChat = () => {
         const w = document.getElementById('supportChat');
         w.style.display = w.style.display === 'flex' ? 'none' : 'flex';
@@ -2901,6 +3992,1362 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
             content.scrollTop = content.scrollHeight;
         }, 500);
     };
+	// --- PDF GENERATOR (Fixes POS Crash) ---
+window.generateInvoicePDF = (data) => {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    
+    // Header
+    doc.setFontSize(16);
+    doc.text(profileCache?.ownerName || "Sales Receipt", pageWidth / 2, 15, { align: 'center' });
+    doc.setFontSize(10);
+    doc.text(profileCache?.address || "", pageWidth / 2, 22, { align: 'center' });
+    doc.text(`Tel: ${profileCache?.phone1 || ""}`, pageWidth / 2, 27, { align: 'center' });
+    
+    doc.line(10, 30, pageWidth - 10, 30);
+    
+    // Details
+    doc.setFontSize(10);
+    doc.text(`Order ID: ${data.customId || data.id}`, 14, 40);
+    doc.text(`Date: ${new Date(data.date).toLocaleString()}`, 14, 45);
+    doc.text(`Customer: ${data.customer.name}`, 14, 50);
+    
+    // Table
+    const tableRows = data.items.map(item => [
+        item.name,
+        item.qty.toString(),
+        formatMoney(item.sell),
+        formatMoney(item.qty * item.sell)
+    ]);
+
+    doc.autoTable({
+        startY: 55,
+        head: [['Item', 'Qty', 'Price', 'Total']],
+        body: tableRows,
+        theme: 'plain',
+        styles: { fontSize: 9 },
+        headStyles: { fillColor: [240, 240, 240] }
+    });
+
+    // Totals
+    let finalY = doc.lastAutoTable.finalY + 10;
+    
+    doc.text(`Subtotal: ${formatMoney(data.subtotal)}`, 140, finalY);
+    if(data.discountAmt > 0) {
+        finalY += 5;
+        doc.text(`Discount: -${formatMoney(data.discountAmt)}`, 140, finalY);
+    }
+    if(data.feesTotal > 0) {
+        finalY += 5;
+        doc.text(`Fees: +${formatMoney(data.feesTotal)}`, 140, finalY);
+    }
+    
+    finalY += 8;
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text(`Total: ${formatMoney(data.total)}`, 140, finalY);
+    
+    // Footer
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.text("Thank you for your business!", pageWidth / 2, finalY + 20, { align: 'center' });
+    
+    // Save/Open
+    doc.save(`Invoice_${data.customId || "New"}.pdf`);
+};
+// --- DOCUMENTS TAB LOGIC ---
+window.toggleDocType = () => {
+    const type = document.getElementById('docTypeToggle').value;
+    document.getElementById('docId').placeholder = type === 'invoice' ? "INV-001" : "QTN-001";
+};
+
+window.addDocRow = () => {
+    const tbody = document.getElementById('docItemsBody');
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+        <td><input class="doc-item-name" placeholder="Item Name"></td>
+        <td><input type="number" class="doc-item-qty" value="1" style="width:60px" onkeyup="calcDocTotals()" onchange="calcDocTotals()"></td>
+        <td><input type="number" class="doc-item-price" value="0" style="width:100px" onkeyup="calcDocTotals()" onchange="calcDocTotals()"></td>
+        <td class="doc-item-total">0.00</td>
+        <td><i class="ri-delete-bin-line" onclick="this.closest('tr').remove(); calcDocTotals()" style="cursor:pointer; color:red;"></i></td>
+    `;
+    tbody.appendChild(tr);
+};
+
+window.calcDocTotals = () => {
+    let sub = 0;
+    document.querySelectorAll('#docItemsBody tr').forEach(tr => {
+        const qty = parseFloat(tr.querySelector('.doc-item-qty').value) || 0;
+        const price = parseFloat(tr.querySelector('.doc-item-price').value) || 0;
+        const total = qty * price;
+        tr.querySelector('.doc-item-total').textContent = total.toFixed(2);
+        sub += total;
+    });
+    
+    const disc = parseFloat(document.getElementById('docDiscount').value) || 0;
+    const taxPerc = parseFloat(document.getElementById('docTax').value) || 0;
+    
+    document.getElementById('docSubtotal').textContent = sub.toFixed(2);
+    
+    const total = (sub - disc) + ((sub - disc) * (taxPerc / 100));
+    document.getElementById('docTotal').textContent = total.toFixed(2);
+};
+
+window.saveDocument = () => {
+    const type = document.getElementById('docTypeToggle').value;
+    // Check if stock deduction is needed
+    if(type === 'invoice') {
+        document.getElementById('docStockWarningModal').style.display = 'flex';
+    } else {
+        confirmSaveDocument(false); // Quotations don't deduct stock
+    }
+};
+
+window.confirmSaveDocument = async (deductStock) => {
+    document.getElementById('docStockWarningModal').style.display = 'none';
+    toggleLoader(true);
+    
+    // Gather Data
+    const items = [];
+    document.querySelectorAll('#docItemsBody tr').forEach(tr => {
+        items.push({
+            name: tr.querySelector('.doc-item-name').value,
+            qty: parseFloat(tr.querySelector('.doc-item-qty').value),
+            sell: parseFloat(tr.querySelector('.doc-item-price').value)
+        });
+    });
+
+    const docData = {
+        type: document.getElementById('docTypeToggle').value,
+        docId: document.getElementById('docId').value,
+        date: document.getElementById('docDate').value,
+        customer: {
+            name: document.getElementById('docCustName').value,
+            address: document.getElementById('docCustAddr').value
+        },
+        items: items,
+        subtotal: parseFloat(document.getElementById('docSubtotal').textContent),
+        discount: parseFloat(document.getElementById('docDiscount').value) || 0,
+        total: parseFloat(document.getElementById('docTotal').textContent),
+        created: new Date().toISOString()
+    };
+
+    // Save to Firestore
+    await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/documents`), docData);
+
+    // If Deduct Stock requested
+    if(deductStock) {
+        for(let item of items) {
+             // Try to find matching product by name in cache
+             const p = productsCache.find(x => x.name.toLowerCase() === item.name.toLowerCase() && x.qty > 0);
+             if(p) {
+                 const newQty = p.qty - item.qty;
+                 await updateDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/products`, p.id), { qty: newQty });
+                 await logInventory(item.name, 'INVOICE', `Doc #${docData.docId}`, -item.qty, newQty, p.batchNumber, p.qty);
+             }
+        }
+        await loadProducts();
+    }
+
+    // Generate PDF
+    window.generateInvoicePDF({
+        customId: docData.docId,
+        date: docData.date,
+        customer: docData.customer,
+        items: items,
+        subtotal: docData.subtotal,
+        discountAmt: docData.discount,
+        feesTotal: 0,
+        total: docData.total
+    });
+
+    toggleLoader(false);
+    showToast("Document Saved & Generated");
+    loadDocumentsHistory();
+};
+
+window.loadDocumentsHistory = async () => {
+    const list = document.getElementById('docHistoryList');
+    list.innerHTML = 'Loading...';
+    const snap = await getDocs(query(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/documents`), orderBy('created', 'desc')));
+    
+    if(snap.empty) { list.innerHTML = 'No history.'; return; }
+    
+    list.innerHTML = '';
+    snap.forEach(d => {
+        const data = d.data();
+        const el = document.createElement('div');
+        el.style.cssText = "padding:10px; border-bottom:1px solid #eee; font-size:13px; cursor:pointer;";
+        el.innerHTML = `
+            <div style="font-weight:700;">${data.type.toUpperCase()} #${data.docId}</div>
+            <div style="display:flex; justify-content:space-between; color:#666;">
+                <span>${data.customer.name}</span>
+                <span>${formatMoney(data.total)}</span>
+            </div>
+        `;
+        el.onclick = () => window.generateInvoicePDF({...data, customId: data.docId, discountAmt: data.discount, feesTotal: 0});
+        list.appendChild(el);
+    });
+};
+// --- EMPLOYEES & PAYROLL LOGIC ---
+window.loadEmployees = async () => {
+    const grid = document.getElementById('empGrid');
+    if(!grid) return; // Guard clause
+    grid.innerHTML = 'Loading...';
+    const snap = await getDocs(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/employees`));
+    grid.innerHTML = '';
+    
+    const empSelect = document.getElementById('payEmpSelect');
+    const calcSelect = document.getElementById('calcEmpSelect');
+    if(empSelect) empSelect.innerHTML = '';
+    if(calcSelect) calcSelect.innerHTML = '';
+
+    snap.forEach(d => {
+        const e = {id: d.id, ...d.data()};
+        
+        // Populate Grid
+        grid.innerHTML += `
+        <div class="card">
+            <div style="font-weight:700;">${e.name}</div>
+            <div style="font-size:12px; color:#666;">${e.role}</div>
+            <div style="margin-top:5px;">Base: ${formatMoney(e.salary)}</div>
+            <button class="btn btn-danger" style="margin-top:10px; font-size:11px;" onclick="deleteEmployee('${e.id}')">Remove</button>
+        </div>`;
+
+        // Populate Payroll Dropdowns
+        const opt = `<option value="${e.id}" data-salary="${e.salary}">${e.name}</option>`;
+        if(empSelect) empSelect.innerHTML += opt;
+        if(calcSelect) calcSelect.innerHTML += opt;
+    });
+    
+    if(snap.empty) grid.innerHTML = '<div style="color:#888;">No employees found.</div>';
+};
+
+window.saveEmployee = async () => {
+    const name = document.getElementById('meName').value;
+    const role = document.getElementById('meRole').value;
+    const salary = parseFloat(document.getElementById('meSalary').value);
+    
+    if(!name || !salary) return showToast("Name and Salary required", "error");
+    
+    toggleLoader(true);
+    await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/employees`), {name, role, salary});
+    document.getElementById('empModal').style.display = 'none';
+    await loadEmployees();
+    toggleLoader(false);
+};
+
+window.deleteEmployee = async (id) => {
+    if(!confirm("Remove employee?")) return;
+    toggleLoader(true);
+    await deleteDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/employees`, id));
+    await loadEmployees();
+    toggleLoader(false);
+};
+
+window.saveDailyLog = async () => {
+    const empId = document.getElementById('payEmpSelect').value;
+    const date = document.getElementById('payDate').value;
+    const status = document.getElementById('payStatus').value;
+    const ot = parseFloat(document.getElementById('payOT').value) || 0;
+    const adv = parseFloat(document.getElementById('payAdv').value) || 0;
+
+    if(!empId || !date) return showToast("Select Employee and Date", "error");
+
+    toggleLoader(true);
+    // Use date as ID to prevent duplicates per employee
+    const logId = `${empId}_${date}`; 
+    await setDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/payroll_logs`, logId), {
+        empId, date, status, ot, adv
+    });
+    toggleLoader(false);
+    showToast("Log Saved");
+};
+
+window.calculateSalary = async () => {
+    const empId = document.getElementById('calcEmpSelect').value;
+    const month = parseInt(document.getElementById('calcMonth').value); // 0-11
+    const year = new Date().getFullYear(); // Assume current year for simplicity
+    
+    if(!empId) return;
+    
+    toggleLoader(true);
+    
+    // Get Base Salary
+    const sel = document.getElementById('calcEmpSelect');
+    const baseSalary = parseFloat(sel.options[sel.selectedIndex].dataset.salary);
+    
+    // Get Logs
+    const start = new Date(year, month, 1).toISOString().split('T')[0];
+    const end = new Date(year, month + 1, 0).toISOString().split('T')[0];
+    
+    const q = query(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/payroll_logs`), 
+        where('empId', '==', empId), 
+        where('date', '>=', start), 
+        where('date', '<=', end)
+    );
+    const snap = await getDocs(q);
+    
+    let totalAdvance = 0;
+    let totalOTHours = 0;
+    let absentDays = 0;
+    
+    snap.forEach(d => {
+        const log = d.data();
+        totalAdvance += log.adv;
+        totalOTHours += log.ot;
+        if(log.status === 'LWP') absentDays++;
+    });
+
+    // Simple Calculation: 30 Day Standard
+    const perDay = baseSalary / 30;
+    const otRate = (baseSalary / 200); // Approx hourly rate
+    const otPay = totalOTHours * otRate;
+    const deduction = absentDays * perDay;
+    const final = baseSalary - deduction + otPay - totalAdvance;
+
+    const slip = document.getElementById('salarySlip');
+    slip.style.display = 'block';
+    slip.innerHTML = `
+        <h4>Salary Slip (Month: ${month+1})</h4>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; font-size:13px; margin-top:10px;">
+            <div>Base Salary:</div><div style="text-align:right">${formatMoney(baseSalary)}</div>
+            <div>Absent Deduct (${absentDays} days):</div><div style="text-align:right; color:red;">-${formatMoney(deduction)}</div>
+            <div>OT Pay (${totalOTHours} hrs):</div><div style="text-align:right; color:green;">+${formatMoney(otPay)}</div>
+            <div>Advances:</div><div style="text-align:right; color:red;">-${formatMoney(totalAdvance)}</div>
+            <div style="border-top:1px solid #ccc; padding-top:5px; font-weight:700;">Net Salary:</div>
+            <div style="border-top:1px solid #ccc; padding-top:5px; font-weight:700; text-align:right;">${formatMoney(final)}</div>
+        </div>
+    `;
+    toggleLoader(false);
+};
+// --- CUSTOMER MANAGEMENT ---
+window.loadCustomers = async () => {
+    // Populate Cache for Search
+    const snap = await getDocs(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/customers`));
+    customersCache = [];
+    snap.forEach(d => customersCache.push({id: d.id, ...d.data()}));
+    
+    // Only render grid if view is active
+    const grid = document.getElementById('customerGrid');
+    if(grid && document.getElementById('view-customers').classList.contains('active')) {
+        renderCustomerGrid();
+    }
+    updateCustomerDatalist();
+};
+
+window.renderCustomerGrid = () => {
+    const grid = document.getElementById('customerGrid');
+    const term = document.getElementById('custSearch').value.toLowerCase();
+    
+    const filtered = customersCache.filter(c => 
+        c.name.toLowerCase().includes(term) || c.phone.toString().includes(term)
+    );
+    
+    grid.innerHTML = filtered.map(c => `
+        <div class="card">
+            <div style="font-weight:700;">${c.name}</div>
+            <div style="color:#666; font-size:12px;">${c.phone}</div>
+            <div style="font-size:12px; margin-top:5px;">${c.address || 'No Address'}</div>
+            <div style="margin-top:10px; display:flex; gap:5px;">
+                <button class="btn btn-warning" style="padding:4px;" onclick="openCustNote('${c.id}')"><i class="ri-sticky-note-line"></i> Notes</button>
+            </div>
+        </div>
+    `).join('');
+};
+
+window.filterCustomers = () => renderCustomerGrid();
+
+window.saveCustomer = async () => {
+    const name = document.getElementById('custName').value.trim();
+    const phone = document.getElementById('custPhone').value.trim();
+    const address = document.getElementById('custAddress').value.trim();
+    const whatsapp = document.getElementById('custWhatsapp').value.trim();
+    const email = document.getElementById('custEmail').value.trim();
+
+    if(!name || !phone) return showToast("Name and Phone Required", "error");
+
+    toggleLoader(true);
+    await setDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/customers`, phone), {
+        name, phone, address, whatsapp, email, notes: []
+    });
+    
+    document.getElementById('customerModal').style.display = 'none';
+    await loadCustomers();
+    toggleLoader(false);
+    showToast("Customer Saved");
+};
+
+// Customer Notes
+window.openCustNote = (id) => {
+    const c = customersCache.find(x => x.id === id);
+    document.getElementById('targetCustId').value = id;
+    const history = document.getElementById('custNoteHistory');
+    history.innerHTML = (c.notes || []).map(n => 
+        `<div style="border-bottom:1px solid #eee; padding:4px;">
+            <div style="font-size:10px; color:#999;">${new Date(n.date).toLocaleDateString()}</div>
+            <div>${n.text}</div>
+        </div>`
+    ).join('');
+    document.getElementById('custNoteModal').style.display = 'flex';
+};
+
+window.saveCustomerNote = async () => {
+    const id = document.getElementById('targetCustId').value;
+    const text = document.getElementById('custNoteInput').value;
+    if(!text) return;
+
+    toggleLoader(true);
+    const c = customersCache.find(x => x.id === id);
+    const notes = c.notes || [];
+    notes.push({date: new Date().toISOString(), text});
+    
+    await updateDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/customers`, id), { notes });
+    
+    document.getElementById('custNoteModal').style.display = 'none';
+    document.getElementById('custNoteInput').value = '';
+    await loadCustomers();
+    toggleLoader(false);
+};
+// --- ALERTS LOGIC ---
+window.loadAlerts = async () => {
+    // Actually just loading checks the alerts collection
+    // This function is called by refreshData
+    const q = query(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/alerts`), where('status', '==', 'active'));
+    const snap = await getDocs(q);
+    const count = snap.size;
+    
+    const badge = document.getElementById('alertBadge');
+    if(count > 0) {
+        badge.style.display = 'block';
+        // Show dashboard popup if needed (optional logic here)
+    } else {
+        badge.style.display = 'none';
+    }
+};
+
+window.renderAlertsTable = async () => {
+    const tbody = document.querySelector('#alertsTable tbody');
+    tbody.innerHTML = '<tr><td colspan="6">Loading...</td></tr>';
+    
+    const snap = await getDocs(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/alerts`));
+    const alerts = [];
+    snap.forEach(d => alerts.push({id: d.id, ...d.data()}));
+    
+    if(alerts.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6">No alerts found.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = alerts.map(a => `
+        <tr style="${a.status==='active' && new Date(a.targetDate) < new Date() ? 'background:#fee2e2' : ''}">
+            <td>${new Date(a.targetDate).toLocaleString()}</td>
+            <td>${a.frequency}</td>
+            <td>${a.message}</td>
+            <td>${a.orderId || '-'}</td>
+            <td>${a.status}</td>
+            <td>
+                <button class="btn btn-success" style="padding:2px 6px;" onclick="completeAlert('${a.id}')">Done</button>
+                <button class="btn btn-danger" style="padding:2px 6px;" onclick="deleteAlert('${a.id}')">Del</button>
+            </td>
+        </tr>
+    `).join('');
+};
+
+window.saveAlert = async () => {
+    const msg = document.getElementById('alertMsg').value;
+    const date = document.getElementById('alertDate').value;
+    const freq = document.getElementById('alertFreq').value;
+    const orderId = document.getElementById('alertOrderId').value; // Optional
+
+    if(!msg || !date) return showToast("Message and Date required", "error");
+
+    await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/alerts`), {
+        message: msg,
+        targetDate: date,
+        frequency: freq,
+        orderId: orderId,
+        status: 'active',
+        created: new Date().toISOString()
+    });
+    
+    document.getElementById('createAlertModal').style.display = 'none';
+    showToast("Alert Created");
+    loadAlerts(); // Update badge
+    if(document.getElementById('view-alerts').classList.contains('active')) renderAlertsTable();
+};
+
+window.completeAlert = async (id) => {
+    await updateDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/alerts`, id), { status: 'completed' });
+    renderAlertsTable();
+    loadAlerts();
+};
+
+window.deleteAlert = async (id) => {
+    if(!confirm("Delete alert?")) return;
+    await deleteDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/alerts`, id));
+    renderAlertsTable();
+    loadAlerts();
+};
+
+window.closeDashboardPopup = () => {
+    document.getElementById('dashboardAlertPopup').style.display = 'none';
+};
+// --- MISSING ORDERS TAB LOGIC ---
+
+window.loadOrders = () => {
+    // We use the existing salesCache (loaded in refreshData) to save database reads
+    const tbody = document.querySelector('#ordersTable tbody');
+    if(!salesCache || salesCache.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:15px;">No orders found.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = salesCache.map(s => {
+        const date = new Date(s.date).toLocaleDateString();
+        // Calculate status based on payment or if it was refunded (simplified logic)
+        let status = '<span style="color:green; font-weight:600;">Completed</span>';
+        if(s.paymentMethod === 'Pay Later') status = '<span style="color:orange; font-weight:600;">Credit</span>';
+        
+        return `
+            <tr>
+                <td style="font-family:monospace; font-weight:700;">${s.customId || s.id}</td>
+                <td>${date}</td>
+                <td>
+                    <div>${s.customer.name}</div>
+                    <div style="font-size:11px; color:#666;">${s.customer.phone}</div>
+                </td>
+                <td>${s.paymentMethod}</td>
+                <td style="font-weight:700;">${formatMoney(s.total)}</td>
+                <td>${status}</td>
+                <td>
+                    <button class="btn btn-info" style="padding:4px 8px;" onclick="viewOrder('${s.id}')"><i class="ri-eye-line"></i></button>
+                    <button class="btn btn-warning" style="padding:4px 8px;" onclick="openOrderNoteModal('${s.id}')"><i class="ri-sticky-note-line"></i></button>
+                    <button class="btn btn-ghost" style="padding:4px 8px;" onclick="generateInvoicePDF({id:'${s.id}', customId:'${s.customId}', date:'${s.date}', customer:{name:'${s.customer.name}', phone:'${s.customer.phone}', address:'${s.customer.address}'}, items:[${s.items.map(i=>`{name:'${i.name}', qty:${i.qty}, sell:${i.sell}}`).join(',')}], subtotal:${s.subtotal}, discountAmt:${s.discountAmt||0}, feesTotal:${s.feesTotal||0}, total:${s.total}})"><i class="ri-printer-line"></i></button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+};
+
+window.viewOrder = async (id) => {
+    // Find sale in cache first
+    let sale = salesCache.find(x => x.id === id);
+    if(!sale) return;
+
+    // Check for refunds associated with this order ID
+    toggleLoader(true);
+    const refQ = query(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/refunds`), where('orderRefId', '==', sale.customId));
+    const refSnap = await getDocs(refQ);
+    const refunds = [];
+    refSnap.forEach(d => refunds.push(d.data()));
+    toggleLoader(false);
+
+    displayOrderDetails(sale, refunds);
+};
+
+// --- ORDER NOTES LOGIC ---
+window.openOrderNoteModal = (id) => {
+    document.getElementById('noteOrderId').value = id;
+    
+    // Check if there is an existing note
+    const sale = salesCache.find(x => x.id === id);
+    // Find the latest note if array exists
+    if(sale.notes && sale.notes.length > 0) {
+        document.getElementById('noteInput').value = sale.notes[sale.notes.length - 1].text; 
+    } else {
+        document.getElementById('noteInput').value = '';
+    }
+    
+    openModal('orderNoteModal');
+};
+
+window.saveOrderNote = async () => {
+    const id = document.getElementById('noteOrderId').value;
+    const text = document.getElementById('noteInput').value.trim();
+    if(!text) return;
+
+    toggleLoader(true);
+    // Add note to array in Firestore
+    const saleRef = doc(db, `users/${currentUser.uid}/shops/${currentShopId}/sales`, id);
+    const noteObj = { date: new Date().toISOString(), text };
+    
+    // We get the current document to append safely
+    const docSnap = await getDoc(saleRef);
+    if(docSnap.exists()) {
+        const currentNotes = docSnap.data().notes || [];
+        currentNotes.push(noteObj);
+        await updateDoc(saleRef, { notes: currentNotes });
+    }
+
+    document.getElementById('orderNoteModal').style.display = 'none';
+    await refreshData(); // Reload sales cache to update UI
+    toggleLoader(false);
+    showToast("Note added to Order");
+};
+// --- FIX 1: HELPER FOR PRINTING ORDERS (Prevents Crash) ---
+window.printOrder = (id) => {
+    // Look up the sale in the local cache instead of passing complex data in HTML
+    const sale = salesCache.find(x => x.id === id);
+    if (sale) {
+        // Ensure the data structure matches what generateInvoicePDF expects
+        generateInvoicePDF({
+            id: sale.id,
+            customId: sale.customId,
+            date: sale.date,
+            customer: sale.customer,
+            items: sale.items,
+            subtotal: sale.subtotal,
+            discountAmt: sale.discountAmt || 0,
+            feesTotal: sale.feesTotal || 0,
+            total: sale.total
+        });
+    } else {
+        showToast("Order data not found in cache", "error");
+    }
+};
+
+// --- REPLACEMENT: LOAD ORDERS (Uses the new safe print function) ---
+window.loadOrders = () => {
+    const tbody = document.querySelector('#ordersTable tbody');
+    if(!salesCache || salesCache.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:15px;">No orders found.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = salesCache.map(s => {
+        const date = new Date(s.date).toLocaleDateString();
+        let status = '<span style="color:green; font-weight:600;">Completed</span>';
+        if(s.paymentMethod === 'Pay Later') status = '<span style="color:orange; font-weight:600;">Credit</span>';
+        
+        return `
+            <tr>
+                <td style="font-family:monospace; font-weight:700;">${s.customId || s.id}</td>
+                <td>${date}</td>
+                <td>
+                    <div>${s.customer.name}</div>
+                    <div style="font-size:11px; color:#666;">${s.customer.phone}</div>
+                </td>
+                <td>${s.paymentMethod}</td>
+                <td style="font-weight:700;">${formatMoney(s.total)}</td>
+                <td>${status}</td>
+                <td>
+                    <button class="btn btn-info" style="padding:4px 8px;" onclick="viewOrder('${s.id}')" title="View Details"><i class="ri-eye-line"></i></button>
+                    <button class="btn btn-warning" style="padding:4px 8px;" onclick="openOrderNoteModal('${s.id}')" title="Add Note"><i class="ri-sticky-note-line"></i></button>
+                    <!-- UPDATED: Uses the safe printOrder function -->
+                    <button class="btn btn-ghost" style="padding:4px 8px;" onclick="printOrder('${s.id}')" title="Reprint Invoice"><i class="ri-printer-line"></i></button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+};
+// --- FIX 2: DASHBOARD POPUP LOGIC ---
+window.loadAlerts = async () => {
+    const q = query(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/alerts`), where('status', '==', 'active'));
+    const snap = await getDocs(q);
+    const count = snap.size;
+    
+    // 1. Update Badge
+    const badge = document.getElementById('alertBadge');
+    if(count > 0) {
+        badge.style.display = 'block';
+    } else {
+        badge.style.display = 'none';
+    }
+
+    // 2. Check for "Today" Alerts to show Popup
+    const todayStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    let todayAlert = null;
+
+    snap.forEach(d => {
+        const a = d.data();
+        if(a.targetDate && a.targetDate.startsWith(todayStr)) {
+            todayAlert = a;
+        }
+    });
+
+    if(todayAlert) {
+        document.getElementById('dashboardAlertMsg').textContent = todayAlert.message;
+        document.getElementById('dashboardAlertPopup').style.display = 'block';
+    }
+};
+// --- FIX 3: GLOBAL VARIABLE CLEANUP ---
+// Wrap existing saves to clear image memory
+const originalSaveProfile = window.saveProfile;
+window.saveProfile = async () => {
+    await originalSaveProfile();
+    compressedImageBase64 = null; // Clear after save
+};
+
+const originalSaveBaseProduct = window.saveBaseProduct;
+window.saveBaseProduct = async () => {
+    await originalSaveBaseProduct();
+    compressedImageBase64 = null; // Clear after save
+};
+// --- FIX 1: ROBUST PDF GENERATOR & HISTORY ---
+window.generateInvoicePDF = (data) => {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    
+    // safe values
+    const safeSubtotal = parseFloat(data.subtotal) || 0;
+    const safeDiscount = parseFloat(data.discountAmt || data.discount || 0); // Handle both naming conventions
+    const safeFees = parseFloat(data.feesTotal || 0);
+    const safeTotal = parseFloat(data.total) || 0;
+    const safePhone = data.customer?.phone || ""; 
+
+    // Header
+    doc.setFontSize(16);
+    doc.text(profileCache?.ownerName || "Sales Receipt", pageWidth / 2, 15, { align: 'center' });
+    doc.setFontSize(10);
+    doc.text(profileCache?.address || "", pageWidth / 2, 22, { align: 'center' });
+    doc.text(`Tel: ${profileCache?.phone1 || ""}`, pageWidth / 2, 27, { align: 'center' });
+    
+    doc.line(10, 30, pageWidth - 10, 30);
+    
+    // Details
+    doc.setFontSize(10);
+    doc.text(`Order ID: ${data.customId || data.docId || data.id}`, 14, 40);
+    doc.text(`Date: ${new Date(data.date).toLocaleString()}`, 14, 45);
+    doc.text(`Customer: ${data.customer.name}`, 14, 50);
+    if(safePhone) doc.text(`Phone: ${safePhone}`, 14, 55);
+    
+    // Table
+    const tableRows = data.items.map(item => [
+        item.name,
+        item.qty.toString(),
+        formatMoney(item.sell),
+        formatMoney(item.qty * item.sell)
+    ]);
+
+    doc.autoTable({
+        startY: safePhone ? 60 : 55,
+        head: [['Item', 'Qty', 'Price', 'Total']],
+        body: tableRows,
+        theme: 'plain',
+        styles: { fontSize: 9 },
+        headStyles: { fillColor: [240, 240, 240] }
+    });
+
+    // Totals
+    let finalY = doc.lastAutoTable.finalY + 10;
+    
+    doc.text(`Subtotal: ${formatMoney(safeSubtotal)}`, 140, finalY);
+    if(safeDiscount > 0) {
+        finalY += 5;
+        doc.text(`Discount: -${formatMoney(safeDiscount)}`, 140, finalY);
+    }
+    if(safeFees > 0) {
+        finalY += 5;
+        doc.text(`Fees: +${formatMoney(safeFees)}`, 140, finalY);
+    }
+    
+    finalY += 8;
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text(`Total: ${formatMoney(safeTotal)}`, 140, finalY);
+    
+    // Footer
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.text("Thank you for your business!", pageWidth / 2, finalY + 20, { align: 'center' });
+    
+    // Save/Open
+    doc.save(`Invoice_${data.customId || data.docId || "New"}.pdf`);
+};
+
+window.loadDocumentsHistory = async () => {
+    const list = document.getElementById('docHistoryList');
+    list.innerHTML = 'Loading...';
+    // Fix: Ensure we don't crash if collection is empty
+    try {
+        const snap = await getDocs(query(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/documents`), orderBy('created', 'desc')));
+        
+        if(snap.empty) { list.innerHTML = 'No history.'; return; }
+        
+        list.innerHTML = '';
+        snap.forEach(d => {
+            const data = d.data();
+            const el = document.createElement('div');
+            el.style.cssText = "padding:10px; border-bottom:1px solid #eee; font-size:13px; cursor:pointer;";
+            el.innerHTML = `
+                <div style="font-weight:700;">${data.type ? data.type.toUpperCase() : 'DOC'} #${data.docId}</div>
+                <div style="display:flex; justify-content:space-between; color:#666;">
+                    <span>${data.customer.name}</span>
+                    <span>${formatMoney(data.total)}</span>
+                </div>
+            `;
+            // Fix: Pass data correctly to the new PDF generator
+            el.onclick = () => window.generateInvoicePDF(data);
+            list.appendChild(el);
+        });
+    } catch (e) {
+        console.error(e);
+        list.innerHTML = "Error loading history.";
+    }
+};
+// --- FIX 2: SAFE ORDER PRINTING ---
+window.printOrder = (id) => {
+    const sale = salesCache.find(x => x.id === id);
+    if (sale) {
+        generateInvoicePDF({
+            id: sale.id,
+            customId: sale.customId,
+            date: sale.date,
+            customer: sale.customer,
+            items: sale.items,
+            subtotal: sale.subtotal,
+            discountAmt: sale.discountAmt || 0,
+            feesTotal: sale.feesTotal || 0,
+            total: sale.total
+        });
+    }
+};
+
+window.loadOrders = () => {
+    const tbody = document.querySelector('#ordersTable tbody');
+    if(!salesCache || salesCache.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:15px;">No orders found.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = salesCache.map(s => {
+        const date = new Date(s.date).toLocaleDateString();
+        let status = '<span style="color:green; font-weight:600;">Completed</span>';
+        if(s.paymentMethod === 'Pay Later') status = '<span style="color:orange; font-weight:600;">Credit</span>';
+        
+        return `
+            <tr>
+                <td style="font-family:monospace; font-weight:700;">${s.customId || s.id}</td>
+                <td>${date}</td>
+                <td>
+                    <div>${s.customer.name}</div>
+                    <div style="font-size:11px; color:#666;">${s.customer.phone}</div>
+                </td>
+                <td>${s.paymentMethod}</td>
+                <td style="font-weight:700;">${formatMoney(s.total)}</td>
+                <td>${status}</td>
+                <td>
+                    <button class="btn btn-info" style="padding:4px 8px;" onclick="viewOrder('${s.id}')" title="View"><i class="ri-eye-line"></i></button>
+                    <button class="btn btn-warning" style="padding:4px 8px;" onclick="openOrderNoteModal('${s.id}')" title="Note"><i class="ri-sticky-note-line"></i></button>
+                    <!-- Fixed: Uses printOrder function -->
+                    <button class="btn btn-ghost" style="padding:4px 8px;" onclick="printOrder('${s.id}')" title="Print"><i class="ri-printer-line"></i></button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+};
+// --- FIX 3: EXPLICIT SAVE FUNCTIONS (Prevents Recursion) ---
+window.saveProfile = async () => {
+    const data = {
+        ownerName: document.getElementById('profOwner').value.trim(),
+        regNo: document.getElementById('profReg').value.trim(),
+        address: document.getElementById('profAddress').value.trim(),
+        phone1: document.getElementById('profPhone1').value.trim(),
+        phone2: document.getElementById('profPhone2').value.trim(),
+        whatsapp: document.getElementById('profWhatsapp').value.trim(),
+        email: document.getElementById('profEmail').value.trim(),
+        logoFont: document.getElementById('profLogoFont').value,
+        logoColor: document.getElementById('profLogoColor').value,
+        logoImage: compressedImageBase64 || (profileCache ? profileCache.logoImage : null)
+    };
+
+    if(!data.ownerName || !data.regNo || !data.address || !data.phone1 || !data.whatsapp) {
+        return showToast("Please fill all required (*) fields", "error");
+    }
+
+    toggleLoader(true);
+    await setDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/settings`, 'profile'), data);
+    
+    // CLEANUP IMAGE MEMORY HERE
+    compressedImageBase64 = null; 
+    
+    await loadProfile();
+    toggleLoader(false);
+    showToast("Profile Saved Successfully");
+};
+
+window.saveBaseProduct = async () => {
+    const id = document.getElementById('bpId').value;
+    const name = document.getElementById('bpName').value.trim();
+    const categoryId = document.getElementById('bpCategory').value;
+    
+    if(!name) return showToast("Product Name Required", "error");
+    if(!id && !compressedImageBase64) return showToast("Image Required", "error");
+
+    toggleLoader(true);
+    if(id) {
+        await updateDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/base_products`, id), {
+            image: compressedImageBase64,
+            categoryId: categoryId
+        });
+    } else {
+        // Assume generateNextSku is available from previous code
+        const counterRef = doc(db, `users/${currentUser.uid}/shops/${currentShopId}/settings`, 'skuCounter');
+        let newSku = "";
+        await runTransaction(db, async (transaction) => {
+            const sfDoc = await transaction.get(counterRef);
+            let count = 0;
+            if (sfDoc.exists()) { count = sfDoc.data().count; }
+            count++;
+            transaction.set(counterRef, { count: count });
+            newSku = String(count).padStart(6, '0');
+        });
+
+        await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/base_products`), {
+            name, 
+            image: compressedImageBase64,
+            sku: newSku,
+            categoryId,
+            created: new Date().toISOString()
+        });
+    }
+    
+    // CLEANUP IMAGE MEMORY HERE
+    compressedImageBase64 = null;
+
+    document.getElementById('baseProductModal').style.display = 'none';
+    await loadCatalog();
+    toggleLoader(false);
+    showToast("Base Product Saved");
+};
+// ==========================================
+// FINAL CONSOLIDATED FIXES (PASTE AT BOTTOM)
+// ==========================================
+
+// 1. UPDATED CALCULATOR (Handles Tax Display)
+window.calcDocTotals = () => {
+    let sub = 0;
+    document.querySelectorAll('#docItemsBody tr').forEach(tr => {
+        const qty = parseFloat(tr.querySelector('.doc-item-qty').value) || 0;
+        const price = parseFloat(tr.querySelector('.doc-item-price').value) || 0;
+        const total = qty * price;
+        tr.querySelector('.doc-item-total').textContent = total.toFixed(2);
+        sub += total;
+    });
+    
+    const disc = parseFloat(document.getElementById('docDiscount').value) || 0;
+    const taxPerc = parseFloat(document.getElementById('docTax').value) || 0;
+    
+    document.getElementById('docSubtotal').textContent = sub.toFixed(2);
+    
+    // Calculate Tax Amount
+    const afterDisc = sub - disc;
+    const taxAmt = afterDisc * (taxPerc / 100);
+    
+    // Show Tax in UI (Optional, but good for debug)
+    const total = afterDisc + taxAmt;
+    document.getElementById('docTotal').textContent = total.toFixed(2);
+    // Store tax amount in dataset for saving
+    document.getElementById('docTotal').dataset.taxAmt = taxAmt;
+};
+
+// 2. UPDATED SAVE (Captures Phone & Tax)
+window.confirmSaveDocument = async (deductStock) => {
+    document.getElementById('docStockWarningModal').style.display = 'none';
+    toggleLoader(true);
+    
+    const items = [];
+    document.querySelectorAll('#docItemsBody tr').forEach(tr => {
+        items.push({
+            name: tr.querySelector('.doc-item-name').value,
+            qty: parseFloat(tr.querySelector('.doc-item-qty').value),
+            sell: parseFloat(tr.querySelector('.doc-item-price').value)
+        });
+    });
+
+    const taxAmt = parseFloat(document.getElementById('docTotal').dataset.taxAmt) || 0;
+    const taxPerc = parseFloat(document.getElementById('docTax').value) || 0;
+
+    const docData = {
+        type: document.getElementById('docTypeToggle').value,
+        docId: document.getElementById('docId').value,
+        date: document.getElementById('docDate').value,
+        customer: {
+            name: document.getElementById('docCustName').value,
+            phone: document.getElementById('docCustPhone').value, // Captured!
+            address: document.getElementById('docCustAddr').value
+        },
+        items: items,
+        subtotal: parseFloat(document.getElementById('docSubtotal').textContent),
+        discount: parseFloat(document.getElementById('docDiscount').value) || 0,
+        taxPercent: taxPerc, // Saved!
+        taxAmount: taxAmt,   // Saved!
+        total: parseFloat(document.getElementById('docTotal').textContent),
+        created: new Date().toISOString()
+    };
+
+    await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/documents`), docData);
+
+    if(deductStock) {
+        for(let item of items) {
+             const p = productsCache.find(x => x.name.toLowerCase() === item.name.toLowerCase() && x.qty > 0);
+             if(p) {
+                 const newQty = p.qty - item.qty;
+                 await updateDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/products`, p.id), { qty: newQty });
+                 await logInventory(item.name, 'INVOICE', `Doc #${docData.docId}`, -item.qty, newQty, p.batchNumber, p.qty);
+             }
+        }
+        await loadProducts();
+    }
+
+    // Pass data correctly to PDF
+    window.generateInvoicePDF(docData);
+
+    toggleLoader(false);
+    showToast("Document Saved");
+    loadDocumentsHistory();
+};
+
+// 3. ULTIMATE PDF GENERATOR (Handles POS Fees AND Document Taxes)
+window.generateInvoicePDF = (data) => {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    
+    // Data Normalization
+    const safeSubtotal = parseFloat(data.subtotal) || 0;
+    const safeDiscount = parseFloat(data.discountAmt || data.discount || 0);
+    const safeFees = parseFloat(data.feesTotal || 0); // POS Fees
+    const safeTax = parseFloat(data.taxAmount || 0);   // Doc Generator Tax
+    const safeTotal = parseFloat(data.total) || 0;
+    const safePhone = data.customer?.phone || "";
+
+    // Header
+    doc.setFontSize(16);
+    doc.text(profileCache?.ownerName || "Sales Receipt", pageWidth / 2, 15, { align: 'center' });
+    doc.setFontSize(10);
+    doc.text(profileCache?.address || "", pageWidth / 2, 22, { align: 'center' });
+    doc.text(`Tel: ${profileCache?.phone1 || ""}`, pageWidth / 2, 27, { align: 'center' });
+    doc.line(10, 30, pageWidth - 10, 30);
+    
+    // Info
+    doc.setFontSize(10);
+    doc.text(`ID: ${data.customId || data.docId || data.id}`, 14, 40);
+    doc.text(`Date: ${new Date(data.date).toLocaleString()}`, 14, 45);
+    doc.text(`Customer: ${data.customer.name}`, 14, 50);
+    if(safePhone) doc.text(`Phone: ${safePhone}`, 14, 55);
+    
+    // Items
+    const tableRows = data.items.map(item => [
+        item.name,
+        item.qty.toString(),
+        formatMoney(item.sell),
+        formatMoney(item.qty * item.sell)
+    ]);
+
+    doc.autoTable({
+        startY: safePhone ? 60 : 55,
+        head: [['Item', 'Qty', 'Price', 'Total']],
+        body: tableRows,
+        theme: 'plain',
+        styles: { fontSize: 9 },
+        headStyles: { fillColor: [240, 240, 240] }
+    });
+
+    // Calculations
+    let finalY = doc.lastAutoTable.finalY + 10;
+    
+    doc.text(`Subtotal: ${formatMoney(safeSubtotal)}`, 140, finalY);
+    
+    if(safeDiscount > 0) {
+        finalY += 5;
+        doc.text(`Discount: -${formatMoney(safeDiscount)}`, 140, finalY);
+    }
+    
+    // Show POS Fees
+    if(safeFees > 0) {
+        finalY += 5;
+        doc.text(`Fees: +${formatMoney(safeFees)}`, 140, finalY);
+    }
+
+    // Show Generator Tax
+    if(safeTax > 0) {
+        finalY += 5;
+        doc.text(`Tax (${data.taxPercent || ''}%): +${formatMoney(safeTax)}`, 140, finalY);
+    }
+    
+    finalY += 8;
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text(`Total: ${formatMoney(safeTotal)}`, 140, finalY);
+    
+    // Save
+    doc.save(`${data.type || 'Invoice'}_${data.customId || data.docId || "File"}.pdf`);
+};
+// --- FIX 1: UNIFIED ROBUST PDF GENERATOR ---
+window.generateInvoicePDF = (data) => {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    
+    // 1. Data Normalization (Safeguard against missing values)
+    const safeSubtotal = parseFloat(data.subtotal) || 0;
+    const safeDiscount = parseFloat(data.discountAmt || data.discount || 0); // Handle both naming conventions
+    const safeFees = parseFloat(data.feesTotal || 0); // POS Fees
+    const safeTax = parseFloat(data.taxAmount || 0);   // Doc Generator Tax
+    const safeTotal = parseFloat(data.total) || 0;
+    const safePhone = data.customer?.phone || "";
+
+    // 2. Header
+    doc.setFontSize(16);
+    doc.text(profileCache?.ownerName || "Sales Receipt", pageWidth / 2, 15, { align: 'center' });
+    doc.setFontSize(10);
+    doc.text(profileCache?.address || "", pageWidth / 2, 22, { align: 'center' });
+    doc.text(`Tel: ${profileCache?.phone1 || ""}`, pageWidth / 2, 27, { align: 'center' });
+    doc.line(10, 30, pageWidth - 10, 30);
+    
+    // 3. Info Section
+    doc.setFontSize(10);
+    doc.text(`ID: ${data.customId || data.docId || data.id || 'N/A'}`, 14, 40);
+    doc.text(`Date: ${new Date(data.date).toLocaleString()}`, 14, 45);
+    doc.text(`Customer: ${data.customer.name}`, 14, 50);
+    if(safePhone) doc.text(`Phone: ${safePhone}`, 14, 55);
+    
+    // 4. Items Table
+    const tableRows = data.items.map(item => [
+        item.name,
+        item.qty.toString(),
+        formatMoney(item.sell),
+        formatMoney(item.qty * item.sell)
+    ]);
+
+    doc.autoTable({
+        startY: safePhone ? 60 : 55,
+        head: [['Item', 'Qty', 'Price', 'Total']],
+        body: tableRows,
+        theme: 'plain',
+        styles: { fontSize: 9 },
+        headStyles: { fillColor: [240, 240, 240] }
+    });
+
+    // 5. Totals Calculation
+    let finalY = doc.lastAutoTable.finalY + 10;
+    
+    doc.text(`Subtotal: ${formatMoney(safeSubtotal)}`, 140, finalY);
+    
+    if(safeDiscount > 0) {
+        finalY += 5;
+        doc.text(`Discount: -${formatMoney(safeDiscount)}`, 140, finalY);
+    }
+    
+    // Show POS Fees if they exist
+    if(safeFees > 0) {
+        finalY += 5;
+        doc.text(`Fees: +${formatMoney(safeFees)}`, 140, finalY);
+    }
+
+    // Show Generator Tax if it exists
+    if(safeTax > 0) {
+        finalY += 5;
+        doc.text(`Tax (${data.taxPercent || ''}%): +${formatMoney(safeTax)}`, 140, finalY);
+    }
+    
+    finalY += 8;
+    doc.setFontSize(12);
+    doc.setFont("helvetica", "bold");
+    doc.text(`Total: ${formatMoney(safeTotal)}`, 140, finalY);
+    
+    // Footer
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.text("Thank you for your business!", pageWidth / 2, finalY + 20, { align: 'center' });
+    
+    // Save
+    const filename = `${data.type || 'Invoice'}_${data.customId || data.docId || "File"}.pdf`;
+    doc.save(filename);
+};
+
+// --- FIX 2: SAFE PRINT ORDER FUNCTION ---
+// Look up data in cache instead of passing it in HTML
+window.printOrder = (id) => {
+    const sale = salesCache.find(x => x.id === id);
+    if (sale) {
+        generateInvoicePDF({
+            id: sale.id,
+            customId: sale.customId,
+            date: sale.date,
+            customer: sale.customer,
+            items: sale.items,
+            subtotal: sale.subtotal,
+            discountAmt: sale.discountAmt || 0,
+            feesTotal: sale.feesTotal || 0,
+            total: sale.total
+        });
+    } else {
+        showToast("Order data not found. Refresh page.", "error");
+    }
+};
+// --- FIX 3: RELOAD ORDERS WITH SAFE PRINT BUTTON ---
+window.loadOrders = () => {
+    const tbody = document.querySelector('#ordersTable tbody');
+    if(!salesCache || salesCache.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:15px;">No orders found.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = salesCache.map(s => {
+        const date = new Date(s.date).toLocaleDateString();
+        let status = '<span style="color:green; font-weight:600;">Completed</span>';
+        if(s.paymentMethod === 'Pay Later') status = '<span style="color:orange; font-weight:600;">Credit</span>';
+        
+        return `
+            <tr>
+                <td style="font-family:monospace; font-weight:700;">${s.customId || s.id}</td>
+                <td>${date}</td>
+                <td>
+                    <div>${s.customer.name}</div>
+                    <div style="font-size:11px; color:#666;">${s.customer.phone}</div>
+                </td>
+                <td>${s.paymentMethod}</td>
+                <td style="font-weight:700;">${formatMoney(s.total)}</td>
+                <td>${status}</td>
+                <td>
+                    <button class="btn btn-info" style="padding:4px 8px;" onclick="viewOrder('${s.id}')" title="View"><i class="ri-eye-line"></i></button>
+                    <button class="btn btn-warning" style="padding:4px 8px;" onclick="openOrderNoteModal('${s.id}')" title="Note"><i class="ri-sticky-note-line"></i></button>
+                    <!-- UPDATED: Uses the safe printOrder function -->
+                    <button class="btn btn-ghost" style="padding:4px 8px;" onclick="printOrder('${s.id}')" title="Print"><i class="ri-printer-line"></i></button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+};
+// --- FIX 4: DOCUMENT CALCULATOR (With Tax Logic) ---
+window.calcDocTotals = () => {
+    let sub = 0;
+    document.querySelectorAll('#docItemsBody tr').forEach(tr => {
+        const qty = parseFloat(tr.querySelector('.doc-item-qty').value) || 0;
+        const price = parseFloat(tr.querySelector('.doc-item-price').value) || 0;
+        const total = qty * price;
+        tr.querySelector('.doc-item-total').textContent = total.toFixed(2);
+        sub += total;
+    });
+    
+    const disc = parseFloat(document.getElementById('docDiscount').value) || 0;
+    const taxPerc = parseFloat(document.getElementById('docTax').value) || 0;
+    
+    document.getElementById('docSubtotal').textContent = sub.toFixed(2);
+    
+    // Calculate Tax Amount
+    const afterDisc = sub - disc;
+    const taxAmt = afterDisc * (taxPerc / 100);
+    
+    // Show Tax in UI
+    const total = afterDisc + taxAmt;
+    document.getElementById('docTotal').textContent = total.toFixed(2);
+    // Store tax amount in dataset for saving
+    document.getElementById('docTotal').dataset.taxAmt = taxAmt;
+};
+
+// --- FIX 5: SAVE DOCUMENT (Captures Phone & Tax) ---
+window.confirmSaveDocument = async (deductStock) => {
+    document.getElementById('docStockWarningModal').style.display = 'none';
+    toggleLoader(true);
+    
+    const items = [];
+    document.querySelectorAll('#docItemsBody tr').forEach(tr => {
+        items.push({
+            name: tr.querySelector('.doc-item-name').value,
+            qty: parseFloat(tr.querySelector('.doc-item-qty').value),
+            sell: parseFloat(tr.querySelector('.doc-item-price').value)
+        });
+    });
+
+    // Retrieve the calculated tax
+    const taxAmt = parseFloat(document.getElementById('docTotal').dataset.taxAmt) || 0;
+    const taxPerc = parseFloat(document.getElementById('docTax').value) || 0;
+
+    const docData = {
+        type: document.getElementById('docTypeToggle').value,
+        docId: document.getElementById('docId').value,
+        date: document.getElementById('docDate').value,
+        customer: {
+            name: document.getElementById('docCustName').value,
+            phone: document.getElementById('docCustPhone').value, // NOW CAPTURED
+            address: document.getElementById('docCustAddr').value
+        },
+        items: items,
+        subtotal: parseFloat(document.getElementById('docSubtotal').textContent),
+        discount: parseFloat(document.getElementById('docDiscount').value) || 0,
+        taxPercent: taxPerc, // SAVED
+        taxAmount: taxAmt,   // SAVED
+        total: parseFloat(document.getElementById('docTotal').textContent),
+        created: new Date().toISOString()
+    };
+
+    await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/documents`), docData);
+
+    if(deductStock) {
+        for(let item of items) {
+             const p = productsCache.find(x => x.name.toLowerCase() === item.name.toLowerCase() && x.qty > 0);
+             if(p) {
+                 const newQty = p.qty - item.qty;
+                 await updateDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/products`, p.id), { qty: newQty });
+                 await logInventory(item.name, 'INVOICE', `Doc #${docData.docId}`, -item.qty, newQty, p.batchNumber, p.qty);
+             }
+        }
+        await loadProducts();
+    }
+
+    // Generate PDF with the captured data
+    window.generateInvoicePDF(docData);
+
+    toggleLoader(false);
+    showToast("Document Saved");
+    loadDocumentsHistory();
+};
+// --- FIX 6: SAVE FUNCTIONS WITH MEMORY CLEANUP ---
+const originalSaveBaseProduct = window.saveBaseProduct; // Keep reference to your existing logic
+
+window.saveBaseProduct = async () => {
+    // We execute the original logic (assuming it's defined above in your code)
+    // But we overwrite it here to add the cleanup line
+    const id = document.getElementById('bpId').value;
+    const name = document.getElementById('bpName').value.trim();
+    const categoryId = document.getElementById('bpCategory').value;
+    
+    if(!name) return showToast("Product Name Required", "error");
+    if(!id && !compressedImageBase64) return showToast("Image Required", "error");
+
+    toggleLoader(true);
+    if(id) {
+        await updateDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/base_products`, id), {
+            image: compressedImageBase64,
+            categoryId: categoryId
+        });
+    } else {
+        // Simple SKU Gen for this override block
+        const counterRef = doc(db, `users/${currentUser.uid}/shops/${currentShopId}/settings`, 'skuCounter');
+        let newSku = "";
+        await runTransaction(db, async (transaction) => {
+            const sfDoc = await transaction.get(counterRef);
+            let count = 0;
+            if (sfDoc.exists()) { count = sfDoc.data().count; }
+            count++;
+            transaction.set(counterRef, { count: count });
+            newSku = String(count).padStart(6, '0');
+        });
+
+        await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/base_products`), {
+            name, 
+            image: compressedImageBase64,
+            sku: newSku,
+            categoryId,
+            created: new Date().toISOString()
+        });
+    }
+    
+    // !!! CRITICAL FIX: RESET IMAGE VARIABLE !!!
+    compressedImageBase64 = null;
+
+    document.getElementById('baseProductModal').style.display = 'none';
+    await loadCatalog();
+    toggleLoader(false);
+    showToast("Base Product Saved");
+};
+
 </script>
 
 </body>
