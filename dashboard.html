@@ -131,6 +131,20 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
     color: #4b5563; 
     border: 1px solid #d1d5db; 
 } /* Grey (In between) */
+
+/* NEW: OUT OF STOCK & DIMMED STYLES */
+.label-out-stock { 
+    background: #6b7280; 
+    color: white; 
+    padding: 2px 6px; 
+    border-radius: 4px; 
+    font-size: 11px; 
+    font-weight: 700; 
+}
+.row-dimmed { 
+    opacity: 0.6; 
+    background-color: #f9fafb;
+}
 </style>
 </head>
 <body>
@@ -1502,12 +1516,25 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         const catFilter = document.getElementById('stockFilterCategory').value;
         const tbody = document.querySelector('#prodTable tbody');
         
-        // 1. Group by SKU to find max batch number (Latest Stock)
-        const skuMaxBatchMap = {};
+        // 1. Group by SKU to find statistics
+        // We need:
+        // - Max Batch (for Latest/Green)
+        // - Min Batch WITH STOCK > 0 (for Oldest/Red)
+        const skuStats = {}; 
+
         productsCache.forEach(p => {
             if(!p.sku) return;
-            if(!skuMaxBatchMap[p.sku] || p.batchNumber > skuMaxBatchMap[p.sku]) {
-                skuMaxBatchMap[p.sku] = p.batchNumber || 1;
+            if(!skuStats[p.sku]) {
+                skuStats[p.sku] = { maxBatch: 0, minBatchWithStock: Infinity };
+            }
+            
+            // Update Max (Highest batch number existing)
+            const b = p.batchNumber || 1;
+            if(b > skuStats[p.sku].maxBatch) skuStats[p.sku].maxBatch = b;
+
+            // Update Min (Lowest batch number that has stock)
+            if(p.qty > 0 && b < skuStats[p.sku].minBatchWithStock) {
+                skuStats[p.sku].minBatchWithStock = b;
             }
         });
 
@@ -1527,16 +1554,32 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
                 const imgTag = p.image ? `<img src="${p.image}" class="prod-thumb" onclick="window.open(this.src)">` : '<i class="ri-image-line"></i>';
                 const categoryName = categoriesCache.find(c => c.id === p.categoryId)?.name || 'Uncategorized';
 
-                // Batch Color Logic
                 const batchNum = p.batchNumber || 1;
-                const maxBatch = skuMaxBatchMap[p.sku] || 1;
+                const stats = skuStats[p.sku] || { maxBatch: 1, minBatchWithStock: 1 };
                 
                 let batchClass = 'batch-mid'; // Default Grey
-                if(batchNum === 1) batchClass = 'batch-oldest'; // 0001 (Red)
-                else if(batchNum === maxBatch && maxBatch > 1) batchClass = 'batch-latest'; // Latest (Green)
+                let rowClass = '';
+                let stockDisplay = `${p.qty} ${p.unit||''}`;
+
+                if (p.qty <= 0) {
+                    // OUT OF STOCK LOGIC
+                    stockDisplay = `<span class="label-out-stock">Out of Stock</span>`;
+                    rowClass = 'row-dimmed'; 
+                    // Batch color stays grey or neutral since it's irrelevant for FIFO picking
+                } else {
+                    // HAS STOCK LOGIC
+                    // Is this the oldest available?
+                    if (batchNum === stats.minBatchWithStock) {
+                        batchClass = 'batch-oldest'; // RED
+                    } 
+                    // Is this the newest? (Only if it's not also the oldest, or if it is the only one)
+                    else if (batchNum === stats.maxBatch) {
+                        batchClass = 'batch-latest'; // GREEN
+                    }
+                }
 
                 return `
-                <tr>
+                <tr class="${rowClass}">
                     <td>${imgTag}</td>
                     <td style="font-size:12px; color:#666;">${dateStr}</td>
                     <td>
@@ -1547,7 +1590,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
                     <td style="font-size:12px;">${categoryName}</td>
                     <td>${formatMoney(p.buy)}</td>
                     <td>${formatMoney(p.sell)}</td>
-                    <td style="color:${p.qty<5?'red':'inherit'}">${p.qty} ${p.unit||''}</td>
+                    <td style="color:${p.qty<5 && p.qty>0 ?'red':'inherit'}">${stockDisplay}</td>
                     <td>
                         <button class="btn btn-warning" style="padding:4px 8px;" onclick="editStock('${p.id}')">Edit</button>
                         <button class="btn btn-danger" style="padding:4px 8px;" onclick="deleteProduct('${p.id}', '${p.name}')"><i class="ri-delete-bin-line"></i> Delete</button>
