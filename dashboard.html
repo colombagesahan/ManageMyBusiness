@@ -165,7 +165,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 
 <!-- ALERT POPUP ON DASHBOARD -->
 <div class="alert-dashboard-popup" id="dashboardAlertPopup">
-    <h4><span><i class="ri-alarm-warning-line"></i> Alert Triggered</span> <i class="ri-close-line" style="cursor:pointer; color:black;" onclick="closeDashboardPopup()"></i></h4>
+    <h4><span><i class="ri-alarm-warning-line"></i> Alert Triggered</span> <i class="ri-close-line" style="cursor:pointer; color:black;" onclick="document.getElementById('dashboardAlertPopup').style.display='none'"></i></h4>
     <p id="dashboardAlertMsg">You have a new reminder.</p>
     <button class="btn btn-warning" style="width:100%; justify-content:center;" onclick="loadView('alerts')">View Alerts</button>
 </div>
@@ -561,8 +561,11 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 
         <!-- NEW: ALERTS TAB -->
         <div id="view-alerts" class="view">
-             <h3>Reminders & Alerts</h3>
-             <div class="card" style="overflow-x:auto;">
+             <div style="display:flex; justify-content:space-between; align-items:center;">
+                 <h3>Reminders & Alerts</h3>
+                 <button class="btn btn-primary" onclick="openModal('createAlertModal')">+ New Alert</button>
+             </div>
+             <div class="card" style="overflow-x:auto; margin-top:15px;">
                  <table id="alertsTable">
                      <thead><tr><th>Target Date</th><th>Frequency</th><th>Message</th><th>Order Ref</th><th>Status</th><th>Action</th></tr></thead>
                      <tbody></tbody>
@@ -609,18 +612,19 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         </div>
 
         <div id="view-services" class="view"><div class="card"><h3>Services</h3><p class="muted">Coming soon.</p></div></div>
+        
         <!-- REPLACEMENT FOR view-customers -->
-<div id="view-customers" class="view">
-    <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
-        <div style="display:flex; gap:10px; flex:1;">
-            <input placeholder="Search by Phone (ID) or Name..." style="width:250px; margin:0;" id="custSearch" onkeyup="filterCustomers()">
+        <div id="view-customers" class="view">
+            <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
+                <div style="display:flex; gap:10px; flex:1;">
+                    <input placeholder="Search by Phone (ID) or Name..." style="width:250px; margin:0;" id="custSearch" onkeyup="filterCustomers()">
+                </div>
+                <button class="btn btn-primary" onclick="openModal('customerModal')">+ Add Customer</button>
+            </div>
+            
+            <!-- Customer List/Grid -->
+            <div class="grid-4" id="customerGrid"></div>
         </div>
-        <button class="btn btn-primary" onclick="openModal('customerModal')">+ Add Customer</button>
-    </div>
-    
-    <!-- Customer List/Grid -->
-    <div class="grid-4" id="customerGrid"></div>
-</div>
 
     </div>
 </main>
@@ -1064,18 +1068,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
                 }
             } catch (e) { return -1; }
             return -1;
-        }
-        function drawImageWithOrientation(ctx, img, w, h, o) {
-            switch (o) {
-                case 2: ctx.translate(w, 0); ctx.scale(-1, 1); ctx.drawImage(img, 0, 0, w, h); break;
-                case 3: ctx.translate(w, h); ctx.rotate(Math.PI); ctx.drawImage(img, 0, 0, w, h); break;
-                case 4: ctx.translate(0, h); ctx.scale(1, -1); ctx.drawImage(img, 0, 0, w, h); break;
-                case 5: ctx.rotate(0.5 * Math.PI); ctx.scale(1, -1); ctx.drawImage(img, 0, -h, w, h); break;
-                case 6: ctx.rotate(0.5 * Math.PI); ctx.translate(0, -h); ctx.drawImage(img, 0, 0, w, h); break;
-                case 7: ctx.rotate(-0.5 * Math.PI); ctx.scale(1, -1); ctx.drawImage(img, -w, 0, w, h); break;
-                case 8: ctx.rotate(-0.5 * Math.PI); ctx.translate(-w, 0); ctx.drawImage(img, 0, 0, w, h); break;
-                default: ctx.drawImage(img, 0, 0, w, h); break;
-            }
         }
 
         const TARGET_KB = 100;
@@ -2510,1413 +2502,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         renderCart();
     };
 
-    window.checkout = async () => {
-        if(!cart.length) return showToast("Cart is empty!", "error");
-        
-        const custName = document.getElementById('posCustName').value.trim();
-        const custPhone = document.getElementById('posCustPhone').value.trim();
-        const custAddr = document.getElementById('posCustAddr').value.trim();
-        const paymentMethod = document.getElementById('posPaymentMethod').value;
-        const discountType = document.getElementById('discountType').value;
-        const discountVal = parseFloat(document.getElementById('discountValue').value) || 0;
-        
-        if(!custName || !custPhone) return showToast("Customer Name & Phone Required", "error");
-        if(paymentMethod === "Pay Later" && !custAddr) return showToast("Address Required for Pay Later", "error");
-
-        toggleLoader(true);
-        try {
-            // Generate Custom ID first
-            const customId = await generateDailyOrderId();
-
-            let subtotal = cart.reduce((a,b)=>a+(b.sell*b.qty),0);
-            let discountAmt = discountType === 'percent' ? (subtotal * discountVal / 100) : discountVal;
-            let feesTotal = currentOtherFees.reduce((sum, f) => sum + f.amount, 0);
-            let total = subtotal - discountAmt + feesTotal;
-
-            const saleData = {
-                customId, // Save human readable ID
-                date: new Date().toISOString(),
-                subtotal, discountType, discountValue: discountVal, discountAmt, fees: currentOtherFees, feesTotal, total,
-                items: cart,
-                customer: { name: custName, phone: custPhone, address: custAddr },
-                paymentMethod, notes: []
-            };
-
-            const docRef = await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/sales`), saleData);
-            
-            // Update Inventory & Log
-            for(let item of cart) {
-                 const ref = doc(db, `users/${currentUser.uid}/shops/${currentShopId}/products`, item.id);
-                 const original = productsCache.find(x => x.id === item.id);
-                 const newQty = original.qty - item.qty;
-                 
-                 await updateDoc(ref, { qty: newQty });
-                 await logInventory(item.name, 'SALE', `Order #${customId}`, -item.qty, newQty, original.batchNumber || 1, original.qty);
-            }
-
-            // PDF uses customId now
-            generateInvoicePDF({...saleData, id: docRef.id}); 
-
-            cart = []; currentOtherFees = [];
-            document.getElementById('posCustName').value = '';
-            document.getElementById('posCustPhone').value = '';
-            document.getElementById('posCustAddr').value = '';
-            document.getElementById('discountValue').value = '';
-            renderCart(); renderFees();
-            
-            await loadProducts();
-            updateDashboard();
-            showToast("Sale Completed! ID: " + customId, "success");
-
-        } catch (e) {
-            console.error(e);
-            showToast("Error processing sale", "error");
-        } finally {
-            toggleLoader(false);
-        }
-    };
-
-    // --- SEARCH ORDER LOGIC ---
-    window.searchOrder = async () => {
-        const input = document.getElementById('orderSearchInput').value.trim();
-        if(!input) return showToast("Enter Order ID", "error");
-        
-        toggleLoader(true);
-        // Search by customId
-        const q = query(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/sales`), where('customId', '==', input));
-        const snap = await getDocs(q);
-        
-        if(snap.empty) {
-            showToast("Order not found", "error");
-            toggleLoader(false);
-            return;
-        }
-        
-        const orderDoc = snap.docs[0];
-        const order = { id: orderDoc.id, ...orderDoc.data() };
-        
-        // Fetch related refunds
-        const refQ = query(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/refunds`), where('orderRefId', '==', order.customId));
-        const refSnap = await getDocs(refQ);
-        const refunds = [];
-        refSnap.forEach(d => refunds.push(d.data()));
-
-        displayOrderDetails(order, refunds);
-        toggleLoader(false);
-    };
-
-    function displayOrderDetails(order, refunds) {
-        const modal = document.getElementById('orderDetailsModal');
-        const content = document.getElementById('odModalContent');
-        
-        let itemsHtml = order.items.map(i => `
-            <tr>
-                <td>${i.name}</td>
-                <td>${i.qty}</td>
-                <td>${formatMoney(i.sell)}</td>
-                <td>${formatMoney(i.sell * i.qty)}</td>
-            </tr>
-        `).join('');
-
-        let refundHtml = '';
-        if(refunds.length > 0) {
-            refundHtml = `<div class="note-box" style="background:#fee2e2; border-color:#f87171; color:#b91c1c;">
-                <strong><i class="ri-alarm-warning-fill"></i> Refund History:</strong><br>
-                ${refunds.map(r => `• ${r.date.split('T')[0]}: ${r.qty}x ${r.productName} (${r.reason})`).join('<br>')}
-            </div>`;
-        }
-
-        content.innerHTML = `
-            <div style="margin-bottom:15px; display:flex; justify-content:space-between;">
-                <div>
-                    <div style="font-size:18px; font-weight:700;">${order.customId || order.id}</div>
-                    <div style="color:#666; font-size:12px;">${new Date(order.date).toLocaleString()}</div>
-                </div>
-                <div style="text-align:right;">
-                    <div style="font-weight:700;">${order.customer.name}</div>
-                    <div style="font-size:12px;">${order.customer.phone}</div>
-                </div>
-            </div>
-            
-            ${refundHtml}
-
-            <table style="margin-bottom:15px;">
-                <thead style="background:#f3f4f6;"><tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead>
-                <tbody>${itemsHtml}</tbody>
-            </table>
-
-            <div style="text-align:right; font-size:14px;">
-                <div>Subtotal: ${formatMoney(order.subtotal)}</div>
-                ${order.discountAmt ? `<div>Discount: -${formatMoney(order.discountAmt)}</div>` : ''}
-                <div style="font-weight:700; font-size:16px; margin-top:5px;">Total: ${formatMoney(order.total)}</div>
-                <div style="font-size:12px; color:#666; margin-top:5px;">Paid via ${order.paymentMethod}</div>
-            </div>
-        `;
-        modal.style.display = 'flex';
-    }
-
-    // --- REFUNDS TAB LOGIC UPDATE ---
-    
-    window.findOrderForRefund = async () => {
-        const orderId = document.getElementById('refundOrderSearch').value.trim();
-        if(!orderId) return showToast("Enter Order ID", "error");
-        
-        toggleLoader(true);
-        const q = query(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/sales`), where('customId', '==', orderId));
-        const snap = await getDocs(q);
-        
-        if(snap.empty) {
-            showToast("Order not found", "error");
-            document.getElementById('refundStep2').style.display = 'none';
-        } else {
-            selectedRefundOrder = { id: snap.docs[0].id, ...snap.docs[0].data() };
-            
-            // Populate Items Select
-            const sel = document.getElementById('refundItemSelect');
-            sel.innerHTML = '<option value="">-- Select Item --</option>';
-            selectedRefundOrder.items.forEach((item, idx) => {
-                sel.innerHTML += `<option value="${idx}" data-price="${item.sell}" data-qty="${item.qty}">${item.name} (Qty: ${item.qty})</option>`;
-            });
-            
-            document.getElementById('refundStep2').style.display = 'block';
-        }
-        toggleLoader(false);
-    };
-
-    window.fillRefundAmount = () => {
-        const sel = document.getElementById('refundItemSelect');
-        const opt = sel.options[sel.selectedIndex];
-        if(!opt.value && opt.value !== "0") return;
-        
-        const price = parseFloat(opt.dataset.price);
-        const maxQty = parseFloat(opt.dataset.qty);
-        
-        document.getElementById('refundMaxQty').textContent = maxQty;
-        document.getElementById('refundQty').value = 1;
-        document.getElementById('refundAmount').value = price.toFixed(2);
-    };
-
-    window.saveRefund = async () => {
-        if(!selectedRefundOrder) return;
-        
-        const itemIdx = document.getElementById('refundItemSelect').value;
-        if(itemIdx === "") return showToast("Select an item", "error");
-        
-        const item = selectedRefundOrder.items[itemIdx];
-        const reason = document.getElementById('refundReason').value;
-        const qty = parseFloat(document.getElementById('refundQty').value);
-        const amount = parseFloat(document.getElementById('refundAmount').value);
-        const restock = document.getElementById('refundRestock').checked;
-
-        if(qty <= 0 || qty > item.qty) return showToast("Invalid Quantity", "error");
-
-        toggleLoader(true);
-        try {
-            // 1. Save Refund
-            await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/refunds`), {
-                orderRefId: selectedRefundOrder.customId,
-                productName: item.name, 
-                reason, qty, amount, restock, 
-                date: new Date().toISOString()
-            });
-
-            // 2. Restock Logic
-            if(restock) {
-                // Find max batch
-                const sameProds = productsCache.filter(p => p.name === item.name);
-                const maxBatch = sameProds.reduce((max, p) => (p.batchNumber > max ? p.batchNumber : max), 0);
-                
-                await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/products`), {
-                    name: item.name,
-                    sku: item.sku || "",
-                    image: item.image || null,
-                    categoryId: item.categoryId || null,
-                    qty: qty,
-                    buy: 0,
-                    sell: item.sell,
-                    unit: item.unit || '',
-                    dateAdded: new Date().toISOString(),
-                    batchNumber: maxBatch + 1,
-                    isRefund: true
-                });
-                
-                await logInventory(item.name, 'REFUND', `Return from Order #${selectedRefundOrder.customId}`, qty, qty, maxBatch+1, 0);
-            }
-
-            showToast("Refund Processed");
-            // Reset
-            document.getElementById('refundStep2').style.display = 'none';
-            document.getElementById('refundOrderSearch').value = '';
-            selectedRefundOrder = null;
-            await loadProducts();
-
-        } catch(e) {
-            console.error(e);
-            showToast("Error processing refund", "error");
-        } finally {
-            toggleLoader(false);
-        }
-    };
-
-    // --- PROFILE LOGIC ---
-    async function loadProfile() {
-        const docRef = doc(db, `users/${currentUser.uid}/shops/${currentShopId}/settings`, 'profile');
-        const snap = await getDoc(docRef);
-        const warn = document.getElementById('profileWarning');
-        
-        if (snap.exists()) {
-            profileCache = snap.data();
-            warn.style.display = 'none';
-            fillProfileData(profileCache);
-            lockProfile(true);
-        } else {
-            profileCache = null;
-            warn.style.display = 'block';
-            lockProfile(false);
-            // Clear fields
-            document.querySelectorAll('#profFields input, #profFields textarea').forEach(i => i.value = '');
-            document.getElementById('profLogoContainer').innerHTML = '<span>No Logo</span>';
-        }
-    }
-
-    function fillProfileData(p) {
-        document.getElementById('profOwner').value = p.ownerName || '';
-        document.getElementById('profReg').value = p.regNo || '';
-        document.getElementById('profAddress').value = p.address || '';
-        document.getElementById('profPhone1').value = p.phone1 || '';
-        document.getElementById('profPhone2').value = p.phone2 || '';
-        document.getElementById('profWhatsapp').value = p.whatsapp || '';
-        document.getElementById('profEmail').value = p.email || '';
-        
-        const container = document.getElementById('profLogoContainer');
-        if(p.logoImage) {
-            container.innerHTML = `<img src="${p.logoImage}">`;
-        } else {
-            const shopName = document.getElementById('shopSelector').options[document.getElementById('shopSelector').selectedIndex].text;
-            container.innerHTML = `<div class="text-logo-preview" style="font-family:${p.logoFont}; color:${p.logoColor}; font-size:20px;">${shopName}</div>`;
-        }
-    }
-
-    window.lockProfile = (lock) => {
-        document.querySelectorAll('#profFields input, #profFields textarea, #profLogoFont, #profLogoColor, #profLogoFile').forEach(i => i.disabled = lock);
-        document.getElementById('btnSaveProfile').style.display = lock ? 'none' : 'inline-flex';
-        document.getElementById('btnEditProfile').style.display = lock ? 'inline-flex' : 'none';
-        document.getElementById('profInputsLogo').style.display = lock ? 'none' : 'block';
-    }
-
-    window.unlockProfile = () => lockProfile(false);
-
-    window.saveProfile = async () => {
-        const data = {
-            ownerName: document.getElementById('profOwner').value.trim(),
-            regNo: document.getElementById('profReg').value.trim(),
-            address: document.getElementById('profAddress').value.trim(),
-            phone1: document.getElementById('profPhone1').value.trim(),
-            phone2: document.getElementById('profPhone2').value.trim(),
-            whatsapp: document.getElementById('profWhatsapp').value.trim(),
-            email: document.getElementById('profEmail').value.trim(),
-            logoFont: document.getElementById('profLogoFont').value,
-            logoColor: document.getElementById('profLogoColor').value,
-            logoImage: compressedImageBase64 || (profileCache ? profileCache.logoImage : null)
-        };
-
-        if(!data.ownerName || !data.regNo || !data.address || !data.phone1 || !data.whatsapp) {
-            return showToast("Please fill all required (*) fields", "error");
-        }
-
-        toggleLoader(true);
-        await setDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/settings`, 'profile'), data);
-        await loadProfile();
-        toggleLoader(false);
-        showToast("Profile Saved Successfully");
-    };
-
-    document.getElementById('profLogoFile').addEventListener('change', async (e) => {
-        const file = e.target.files[0];
-        if(file) {
-            const base64 = await compressImageTo100KB(file);
-            compressedImageBase64 = base64;
-            document.getElementById('profLogoContainer').innerHTML = `<img src="${base64}">`;
-        }
-    });
-
-   window.loadView = (viewName) => {
-        // Enforce Profile Check (Rule: profile must be complete)
-        if(viewName !== 'profile' && viewName !== 'dashboard' && !profileCache) {
-            showToast("Complete Business Profile first", "error");
-            loadView('profile');
-            return;
-        }
-
-        document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
-        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-        
-        const target = document.getElementById(`view-${viewName}`);
-        if(target) target.classList.add('active');
-        
-        // Handle Active Class on Sidebar Links
-        const navItems = document.querySelectorAll('.nav-item');
-        navItems.forEach(item => {
-            if(item.getAttribute('onclick').includes(`'${viewName}'`)) {
-                item.classList.add('active');
-            }
-        });
-
-        document.getElementById('pageTitle').textContent = viewName.charAt(0).toUpperCase() + viewName.slice(1);
-
-        // --- UPDATED PART IS HERE ---
-        if(viewName === 'orders') loadOrders();
-        if(viewName === 'alerts') renderAlertsTable();
-        if(viewName === 'customers') loadCustomers(); 
-        if(viewName === 'documents') {
-            loadDocumentsHistory();
-            document.getElementById('docDate').valueAsDate = new Date();
-        }
-    };
-    
-    window.openModal = (id) => document.getElementById(id).style.display = 'flex';
-    const formatMoney = (a) => `${currentCurrency}${Number(a).toFixed(2)}`;
-
-
-    // --- 0. CATEGORY LOGIC ---
-    async function loadCategories() {
-        const snap = await getDocs(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/categories`));
-        categoriesCache = [];
-        snap.forEach(d => categoriesCache.push({id: d.id, ...d.data()}));
-        categoriesCache.sort((a,b) => a.name.localeCompare(b.name));
-        
-        // Populate Dropdowns
-        const opts = categoriesCache.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
-        const optsWithAll = `<option value="All">All Categories</option>` + opts;
-        const optsWithNone = `<option value="">Uncategorized</option>` + opts;
-
-        document.getElementById('catListBody').innerHTML = categoriesCache.map(c => `
-            <tr>
-                <td style="padding:8px;">${c.name}</td>
-                <td style="padding:8px; text-align:right;">
-                    <button class="btn btn-danger" style="padding:2px 6px; font-size:11px;" onclick="deleteCategory('${c.id}')">Del</button>
-                </td>
-            </tr>
-        `).join('');
-
-        document.getElementById('catFilterCategory').innerHTML = optsWithAll;
-        document.getElementById('stockFilterCategory').innerHTML = optsWithAll;
-        document.getElementById('posFilterCategory').innerHTML = optsWithAll;
-        document.getElementById('bpCategory').innerHTML = optsWithNone;
-    }
-
-    window.saveCategory = async () => {
-        const name = document.getElementById('catNameInput').value.trim();
-        if(!name) return showToast("Category Name required", "error");
-        
-        toggleLoader(true);
-        await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/categories`), { name });
-        document.getElementById('catNameInput').value = '';
-        await loadCategories();
-        toggleLoader(false);
-        showToast("Category Added");
-    };
-
-    window.deleteCategory = async (id) => {
-        if(!confirm("Delete this category?")) return;
-        toggleLoader(true);
-        await deleteDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/categories`, id));
-        await loadCategories();
-        toggleLoader(false);
-        showToast("Category Deleted");
-    };
-
-    // --- 1. CATALOG (Add Products) LOGIC ---
-    async function loadCatalog() {
-        const snap = await getDocs(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/base_products`));
-        catalogCache = [];
-        snap.forEach(d => catalogCache.push({id: d.id, ...d.data()}));
-        catalogCache.sort((a,b) => new Date(b.created) - new Date(a.created));
-        renderCatalog();
-    }
-
-    function renderCatalog() {
-        const term = document.getElementById('catSearch').value.toLowerCase();
-        const catFilter = document.getElementById('catFilterCategory').value;
-        const tbody = document.querySelector('#catTable tbody');
-        
-        const filtered = catalogCache.filter(p => {
-            const matchName = p.name.toLowerCase().includes(term) || (p.sku && p.sku.toLowerCase().includes(term));
-            const matchCat = catFilter === 'All' || (p.categoryId === catFilter) || (!p.categoryId && catFilter === "");
-            return matchName && matchCat;
-        });
-
-        if(filtered.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 20px; color: #9ca3af;">No base products found. Create one!</td></tr>';
-            return;
-        }
-
-        tbody.innerHTML = filtered.map(p => {
-            const dateStr = p.created ? new Date(p.created).toLocaleDateString() : '-';
-            const imgTag = p.image ? `<img src="${p.image}" class="prod-thumb" onclick="window.open(this.src)">` : '<i class="ri-image-line"></i>';
-            const categoryName = categoriesCache.find(c => c.id === p.categoryId)?.name || 'Uncategorized';
-            
-            return `
-            <tr>
-                <td>${imgTag}</td>
-                <td style="font-family:monospace; font-size:12px;">${p.sku || '-'}</td>
-                <td>${p.name}</td>
-                <td style="font-size:12px; color:#6b7280;">${categoryName}</td>
-                <td style="font-size:12px; color:#666;">${dateStr}</td>
-                <td>
-                    <button class="btn btn-warning" style="padding:4px 8px;" onclick="editBaseProduct('${p.id}')">Edit Img</button>
-                    <button class="btn btn-danger" style="padding:4px 8px;" onclick="deleteBaseProduct('${p.id}')"><i class="ri-delete-bin-line"></i></button>
-                </td>
-            </tr>`;
-        }).join('');
-    }
-
-    window.filterCatalog = () => renderCatalog();
-
-    window.prepareAddBaseProduct = () => {
-        document.getElementById('bpId').value = '';
-        document.getElementById('bpName').value = '';
-        document.getElementById('bpName').disabled = false;
-        document.getElementById('bpCategory').value = '';
-        document.getElementById('bpCategory').disabled = false;
-        document.getElementById('bpPhoto').value = '';
-        document.getElementById('bpPhotoPreview').style.display = 'none';
-        document.getElementById('btnRemoveBpImage').style.display = 'none';
-        document.getElementById('bpImageInfo').textContent = '';
-        compressedImageBase64 = null;
-        openModal('baseProductModal');
-    };
-
-    window.editBaseProduct = (id) => {
-        const p = catalogCache.find(x => x.id === id);
-        if(!p) return;
-        document.getElementById('bpId').value = p.id;
-        document.getElementById('bpName').value = p.name;
-        document.getElementById('bpName').disabled = true; // Cannot change name to prevent syncing issues
-        document.getElementById('bpCategory').value = p.categoryId || '';
-        document.getElementById('bpCategory').disabled = false; 
-        
-        document.getElementById('bpPhoto').value = '';
-        compressedImageBase64 = p.image;
-        if(p.image) {
-            document.getElementById('bpPhotoPreview').src = p.image;
-            document.getElementById('bpPhotoPreview').style.display = 'block';
-            document.getElementById('btnRemoveBpImage').style.display = 'block';
-        } else {
-            document.getElementById('bpPhotoPreview').style.display = 'none';
-            document.getElementById('btnRemoveBpImage').style.display = 'none';
-        }
-        document.getElementById('bpImageInfo').textContent = '';
-        openModal('baseProductModal');
-    };
-
-    // Base Product Image Handler
-    document.getElementById('bpPhoto').addEventListener('change', async function(e) {
-        const file = e.target.files[0];
-        if(file) {
-            document.getElementById('bpImageInfo').textContent = "Compressing...";
-            try {
-                const base64 = await compressImageTo100KB(file);
-                compressedImageBase64 = base64;
-                document.getElementById('bpPhotoPreview').src = base64;
-                document.getElementById('bpPhotoPreview').style.display = 'block';
-                document.getElementById('btnRemoveBpImage').style.display = 'block';
-                document.getElementById('bpImageInfo').textContent = `Ready (${(base64.length * 0.75 / 1024).toFixed(0)} KB)`;
-            } catch (err) {
-                alert("Image error");
-            }
-        }
-    });
-
-    window.removeBaseProductImage = () => {
-        document.getElementById('bpPhoto').value = '';
-        document.getElementById('bpPhotoPreview').src = '';
-        document.getElementById('bpPhotoPreview').style.display = 'none';
-        document.getElementById('btnRemoveBpImage').style.display = 'none';
-        compressedImageBase64 = null;
-    };
-
-    // SEQUENTIAL SKU GENERATOR
-    async function generateNextSku() {
-        const counterRef = doc(db, `users/${currentUser.uid}/shops/${currentShopId}/settings`, 'skuCounter');
-        let newSku = "";
-        
-        await runTransaction(db, async (transaction) => {
-            const sfDoc = await transaction.get(counterRef);
-            let count = 0;
-            if (sfDoc.exists()) {
-                count = sfDoc.data().count;
-            }
-            count++;
-            transaction.set(counterRef, { count: count });
-            newSku = String(count).padStart(6, '0');
-        });
-        return newSku;
-    }
-
-    window.saveBaseProduct = async () => {
-        const id = document.getElementById('bpId').value;
-        const name = document.getElementById('bpName').value.trim();
-        const categoryId = document.getElementById('bpCategory').value;
-        
-        if(!name) return showToast("Product Name Required", "error");
-        if(!id && !compressedImageBase64) return showToast("Image Required", "error");
-
-        toggleLoader(true);
-        if(id) {
-            // Update existing
-            await updateDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/base_products`, id), {
-                image: compressedImageBase64,
-                categoryId: categoryId
-            });
-        } else {
-            // Create New with Sequential SKU
-            const sku = await generateNextSku();
-            await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/base_products`), {
-                name, 
-                image: compressedImageBase64,
-                sku,
-                categoryId,
-                created: new Date().toISOString()
-            });
-        }
-        document.getElementById('baseProductModal').style.display = 'none';
-        await loadCatalog();
-        toggleLoader(false);
-        showToast("Base Product Saved");
-    };
-
-    window.deleteBaseProduct = async (id) => {
-        if(!confirm("Delete this Base Product?")) return;
-        toggleLoader(true);
-        await deleteDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/base_products`, id));
-        await loadCatalog();
-        toggleLoader(false);
-        showToast("Base Product Deleted");
-    };
-
-
-    // --- 2. STOCK (Add Stock) LOGIC ---
-    async function loadProducts() {
-        const snap = await getDocs(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/products`));
-        productsCache = [];
-        snap.forEach(d => productsCache.push({id: d.id, ...d.data()}));
-        productsCache.sort((a,b) => new Date(b.dateAdded) - new Date(a.dateAdded));
-        renderProducts();
-        renderPosGrid();
-    }
-
-    function renderProducts() {
-        const term = document.getElementById('prodSearch').value.toLowerCase();
-        const catFilter = document.getElementById('stockFilterCategory').value;
-        const tbody = document.querySelector('#prodTable tbody');
-        
-        // 1. Group by SKU to find statistics (Dynamic Latest Logic)
-        const skuStats = {}; 
-
-        productsCache.forEach(p => {
-            if(!p.sku) return;
-            if(!skuStats[p.sku]) {
-                skuStats[p.sku] = { maxWithStock: -1, minWithStock: Infinity };
-            }
-            
-            // Only consider batches with actual stock > 0 for Green/Red logic
-            if(p.qty > 0) {
-                const b = p.batchNumber || 1;
-                if(b > skuStats[p.sku].maxWithStock) skuStats[p.sku].maxWithStock = b;
-                if(b < skuStats[p.sku].minWithStock) skuStats[p.sku].minWithStock = b;
-            }
-        });
-
-        const filtered = productsCache.filter(p => {
-            const matchName = p.name.toLowerCase().includes(term) || (p.sku && p.sku.toLowerCase().includes(term));
-            const matchCat = catFilter === 'All' || (p.categoryId === catFilter) || (!p.categoryId && catFilter === "");
-            return matchName && matchCat;
-        });
-
-        if(filtered.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 20px; color: #9ca3af;">No stock batches found. Add Stock!</td></tr>';
-            return;
-        }
-
-        tbody.innerHTML = filtered.map(p => {
-                const dateStr = p.dateAdded ? new Date(p.dateAdded).toLocaleDateString() : '-';
-                const imgTag = p.image ? `<img src="${p.image}" class="prod-thumb" onclick="window.open(this.src)">` : '<i class="ri-image-line"></i>';
-                const categoryName = categoriesCache.find(c => c.id === p.categoryId)?.name || 'Uncategorized';
-
-                const batchNum = p.batchNumber || 1;
-                const stats = skuStats[p.sku] || { maxWithStock: -1, minWithStock: Infinity };
-                
-                let batchClass = 'batch-mid'; // Default Grey
-                let rowClass = '';
-                let stockDisplay = `${p.qty} ${p.unit||''}`;
-
-                if (p.qty <= 0) {
-                    // OUT OF STOCK LOGIC
-                    stockDisplay = `<span class="label-out-stock">Out of Stock</span>`;
-                    rowClass = 'row-dimmed'; 
-                } else {
-                    // HAS STOCK LOGIC
-                    if (batchNum === stats.minWithStock) {
-                        batchClass = 'batch-oldest'; 
-                    } 
-                    else if (batchNum === stats.maxWithStock) {
-                        batchClass = 'batch-latest'; 
-                    }
-                }
-
-                // If it is a refund batch, override color
-                if(p.isRefund) {
-                    batchClass = 'batch-refund';
-                }
-
-                return `
-                <tr class="${rowClass}">
-                    <td>${imgTag}</td>
-                    <td style="font-size:12px; color:#666;">${dateStr}</td>
-                    <td>
-                        <div>${p.name}</div>
-                        <div style="font-size:11px; color:#6b7280; font-family:monospace;">${p.sku || ''}</div>
-                        <span class="batch-badge ${batchClass}">${p.isRefund ? 'REFUND' : 'Batch: '+formatBatch(batchNum)}</span>
-                    </td>
-                    <td style="font-size:12px;">${categoryName}</td>
-                    <td>${formatMoney(p.buy)}</td>
-                    <td>${formatMoney(p.sell)}</td>
-                    <td style="color:${p.qty<5 && p.qty>0 ?'red':'inherit'}">${stockDisplay}</td>
-                    <td>
-                        <button class="btn btn-warning" style="padding:4px 8px;" onclick="editStock('${p.id}')">Edit</button>
-                        <button class="btn btn-danger" style="padding:4px 8px;" onclick="deleteProduct('${p.id}', '${p.name}')"><i class="ri-delete-bin-line"></i> Delete</button>
-                    </td>
-                </tr>`;
-            }).join('');
-    }
-    window.filterProducts = () => renderProducts();
-
-    window.prepareAddStock = () => {
-        document.getElementById('mpId').value = '';
-        document.getElementById('prodModalTitle').textContent = 'Add Stock';
-        
-        document.getElementById('mpBuy').value = '';
-        document.getElementById('mpSell').value = '';
-        document.getElementById('mpQty').value = '';
-        document.getElementById('mpUnit').value = '';
-        document.getElementById('mpName').value = '';
-        document.getElementById('mpImage').value = '';
-        document.getElementById('mpCategory').value = '';
-
-        document.getElementById('stockSelectContainer').style.display = 'block';
-        document.getElementById('stockPreview').style.display = 'none';
-        
-        document.getElementById('mpBuy').disabled = false;
-        document.getElementById('mpQty').disabled = false;
-        document.getElementById('mpUnit').disabled = false;
-
-        const sel = document.getElementById('stockBaseSelect');
-        sel.innerHTML = '<option value="">-- Choose Product --</option>';
-        catalogCache.forEach(p => {
-            sel.innerHTML += `<option value="${p.id}" data-img="${p.image||''}" data-name="${p.name}" data-sku="${p.sku}" data-cat="${p.categoryId||''}">${p.name} (${p.sku})</option>`;
-        });
-
-        openModal('prodModal');
-    };
-
-    window.onBaseProductSelect = () => {
-        const sel = document.getElementById('stockBaseSelect');
-        const opt = sel.options[sel.selectedIndex];
-        if(opt.value) {
-            document.getElementById('mpName').value = opt.dataset.name;
-            document.getElementById('mpImage').value = opt.dataset.img;
-            document.getElementById('mpCategory').value = opt.dataset.cat;
-            document.getElementById('stockPreview').style.display = 'block';
-            document.getElementById('mpPhotoPreview').src = opt.dataset.img;
-            document.getElementById('mpNameDisplay').textContent = opt.dataset.name;
-        } else {
-            document.getElementById('stockPreview').style.display = 'none';
-        }
-    };
-
-    window.editStock = (id) => {
-        const p = productsCache.find(x => x.id === id);
-        if(!p) return;
-        document.getElementById('mpId').value = p.id;
-        document.getElementById('prodModalTitle').textContent = 'Update Price';
-        
-        document.getElementById('mpBuy').value = p.buy;
-        document.getElementById('mpSell').value = p.sell;
-        document.getElementById('mpQty').value = p.qty;
-        document.getElementById('mpUnit').value = p.unit || '';
-        document.getElementById('mpName').value = p.name;
-        document.getElementById('mpImage').value = p.image;
-        document.getElementById('mpCategory').value = p.categoryId || '';
-
-        document.getElementById('stockSelectContainer').style.display = 'none';
-        document.getElementById('stockPreview').style.display = 'block';
-        document.getElementById('mpPhotoPreview').src = p.image;
-        document.getElementById('mpNameDisplay').textContent = p.name;
-
-        document.getElementById('mpBuy').disabled = true;
-        document.getElementById('mpQty').disabled = true;
-        document.getElementById('mpUnit').disabled = true;
-        document.getElementById('mpSell').disabled = false;
-
-        openModal('prodModal');
-    };
-
-    window.saveStock = async () => {
-        const id = document.getElementById('mpId').value;
-        const buy = parseFloat(document.getElementById('mpBuy').value);
-        const sell = parseFloat(document.getElementById('mpSell').value);
-        const qty = parseFloat(document.getElementById('mpQty').value);
-        const unit = document.getElementById('mpUnit').value;
-        const name = document.getElementById('mpName').value;
-        const image = document.getElementById('mpImage').value;
-        const categoryId = document.getElementById('mpCategory').value;
-        
-        let sku = "";
-        
-        // Get SKU for batch calculation
-        if(!id) {
-             const sel = document.getElementById('stockBaseSelect');
-             const opt = sel.options[sel.selectedIndex];
-             if(!opt.value) return showToast("Please select a product", "error");
-             sku = opt.dataset.sku;
-        } else {
-            const p = productsCache.find(x => x.id === id);
-            sku = p ? p.sku : "";
-        }
-
-        if(isNaN(buy) || buy < 0) return showToast("Buy Price must be 0 or higher", "error");
-        if(isNaN(sell) || sell <= 0) return showToast("Sell Price must be greater than 0", "error");
-        if(isNaN(qty) || qty <= 0) return showToast("Quantity must be greater than 0", "error");
-
-        const stockData = { name, buy, sell, qty, unit, image, sku, categoryId };
-
-        if (sell < buy) {
-            document.getElementById('priceWarningMsg').innerHTML = `Loss: ${formatMoney(sell - buy)} per unit`;
-            document.getElementById('priceWarningModal').style.display = 'flex';
-            document.getElementById('btnConfirmSaveAny').onclick = async () => {
-                 document.getElementById('priceWarningModal').style.display = 'none';
-                 await finalizeStockSave(id, stockData);
-            };
-            return;
-        }
-        await finalizeStockSave(id, stockData);
-    };
-
-    async function finalizeStockSave(id, data) {
-        toggleLoader(true);
-        const isEdit = !!id;
-        
-        if(isEdit) {
-            // EDIT: Batch number stays the same
-            const oldP = productsCache.find(x => x.id === id);
-            await updateDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/products`, id), { 
-                sell: data.sell
-            });
-            // Log with existing batch number
-            await logInventory(data.name, 'EDIT', `Price updated: ${formatMoney(oldP.sell)} -> ${formatMoney(data.sell)}`, 0, data.qty, oldP.batchNumber || 1, data.qty);
-        } else {
-            // ADD: Calculate New Batch Number
-            const existingBatches = productsCache.filter(p => p.sku === data.sku);
-            // Find highest batch number and add 1
-            const maxBatch = existingBatches.reduce((max, p) => (p.batchNumber > max ? p.batchNumber : max), 0);
-            const nextBatchNum = maxBatch + 1;
-
-            data.dateAdded = new Date().toISOString();
-            data.batchNumber = nextBatchNum; // Save integer 1, 2, 3...
-
-            await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/products`), data);
-            
-            // Log with new batch number. Old Qty was 0.
-            await logInventory(data.name, 'ADD', 'New Stock Batch', data.qty, data.qty, nextBatchNum, 0);
-        }
-
-        document.getElementById('prodModal').style.display = 'none';
-        await loadProducts();
-        toggleLoader(false);
-        showToast("Stock saved successfully!");
-    }
-
-    window.deleteProduct = async (id, name) => {
-        if(!confirm('Delete this stock batch?')) return;
-        const p = productsCache.find(x => x.id === id);
-        toggleLoader(true);
-        await deleteDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/products`, id));
-        await logInventory(name, 'DELETE', 'Batch Deleted', -p.qty, 0);
-        loadProducts();
-        toggleLoader(false);
-        showToast("Batch deleted");
-    };
-
-    // --- INVENTORY LOGGING ---
-   async function logInventory(name, action, desc, change, finalQty, batchNum = 0, initialQty = 0) {
-        const log = {
-            date: new Date().toISOString(),
-            productName: name,
-            action, 
-            description: desc,
-            quantityChange: change,
-            finalQty: finalQty,
-            initialQty: initialQty, // New Field
-            batchNumber: batchNum   // New Field
-        };
-        await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/inventory_logs`), log);
-    }
-    window.openInventoryReport = () => {
-        document.getElementById('invReportModal').style.display = 'flex';
-        const now = new Date();
-        document.getElementById('invDateInput').valueAsDate = now;
-        document.getElementById('invMonthInput').value = now.toISOString().slice(0, 7);
-        
-        const yearSel = document.getElementById('invYearInput');
-        yearSel.innerHTML = '';
-        for(let y = now.getFullYear(); y >= 2020; y--) {
-            yearSel.innerHTML += `<option value="${y}">${y}</option>`;
-        }
-        
-        // Populate Product Filter from Catalog Cache (Unique Names)
-        const prodFilter = document.getElementById('invProductFilter');
-        prodFilter.innerHTML = '<option value="ALL">All Products</option>';
-        const uniqueNames = [...new Set(catalogCache.map(p => p.name))].sort();
-        uniqueNames.forEach(n => {
-            prodFilter.innerHTML += `<option value="${n}">${n}</option>`;
-        });
-
-        toggleReportInputs();
-        hideReportResults(); // Ensure results are hidden on open
-    };
-    window.toggleReportInputs = () => {
-        const type = document.getElementById('invReportType').value;
-        document.getElementById('invDateInput').style.display = type === 'date' ? 'block' : 'none';
-        document.getElementById('invMonthInput').style.display = type === 'month' ? 'block' : 'none';
-        document.getElementById('invYearInput').style.display = type === 'year' ? 'block' : 'none';
-    };
-
-   window.generateInventoryReport = async () => {
-        const tbody = document.querySelector('#invReportTable tbody');
-        document.getElementById('invTableContainer').style.display = 'block';
-        document.getElementById('invExportSection').style.display = 'none'; // Hide buttons while loading
-        tbody.innerHTML = '<tr><td colspan="7">Loading...</td></tr>';
-
-        const q = query(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/inventory_logs`), orderBy('date', 'desc'));
-        const snap = await getDocs(q);
-        
-        const type = document.getElementById('invReportType').value;
-        const productFilter = document.getElementById('invProductFilter').value;
-        
-        let targetStr = "";
-        if(type === 'date') targetStr = document.getElementById('invDateInput').value;
-        else if(type === 'month') targetStr = document.getElementById('invMonthInput').value;
-        else if(type === 'year') targetStr = document.getElementById('invYearInput').value;
-
-        const logs = [];
-        snap.forEach(d => logs.push(d.data()));
-
-        const filtered = logs.filter(l => {
-            const d = new Date(l.date);
-            let dStr = "";
-            if(type === 'date') dStr = d.toISOString().split('T')[0];
-            else if(type === 'month') dStr = d.toISOString().slice(0, 7);
-            else if(type === 'year') dStr = d.getFullYear().toString();
-            
-            const matchDate = dStr === targetStr;
-            const matchProd = productFilter === 'ALL' || l.productName === productFilter;
-            
-            return matchDate && matchProd;
-        });
-
-        if (filtered.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:15px;">No logs found for this selection.</td></tr>';
-            // Do NOT show export buttons if no data
-            return;
-        }
-
-        tbody.innerHTML = filtered.map(l => {
-            const bNum = formatBatch(l.batchNumber || 0);
-            const initQ = l.initialQty !== undefined ? l.initialQty : '-';
-            
-            return `
-            <tr>
-                <td>
-                    <div>${new Date(l.date).toLocaleDateString()}</div>
-                    <div style="font-size:10px; color:#666;">${new Date(l.date).toLocaleTimeString()}</div>
-                </td>
-                <td>${l.productName}</td>
-                <td style="font-family:monospace; font-weight:700;">${bNum}</td>
-                <td><span style="padding:2px 6px; border-radius:4px; font-size:11px; background:${l.action==='SALE'?'#dcfce7':l.action==='DELETE'?'#fee2e2':'#e0f2fe'}">${l.action}</span></td>
-                <td style="color:#6b7280;">${initQ}</td>
-                <td style="color:${l.quantityChange<0?'red':'green'}; font-weight:600;">${l.quantityChange > 0 ? '+'+l.quantityChange : l.quantityChange}</td>
-                <td style="font-weight:700;">${l.finalQty}</td>
-            </tr>
-        `}).join('');
-        
-        // Show buttons now that data is loaded and correct
-        document.getElementById('invExportSection').style.display = 'block';
-    };
-
-    // --- EXPORT & SHARE FUNCTIONS ---
-    window.printReport = () => {
-        const tableContent = document.getElementById('invReportTable').outerHTML;
-        const type = document.getElementById('invReportType').value;
-        const dateVal = type === 'date' ? document.getElementById('invDateInput').value : 
-                        type === 'month' ? document.getElementById('invMonthInput').value : 
-                        document.getElementById('invYearInput').value;
-        
-        const printWindow = window.open('', '', 'height=600,width=800');
-        printWindow.document.write('<html><head><title>Inventory Report</title>');
-        printWindow.document.write('<style>body{font-family:sans-serif;} table{width:100%;border-collapse:collapse;} th,td{border:1px solid #ddd;padding:8px;text-align:left;} th{background-color:#f2f2f2;}</style>');
-        printWindow.document.write('</head><body>');
-        printWindow.document.write(`<h2>Inventory Log Report (${type}: ${dateVal})</h2>`);
-        printWindow.document.write(tableContent);
-        printWindow.document.write('</body></html>');
-        printWindow.document.close();
-        printWindow.print();
-    };
-
-    window.downloadCSV = () => {
-        const table = document.getElementById('invReportTable');
-        let csv = [];
-        const rows = table.querySelectorAll('tr');
-        for (let i = 0; i < rows.length; i++) {
-            let row = [], cols = rows[i].querySelectorAll("td, th");
-            for (let j = 0; j < cols.length; j++) row.push(cols[j].innerText.replace(/,/g, ""));
-            csv.push(row.join(","));        
-        }
-        const csvFile = new Blob([csv.join("\n")], {type: "text/csv"});
-        const downloadLink = document.createElement("a");
-        downloadLink.download = `inventory_report_${new Date().getTime()}.csv`;
-        downloadLink.href = window.URL.createObjectURL(csvFile);
-        downloadLink.style.display = "none";
-        document.body.appendChild(downloadLink);
-        downloadLink.click();
-        document.body.removeChild(downloadLink);
-    };
-
-    window.sendWhatsApp = async () => {
-        const number = document.getElementById('waNumber').value;
-        if (!number) return showToast("Enter WhatsApp number", "error");
-        const rows = document.querySelectorAll('#invReportTable tbody tr');
-        if(rows.length === 0 || rows[0].innerText.includes("No logs")) return showToast("No data to send", "error");
-
-        toggleLoader(true);
-        try {
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
-            doc.text("Inventory Log Report", 14, 15);
-            doc.setFontSize(10);
-            const filterInfo = document.getElementById('invReportType').value; 
-            let dateVal = "";
-            if(filterInfo === 'date') dateVal = document.getElementById('invDateInput').value;
-            else if(filterInfo === 'month') dateVal = document.getElementById('invMonthInput').value;
-            else dateVal = document.getElementById('invYearInput').value;
-            doc.text(`Filter: ${filterInfo.toUpperCase()} - ${dateVal}`, 14, 22);
-            doc.autoTable({ html: '#invReportTable', startY: 30 });
-            const pdfBlob = doc.output('blob');
-            const file = new File([pdfBlob], "Inventory_Report.pdf", { type: "application/pdf" });
-            if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                await navigator.share({ files: [file], title: 'Inventory Report', text: 'Here is the inventory report PDF.' });
-                showToast("Shared successfully");
-            } else {
-                doc.save("Inventory_Report.pdf");
-                setTimeout(() => {
-                    const msg = encodeURIComponent("Here is the Inventory Report (PDF). Please drag and drop the downloaded file here.");
-                    const url = `https://wa.me/${number}?text=${msg}`;
-                    window.open(url, '_blank');
-                    alert("PDF Downloaded. Please drag and drop it into the WhatsApp chat.");
-                }, 1000);
-            }
-        } catch (err) {
-            showToast("Error generating PDF: " + err.message, "error");
-        } finally {
-            toggleLoader(false);
-        }
-    };
-
-
-    // --- POS ---
-    function renderPosGrid() {
-        const grid = document.getElementById('posGrid');
-        const term = document.getElementById('posSearch').value.toLowerCase();
-        const catFilter = document.getElementById('posFilterCategory').value;
-
-        // Calculate Max Batch for colors (Dynamic Logic)
-        const skuStats = {};
-        productsCache.forEach(p => {
-            if(!p.sku) return;
-             if(!skuStats[p.sku]) {
-                skuStats[p.sku] = { maxWithStock: -1, minWithStock: Infinity };
-            }
-            if(p.qty > 0) {
-                const b = p.batchNumber || 1;
-                if(b > skuStats[p.sku].maxWithStock) skuStats[p.sku].maxWithStock = b;
-                if(b < skuStats[p.sku].minWithStock) skuStats[p.sku].minWithStock = b;
-            }
-        });
-
-        const filtered = productsCache.filter(p => {
-            const matchName = p.name.toLowerCase().includes(term);
-            const matchCat = catFilter === 'All' || (p.categoryId === catFilter) || (!p.categoryId && catFilter === "");
-            return p.qty > 0 && matchName && matchCat;
-        });
-
-        if(filtered.length === 0) {
-            grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: #9ca3af; padding: 20px;">No items match or out of stock</div>';
-            return;
-        }
-        grid.innerHTML = filtered.map(p => {
-                const date = new Date(p.dateAdded).toLocaleDateString();
-                const imgTag = p.image ? `<img src="${p.image}" style="width:100%; height:80px; object-fit:contain; margin-bottom:5px;">` : '';
-                
-                // Batch Logic
-                const batchNum = p.batchNumber || 1;
-                const stats = skuStats[p.sku] || { maxWithStock: -1, minWithStock: Infinity };
-                let batchClass = 'batch-mid';
-                
-                if(batchNum === stats.minWithStock) batchClass = 'batch-oldest'; // Red
-                else if(batchNum === stats.maxWithStock) batchClass = 'batch-latest'; // Green
-                
-                // Refund Override
-                if(p.isRefund) batchClass = 'batch-refund';
-
-                return `
-                <div onclick="addToCart('${p.id}')" style="background:white; padding:10px; border-radius:8px; cursor:pointer; text-align:center; border:1px solid #e5e7eb; box-shadow:0 1px 2px rgba(0,0,0,0.05); position:relative; overflow:hidden;">
-                    <div style="position:absolute; top:5px; right:5px;" class="batch-badge ${batchClass}">${p.isRefund ? 'REFUND' : formatBatch(batchNum)}</div>
-                    ${imgTag}
-                    <div style="font-weight:600; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-top:5px;">${p.name}</div>
-                    <div style="color:var(--primary); font-weight:700;">${formatMoney(p.sell)}</div>
-                    <div style="font-size:10px; color:#9ca3af; margin-top:4px;">Stock: ${p.qty} | ${date}</div>
-                </div>`;
-            }).join('');
-    }
-
-    window.filterPos = () => renderPosGrid();
-
-    window.addToCart = (id) => {
-        const p = productsCache.find(x => x.id === id);
-        if(p.qty < 1) return showToast("Out of Stock", "error");
-        const exist = cart.find(x => x.id === id);
-        if(exist) {
-            if(exist.qty >= p.qty) return showToast("Max stock reached", "error");
-            exist.qty++;
-        } else {
-            cart.push({...p, qty: 1});
-        }
-        renderCart();
-    };
-
-    window.renderCart = () => {
-        const con = document.getElementById('cartItems');
-        let subtotal = 0;
-        
-        con.innerHTML = cart.map((i, idx) => {
-            subtotal += i.sell * i.qty;
-            return `<div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:13px; align-items:center;">
-                <div style="flex:1;">
-                   <div style="font-weight:500;">${i.name}</div>
-                   <div style="color:#666; font-size:11px;">${formatMoney(i.sell)} x ${i.qty}</div>
-                </div>
-                <div>
-                    <strong>${formatMoney(i.sell * i.qty)}</strong>
-                    <button class="btn btn-danger" style="padding:2px 6px; font-size:10px; margin-left:5px;" onclick="removeFromCart(${idx})">X</button>
-                </div>
-            </div>`;
-        }).join('');
-
-        // Calculations
-        let discountVal = parseFloat(document.getElementById('discountValue').value) || 0;
-        const discountType = document.getElementById('discountType').value;
-        let discountAmt = discountType === 'percent' ? (subtotal * discountVal / 100) : discountVal;
-        
-        let feesTotal = currentOtherFees.reduce((sum, f) => sum + f.amount, 0);
-        let total = subtotal - discountAmt + feesTotal;
-        if(total < 0) total = 0;
-
-        document.getElementById('cartSubtotal').textContent = formatMoney(subtotal);
-        document.getElementById('cartDiscount').textContent = `-${formatMoney(discountAmt)}`;
-        document.getElementById('cartFees').textContent = `+${formatMoney(feesTotal)}`;
-        document.getElementById('cartTotal').textContent = formatMoney(total);
-    }
-
-    window.removeFromCart = (idx) => {
-        cart.splice(idx, 1);
-        renderCart();
-    };
-
-    window.addFee = () => {
-        const name = document.getElementById('newFeeName').value.trim();
-        const amt = parseFloat(document.getElementById('newFeeAmount').value);
-        if(!name || isNaN(amt)) return showToast("Invalid Fee", "error");
-        currentOtherFees.push({ name, amount: amt });
-        document.getElementById('newFeeName').value = '';
-        document.getElementById('newFeeAmount').value = '';
-        renderFees();
-        renderCart();
-    };
-
-    function renderFees() {
-        const list = document.getElementById('feeList');
-        list.innerHTML = currentOtherFees.map((f, i) => `
-            <div style="display:flex; justify-content:space-between; font-size:12px; background:#eee; padding:4px 8px; margin-bottom:4px; border-radius:4px;">
-                <span>${f.name}</span>
-                <span>${formatMoney(f.amount)} <i class="ri-close-circle-fill" style="cursor:pointer; margin-left:5px;" onclick="removeFee(${i})"></i></span>
-            </div>
-        `).join('');
-    }
-
-    window.removeFee = (idx) => {
-        currentOtherFees.splice(idx, 1);
-        renderFees();
-        renderCart();
-    };
-
-    window.checkout = async () => {
-        if(!cart.length) return showToast("Cart is empty!", "error");
-        
-        const custName = document.getElementById('posCustName').value.trim();
-        const custPhone = document.getElementById('posCustPhone').value.trim();
-        const custAddr = document.getElementById('posCustAddr').value.trim();
-        const paymentMethod = document.getElementById('posPaymentMethod').value;
-        const discountType = document.getElementById('discountType').value;
-        const discountVal = parseFloat(document.getElementById('discountValue').value) || 0;
-        
-        if(!custName || !custPhone) return showToast("Customer Name & Phone Required", "error");
-        if(paymentMethod === "Pay Later" && !custAddr) return showToast("Address Required for Pay Later", "error");
-
-        toggleLoader(true);
-        try {
-            // Generate Custom ID first
-            const customId = await generateDailyOrderId();
-
-            let subtotal = cart.reduce((a,b)=>a+(b.sell*b.qty),0);
-            let discountAmt = discountType === 'percent' ? (subtotal * discountVal / 100) : discountVal;
-            let feesTotal = currentOtherFees.reduce((sum, f) => sum + f.amount, 0);
-            let total = subtotal - discountAmt + feesTotal;
-
-            const saleData = {
-                customId, // Save human readable ID
-                date: new Date().toISOString(),
-                subtotal, discountType, discountValue: discountVal, discountAmt, fees: currentOtherFees, feesTotal, total,
-                items: cart,
-                customer: { name: custName, phone: custPhone, address: custAddr },
-                paymentMethod, notes: []
-            };
-
-            const docRef = await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/sales`), saleData);
-            
-            // Update Inventory & Log
-            for(let item of cart) {
-                 const ref = doc(db, `users/${currentUser.uid}/shops/${currentShopId}/products`, item.id);
-                 const original = productsCache.find(x => x.id === item.id);
-                 const newQty = original.qty - item.qty;
-                 
-                 await updateDoc(ref, { qty: newQty });
-                 await logInventory(item.name, 'SALE', `Order #${customId}`, -item.qty, newQty, original.batchNumber || 1, original.qty);
-            }
-
-            // PDF uses customId now
-            generateInvoicePDF({...saleData, id: docRef.id}); 
-
-            cart = []; currentOtherFees = [];
-            document.getElementById('posCustName').value = '';
-            document.getElementById('posCustPhone').value = '';
-            document.getElementById('posCustAddr').value = '';
-            document.getElementById('discountValue').value = '';
-            renderCart(); renderFees();
-            
-            await loadProducts();
-            updateDashboard();
-            showToast("Sale Completed! ID: " + customId, "success");
-
-        } catch (e) {
-            console.error(e);
-            showToast("Error processing sale", "error");
-        } finally {
-            toggleLoader(false);
-        }
-    };
-
-    // --- SEARCH ORDER LOGIC ---
-    window.searchOrder = async () => {
-        const input = document.getElementById('orderSearchInput').value.trim();
-        if(!input) return showToast("Enter Order ID", "error");
-        
-        toggleLoader(true);
-        // Search by customId
-        const q = query(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/sales`), where('customId', '==', input));
-        const snap = await getDocs(q);
-        
-        if(snap.empty) {
-            showToast("Order not found", "error");
-            toggleLoader(false);
-            return;
-        }
-        
-        const orderDoc = snap.docs[0];
-        const order = { id: orderDoc.id, ...orderDoc.data() };
-        
-        // Fetch related refunds
-        const refQ = query(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/refunds`), where('orderRefId', '==', order.customId));
-        const refSnap = await getDocs(refQ);
-        const refunds = [];
-        refSnap.forEach(d => refunds.push(d.data()));
-
-        displayOrderDetails(order, refunds);
-        toggleLoader(false);
-    };
-
-    function displayOrderDetails(order, refunds) {
-        const modal = document.getElementById('orderDetailsModal');
-        const content = document.getElementById('odModalContent');
-        
-        let itemsHtml = order.items.map(i => `
-            <tr>
-                <td>${i.name}</td>
-                <td>${i.qty}</td>
-                <td>${formatMoney(i.sell)}</td>
-                <td>${formatMoney(i.sell * i.qty)}</td>
-            </tr>
-        `).join('');
-
-        let refundHtml = '';
-        if(refunds.length > 0) {
-            refundHtml = `<div class="note-box" style="background:#fee2e2; border-color:#f87171; color:#b91c1c;">
-                <strong><i class="ri-alarm-warning-fill"></i> Refund History:</strong><br>
-                ${refunds.map(r => `• ${r.date.split('T')[0]}: ${r.qty}x ${r.productName} (${r.reason})`).join('<br>')}
-            </div>`;
-        }
-
-        content.innerHTML = `
-            <div style="margin-bottom:15px; display:flex; justify-content:space-between;">
-                <div>
-                    <div style="font-size:18px; font-weight:700;">${order.customId || order.id}</div>
-                    <div style="color:#666; font-size:12px;">${new Date(order.date).toLocaleString()}</div>
-                </div>
-                <div style="text-align:right;">
-                    <div style="font-weight:700;">${order.customer.name}</div>
-                    <div style="font-size:12px;">${order.customer.phone}</div>
-                </div>
-            </div>
-            
-            ${refundHtml}
-
-            <table style="margin-bottom:15px;">
-                <thead style="background:#f3f4f6;"><tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th></tr></thead>
-                <tbody>${itemsHtml}</tbody>
-            </table>
-
-            <div style="text-align:right; font-size:14px;">
-                <div>Subtotal: ${formatMoney(order.subtotal)}</div>
-                ${order.discountAmt ? `<div>Discount: -${formatMoney(order.discountAmt)}</div>` : ''}
-                <div style="font-weight:700; font-size:16px; margin-top:5px;">Total: ${formatMoney(order.total)}</div>
-                <div style="font-size:12px; color:#666; margin-top:5px;">Paid via ${order.paymentMethod}</div>
-            </div>
-        `;
-        modal.style.display = 'flex';
-    }
-
-    // --- REFUNDS TAB LOGIC UPDATE ---
-    
-    window.findOrderForRefund = async () => {
-        const orderId = document.getElementById('refundOrderSearch').value.trim();
-        if(!orderId) return showToast("Enter Order ID", "error");
-        
-        toggleLoader(true);
-        const q = query(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/sales`), where('customId', '==', orderId));
-        const snap = await getDocs(q);
-        
-        if(snap.empty) {
-            showToast("Order not found", "error");
-            document.getElementById('refundStep2').style.display = 'none';
-        } else {
-            selectedRefundOrder = { id: snap.docs[0].id, ...snap.docs[0].data() };
-            
-            // Populate Items Select
-            const sel = document.getElementById('refundItemSelect');
-            sel.innerHTML = '<option value="">-- Select Item --</option>';
-            selectedRefundOrder.items.forEach((item, idx) => {
-                sel.innerHTML += `<option value="${idx}" data-price="${item.sell}" data-qty="${item.qty}">${item.name} (Qty: ${item.qty})</option>`;
-            });
-            
-            document.getElementById('refundStep2').style.display = 'block';
-        }
-        toggleLoader(false);
-    };
-
-    window.fillRefundAmount = () => {
-        const sel = document.getElementById('refundItemSelect');
-        const opt = sel.options[sel.selectedIndex];
-        if(!opt.value && opt.value !== "0") return;
-        
-        const price = parseFloat(opt.dataset.price);
-        const maxQty = parseFloat(opt.dataset.qty);
-        
-        document.getElementById('refundMaxQty').textContent = maxQty;
-        document.getElementById('refundQty').value = 1;
-        document.getElementById('refundAmount').value = price.toFixed(2);
-    };
-
-    window.saveRefund = async () => {
-        if(!selectedRefundOrder) return;
-        
-        const itemIdx = document.getElementById('refundItemSelect').value;
-        if(itemIdx === "") return showToast("Select an item", "error");
-        
-        const item = selectedRefundOrder.items[itemIdx];
-        const reason = document.getElementById('refundReason').value;
-        const qty = parseFloat(document.getElementById('refundQty').value);
-        const amount = parseFloat(document.getElementById('refundAmount').value);
-        const restock = document.getElementById('refundRestock').checked;
-
-        if(qty <= 0 || qty > item.qty) return showToast("Invalid Quantity", "error");
-
-        toggleLoader(true);
-        try {
-            // 1. Save Refund
-            await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/refunds`), {
-                orderRefId: selectedRefundOrder.customId,
-                productName: item.name, 
-                reason, qty, amount, restock, 
-                date: new Date().toISOString()
-            });
-
-            // 2. Restock Logic
-            if(restock) {
-                // Find max batch
-                const sameProds = productsCache.filter(p => p.name === item.name);
-                const maxBatch = sameProds.reduce((max, p) => (p.batchNumber > max ? p.batchNumber : max), 0);
-                
-                await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/products`), {
-                    name: item.name,
-                    sku: item.sku || "",
-                    image: item.image || null,
-                    categoryId: item.categoryId || null,
-                    qty: qty,
-                    buy: 0,
-                    sell: item.sell,
-                    unit: item.unit || '',
-                    dateAdded: new Date().toISOString(),
-                    batchNumber: maxBatch + 1,
-                    isRefund: true
-                });
-                
-                await logInventory(item.name, 'REFUND', `Return from Order #${selectedRefundOrder.customId}`, qty, qty, maxBatch+1, 0);
-            }
-
-            showToast("Refund Processed");
-            // Reset
-            document.getElementById('refundStep2').style.display = 'none';
-            document.getElementById('refundOrderSearch').value = '';
-            selectedRefundOrder = null;
-            await loadProducts();
-
-        } catch(e) {
-            console.error(e);
-            showToast("Error processing refund", "error");
-        } finally {
-            toggleLoader(false);
-        }
-    };
-
     window.updateDashboard = () => {
         document.getElementById('dashLow').textContent = productsCache.filter(p => p.qty < 5).length;
         document.getElementById('dashEmp').textContent = document.querySelectorAll('#empGrid .card').length;
@@ -3954,6 +2539,332 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
             },
             options: { responsive: true, maintainAspectRatio: false }
         });
+    };
+
+    // --- IMPLEMENTATION OF MISSING FUNCTIONS TO PREVENT ERRORS ---
+
+    // 1. EMPLOYEES
+    window.loadEmployees = async () => {
+        const grid = document.getElementById('empGrid');
+        const sel1 = document.getElementById('payEmpSelect');
+        const sel2 = document.getElementById('calcEmpSelect');
+        const q = collection(db, `users/${currentUser.uid}/shops/${currentShopId}/employees`);
+        const snap = await getDocs(q);
+        
+        let html = '';
+        let opts = '';
+        snap.forEach(d => {
+            const emp = d.data();
+            html += `<div class="card">
+                <h4>${emp.name}</h4>
+                <div style="font-size:12px; color:#666;">${emp.role}</div>
+                <div style="margin-top:5px; font-weight:600;">Salary: ${formatMoney(emp.salary)}</div>
+                <button class="btn btn-danger btn-ghost" style="margin-top:10px;" onclick="deleteEmployee('${d.id}')">Remove</button>
+            </div>`;
+            opts += `<option value="${d.id}" data-salary="${emp.salary}">${emp.name}</option>`;
+        });
+        grid.innerHTML = html || '<div style="color:#666;">No employees added yet.</div>';
+        if(sel1) sel1.innerHTML = opts;
+        if(sel2) sel2.innerHTML = opts;
+    };
+
+    window.saveEmployee = async () => {
+        const name = document.getElementById('meName').value;
+        const role = document.getElementById('meRole').value;
+        const salary = document.getElementById('meSalary').value;
+        if(!name || !salary) return showToast("Name and Salary required", "error");
+        
+        toggleLoader(true);
+        await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/employees`), { name, role, salary: parseFloat(salary) });
+        document.getElementById('empModal').style.display = 'none';
+        await loadEmployees();
+        toggleLoader(false);
+        showToast("Employee added");
+    };
+
+    window.deleteEmployee = async (id) => {
+        if(!confirm("Remove employee?")) return;
+        await deleteDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/employees`, id));
+        loadEmployees();
+    };
+
+    // 2. ORDERS
+    window.loadOrders = async () => {
+        const tbody = document.querySelector('#ordersTable tbody');
+        tbody.innerHTML = '<tr><td colspan="7">Loading...</td></tr>';
+        
+        // Use salesCache populated in refreshData
+        const orders = salesCache; 
+        
+        if(orders.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7">No orders found.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = orders.map(o => `
+            <tr>
+                <td>${o.customId || o.id}</td>
+                <td>${new Date(o.date).toLocaleDateString()}</td>
+                <td>${o.customer?.name || 'Guest'}</td>
+                <td>${o.paymentMethod}</td>
+                <td>${formatMoney(o.total)}</td>
+                <td><span style="background:#dcfce7; color:#166534; padding:2px 6px; border-radius:4px; font-size:11px;">Paid</span></td>
+                <td>
+                    <button class="btn btn-ghost" onclick="searchOrderFromList('${o.customId || o.id}')">View</button>
+                </td>
+            </tr>
+        `).join('');
+    };
+    
+    // Helper for "View" button in table
+    window.searchOrderFromList = (id) => {
+        document.getElementById('orderSearchInput').value = id;
+        searchOrder();
+    }
+
+    // 3. ALERTS
+    window.loadAlerts = async () => {
+        const q = query(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/alerts`), orderBy('targetDate', 'asc'));
+        const snap = await getDocs(q);
+        const alerts = [];
+        const now = new Date();
+        let hasActive = false;
+        
+        snap.forEach(d => {
+            const a = {id: d.id, ...d.data()};
+            alerts.push(a);
+            if(!a.dismissed && new Date(a.targetDate) <= now) {
+                hasActive = true;
+                document.getElementById('dashboardAlertMsg').textContent = a.message;
+            }
+        });
+        
+        document.getElementById('alertBadge').style.display = hasActive ? 'block' : 'none';
+        if(hasActive) document.getElementById('dashboardAlertPopup').style.display = 'block';
+        
+        // Store for render
+        window.alertsCache = alerts;
+    };
+
+    window.renderAlertsTable = () => {
+        const tbody = document.querySelector('#alertsTable tbody');
+        if(!window.alertsCache || window.alertsCache.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6">No alerts set.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = window.alertsCache.map(a => `
+            <tr style="${a.dismissed ? 'opacity:0.5' : ''}">
+                <td>${new Date(a.targetDate).toLocaleString()}</td>
+                <td>${a.frequency}</td>
+                <td>${a.message}</td>
+                <td>${a.orderId || '-'}</td>
+                <td>${a.dismissed ? 'Done' : 'Pending'}</td>
+                <td>
+                    <button class="btn btn-danger" onclick="deleteAlert('${a.id}')">Del</button>
+                    ${!a.dismissed ? `<button class="btn btn-primary" onclick="dismissAlert('${a.id}')">Check</button>` : ''}
+                </td>
+            </tr>
+        `).join('');
+    };
+
+    window.saveAlert = async () => {
+        const msg = document.getElementById('alertMsg').value;
+        const dateVal = document.getElementById('alertDate').value;
+        const freq = document.getElementById('alertFreq').value;
+        
+        if(!msg || !dateVal) return showToast("Message and Date required", "error");
+        
+        toggleLoader(true);
+        await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/alerts`), {
+            message: msg,
+            targetDate: dateVal,
+            frequency: freq,
+            created: new Date().toISOString(),
+            dismissed: false
+        });
+        document.getElementById('createAlertModal').style.display = 'none';
+        await loadAlerts();
+        if(document.getElementById('view-alerts').classList.contains('active')) renderAlertsTable();
+        toggleLoader(false);
+        showToast("Alert Created");
+    };
+
+    window.deleteAlert = async (id) => {
+        await deleteDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/alerts`, id));
+        loadAlerts().then(() => renderAlertsTable());
+    };
+    
+    window.dismissAlert = async (id) => {
+        await updateDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/alerts`, id), { dismissed: true });
+        loadAlerts().then(() => renderAlertsTable());
+    }
+
+    // 4. CUSTOMERS
+    window.loadCustomers = async () => {
+        const q = collection(db, `users/${currentUser.uid}/shops/${currentShopId}/customers`);
+        const snap = await getDocs(q);
+        customersCache = [];
+        snap.forEach(d => customersCache.push({id: d.id, ...d.data()}));
+        
+        // Render if view is active
+        if(document.getElementById('view-customers').classList.contains('active')) {
+            filterCustomers();
+        }
+    };
+
+    window.filterCustomers = () => {
+        const term = document.getElementById('custSearch').value.toLowerCase();
+        const grid = document.getElementById('customerGrid');
+        const filtered = customersCache.filter(c => c.name.toLowerCase().includes(term) || c.phone.includes(term));
+        
+        grid.innerHTML = filtered.map(c => `
+            <div class="card">
+                <h4>${c.name}</h4>
+                <div style="color:#666; font-size:12px; margin-bottom:5px;">${c.phone}</div>
+                <div style="font-size:12px;">${c.address || ''}</div>
+                <div style="margin-top:10px;">
+                    <button class="btn btn-warning" onclick="openCustNote('${c.id}')">Notes</button>
+                    ${c.whatsapp ? `<button class="btn btn-success" onclick="window.open('https://wa.me/${c.whatsapp}')"><i class="ri-whatsapp-line"></i></button>` : ''}
+                </div>
+            </div>
+        `).join('');
+    };
+
+    window.saveCustomer = async () => {
+        const name = document.getElementById('custName').value;
+        const phone = document.getElementById('custPhone').value;
+        const wa = document.getElementById('custWhatsapp').value;
+        const email = document.getElementById('custEmail').value;
+        const addr = document.getElementById('custAddress').value;
+
+        if(!name || !phone) return showToast("Name and Phone required", "error");
+
+        toggleLoader(true);
+        // Use phone as ID to prevent duplicates
+        await setDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/customers`, phone), {
+            name, phone, whatsapp: wa, email, address: addr
+        });
+        document.getElementById('customerModal').style.display = 'none';
+        await loadCustomers();
+        toggleLoader(false);
+        showToast("Customer Saved");
+    };
+
+    // 5. DOCUMENTS (Invoice/Quote)
+    window.loadDocumentsHistory = async () => {
+        // Mock implementation or fetch from a 'documents' collection if you create one
+        // For now, let's just show a placeholder or local array if you want persistent history
+        const list = document.getElementById('docHistoryList');
+        list.innerHTML = '<div style="font-size:12px; color:#666;">Generated documents will appear here. (Storage not implemented in this demo)</div>';
+    };
+
+    window.toggleDocType = () => {
+        // Just UI logic if needed
+    };
+
+    window.addDocRow = () => {
+        const tbody = document.getElementById('docItemsBody');
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><input class="doc-item" placeholder="Item Name"></td>
+            <td><input type="number" class="doc-qty" value="1" style="width:60px;" onkeyup="calcDocTotals()"></td>
+            <td><input type="number" class="doc-price" value="0" style="width:80px;" onkeyup="calcDocTotals()"></td>
+            <td class="doc-row-total">0.00</td>
+            <td><button class="btn btn-danger" onclick="this.closest('tr').remove(); calcDocTotals()">X</button></td>
+        `;
+        tbody.appendChild(tr);
+    };
+
+    window.calcDocTotals = () => {
+        let sub = 0;
+        document.querySelectorAll('#docItemsBody tr').forEach(tr => {
+            const qty = parseFloat(tr.querySelector('.doc-qty').value) || 0;
+            const price = parseFloat(tr.querySelector('.doc-price').value) || 0;
+            const total = qty * price;
+            tr.querySelector('.doc-row-total').textContent = total.toFixed(2);
+            sub += total;
+        });
+        
+        const disc = parseFloat(document.getElementById('docDiscount').value) || 0;
+        const tax = parseFloat(document.getElementById('docTax').value) || 0;
+        
+        // Assuming discount is amount, tax is percent
+        const taxAmt = (sub - disc) * (tax / 100);
+        const total = (sub - disc) + taxAmt;
+
+        document.getElementById('docSubtotal').textContent = sub.toFixed(2);
+        document.getElementById('docTotal').textContent = total.toFixed(2);
+    };
+
+    window.saveDocument = () => {
+        // Collect data
+        const type = document.getElementById('docTypeToggle').value;
+        const id = document.getElementById('docId').value || 'DRAFT';
+        const date = document.getElementById('docDate').value;
+        const customer = document.getElementById('docCustName').value;
+        const items = [];
+        document.querySelectorAll('#docItemsBody tr').forEach(tr => {
+            items.push({
+                name: tr.querySelector('.doc-item').value,
+                qty: tr.querySelector('.doc-qty').value,
+                price: tr.querySelector('.doc-price').value
+            });
+        });
+        
+        // Basic PDF Generation
+        generateInvoicePDF({
+            customId: id,
+            date: date,
+            customer: { name: customer, address: document.getElementById('docCustAddr').value },
+            items: items,
+            subtotal: parseFloat(document.getElementById('docSubtotal').textContent),
+            total: parseFloat(document.getElementById('docTotal').textContent),
+            paymentMethod: type.toUpperCase() // Just as a label
+        });
+        
+        showToast("PDF Generated");
+    };
+
+    // --- PDF GENERATOR ---
+    window.generateInvoicePDF = async (saleData) => {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        
+        // Header
+        doc.setFontSize(18);
+        doc.text(profileCache?.ownerName || "Business Name", 14, 20);
+        doc.setFontSize(10);
+        doc.text(profileCache?.address || "", 14, 26);
+        doc.text(`Phone: ${profileCache?.phone1 || ""}`, 14, 32);
+
+        // Invoice Info
+        doc.setFontSize(14);
+        doc.text("INVOICE", 150, 20);
+        doc.setFontSize(10);
+        doc.text(`ID: ${saleData.customId || saleData.id}`, 150, 26);
+        doc.text(`Date: ${new Date(saleData.date).toLocaleDateString()}`, 150, 32);
+
+        // Customer
+        doc.text(`Bill To: ${saleData.customer.name}`, 14, 45);
+        
+        // Table
+        const tableBody = saleData.items.map(item => [
+            item.name,
+            item.qty,
+            formatMoney(item.sell || item.price || 0),
+            formatMoney((item.sell || item.price || 0) * item.qty)
+        ]);
+
+        doc.autoTable({
+            startY: 55,
+            head: [['Item', 'Qty', 'Price', 'Total']],
+            body: tableBody,
+        });
+
+        const finalY = doc.lastAutoTable.finalY + 10;
+        doc.text(`Total: ${formatMoney(saleData.total)}`, 150, finalY);
+
+        doc.save(`Invoice_${saleData.customId || 'Draft'}.pdf`);
     };
 
     window.toggleChat = () => {
