@@ -1516,25 +1516,20 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         const catFilter = document.getElementById('stockFilterCategory').value;
         const tbody = document.querySelector('#prodTable tbody');
         
-        // 1. Group by SKU to find statistics
-        // We need:
-        // - Max Batch (for Latest/Green)
-        // - Min Batch WITH STOCK > 0 (for Oldest/Red)
+        // 1. Group by SKU to find statistics (Dynamic Latest Logic)
         const skuStats = {}; 
 
         productsCache.forEach(p => {
             if(!p.sku) return;
             if(!skuStats[p.sku]) {
-                skuStats[p.sku] = { maxBatch: 0, minBatchWithStock: Infinity };
+                skuStats[p.sku] = { maxWithStock: -1, minWithStock: Infinity };
             }
             
-            // Update Max (Highest batch number existing)
-            const b = p.batchNumber || 1;
-            if(b > skuStats[p.sku].maxBatch) skuStats[p.sku].maxBatch = b;
-
-            // Update Min (Lowest batch number that has stock)
-            if(p.qty > 0 && b < skuStats[p.sku].minBatchWithStock) {
-                skuStats[p.sku].minBatchWithStock = b;
+            // Only consider batches with actual stock > 0 for Green/Red logic
+            if(p.qty > 0) {
+                const b = p.batchNumber || 1;
+                if(b > skuStats[p.sku].maxWithStock) skuStats[p.sku].maxWithStock = b;
+                if(b < skuStats[p.sku].minWithStock) skuStats[p.sku].minWithStock = b;
             }
         });
 
@@ -1555,7 +1550,8 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
                 const categoryName = categoriesCache.find(c => c.id === p.categoryId)?.name || 'Uncategorized';
 
                 const batchNum = p.batchNumber || 1;
-                const stats = skuStats[p.sku] || { maxBatch: 1, minBatchWithStock: 1 };
+                // Default stats if no stock available
+                const stats = skuStats[p.sku] || { maxWithStock: -1, minWithStock: Infinity };
                 
                 let batchClass = 'batch-mid'; // Default Grey
                 let rowClass = '';
@@ -1565,16 +1561,15 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
                     // OUT OF STOCK LOGIC
                     stockDisplay = `<span class="label-out-stock">Out of Stock</span>`;
                     rowClass = 'row-dimmed'; 
-                    // Batch color stays grey or neutral since it's irrelevant for FIFO picking
                 } else {
                     // HAS STOCK LOGIC
-                    // Is this the oldest available?
-                    if (batchNum === stats.minBatchWithStock) {
-                        batchClass = 'batch-oldest'; // RED
+                    // Priority 1: Oldest Available -> Red
+                    if (batchNum === stats.minWithStock) {
+                        batchClass = 'batch-oldest'; 
                     } 
-                    // Is this the newest? (Only if it's not also the oldest, or if it is the only one)
-                    else if (batchNum === stats.maxBatch) {
-                        batchClass = 'batch-latest'; // GREEN
+                    // Priority 2: Newest Available (Dynamic) -> Green
+                    else if (batchNum === stats.maxWithStock) {
+                        batchClass = 'batch-latest'; 
                     }
                 }
 
@@ -1947,12 +1942,18 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         const term = document.getElementById('posSearch').value.toLowerCase();
         const catFilter = document.getElementById('posFilterCategory').value;
 
-        // Calculate Max Batch for colors
-        const skuMaxBatchMap = {};
+        // Calculate Max Batch for colors (Dynamic Logic)
+        const skuStats = {};
         productsCache.forEach(p => {
             if(!p.sku) return;
-            if(!skuMaxBatchMap[p.sku] || p.batchNumber > skuMaxBatchMap[p.sku]) {
-                skuMaxBatchMap[p.sku] = p.batchNumber || 1;
+             if(!skuStats[p.sku]) {
+                skuStats[p.sku] = { maxWithStock: -1, minWithStock: Infinity };
+            }
+            // Only consider batches with actual stock > 0 for POS Badges
+            if(p.qty > 0) {
+                const b = p.batchNumber || 1;
+                if(b > skuStats[p.sku].maxWithStock) skuStats[p.sku].maxWithStock = b;
+                if(b < skuStats[p.sku].minWithStock) skuStats[p.sku].minWithStock = b;
             }
         });
 
@@ -1972,10 +1973,14 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
                 
                 // Batch Logic
                 const batchNum = p.batchNumber || 1;
-                const maxBatch = skuMaxBatchMap[p.sku] || 1;
+                const stats = skuStats[p.sku] || { maxWithStock: -1, minWithStock: Infinity };
                 let batchClass = 'batch-mid';
-                if(batchNum === 1) batchClass = 'batch-oldest'; 
-                else if(batchNum === maxBatch && maxBatch > 1) batchClass = 'batch-latest';
+                
+                if(batchNum === stats.minWithStock) {
+                     batchClass = 'batch-oldest'; // Red
+                } else if(batchNum === stats.maxWithStock) {
+                     batchClass = 'batch-latest'; // Green
+                }
 
                 return `
                 <div onclick="addToCart('${p.id}')" style="background:white; padding:10px; border-radius:8px; cursor:pointer; text-align:center; border:1px solid #e5e7eb; box-shadow:0 1px 2px rgba(0,0,0,0.05); position:relative; overflow:hidden;">
