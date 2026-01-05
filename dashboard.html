@@ -19,7 +19,7 @@
 :root {
     --primary: #4F46E5; --bg: #f3f4f6; --card: #ffffff; --text: #1f2937;
     --sidebar-w: 260px; --header-h: 70px;
-    --danger: #ef4444; --success: #10b981; --warning: #f59e0b;
+    --danger: #ef4444; --success: #10b981; --warning: #f59e0b; --info: #3b82f6;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
 body { background: var(--bg); display: flex; height: 100vh; overflow: hidden; color: var(--text); }
@@ -47,6 +47,7 @@ body { background: var(--bg); display: flex; height: 100vh; overflow: hidden; co
 .btn-warning { background: var(--warning); color: white; }
 .btn-ghost { background: transparent; border: 1px solid #d1d5db; color: var(--text); }
 .btn-success { background: var(--success); color: white; }
+.btn-info { background: var(--info); color: white; }
 .grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px; }
 input, select, textarea { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; margin-bottom: 10px; font-size: 14px; outline: none; }
 input:focus { border-color: var(--primary); ring: 2px solid var(--primary); }
@@ -131,6 +132,12 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
     color: #4b5563; 
     border: 1px solid #d1d5db; 
 } /* Grey (In between) */
+/* NEW: REFUND BADGE */
+.batch-refund {
+    background: #dbeafe;
+    color: #1e40af;
+    border: 1px solid #93c5fd;
+} /* Blue */
 
 /* NEW: OUT OF STOCK & DIMMED STYLES */
 .label-out-stock { 
@@ -171,10 +178,12 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         <a class="nav-item active" onclick="loadView('dashboard')"><i class="ri-dashboard-line"></i> Dashboard</a>
         <!-- NEW PROFILE TAB -->
         <a class="nav-item" onclick="loadView('profile')"><i class="ri-user-settings-line"></i> Profile</a>
+        <a class="nav-item" onclick="loadView('documents')"><i class="ri-file-text-line"></i> Documents</a>
         
         <div class="nav-group">Sales & POS</div>
         <a class="nav-item" onclick="loadView('pos')"><i class="ri-shopping-cart-2-line"></i> Smart POS</a>
         <a class="nav-item" onclick="loadView('orders')"><i class="ri-file-list-3-line"></i> Orders</a>
+        <a class="nav-item" onclick="loadView('refunds')"><i class="ri-arrow-go-back-line"></i> Refunds</a>
         <a class="nav-item" onclick="loadView('alerts')"><i class="ri-alarm-line"></i> Alerts <span class="badge-dot" id="alertBadge"></span></a>
         
         <div class="nav-group">Inventory</div>
@@ -307,6 +316,100 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
                 
                 <div style="text-align:right; margin-top:20px; border-top:1px solid #eee; padding-top:20px;">
                     <button class="btn btn-primary" id="btnSaveProfile" onclick="saveProfile()" style="padding:10px 30px;">Save Profile</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- NEW: DOCUMENTS (Invoice/Quotation) TAB -->
+        <div id="view-documents" class="view">
+            <div style="display:grid; grid-template-columns: 2fr 1fr; gap:20px;">
+                <div class="card">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                        <div style="display:flex; gap:10px; align-items:center;">
+                            <h3><i class="ri-file-text-line"></i> Generator</h3>
+                            <select id="docTypeToggle" onchange="toggleDocType()" style="width:auto; font-weight:bold;">
+                                <option value="invoice">INVOICE</option>
+                                <option value="quotation">QUOTATION</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-primary" onclick="saveDocument()">Save & Generate PDF</button>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; background:#f9fafb; padding:15px; border-radius:8px; border:1px solid #e5e7eb; margin-bottom:20px;">
+                        <div>
+                            <label style="font-size:12px;">Customer (Search/Type)</label>
+                            <input id="docCustName" placeholder="Customer Name" list="custSuggestions">
+                            <datalist id="custSuggestions"></datalist>
+                            <textarea id="docCustAddr" rows="2" placeholder="Address" style="margin-top:5px;"></textarea>
+                        </div>
+                        <div>
+                            <label style="font-size:12px;">Document Details</label>
+                            <div style="display:flex; gap:5px;">
+                                <input id="docId" placeholder="Doc No.">
+                                <input type="date" id="docDate">
+                            </div>
+                            <div style="display:flex; gap:5px; margin-top:5px;">
+                                <input type="date" id="docDueDate" placeholder="Due Date">
+                            </div>
+                        </div>
+                    </div>
+
+                    <table id="docItemsTable">
+                        <thead><tr><th>Item / Description</th><th>Qty</th><th>Price</th><th>Total</th><th></th></tr></thead>
+                        <tbody id="docItemsBody"></tbody>
+                    </table>
+                    <button class="btn btn-ghost" onclick="addDocRow()" style="margin-top:10px;">+ Add Item</button>
+
+                    <div style="display:flex; justify-content:flex-end; margin-top:20px;">
+                        <div style="width:250px; text-align:right;">
+                            <div style="margin-bottom:5px;">Subtotal: <span id="docSubtotal">0.00</span></div>
+                            <div style="margin-bottom:5px; display:flex; align-items:center; justify-content:flex-end; gap:5px;">
+                                Discount: <input id="docDiscount" type="number" placeholder="0" style="width:60px; margin:0;" onkeyup="calcDocTotals()">
+                            </div>
+                            <div style="margin-bottom:5px; display:flex; align-items:center; justify-content:flex-end; gap:5px;">
+                                Tax/VAT (%): <input id="docTax" type="number" placeholder="0" style="width:60px; margin:0;" onkeyup="calcDocTotals()">
+                            </div>
+                            <div style="font-weight:700; font-size:18px; border-top:1px solid #e5e7eb; padding-top:5px;">Total: <span id="docTotal">0.00</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card" style="height:fit-content; max-height:80vh; overflow-y:auto;">
+                    <h3>History</h3>
+                    <div id="docHistoryList"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- NEW: REFUNDS TAB -->
+        <div id="view-refunds" class="view">
+            <div class="card">
+                <h3>Process Refund</h3>
+                <div class="note-box" style="margin-bottom:15px;">
+                    <i class="ri-information-fill"></i> Refunded items marked "Return to Inventory" will appear as <b>Blue Stock</b> in the POS.
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; align-items:end;">
+                    <div>
+                        <label>Select Product (Type Name/SKU)</label>
+                        <select id="refundProductSelect" style="margin:0;"></select>
+                    </div>
+                    <div>
+                        <label>Refund Reason / Order ID</label>
+                        <input id="refundReason" placeholder="e.g. Defect, Order #123" style="margin:0;">
+                    </div>
+                    <div>
+                        <label>Quantity Returning</label>
+                        <input type="number" id="refundQty" placeholder="1" style="margin:0;">
+                    </div>
+                    <div>
+                        <label>Refund Amount (Money Given Back)</label>
+                        <input type="number" id="refundAmount" placeholder="0.00" style="margin:0;">
+                    </div>
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <input type="checkbox" id="refundRestock" checked style="width:auto; margin:0;">
+                        <label for="refundRestock" style="margin:0;">Return to Inventory?</label>
+                    </div>
+                    <button class="btn btn-danger" onclick="saveRefund()">Process Refund</button>
                 </div>
             </div>
         </div>
@@ -542,6 +645,19 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
             <button class="btn btn-primary" onclick="saveNewShop()">Create Business</button>
             <button class="btn btn-danger" onclick="document.getElementById('shopModal').style.display='none'">Cancel</button>
         </div>
+    </div>
+</div>
+
+<!-- STOCK DEDUCTION WARNING MODAL -->
+<div id="docStockWarningModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:3000;">
+    <div class="card" style="width:450px; margin:0; border-left: 5px solid var(--danger);">
+        <h3 style="color:var(--danger); display:flex; align-items:center; gap:10px;"><i class="ri-alarm-warning-fill"></i> Warning: Stock Deduction</h3>
+        <p style="margin:15px 0; line-height:1.5;">Do you want to deduct the items in this invoice from your active inventory?</p>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+            <button class="btn btn-danger" onclick="confirmSaveDocument(true)">Yes, Deduct Stock</button>
+            <button class="btn btn-primary" onclick="confirmSaveDocument(false)">No, Just PDF</button>
+        </div>
+        <div style="margin-top:10px; font-size:12px; color:#6b7280; text-align:center;">Both options will save the document history.</div>
     </div>
 </div>
 
@@ -847,6 +963,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
     let currentOtherFees = [];
     let shopsCache = []; // NEW: To store shop data locally
     let deletionInterval = null; // NEW: Timer reference
+    let currentDocItems = []; // For Documents Tab
 
     // --- UTILS ---
     function showToast(message, type = 'success') {
@@ -1154,6 +1271,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         await loadProducts(); // Load Stock
         await loadEmployees();
         await loadAlerts(); // Check Alerts
+        await loadCustomers(); // Populate Cache
         
         const q = query(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/sales`), orderBy('date', 'desc'));
         const snap = await getDocs(q);
@@ -1161,10 +1279,29 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         snap.forEach(d => salesCache.push({id: d.id, ...d.data()}));
         updateDashboard();
         
-        // Refresh Orders/Alerts View if active
+        // Refresh Orders/Alerts/Documents View if active
         if(document.getElementById('view-orders').classList.contains('active')) loadOrders();
+        if(document.getElementById('view-documents').classList.contains('active')) loadDocumentsHistory();
+        
+        // Populate Customer Datalists for Docs
+        updateCustomerDatalist();
         
         toggleLoader(false);
+    }
+
+    function updateCustomerDatalist() {
+        const dl = document.getElementById('custSuggestions');
+        dl.innerHTML = '';
+        customersCache.forEach(c => {
+            dl.innerHTML += `<option value="${c.name}">${c.address||''}</option>`;
+        });
+        
+        // Also populate Refund Product Select
+        const refSel = document.getElementById('refundProductSelect');
+        refSel.innerHTML = '<option value="">-- Select Product --</option>';
+        catalogCache.forEach(p => {
+            refSel.innerHTML += `<option value="${p.name}">${p.name} (${p.sku})</option>`;
+        });
     }
 
     // --- PROFILE LOGIC ---
@@ -1276,7 +1413,11 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         // --- UPDATED PART IS HERE ---
         if(viewName === 'orders') loadOrders();
         if(viewName === 'alerts') renderAlertsTable();
-        if(viewName === 'customers') loadCustomers(); // <--- NEW LINE
+        if(viewName === 'customers') loadCustomers(); 
+        if(viewName === 'documents') {
+            loadDocumentsHistory();
+            document.getElementById('docDate').valueAsDate = new Date();
+        }
     };
     
     window.openModal = (id) => document.getElementById(id).style.display = 'flex';
@@ -1550,7 +1691,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
                 const categoryName = categoriesCache.find(c => c.id === p.categoryId)?.name || 'Uncategorized';
 
                 const batchNum = p.batchNumber || 1;
-                // Default stats if no stock available
                 const stats = skuStats[p.sku] || { maxWithStock: -1, minWithStock: Infinity };
                 
                 let batchClass = 'batch-mid'; // Default Grey
@@ -1563,14 +1703,17 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
                     rowClass = 'row-dimmed'; 
                 } else {
                     // HAS STOCK LOGIC
-                    // Priority 1: Oldest Available -> Red
                     if (batchNum === stats.minWithStock) {
                         batchClass = 'batch-oldest'; 
                     } 
-                    // Priority 2: Newest Available (Dynamic) -> Green
                     else if (batchNum === stats.maxWithStock) {
                         batchClass = 'batch-latest'; 
                     }
+                }
+
+                // If it is a refund batch, override color
+                if(p.isRefund) {
+                    batchClass = 'batch-refund';
                 }
 
                 return `
@@ -1580,7 +1723,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
                     <td>
                         <div>${p.name}</div>
                         <div style="font-size:11px; color:#6b7280; font-family:monospace;">${p.sku || ''}</div>
-                        <span class="batch-badge ${batchClass}">Batch: ${formatBatch(batchNum)}</span>
+                        <span class="batch-badge ${batchClass}">${p.isRefund ? 'REFUND' : 'Batch: '+formatBatch(batchNum)}</span>
                     </td>
                     <td style="font-size:12px;">${categoryName}</td>
                     <td>${formatMoney(p.buy)}</td>
@@ -1949,7 +2092,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
              if(!skuStats[p.sku]) {
                 skuStats[p.sku] = { maxWithStock: -1, minWithStock: Infinity };
             }
-            // Only consider batches with actual stock > 0 for POS Badges
             if(p.qty > 0) {
                 const b = p.batchNumber || 1;
                 if(b > skuStats[p.sku].maxWithStock) skuStats[p.sku].maxWithStock = b;
@@ -1976,15 +2118,15 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
                 const stats = skuStats[p.sku] || { maxWithStock: -1, minWithStock: Infinity };
                 let batchClass = 'batch-mid';
                 
-                if(batchNum === stats.minWithStock) {
-                     batchClass = 'batch-oldest'; // Red
-                } else if(batchNum === stats.maxWithStock) {
-                     batchClass = 'batch-latest'; // Green
-                }
+                if(batchNum === stats.minWithStock) batchClass = 'batch-oldest'; // Red
+                else if(batchNum === stats.maxWithStock) batchClass = 'batch-latest'; // Green
+                
+                // Refund Override
+                if(p.isRefund) batchClass = 'batch-refund';
 
                 return `
                 <div onclick="addToCart('${p.id}')" style="background:white; padding:10px; border-radius:8px; cursor:pointer; text-align:center; border:1px solid #e5e7eb; box-shadow:0 1px 2px rgba(0,0,0,0.05); position:relative; overflow:hidden;">
-                    <div style="position:absolute; top:5px; right:5px;" class="batch-badge ${batchClass}">${formatBatch(batchNum)}</div>
+                    <div style="position:absolute; top:5px; right:5px;" class="batch-badge ${batchClass}">${p.isRefund ? 'REFUND' : formatBatch(batchNum)}</div>
                     ${imgTag}
                     <div style="font-weight:600; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-top:5px;">${p.name}</div>
                     <div style="color:var(--primary); font-weight:700;">${formatMoney(p.sell)}</div>
@@ -2135,6 +2277,364 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         }
     };
 
+    // --- DOCUMENTS (Invoice/Quote) LOGIC ---
+    window.toggleDocType = () => {
+        // Just visual updates or ID generation logic changes if needed
+        const type = document.getElementById('docTypeToggle').value;
+        const btn = document.querySelector('#view-documents .btn-primary');
+        btn.textContent = type === 'invoice' ? "Save & Generate PDF" : "Save Quotation";
+    }
+
+    window.addDocRow = () => {
+        const tbody = document.getElementById('docItemsBody');
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td><input class="doc-item-name" placeholder="Item Name" list="docProductList" onchange="fillDocPrice(this)"></td>
+            <td><input class="doc-item-qty" type="number" value="1" style="width:60px;" onchange="calcDocTotals()"></td>
+            <td><input class="doc-item-price" type="number" placeholder="0.00" onchange="calcDocTotals()"></td>
+            <td class="doc-item-total" style="font-weight:bold;">0.00</td>
+            <td><button class="btn btn-danger" style="padding:2px 6px;" onclick="this.closest('tr').remove(); calcDocTotals()">x</button></td>
+        `;
+        tbody.appendChild(tr);
+        // Create datalist if not exists
+        if(!document.getElementById('docProductList')) {
+            const dl = document.createElement('datalist');
+            dl.id = 'docProductList';
+            catalogCache.forEach(p => {
+                dl.innerHTML += `<option value="${p.name}">`;
+            });
+            document.body.appendChild(dl);
+        }
+    };
+
+    window.fillDocPrice = (input) => {
+        const name = input.value;
+        // Try to find matching product price from stock or catalog
+        // Priority: Stock (Products) -> Catalog (Base)
+        const stockP = productsCache.find(p => p.name === name);
+        const row = input.closest('tr');
+        if(stockP) {
+            row.querySelector('.doc-item-price').value = stockP.sell;
+        } 
+        calcDocTotals();
+    }
+
+    window.calcDocTotals = () => {
+        let subtotal = 0;
+        document.querySelectorAll('#docItemsBody tr').forEach(tr => {
+            const qty = parseFloat(tr.querySelector('.doc-item-qty').value) || 0;
+            const price = parseFloat(tr.querySelector('.doc-item-price').value) || 0;
+            const total = qty * price;
+            tr.querySelector('.doc-item-total').textContent = total.toFixed(2);
+            subtotal += total;
+        });
+
+        const discount = parseFloat(document.getElementById('docDiscount').value) || 0;
+        const taxPercent = parseFloat(document.getElementById('docTax').value) || 0;
+        
+        const taxAmt = (subtotal - discount) * (taxPercent / 100);
+        const final = (subtotal - discount) + taxAmt;
+
+        document.getElementById('docSubtotal').textContent = subtotal.toFixed(2);
+        document.getElementById('docTotal').textContent = formatMoney(final);
+    }
+
+    let tempDocData = null; // Store data for warning modal
+
+    window.saveDocument = async () => {
+        const type = document.getElementById('docTypeToggle').value;
+        const custName = document.getElementById('docCustName').value;
+        const docId = document.getElementById('docId').value;
+        
+        if(!custName || !docId) return showToast("Customer Name & Doc ID Required", "error");
+
+        const items = [];
+        document.querySelectorAll('#docItemsBody tr').forEach(tr => {
+            items.push({
+                name: tr.querySelector('.doc-item-name').value,
+                qty: parseFloat(tr.querySelector('.doc-item-qty').value) || 0,
+                price: parseFloat(tr.querySelector('.doc-item-price').value) || 0,
+                total: parseFloat(tr.querySelector('.doc-item-total').textContent) || 0
+            });
+        });
+
+        if(items.length === 0) return showToast("Add at least one item", "error");
+
+        const subtotal = parseFloat(document.getElementById('docSubtotal').textContent);
+        const discount = parseFloat(document.getElementById('docDiscount').value) || 0;
+        const tax = parseFloat(document.getElementById('docTax').value) || 0;
+        const total = parseFloat(document.getElementById('docTotal').textContent.replace(/[^0-9.-]+/g,"")); // Remove currency symbol
+
+        tempDocData = {
+            type, docId, date: document.getElementById('docDate').value,
+            dueDate: document.getElementById('docDueDate').value,
+            customer: { name: custName, address: document.getElementById('docCustAddr').value },
+            items, subtotal, discount, tax, total,
+            createdAt: new Date().toISOString()
+        };
+
+        if(type === 'invoice') {
+            document.getElementById('docStockWarningModal').style.display = 'flex';
+        } else {
+            // Quotation - Save directly
+            await finalizeDocumentSave(false);
+        }
+    };
+
+    window.confirmSaveDocument = async (deductStock) => {
+        document.getElementById('docStockWarningModal').style.display = 'none';
+        await finalizeDocumentSave(deductStock);
+    };
+
+    async function finalizeDocumentSave(deductStock) {
+        toggleLoader(true);
+        try {
+            // Save to Documents Collection
+            await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/documents`), {
+                ...tempDocData,
+                stockDeducted: deductStock
+            });
+
+            // Handle Stock Deduction
+            if(deductStock) {
+                for(let item of tempDocData.items) {
+                    // Smart Matching: Find oldest batch with stock for this name
+                    // Since it's manual, we match by exact Name
+                    const candidates = productsCache.filter(p => p.name === item.name && p.qty > 0).sort((a,b) => (a.batchNumber||0) - (b.batchNumber||0));
+                    
+                    let qtyToDeduct = item.qty;
+                    
+                    for(let prod of candidates) {
+                        if(qtyToDeduct <= 0) break;
+                        const take = Math.min(prod.qty, qtyToDeduct);
+                        await updateDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/products`, prod.id), {
+                            qty: prod.qty - take
+                        });
+                        await logInventory(item.name, 'INVOICE', `Inv #${tempDocData.docId}`, -take, prod.qty - take, prod.batchNumber, prod.qty);
+                        qtyToDeduct -= take;
+                    }
+                    
+                    if(qtyToDeduct > 0) {
+                        // Warn if not fully deducted? Or just ignore
+                        console.warn(`Could not fully deduct stock for ${item.name}`);
+                    }
+                }
+                await loadProducts(); // Refresh
+            }
+
+            generateDocumentPDF(tempDocData);
+            showToast(`${tempDocData.type.toUpperCase()} Saved!`);
+            
+            // Reset Form
+            document.getElementById('docItemsBody').innerHTML = '';
+            document.getElementById('docCustName').value = '';
+            document.getElementById('docId').value = '';
+            calcDocTotals();
+            loadDocumentsHistory();
+
+        } catch(e) {
+            console.error(e);
+            showToast("Error saving document", "error");
+        } finally {
+            toggleLoader(false);
+        }
+    }
+
+    async function loadDocumentsHistory() {
+        const q = query(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/documents`), orderBy('createdAt', 'desc'));
+        const snap = await getDocs(q);
+        const list = document.getElementById('docHistoryList');
+        list.innerHTML = '';
+        snap.forEach(d => {
+            const doc = d.data();
+            list.innerHTML += `
+                <div class="card" style="padding:10px; margin-bottom:10px; border:1px solid #eee;">
+                    <div style="display:flex; justify-content:space-between;">
+                        <strong>${doc.docId}</strong>
+                        <span style="font-size:11px; padding:2px 6px; border-radius:4px; background:${doc.type==='invoice'?'#dcfce7':'#fef3c7'}">${doc.type.toUpperCase()}</span>
+                    </div>
+                    <div style="font-size:12px; color:#666;">${doc.customer.name} | ${doc.date}</div>
+                    <div style="font-weight:bold; margin-top:5px;">${formatMoney(doc.total)}</div>
+                    <div style="margin-top:10px; display:flex; gap:5px;">
+                        <button class="btn btn-ghost" style="padding:4px; font-size:11px;" onclick='generateDocumentPDF(${JSON.stringify(doc).replace(/'/g, "&#39;")})'><i class="ri-printer-line"></i> PDF</button>
+                        ${doc.type === 'quotation' ? `<button class="btn btn-info" style="padding:4px; font-size:11px;" onclick='convertQuoteToInvoice(${JSON.stringify(doc).replace(/'/g, "&#39;")})'>Convert</button>` : ''}
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    window.convertQuoteToInvoice = (quote) => {
+        // Pre-fill form
+        document.getElementById('docTypeToggle').value = 'invoice';
+        toggleDocType();
+        document.getElementById('docCustName').value = quote.customer.name;
+        document.getElementById('docCustAddr').value = quote.customer.address;
+        document.getElementById('docDate').valueAsDate = new Date();
+        // Clear ID so user generates new one
+        document.getElementById('docId').value = ''; 
+        
+        const tbody = document.getElementById('docItemsBody');
+        tbody.innerHTML = '';
+        quote.items.forEach(i => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><input class="doc-item-name" value="${i.name}" list="docProductList" onchange="fillDocPrice(this)"></td>
+                <td><input class="doc-item-qty" type="number" value="${i.qty}" style="width:60px;" onchange="calcDocTotals()"></td>
+                <td><input class="doc-item-price" type="number" value="${i.price}" onchange="calcDocTotals()"></td>
+                <td class="doc-item-total" style="font-weight:bold;">${i.total.toFixed(2)}</td>
+                <td><button class="btn btn-danger" style="padding:2px 6px;" onclick="this.closest('tr').remove(); calcDocTotals()">x</button></td>
+            `;
+            tbody.appendChild(tr);
+        });
+        document.getElementById('docDiscount').value = quote.discount;
+        document.getElementById('docTax').value = quote.tax;
+        calcDocTotals();
+        showToast("Converted to Invoice Mode. Please set new ID and Save.");
+    }
+
+    window.generateDocumentPDF = (docData) => {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF(); // A4 by default
+        
+        const shop = profileCache || {};
+        
+        // --- HEADER ---
+        // Logo (if exists)
+        if(shop.logoImage) {
+            try {
+                doc.addImage(shop.logoImage, 'JPEG', 15, 15, 30, 30);
+            } catch(e) {}
+        }
+        
+        // Company Details (Right Side)
+        doc.setFontSize(14);
+        doc.text(shop.ownerName || "Business Name", 195, 20, null, null, "right");
+        doc.setFontSize(10);
+        doc.text(shop.address || "", 195, 25, null, null, "right");
+        doc.text(shop.phone1 || "", 195, 30, null, null, "right");
+        
+        // Document Title
+        doc.setFontSize(22);
+        doc.setTextColor(41, 128, 185); // Blue
+        doc.text(docData.type.toUpperCase(), 15, 60);
+        doc.setTextColor(0, 0, 0); // Black
+        
+        // Info Box
+        doc.setFontSize(10);
+        doc.text(`To: ${docData.customer.name}`, 15, 70);
+        if(docData.customer.address) doc.text(docData.customer.address, 15, 75);
+        
+        doc.text(`No: ${docData.docId}`, 150, 70);
+        doc.text(`Date: ${docData.date}`, 150, 75);
+        if(docData.dueDate) doc.text(`Due: ${docData.dueDate}`, 150, 80);
+
+        // Table
+        const body = docData.items.map(i => [i.name, i.qty, formatMoney(i.price), formatMoney(i.total)]);
+        
+        doc.autoTable({
+            startY: 90,
+            head: [['Description', 'Qty', 'Unit Price', 'Amount']],
+            body: body,
+            theme: 'striped',
+            headStyles: { fillColor: [41, 128, 185] }, // Blue Header matches screenshot vibe
+            styles: { fontSize: 10 }
+        });
+
+        // Totals
+        let finalY = doc.lastAutoTable.finalY + 10;
+        doc.text(`Subtotal: ${formatMoney(docData.subtotal)}`, 160, finalY, null, null, "right");
+        if(docData.discount > 0) {
+            finalY += 5;
+            doc.text(`Discount: -${formatMoney(docData.discount)}`, 160, finalY, null, null, "right");
+        }
+        if(docData.tax > 0) {
+            finalY += 5;
+            doc.text(`Tax: +${formatMoney((docData.subtotal-docData.discount)*(docData.tax/100))}`, 160, finalY, null, null, "right");
+        }
+        finalY += 8;
+        doc.setFontSize(14);
+        doc.setFont("helvetica", "bold");
+        doc.text(`Total: ${formatMoney(docData.total)}`, 160, finalY, null, null, "right");
+
+        // Footer / Signature
+        const pageHeight = doc.internal.pageSize.height;
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        
+        doc.line(15, pageHeight - 40, 60, pageHeight - 40);
+        doc.text("Prepared By", 37, pageHeight - 35, null, null, "center");
+        
+        doc.line(140, pageHeight - 40, 195, pageHeight - 40);
+        doc.text("Authorized Signature", 167, pageHeight - 35, null, null, "center");
+        
+        doc.text("Thank you for your business!", 105, pageHeight - 15, null, null, "center");
+
+        doc.save(`${docData.type}_${docData.docId}.pdf`);
+    }
+
+    // --- REFUNDS LOGIC ---
+    window.saveRefund = async () => {
+        const prodName = document.getElementById('refundProductSelect').value;
+        const reason = document.getElementById('refundReason').value;
+        const qty = parseFloat(document.getElementById('refundQty').value);
+        const amount = parseFloat(document.getElementById('refundAmount').value);
+        const restock = document.getElementById('refundRestock').checked;
+
+        if(!prodName || isNaN(qty) || qty <= 0) return showToast("Valid Product & Qty Required", "error");
+
+        toggleLoader(true);
+        try {
+            // 1. Save Refund Record
+            await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/refunds`), {
+                productName: prodName, reason, qty, amount, restock, date: new Date().toISOString()
+            });
+
+            // 2. If Restock -> Create New Batch with 'isRefund' flag
+            if(restock) {
+                // Find existing product info to copy images/category
+                const existing = productsCache.find(p => p.name === prodName) || {};
+                const image = existing.image || null;
+                const categoryId = existing.categoryId || null;
+                const sku = existing.sku || "";
+                
+                // Determine new batch number
+                // Find max batch for this SKU/Name
+                const sameProds = productsCache.filter(p => p.name === prodName);
+                const maxBatch = sameProds.reduce((max, p) => (p.batchNumber > max ? p.batchNumber : max), 0);
+                
+                await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/products`), {
+                    name: prodName,
+                    sku: sku,
+                    image: image,
+                    categoryId: categoryId,
+                    qty: qty,
+                    buy: 0, // Cost is usually 0 or refunded amount for returned items logic, strictly depends on accounting. Keeping 0 for now.
+                    sell: existing.sell || 0, // Keep selling price
+                    unit: existing.unit || '',
+                    dateAdded: new Date().toISOString(),
+                    batchNumber: maxBatch + 1,
+                    isRefund: true // THE FLAG
+                });
+                
+                await logInventory(prodName, 'REFUND', `Return: ${reason}`, qty, qty, maxBatch+1, 0);
+            }
+
+            showToast("Refund Processed");
+            document.getElementById('refundReason').value = '';
+            document.getElementById('refundQty').value = '';
+            document.getElementById('refundAmount').value = '';
+            
+            await loadProducts(); // Update POS and Cache
+
+        } catch(e) {
+            console.error(e);
+            showToast("Error processing refund", "error");
+        } finally {
+            toggleLoader(false);
+        }
+    }
+
     // --- ORDERS TAB LOGIC ---
     window.loadOrders = async () => {
         toggleLoader(true);
@@ -2205,14 +2705,14 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 
     // 1. Load Customers
     window.loadCustomers = async () => {
-        toggleLoader(true);
+        // toggleLoader(true); // Removed loader here as it is called in refreshData chain
         const q = collection(db, `users/${currentUser.uid}/shops/${currentShopId}/customers`);
         const snap = await getDocs(q);
         customersCache = [];
         snap.forEach(d => customersCache.push({id: d.id, ...d.data()})); // id is the phone number
         
         renderCustomers();
-        toggleLoader(false);
+        // toggleLoader(false);
     };
 
     // 2. Render Grid
