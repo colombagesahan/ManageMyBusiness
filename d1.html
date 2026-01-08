@@ -933,7 +933,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
     import { getAuth, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
-    import { getFirestore, collection, addDoc, getDocs, doc, deleteDoc, updateDoc, query, where, orderBy, setDoc, getDoc, runTransaction } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, getDocs, doc, deleteDoc, updateDoc, query, where, orderBy, setDoc, getDoc, runTransaction, writeBatch, limit, startAfter } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
     // 🔴 RE-PASTE FIREBASE CONFIG HERE
     const firebaseConfig = {
@@ -961,9 +961,9 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
     let compressedImageBase64 = null; 
     let profileCache = null;
     let currentOtherFees = [];
-    let shopsCache = []; // NEW: To store shop data locally
-    let deletionInterval = null; // NEW: Timer reference
-    let currentDocItems = []; // For Documents Tab
+    let shopsCache = []; 
+    let deletionInterval = null; 
+    let currentDocItems = []; 
 
     // --- UTILS ---
     function showToast(message, type = 'success') {
@@ -1039,19 +1039,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
             } catch (e) { return -1; }
             return -1;
         }
-        function drawImageWithOrientation(ctx, img, w, h, o) {
-            switch (o) {
-                case 2: ctx.translate(w, 0); ctx.scale(-1, 1); ctx.drawImage(img, 0, 0, w, h); break;
-                case 3: ctx.translate(w, h); ctx.rotate(Math.PI); ctx.drawImage(img, 0, 0, w, h); break;
-                case 4: ctx.translate(0, h); ctx.scale(1, -1); ctx.drawImage(img, 0, 0, w, h); break;
-                case 5: ctx.rotate(0.5 * Math.PI); ctx.scale(1, -1); ctx.drawImage(img, 0, -h, w, h); break;
-                case 6: ctx.rotate(0.5 * Math.PI); ctx.translate(0, -h); ctx.drawImage(img, 0, 0, w, h); break;
-                case 7: ctx.rotate(-0.5 * Math.PI); ctx.scale(1, -1); ctx.drawImage(img, -w, 0, w, h); break;
-                case 8: ctx.rotate(-0.5 * Math.PI); ctx.translate(-w, 0); ctx.drawImage(img, 0, 0, w, h); break;
-                default: ctx.drawImage(img, 0, 0, w, h); break;
-            }
-        }
-
+        
         const TARGET_KB = 100;
         const targetBytes = TARGET_KB * 1024;
         const [ab, url] = await Promise.all([readFileAsArrayBuffer(file), readFileAsDataURL(file)]);
@@ -1130,7 +1118,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         const snap = await getDocs(q);
         const select = document.getElementById('shopSelector');
         select.innerHTML = '';
-        shopsCache = []; // Reset local cache
+        shopsCache = []; 
         snap.forEach(d => shopsCache.push({id: d.id, ...d.data()}));
 
         if(shopsCache.length === 0) {
@@ -1147,7 +1135,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         });
         if(!currentShopId) currentShopId = shopsCache[0].id;
         
-        // Ensure dropdown reflects currentShopId if it still exists, else pick first
         const exists = shopsCache.find(s => s.id === currentShopId);
         if(!exists) currentShopId = shopsCache[0].id;
         
@@ -1169,24 +1156,21 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         showToast("Business created successfully!");
     };
 
-    // --- NEW: MODIFIED DELETE LOGIC (SOFT DELETE) ---
     window.deleteCurrentShop = async () => {
         if(!confirm("Delete this business and all data? Cannot be undone.")) return;
         
         toggleLoader(true);
-        // Instead of deleting immediately, set a scheduled timestamp
         await updateDoc(doc(db, `users/${currentUser.uid}/shops`, currentShopId), {
             deleteScheduledAt: new Date().toISOString()
         });
         
-        await loadShops(); // Reload to pick up the new state
+        await loadShops(); 
         toggleLoader(false);
         showToast("Business scheduled for deletion in 72 hours.");
     };
 
     window.cancelShopDeletion = async () => {
         toggleLoader(true);
-        // Remove the scheduled timestamp
         await updateDoc(doc(db, `users/${currentUser.uid}/shops`, currentShopId), {
             deleteScheduledAt: null 
         });
@@ -1195,22 +1179,58 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         showToast("Deletion cancelled.");
     };
 
-    async function permanentlyDeleteShop() {
-        // Triggered when timer expires
-        toggleLoader(true);
-        await deleteDoc(doc(db, `users/${currentUser.uid}/shops`, currentShopId));
-        currentShopId = null;
-        if(deletionInterval) clearInterval(deletionInterval);
-        await loadShops();
-        showToast("Business permanently deleted.");
+    // Helper to recursively delete collections (client-side implementation since no Cloud Functions)
+    async function deleteCollectionBatch(path) {
+        const ref = collection(db, path);
+        const snapshot = await getDocs(query(ref, limit(50))); // Batch size 50
+        
+        if (snapshot.size === 0) return;
+
+        const batch = writeBatch(db);
+        snapshot.docs.forEach((doc) => {
+            batch.delete(doc.ref);
+        });
+        await batch.commit();
+        
+        // Recurse
+        await deleteCollectionBatch(path);
     }
 
-    // --- NEW: DELETION TIMER LOGIC ---
+    async function permanentlyDeleteShop() {
+        toggleLoader(true);
+        const shopPath = `users/${currentUser.uid}/shops/${currentShopId}`;
+        
+        try {
+            // Delete Subcollections first (Manual effort since no recursive delete in Web SDK)
+            // Lists of known collections
+            const collections = ['products', 'sales', 'customers', 'categories', 'employees', 'alerts', 'documents', 'base_products', 'inventory_logs', 'refunds'];
+            
+            for(const col of collections) {
+                await deleteCollectionBatch(`${shopPath}/${col}`);
+            }
+
+            // Delete Settings separately (if documents exist)
+            await deleteCollectionBatch(`${shopPath}/settings`);
+
+            // Finally delete shop doc
+            await deleteDoc(doc(db, `users/${currentUser.uid}/shops`, currentShopId));
+            
+            currentShopId = null;
+            if(deletionInterval) clearInterval(deletionInterval);
+            await loadShops();
+            showToast("Business permanently deleted.");
+        } catch(e) {
+            console.error(e);
+            showToast("Error deleting data. Please try again.", "error");
+        } finally {
+            toggleLoader(false);
+        }
+    }
+
     function handleDeletionState(shopData) {
         const banner = document.getElementById('deletionBanner');
         const timerSpan = document.getElementById('delTimer');
         
-        // Clear existing interval to prevent duplicates
         if(deletionInterval) {
             clearInterval(deletionInterval);
             deletionInterval = null;
@@ -1221,9 +1241,8 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
             return;
         }
 
-        // Logic if deletion is scheduled
         const scheduledTime = new Date(shopData.deleteScheduledAt);
-        const deadline = new Date(scheduledTime.getTime() + (72 * 60 * 60 * 1000)); // 72 hours later
+        const deadline = new Date(scheduledTime.getTime() + (72 * 60 * 60 * 1000)); 
 
         banner.style.display = 'flex';
 
@@ -1232,21 +1251,19 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
             const diff = deadline - now;
 
             if (diff <= 0) {
-                // Time expired -> Actually delete
                 clearInterval(deletionInterval);
                 permanentlyDeleteShop();
                 return;
             }
 
-            // Format Remaining Time
             const hrs = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
             const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
             const secs = Math.floor((diff % (1000 * 60)) / 1000);
             timerSpan.textContent = `${hrs}h ${mins}m ${secs}s`;
         };
 
-        updateTimer(); // Run immediately
-        deletionInterval = setInterval(updateTimer, 1000); // Run every second
+        updateTimer(); 
+        deletionInterval = setInterval(updateTimer, 1000); 
     }
 
     window.changeShop = () => {
@@ -1256,7 +1273,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         
         if (currentShopData) {
             currentCurrency = currentShopData.currency || "$";
-            handleDeletionState(currentShopData); // Check for deletion status
+            handleDeletionState(currentShopData); 
         }
         
         refreshData();
@@ -1265,25 +1282,24 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
     async function refreshData() {
         if(!currentShopId) return;
         toggleLoader(true);
-        await loadProfile(); // Load Profile First to check lock
-        await loadCategories(); // Load Categories
-        await loadCatalog(); // Load Base Products
-        await loadProducts(); // Load Stock
+        await loadProfile(); 
+        await loadCategories(); 
+        await loadCatalog(); 
+        await loadProducts(); 
         await loadEmployees();
-        await loadAlerts(); // Check Alerts
-        await loadCustomers(); // Populate Cache
+        await loadAlerts(); 
+        await loadCustomers(); 
         
-        const q = query(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/sales`), orderBy('date', 'desc'));
+        // Paginate Sales Cache for Dashboard to prevent crash
+        const q = query(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/sales`), orderBy('date', 'desc'), limit(100));
         const snap = await getDocs(q);
         salesCache = [];
         snap.forEach(d => salesCache.push({id: d.id, ...d.data()}));
         updateDashboard();
         
-        // Refresh Orders/Alerts/Documents View if active
         if(document.getElementById('view-orders').classList.contains('active')) loadOrders();
         if(document.getElementById('view-documents').classList.contains('active')) loadDocumentsHistory();
         
-        // Populate Customer Datalists for Docs
         updateCustomerDatalist();
         
         toggleLoader(false);
@@ -1296,7 +1312,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
             dl.innerHTML += `<option value="${c.name}">${c.address||''}</option>`;
         });
         
-        // Also populate Refund Product Select
         const refSel = document.getElementById('refundProductSelect');
         refSel.innerHTML = '<option value="">-- Select Product --</option>';
         catalogCache.forEach(p => {
@@ -1319,7 +1334,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
             profileCache = null;
             warn.style.display = 'block';
             lockProfile(false);
-            // Clear fields
             document.querySelectorAll('#profFields input, #profFields textarea').forEach(i => i.value = '');
             document.getElementById('profLogoContainer').innerHTML = '<span>No Logo</span>';
         }
@@ -1387,7 +1401,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
     });
 
    window.loadView = (viewName) => {
-        // Enforce Profile Check (Rule: profile must be complete)
         if(viewName !== 'profile' && viewName !== 'dashboard' && !profileCache) {
             showToast("Complete Business Profile first", "error");
             loadView('profile');
@@ -1400,7 +1413,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         const target = document.getElementById(`view-${viewName}`);
         if(target) target.classList.add('active');
         
-        // Handle Active Class on Sidebar Links
         const navItems = document.querySelectorAll('.nav-item');
         navItems.forEach(item => {
             if(item.getAttribute('onclick').includes(`'${viewName}'`)) {
@@ -1410,7 +1422,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 
         document.getElementById('pageTitle').textContent = viewName.charAt(0).toUpperCase() + viewName.slice(1);
 
-        // --- UPDATED PART IS HERE ---
         if(viewName === 'orders') loadOrders();
         if(viewName === 'alerts') renderAlertsTable();
         if(viewName === 'customers') loadCustomers(); 
@@ -1423,7 +1434,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
     window.openModal = (id) => document.getElementById(id).style.display = 'flex';
     const formatMoney = (a) => `${currentCurrency}${Number(a).toFixed(2)}`;
 
-
     // --- 0. CATEGORY LOGIC ---
     async function loadCategories() {
         const snap = await getDocs(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/categories`));
@@ -1431,7 +1441,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         snap.forEach(d => categoriesCache.push({id: d.id, ...d.data()}));
         categoriesCache.sort((a,b) => a.name.localeCompare(b.name));
         
-        // Populate Dropdowns
         const opts = categoriesCache.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
         const optsWithAll = `<option value="All">All Categories</option>` + opts;
         const optsWithNone = `<option value="">Uncategorized</option>` + opts;
@@ -1474,6 +1483,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 
     // --- 1. CATALOG (Add Products) LOGIC ---
     async function loadCatalog() {
+        // Querying all base products usually okay as catalog isn't massive, but better to limit if large
         const snap = await getDocs(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/base_products`));
         catalogCache = [];
         snap.forEach(d => catalogCache.push({id: d.id, ...d.data()}));
@@ -1538,7 +1548,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         if(!p) return;
         document.getElementById('bpId').value = p.id;
         document.getElementById('bpName').value = p.name;
-        document.getElementById('bpName').disabled = true; // Cannot change name to prevent syncing issues
+        document.getElementById('bpName').disabled = true; 
         document.getElementById('bpCategory').value = p.categoryId || '';
         document.getElementById('bpCategory').disabled = false; 
         
@@ -1556,7 +1566,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         openModal('baseProductModal');
     };
 
-    // Base Product Image Handler
     document.getElementById('bpPhoto').addEventListener('change', async function(e) {
         const file = e.target.files[0];
         if(file) {
@@ -1582,7 +1591,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         compressedImageBase64 = null;
     };
 
-    // SEQUENTIAL SKU GENERATOR
+    // SEQUENTIAL SKU GENERATOR WITH TRANSACTION
     async function generateNextSku() {
         const counterRef = doc(db, `users/${currentUser.uid}/shops/${currentShopId}/settings`, 'skuCounter');
         let newSku = "";
@@ -1594,7 +1603,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
                 count = sfDoc.data().count;
             }
             count++;
-            transaction.set(counterRef, { count: count });
+            transaction.set(counterRef, { count: count }, { merge: true });
             newSku = String(count).padStart(6, '0');
         });
         return newSku;
@@ -1610,13 +1619,11 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 
         toggleLoader(true);
         if(id) {
-            // Update existing
             await updateDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/base_products`, id), {
                 image: compressedImageBase64,
                 categoryId: categoryId
             });
         } else {
-            // Create New with Sequential SKU
             const sku = await generateNextSku();
             await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/base_products`), {
                 name, 
@@ -1642,7 +1649,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
     };
 
 
-    // --- 2. STOCK (Add Stock) LOGIC ---
+    // --- 2. STOCK (Add Products) LOGIC ---
     async function loadProducts() {
         const snap = await getDocs(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/products`));
         productsCache = [];
@@ -1657,7 +1664,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         const catFilter = document.getElementById('stockFilterCategory').value;
         const tbody = document.querySelector('#prodTable tbody');
         
-        // 1. Group by SKU to find statistics (Dynamic Latest Logic)
         const skuStats = {}; 
 
         productsCache.forEach(p => {
@@ -1666,7 +1672,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
                 skuStats[p.sku] = { maxWithStock: -1, minWithStock: Infinity };
             }
             
-            // Only consider batches with actual stock > 0 for Green/Red logic
             if(p.qty > 0) {
                 const b = p.batchNumber || 1;
                 if(b > skuStats[p.sku].maxWithStock) skuStats[p.sku].maxWithStock = b;
@@ -1693,16 +1698,14 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
                 const batchNum = p.batchNumber || 1;
                 const stats = skuStats[p.sku] || { maxWithStock: -1, minWithStock: Infinity };
                 
-                let batchClass = 'batch-mid'; // Default Grey
+                let batchClass = 'batch-mid'; 
                 let rowClass = '';
                 let stockDisplay = `${p.qty} ${p.unit||''}`;
 
                 if (p.qty <= 0) {
-                    // OUT OF STOCK LOGIC
                     stockDisplay = `<span class="label-out-stock">Out of Stock</span>`;
                     rowClass = 'row-dimmed'; 
                 } else {
-                    // HAS STOCK LOGIC
                     if (batchNum === stats.minWithStock) {
                         batchClass = 'batch-oldest'; 
                     } 
@@ -1711,7 +1714,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
                     }
                 }
 
-                // If it is a refund batch, override color
                 if(p.isRefund) {
                     batchClass = 'batch-refund';
                 }
@@ -1820,7 +1822,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         
         let sku = "";
         
-        // Get SKU for batch calculation
         if(!id) {
              const sel = document.getElementById('stockBaseSelect');
              const opt = sel.options[sel.selectedIndex];
@@ -1854,27 +1855,47 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         const isEdit = !!id;
         
         if(isEdit) {
-            // EDIT: Batch number stays the same
             const oldP = productsCache.find(x => x.id === id);
             await updateDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/products`, id), { 
                 sell: data.sell
             });
-            // Log with existing batch number
             await logInventory(data.name, 'EDIT', `Price updated: ${formatMoney(oldP.sell)} -> ${formatMoney(data.sell)}`, 0, data.qty, oldP.batchNumber || 1, data.qty);
         } else {
-            // ADD: Calculate New Batch Number
-            const existingBatches = productsCache.filter(p => p.sku === data.sku);
-            // Find highest batch number and add 1
-            const maxBatch = existingBatches.reduce((max, p) => (p.batchNumber > max ? p.batchNumber : max), 0);
-            const nextBatchNum = maxBatch + 1;
+            // SAFE ADD LOGIC USING TRANSACTION FOR BATCH NUMBERS
+            await runTransaction(db, async (transaction) => {
+                // Find max batch for this SKU by querying ALL products of this shop with matching SKU
+                // Since firestore query in transaction is costly/limited, we rely on reading a counter or carefully checking
+                // Simpler: Fetch existing batches for this SKU first (read) then determine new batch
+                const q = query(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/products`), where("sku", "==", data.sku));
+                const snap = await getDocs(q); // Reading outside transaction for logic, but ideally inside for strictness. 
+                // However, inserting a new doc doesn't conflict unless we use specific IDs. 
+                // We just want correct Batch numbering.
+                
+                let maxBatch = 0;
+                snap.forEach(d => {
+                    const b = d.data().batchNumber || 0;
+                    if(b > maxBatch) maxBatch = b;
+                });
+                const nextBatchNum = maxBatch + 1;
 
-            data.dateAdded = new Date().toISOString();
-            data.batchNumber = nextBatchNum; // Save integer 1, 2, 3...
+                data.dateAdded = new Date().toISOString();
+                data.batchNumber = nextBatchNum;
 
-            await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/products`), data);
-            
-            // Log with new batch number. Old Qty was 0.
-            await logInventory(data.name, 'ADD', 'New Stock Batch', data.qty, data.qty, nextBatchNum, 0);
+                const newRef = doc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/products`));
+                transaction.set(newRef, data);
+                
+                const logRef = doc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/inventory_logs`));
+                transaction.set(logRef, {
+                    date: new Date().toISOString(),
+                    productName: data.name,
+                    action: 'ADD',
+                    description: 'New Stock Batch',
+                    quantityChange: data.qty,
+                    finalQty: data.qty,
+                    initialQty: 0,
+                    batchNumber: nextBatchNum
+                });
+            });
         }
 
         document.getElementById('prodModal').style.display = 'none';
@@ -1903,8 +1924,8 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
             description: desc,
             quantityChange: change,
             finalQty: finalQty,
-            initialQty: initialQty, // New Field
-            batchNumber: batchNum   // New Field
+            initialQty: initialQty, 
+            batchNumber: batchNum   
         };
         await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/inventory_logs`), log);
     }
@@ -1920,7 +1941,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
             yearSel.innerHTML += `<option value="${y}">${y}</option>`;
         }
         
-        // Populate Product Filter from Catalog Cache (Unique Names)
         const prodFilter = document.getElementById('invProductFilter');
         prodFilter.innerHTML = '<option value="ALL">All Products</option>';
         const uniqueNames = [...new Set(catalogCache.map(p => p.name))].sort();
@@ -1929,7 +1949,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         });
 
         toggleReportInputs();
-        hideReportResults(); // Ensure results are hidden on open
+        hideReportResults(); 
     };
     window.toggleReportInputs = () => {
         const type = document.getElementById('invReportType').value;
@@ -1938,50 +1958,57 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         document.getElementById('invYearInput').style.display = type === 'year' ? 'block' : 'none';
     };
 
-   window.generateInventoryReport = async () => {
+    // Updated Report Generation: Uses Server-Side Filtering
+    window.generateInventoryReport = async () => {
         const tbody = document.querySelector('#invReportTable tbody');
         document.getElementById('invTableContainer').style.display = 'block';
-        document.getElementById('invExportSection').style.display = 'none'; // Hide buttons while loading
+        document.getElementById('invExportSection').style.display = 'none'; 
         tbody.innerHTML = '<tr><td colspan="7">Loading...</td></tr>';
 
-        const q = query(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/inventory_logs`), orderBy('date', 'desc'));
-        const snap = await getDocs(q);
-        
         const type = document.getElementById('invReportType').value;
         const productFilter = document.getElementById('invProductFilter').value;
+
+        let startD, endD;
+        if(type === 'date') {
+            const val = document.getElementById('invDateInput').value;
+            startD = new Date(val); startD.setHours(0,0,0,0);
+            endD = new Date(val); endD.setHours(23,59,59,999);
+        } else if(type === 'month') {
+            const val = document.getElementById('invMonthInput').value;
+            startD = new Date(val + "-01");
+            endD = new Date(startD.getFullYear(), startD.getMonth() + 1, 0, 23, 59, 59);
+        } else {
+            const val = document.getElementById('invYearInput').value;
+            startD = new Date(val + "-01-01");
+            endD = new Date(val + "-12-31 23:59:59");
+        }
+
+        // Server Query
+        let constraints = [
+            where('date', '>=', startD.toISOString()),
+            where('date', '<=', endD.toISOString()),
+            orderBy('date', 'desc')
+        ];
         
-        let targetStr = "";
-        if(type === 'date') targetStr = document.getElementById('invDateInput').value;
-        else if(type === 'month') targetStr = document.getElementById('invMonthInput').value;
-        else if(type === 'year') targetStr = document.getElementById('invYearInput').value;
+        if(productFilter !== 'ALL') {
+            constraints.push(where('productName', '==', productFilter));
+        }
 
-        const logs = [];
-        snap.forEach(d => logs.push(d.data()));
-
-        const filtered = logs.filter(l => {
-            const d = new Date(l.date);
-            let dStr = "";
-            if(type === 'date') dStr = d.toISOString().split('T')[0];
-            else if(type === 'month') dStr = d.toISOString().slice(0, 7);
-            else if(type === 'year') dStr = d.getFullYear().toString();
-            
-            const matchDate = dStr === targetStr;
-            const matchProd = productFilter === 'ALL' || l.productName === productFilter;
-            
-            return matchDate && matchProd;
-        });
-
-        if (filtered.length === 0) {
+        const q = query(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/inventory_logs`), ...constraints);
+        const snap = await getDocs(q);
+        
+        if (snap.empty) {
             tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:15px;">No logs found for this selection.</td></tr>';
-            // Do NOT show export buttons if no data
             return;
         }
 
-        tbody.innerHTML = filtered.map(l => {
+        tbody.innerHTML = '';
+        snap.forEach(d => {
+            const l = d.data();
             const bNum = formatBatch(l.batchNumber || 0);
             const initQ = l.initialQty !== undefined ? l.initialQty : '-';
             
-            return `
+            tbody.innerHTML += `
             <tr>
                 <td>
                     <div>${new Date(l.date).toLocaleDateString()}</div>
@@ -1993,10 +2020,9 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
                 <td style="color:#6b7280;">${initQ}</td>
                 <td style="color:${l.quantityChange<0?'red':'green'}; font-weight:600;">${l.quantityChange > 0 ? '+'+l.quantityChange : l.quantityChange}</td>
                 <td style="font-weight:700;">${l.finalQty}</td>
-            </tr>
-        `}).join('');
+            </tr>`;
+        });
         
-        // Show buttons now that data is loaded and correct
         document.getElementById('invExportSection').style.display = 'block';
     };
 
@@ -2085,7 +2111,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         const term = document.getElementById('posSearch').value.toLowerCase();
         const catFilter = document.getElementById('posFilterCategory').value;
 
-        // Calculate Max Batch for colors (Dynamic Logic)
         const skuStats = {};
         productsCache.forEach(p => {
             if(!p.sku) return;
@@ -2113,7 +2138,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
                 const date = new Date(p.dateAdded).toLocaleDateString();
                 const imgTag = p.image ? `<img src="${p.image}" style="width:100%; height:80px; object-fit:contain; margin-bottom:5px;">` : '';
                 
-                // Batch Logic
                 const batchNum = p.batchNumber || 1;
                 const stats = skuStats[p.sku] || { maxWithStock: -1, minWithStock: Infinity };
                 let batchClass = 'batch-mid';
@@ -2121,7 +2145,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
                 if(batchNum === stats.minWithStock) batchClass = 'batch-oldest'; // Red
                 else if(batchNum === stats.maxWithStock) batchClass = 'batch-latest'; // Green
                 
-                // Refund Override
                 if(p.isRefund) batchClass = 'batch-refund';
 
                 return `
@@ -2168,7 +2191,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
             </div>`;
         }).join('');
 
-        // Calculations
         let discountVal = parseFloat(document.getElementById('discountValue').value) || 0;
         const discountType = document.getElementById('discountType').value;
         let discountAmt = discountType === 'percent' ? (subtotal * discountVal / 100) : discountVal;
@@ -2215,6 +2237,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         renderCart();
     };
 
+    // --- REWRITTEN CHECKOUT WITH TRANSACTIONS ---
     window.checkout = async () => {
         if(!cart.length) return showToast("Cart is empty!", "error");
         
@@ -2234,29 +2257,63 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         let feesTotal = currentOtherFees.reduce((sum, f) => sum + f.amount, 0);
         let total = subtotal - discountAmt + feesTotal;
 
-        const saleData = {
-            date: new Date().toISOString(),
-            subtotal, discountType, discountValue: discountVal, discountAmt, fees: currentOtherFees, feesTotal, total,
-            items: cart,
-            customer: { name: custName, phone: custPhone, address: custAddr },
-            paymentMethod, notes: []
-        };
-
         try {
-            const docRef = await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/sales`), saleData);
-            
-            // Update Inventory & Log
-            for(let item of cart) {
-                 const ref = doc(db, `users/${currentUser.uid}/shops/${currentShopId}/products`, item.id);
-                 const original = productsCache.find(x => x.id === item.id);
-                 const newQty = original.qty - item.qty;
-                 
-                 await updateDoc(ref, { qty: newQty });
-                 // PASS Batch Number and Previous Qty
-                 await logInventory(item.name, 'SALE', `Sold to ${custName}`, -item.qty, newQty, original.batchNumber || 1, original.qty);
-            }
+            // Using Transaction to prevent race conditions (Selling item that just went out of stock)
+            await runTransaction(db, async (transaction) => {
+                // 1. Read all fresh docs for items in cart
+                const reads = [];
+                for(let item of cart) {
+                    reads.push(transaction.get(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/products`, item.id)));
+                }
+                const docsSnapshot = await Promise.all(reads);
+                
+                // 2. Validation Loop
+                docsSnapshot.forEach((docSnap, i) => {
+                    if(!docSnap.exists()) throw `Product ${cart[i].name} removed from DB`;
+                    const freshQty = docSnap.data().qty;
+                    if(freshQty < cart[i].qty) throw `Not enough stock for ${cart[i].name}. Only ${freshQty} left.`;
+                });
 
-            generateInvoicePDF({...saleData, id: docRef.id});
+                // 3. Writes Loop
+                // 3a. Update Inventory
+                docsSnapshot.forEach((docSnap, i) => {
+                    const freshQty = docSnap.data().qty;
+                    const newQty = freshQty - cart[i].qty;
+                    transaction.update(docSnap.ref, { qty: newQty });
+                    
+                    // Log (Must create new doc ref for logs)
+                    const logRef = doc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/inventory_logs`));
+                    transaction.set(logRef, {
+                        date: new Date().toISOString(),
+                        productName: cart[i].name,
+                        action: 'SALE',
+                        description: `Sold to ${custName}`,
+                        quantityChange: -cart[i].qty,
+                        finalQty: newQty,
+                        initialQty: freshQty,
+                        batchNumber: cart[i].batchNumber || 1
+                    });
+                });
+
+                // 3b. Create Sale Record
+                const saleRef = doc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/sales`));
+                const saleData = {
+                    date: new Date().toISOString(),
+                    subtotal, discountType, discountValue: discountVal, discountAmt, fees: currentOtherFees, feesTotal, total,
+                    items: cart,
+                    customer: { name: custName, phone: custPhone, address: custAddr },
+                    paymentMethod, notes: []
+                };
+                transaction.set(saleRef, saleData);
+                
+                // Hack to pass ID out
+                saleData.id = saleRef.id;
+                cart.tempSaleData = saleData; 
+            });
+            
+            // Transaction success
+            const saleData = cart.tempSaleData;
+            generateInvoicePDF(saleData);
 
             cart = []; currentOtherFees = [];
             document.getElementById('posCustName').value = '';
@@ -2271,7 +2328,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 
         } catch (e) {
             console.error(e);
-            showToast("Error processing sale", "error");
+            alert("Error: " + e); // Alert specific error (like low stock)
         } finally {
             toggleLoader(false);
         }
@@ -2279,7 +2336,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 
     // --- DOCUMENTS (Invoice/Quote) LOGIC ---
     window.toggleDocType = () => {
-        // Just visual updates or ID generation logic changes if needed
         const type = document.getElementById('docTypeToggle').value;
         const btn = document.querySelector('#view-documents .btn-primary');
         btn.textContent = type === 'invoice' ? "Save & Generate PDF" : "Save Quotation";
@@ -2296,7 +2352,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
             <td><button class="btn btn-danger" style="padding:2px 6px;" onclick="this.closest('tr').remove(); calcDocTotals()">x</button></td>
         `;
         tbody.appendChild(tr);
-        // Create datalist if not exists
         if(!document.getElementById('docProductList')) {
             const dl = document.createElement('datalist');
             dl.id = 'docProductList';
@@ -2309,8 +2364,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 
     window.fillDocPrice = (input) => {
         const name = input.value;
-        // Try to find matching product price from stock or catalog
-        // Priority: Stock (Products) -> Catalog (Base)
         const stockP = productsCache.find(p => p.name === name);
         const row = input.closest('tr');
         if(stockP) {
@@ -2339,7 +2392,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         document.getElementById('docTotal').textContent = formatMoney(final);
     }
 
-    let tempDocData = null; // Store data for warning modal
+    let tempDocData = null; 
 
     window.saveDocument = async () => {
         const type = document.getElementById('docTypeToggle').value;
@@ -2363,7 +2416,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         const subtotal = parseFloat(document.getElementById('docSubtotal').textContent);
         const discount = parseFloat(document.getElementById('docDiscount').value) || 0;
         const tax = parseFloat(document.getElementById('docTax').value) || 0;
-        const total = parseFloat(document.getElementById('docTotal').textContent.replace(/[^0-9.-]+/g,"")); // Remove currency symbol
+        const total = parseFloat(document.getElementById('docTotal').textContent.replace(/[^0-9.-]+/g,"")); 
 
         tempDocData = {
             type, docId, date: document.getElementById('docDate').value,
@@ -2376,7 +2429,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         if(type === 'invoice') {
             document.getElementById('docStockWarningModal').style.display = 'flex';
         } else {
-            // Quotation - Save directly
             await finalizeDocumentSave(false);
         }
     };
@@ -2386,46 +2438,64 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         await finalizeDocumentSave(deductStock);
     };
 
+    // Updated Document Save with Smart Matching & Transactions
     async function finalizeDocumentSave(deductStock) {
         toggleLoader(true);
         try {
-            // Save to Documents Collection
-            await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/documents`), {
-                ...tempDocData,
-                stockDeducted: deductStock
-            });
-
-            // Handle Stock Deduction
             if(deductStock) {
-                for(let item of tempDocData.items) {
-                    // Smart Matching: Find oldest batch with stock for this name
-                    // Since it's manual, we match by exact Name
-                    const candidates = productsCache.filter(p => p.name === item.name && p.qty > 0).sort((a,b) => (a.batchNumber||0) - (b.batchNumber||0));
-                    
-                    let qtyToDeduct = item.qty;
-                    
-                    for(let prod of candidates) {
-                        if(qtyToDeduct <= 0) break;
-                        const take = Math.min(prod.qty, qtyToDeduct);
-                        await updateDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/products`, prod.id), {
-                            qty: prod.qty - take
-                        });
-                        await logInventory(item.name, 'INVOICE', `Inv #${tempDocData.docId}`, -take, prod.qty - take, prod.batchNumber, prod.qty);
-                        qtyToDeduct -= take;
+                await runTransaction(db, async (transaction) => {
+                    // Match logic inside transaction
+                    for(let item of tempDocData.items) {
+                        // Find potential matches from DB to ensure freshness
+                        const q = query(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/products`), 
+                                      where("name", "==", item.name), where("qty", ">", 0));
+                        const snapshot = await getDocs(q); // Inside txn limits
+                        
+                        // Sort by batch manually
+                        let candidates = [];
+                        snapshot.forEach(d => candidates.push({id: d.id, ...d.data(), ref: d.ref}));
+                        candidates.sort((a,b) => (a.batchNumber||0) - (b.batchNumber||0));
+
+                        let qtyToDeduct = item.qty;
+                        
+                        for(let prod of candidates) {
+                            if(qtyToDeduct <= 0) break;
+                            const freshDoc = await transaction.get(prod.ref); // Re-read for lock
+                            const currentQty = freshDoc.data().qty;
+                            
+                            const take = Math.min(currentQty, qtyToDeduct);
+                            transaction.update(prod.ref, { qty: currentQty - take });
+                            
+                            const logRef = doc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/inventory_logs`));
+                            transaction.set(logRef, {
+                                date: new Date().toISOString(),
+                                productName: item.name,
+                                action: 'INVOICE',
+                                description: `Inv #${tempDocData.docId}`,
+                                quantityChange: -take,
+                                finalQty: currentQty - take,
+                                initialQty: currentQty,
+                                batchNumber: prod.batchNumber || 1
+                            });
+                            qtyToDeduct -= take;
+                        }
                     }
                     
-                    if(qtyToDeduct > 0) {
-                        // Warn if not fully deducted? Or just ignore
-                        console.warn(`Could not fully deduct stock for ${item.name}`);
-                    }
-                }
-                await loadProducts(); // Refresh
+                    // Save document
+                    const docRef = doc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/documents`));
+                    transaction.set(docRef, { ...tempDocData, stockDeducted: deductStock });
+                });
+                await loadProducts();
+            } else {
+                await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/documents`), {
+                    ...tempDocData,
+                    stockDeducted: deductStock
+                });
             }
 
             generateDocumentPDF(tempDocData);
             showToast(`${tempDocData.type.toUpperCase()} Saved!`);
             
-            // Reset Form
             document.getElementById('docItemsBody').innerHTML = '';
             document.getElementById('docCustName').value = '';
             document.getElementById('docId').value = '';
@@ -2434,14 +2504,14 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 
         } catch(e) {
             console.error(e);
-            showToast("Error saving document", "error");
+            showToast("Error saving document: " + e, "error");
         } finally {
             toggleLoader(false);
         }
     }
 
     async function loadDocumentsHistory() {
-        const q = query(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/documents`), orderBy('createdAt', 'desc'));
+        const q = query(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/documents`), orderBy('createdAt', 'desc'), limit(50));
         const snap = await getDocs(q);
         const list = document.getElementById('docHistoryList');
         list.innerHTML = '';
@@ -2465,13 +2535,11 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
     }
 
     window.convertQuoteToInvoice = (quote) => {
-        // Pre-fill form
         document.getElementById('docTypeToggle').value = 'invoice';
         toggleDocType();
         document.getElementById('docCustName').value = quote.customer.name;
         document.getElementById('docCustAddr').value = quote.customer.address;
         document.getElementById('docDate').valueAsDate = new Date();
-        // Clear ID so user generates new one
         document.getElementById('docId').value = ''; 
         
         const tbody = document.getElementById('docItemsBody');
@@ -2495,32 +2563,26 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 
     window.generateDocumentPDF = (docData) => {
         const { jsPDF } = window.jspdf;
-        const doc = new jsPDF(); // A4 by default
-        
+        const doc = new jsPDF(); 
         const shop = profileCache || {};
         
-        // --- HEADER ---
-        // Logo (if exists)
         if(shop.logoImage) {
             try {
                 doc.addImage(shop.logoImage, 'JPEG', 15, 15, 30, 30);
             } catch(e) {}
         }
         
-        // Company Details (Right Side)
         doc.setFontSize(14);
         doc.text(shop.ownerName || "Business Name", 195, 20, null, null, "right");
         doc.setFontSize(10);
         doc.text(shop.address || "", 195, 25, null, null, "right");
         doc.text(shop.phone1 || "", 195, 30, null, null, "right");
         
-        // Document Title
         doc.setFontSize(22);
-        doc.setTextColor(41, 128, 185); // Blue
+        doc.setTextColor(41, 128, 185); 
         doc.text(docData.type.toUpperCase(), 15, 60);
-        doc.setTextColor(0, 0, 0); // Black
+        doc.setTextColor(0, 0, 0); 
         
-        // Info Box
         doc.setFontSize(10);
         doc.text(`To: ${docData.customer.name}`, 15, 70);
         if(docData.customer.address) doc.text(docData.customer.address, 15, 75);
@@ -2529,7 +2591,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         doc.text(`Date: ${docData.date}`, 150, 75);
         if(docData.dueDate) doc.text(`Due: ${docData.dueDate}`, 150, 80);
 
-        // Table
         const body = docData.items.map(i => [i.name, i.qty, formatMoney(i.price), formatMoney(i.total)]);
         
         doc.autoTable({
@@ -2537,11 +2598,10 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
             head: [['Description', 'Qty', 'Unit Price', 'Amount']],
             body: body,
             theme: 'striped',
-            headStyles: { fillColor: [41, 128, 185] }, // Blue Header matches screenshot vibe
+            headStyles: { fillColor: [41, 128, 185] }, 
             styles: { fontSize: 10 }
         });
 
-        // Totals
         let finalY = doc.lastAutoTable.finalY + 10;
         doc.text(`Subtotal: ${formatMoney(docData.subtotal)}`, 160, finalY, null, null, "right");
         if(docData.discount > 0) {
@@ -2557,7 +2617,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         doc.setFont("helvetica", "bold");
         doc.text(`Total: ${formatMoney(docData.total)}`, 160, finalY, null, null, "right");
 
-        // Footer / Signature
         const pageHeight = doc.internal.pageSize.height;
         doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
@@ -2585,21 +2644,17 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 
         toggleLoader(true);
         try {
-            // 1. Save Refund Record
             await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/refunds`), {
                 productName: prodName, reason, qty, amount, restock, date: new Date().toISOString()
             });
 
-            // 2. If Restock -> Create New Batch with 'isRefund' flag
             if(restock) {
-                // Find existing product info to copy images/category
+                // Better Logic: Check if we have a batch to increment first, preferably a "Return" batch
                 const existing = productsCache.find(p => p.name === prodName) || {};
                 const image = existing.image || null;
                 const categoryId = existing.categoryId || null;
                 const sku = existing.sku || "";
                 
-                // Determine new batch number
-                // Find max batch for this SKU/Name
                 const sameProds = productsCache.filter(p => p.name === prodName);
                 const maxBatch = sameProds.reduce((max, p) => (p.batchNumber > max ? p.batchNumber : max), 0);
                 
@@ -2609,12 +2664,12 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
                     image: image,
                     categoryId: categoryId,
                     qty: qty,
-                    buy: 0, // Cost is usually 0 or refunded amount for returned items logic, strictly depends on accounting. Keeping 0 for now.
-                    sell: existing.sell || 0, // Keep selling price
+                    buy: 0, 
+                    sell: existing.sell || 0,
                     unit: existing.unit || '',
                     dateAdded: new Date().toISOString(),
                     batchNumber: maxBatch + 1,
-                    isRefund: true // THE FLAG
+                    isRefund: true 
                 });
                 
                 await logInventory(prodName, 'REFUND', `Return: ${reason}`, qty, qty, maxBatch+1, 0);
@@ -2625,7 +2680,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
             document.getElementById('refundQty').value = '';
             document.getElementById('refundAmount').value = '';
             
-            await loadProducts(); // Update POS and Cache
+            await loadProducts(); 
 
         } catch(e) {
             console.error(e);
@@ -2638,7 +2693,8 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
     // --- ORDERS TAB LOGIC ---
     window.loadOrders = async () => {
         toggleLoader(true);
-        const q = query(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/sales`), orderBy('date', 'desc'));
+        // Added Limit for Scalability
+        const q = query(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/sales`), orderBy('date', 'desc'), limit(100));
         const snap = await getDocs(q);
         const tbody = document.querySelector('#ordersTable tbody');
         tbody.innerHTML = '';
@@ -2675,7 +2731,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         toggleLoader(false);
     };
 
-    // Notes Logic
     window.openNoteModal = (id) => {
         document.getElementById('noteOrderId').value = id;
         document.getElementById('noteInput').value = '';
@@ -2688,40 +2743,34 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         if(!note) return;
         toggleLoader(true);
         const ref = doc(db, `users/${currentUser.uid}/shops/${currentShopId}/sales`, id);
-        // We use arrayUnion to append note
-        const noteObj = { text: note, date: new Date().toISOString() };
-        // Since arrayUnion needs import, let's just read and update for simplicity in this context or assume arrayUnion available if imported. 
-        // For robustness without changing imports significantly, read-modify-write:
+        
         const snap = await getDoc(ref);
         const currentNotes = snap.data().notes || [];
-        currentNotes.push(noteObj);
+        currentNotes.push({ text: note, date: new Date().toISOString() });
         await updateDoc(ref, { notes: currentNotes });
         
         document.getElementById('orderNoteModal').style.display = 'none';
         toggleLoader(false);
         showToast("Note Added");
     }
+
     // --- CUSTOMERS LOGIC ---
 
-    // 1. Load Customers
     window.loadCustomers = async () => {
-        // toggleLoader(true); // Removed loader here as it is called in refreshData chain
         const q = collection(db, `users/${currentUser.uid}/shops/${currentShopId}/customers`);
         const snap = await getDocs(q);
         customersCache = [];
-        snap.forEach(d => customersCache.push({id: d.id, ...d.data()})); // id is the phone number
+        snap.forEach(d => customersCache.push({id: d.id, ...d.data()})); 
         
         renderCustomers();
-        // toggleLoader(false);
     };
 
-    // 2. Render Grid
     function renderCustomers() {
         const grid = document.getElementById('customerGrid');
         const term = document.getElementById('custSearch').value.toLowerCase();
         
         const filtered = customersCache.filter(c => 
-            c.id.includes(term) || // Search by Phone (ID)
+            c.id.includes(term) || 
             c.name.toLowerCase().includes(term)
         );
 
@@ -2756,7 +2805,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 
     window.filterCustomers = () => renderCustomers();
 
-    // 3. Save Customer (Create/Update)
     window.saveCustomer = async () => {
         const name = document.getElementById('custName').value.trim();
         const phone = document.getElementById('custPhone').value.trim();
@@ -2767,7 +2815,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         if(!name || !phone) return showToast("Name and Phone (ID) are required", "error");
 
         toggleLoader(true);
-        // Using setDoc with phone as ID. This creates or overwrites.
         await setDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/customers`, phone), {
             name, phone, whatsapp, email, address,
             lastUpdated: new Date().toISOString()
@@ -2775,7 +2822,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 
         document.getElementById('customerModal').style.display = 'none';
         
-        // Clear inputs
         document.getElementById('custName').value = '';
         document.getElementById('custPhone').value = '';
         document.getElementById('custWhatsapp').value = '';
@@ -2787,14 +2833,13 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         showToast("Customer Saved Successfully");
     };
 
-    // 4. Edit Customer (Populate Modal)
     window.editCustomer = (id) => {
         const c = customersCache.find(x => x.id === id);
         if(!c) return;
         
         document.getElementById('custName').value = c.name;
         document.getElementById('custPhone').value = c.id;
-        document.getElementById('custPhone').disabled = true; // ID cannot be changed once created
+        document.getElementById('custPhone').disabled = true; 
         document.getElementById('custWhatsapp').value = c.whatsapp || '';
         document.getElementById('custEmail').value = c.email || '';
         document.getElementById('custAddress').value = c.address || '';
@@ -2802,12 +2847,10 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         openModal('customerModal');
     };
     
-    // Note: When opening modal for *new* customer, re-enable phone field
     const originalOpenModal = window.openModal;
     window.openModal = (id) => {
         if(id === 'customerModal') {
             document.getElementById('custPhone').disabled = false;
-            // Clear if it was populated
             if(!document.getElementById('custName').value) {
                 document.getElementById('custPhone').value = '';
             }
@@ -2815,7 +2858,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         document.getElementById(id).style.display = 'flex';
     };
 
-    // 5. Delete Customer
     window.deleteCustomer = async (id) => {
         if(!confirm(`Delete customer ${id}? This cannot be undone.`)) return;
         toggleLoader(true);
@@ -2825,13 +2867,11 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         showToast("Customer Deleted");
     };
 
-    // 6. Customer Notes
     window.openCustomerNoteModal = async (id) => {
         const c = customersCache.find(x => x.id === id);
         document.getElementById('targetCustId').value = id;
         document.getElementById('custNoteInput').value = '';
         
-        // Render History
         const histDiv = document.getElementById('custNoteHistory');
         if(c.notes && c.notes.length > 0) {
             histDiv.innerHTML = c.notes.map(n => 
@@ -2855,28 +2895,23 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         toggleLoader(true);
         const ref = doc(db, `users/${currentUser.uid}/shops/${currentShopId}/customers`, id);
         
-        // Get current notes first to append
         const snap = await getDoc(ref);
         let currentNotes = snap.data().notes || [];
-        currentNotes.unshift({ text, date: new Date().toISOString() }); // Add to top
+        currentNotes.unshift({ text, date: new Date().toISOString() }); 
 
         await updateDoc(ref, { notes: currentNotes });
         document.getElementById('custNoteModal').style.display = 'none';
-        await loadCustomers(); // Reload to update cache
+        await loadCustomers(); 
         toggleLoader(false);
         showToast("Note Added");
     };
 
-    // 7. Customer Alerts (Bridge to existing system)
     window.openCustomerAlert = (id) => {
-        // We reuse the existing Alert Modal but use a special prefix or handle logic in saveAlert
-        // Let's set the input and use a flag
-        document.getElementById('alertOrderId').value = "CUST:" + id; // Prefix to distinguish
+        document.getElementById('alertOrderId').value = "CUST:" + id; 
         document.getElementById('alertMsg').placeholder = "e.g. Call for feedback";
         document.getElementById('createAlertModal').style.display = 'flex';
     };
 
-    // Alerts Logic
     window.openAlertModal = (id) => {
         document.getElementById('alertOrderId').value = id;
         document.getElementById('createAlertModal').style.display = 'flex';
@@ -2888,20 +2923,19 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         const date = document.getElementById('alertDate').value;
         const freq = document.getElementById('alertFreq').value;
         
-        // Detect if it's a Customer Alert or Order Alert
         let type = 'order';
         if(targetId.startsWith('CUST:')) {
             type = 'customer';
-            targetId = targetId.replace('CUST:', ''); // Remove prefix
+            targetId = targetId.replace('CUST:', ''); 
         }
 
         if(!msg || !date) return showToast("Message & Date Required", "error");
 
         toggleLoader(true);
         await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/alerts`), {
-            refId: targetId, // Changed from orderId to refId to be generic
-            type: type,      // 'order' or 'customer'
-            orderId: type === 'order' ? targetId : null, // Keep for backward compatibility if needed
+            refId: targetId, 
+            type: type,      
+            orderId: type === 'order' ? targetId : null, 
             message: msg,
             targetDate: date,
             frequency: freq,
@@ -2910,7 +2944,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         });
         document.getElementById('createAlertModal').style.display = 'none';
         
-        // If we are in the alerts view, refresh it.
         if(document.getElementById('view-alerts').classList.contains('active')) {
             await loadAlerts();
             renderAlertsTable();
@@ -2927,7 +2960,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         alertsCache = [];
         snap.forEach(d => alertsCache.push({id: d.id, ...d.data()}));
         
-        // Check for triggered alerts
         const now = new Date();
         let hasNew = false;
         let triggeredAlert = null;
@@ -2937,11 +2969,9 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
             if(tDate <= now && a.status === 'active') {
                 hasNew = true;
                 triggeredAlert = a;
-                // Update status to triggered locally to avoid spam, or handle recurrence
                 if(a.frequency === 'once') {
                      await updateDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/alerts`, a.id), { status: 'triggered' });
                 } else {
-                     // Calculate next date
                      let nextDate = new Date(tDate);
                      if(a.frequency === 'daily') nextDate.setDate(nextDate.getDate() + 1);
                      if(a.frequency === 'monthly') nextDate.setMonth(nextDate.getMonth() + 1);
@@ -2949,9 +2979,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
                      if(a.frequency === '6month') nextDate.setMonth(nextDate.getMonth() + 6);
                      if(a.frequency === 'yearly') nextDate.setFullYear(nextDate.getFullYear() + 1);
                      
-                     // Create next alert doc and close old one or just update date
                      await updateDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/alerts`, a.id), { targetDate: nextDate.toISOString() });
-                     // We still notify user about this instance
                 }
             }
         }
@@ -2971,7 +2999,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
     }
 
     window.renderAlertsTable = async () => {
-        // Reload fresh to be sure
         await loadAlerts();
         const tbody = document.querySelector('#alertsTable tbody');
         tbody.innerHTML = '';
@@ -3005,7 +3032,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
         
-        // Header
         doc.setFontSize(18);
         doc.text("INVOICE", 14, 15);
         
@@ -3015,13 +3041,11 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         doc.text(`Date: ${new Date(order.date).toLocaleString()}`, 14, 27);
         doc.text(`Order ID: ${order.id.substring(0,8)}`, 14, 32);
 
-        // Customer
         doc.text("Bill To:", 140, 22);
         doc.text(order.customer.name, 140, 27);
         doc.text(order.customer.phone, 140, 32);
         if(order.customer.address) doc.text(order.customer.address, 140, 37);
 
-        // Table
         const tableBody = order.items.map(item => [
             item.name, 
             item.qty.toString(), 
@@ -3039,7 +3063,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 
         let finalY = doc.lastAutoTable.finalY + 10;
 
-        // Totals
         doc.text(`Subtotal: ${formatMoney(order.subtotal)}`, 140, finalY);
         doc.text(`Discount: -${formatMoney(order.discountAmt)}`, 140, finalY + 5);
         doc.text(`Fees: +${formatMoney(order.feesTotal)}`, 140, finalY + 10);
@@ -3051,7 +3074,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         doc.setFont("helvetica", "normal");
         doc.text(`Payment: ${order.paymentMethod}`, 14, finalY + 18);
 
-        // Footer
         doc.text("Thank you for your business!", 105, 280, null, null, "center");
 
         doc.save(`Invoice_${order.id.substring(0,6)}.pdf`);
