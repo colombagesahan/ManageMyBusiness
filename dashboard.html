@@ -152,6 +152,23 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
     opacity: 0.6; 
     background-color: #f9fafb;
 }
+
+/* NEW: SEARCH BAR STYLES FOR ORDER */
+.search-container {
+    display: flex;
+    gap: 10px;
+    flex: 1;
+    max-width: 500px;
+}
+.order-id-badge {
+    font-family: monospace;
+    font-weight: 700;
+    color: var(--primary);
+    background: #e0e7ff;
+    padding: 2px 6px;
+    border-radius: 4px;
+    letter-spacing: 0.5px;
+}
 </style>
 </head>
 <body>
@@ -531,15 +548,19 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
             </div>
         </div>
 
-        <!-- NEW: ORDERS TAB -->
+        <!-- NEW: ORDERS TAB WITH SEARCH -->
         <div id="view-orders" class="view">
-            <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
                  <h3>All Orders</h3>
+                 <div class="search-container">
+                    <input id="orderIdSearch" placeholder="Search by Order ID (e.g. 20260105000001)..." style="margin:0;" onkeypress="if(event.key === 'Enter') searchOrderById()">
+                    <button class="btn btn-primary" onclick="searchOrderById()"><i class="ri-search-line"></i></button>
+                 </div>
                  <button class="btn btn-ghost" onclick="loadOrders()"><i class="ri-refresh-line"></i> Refresh</button>
             </div>
             <div class="card" style="overflow-x:auto;">
                 <table id="ordersTable">
-                    <thead><tr><th>Date</th><th>Customer</th><th>Pay Method</th><th>Total</th><th>Status</th><th>Actions</th></tr></thead>
+                    <thead><tr><th>Order ID</th><th>Date</th><th>Customer</th><th>Pay Method</th><th>Total</th><th>Status</th><th>Actions</th></tr></thead>
                     <tbody></tbody>
                 </table>
             </div>
@@ -926,6 +947,18 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
             <button class="btn btn-primary" onclick="saveCustomerNote()">Save Note</button>
             <button class="btn btn-danger" onclick="document.getElementById('custNoteModal').style.display='none'">Close</button>
         </div>
+    </div>
+</div>
+
+<!-- NEW: ORDER DETAILS MODAL (SEARCH RESULT) -->
+<div id="orderDetailsModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:2500;">
+    <div class="card" style="width:500px; margin:0; max-height:90vh; overflow-y:auto;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:10px; border-bottom:1px solid #eee; padding-bottom:10px;">
+            <h3 id="odModalTitle">Order Details</h3>
+            <i class="ri-close-line" style="cursor:pointer; font-size:24px;" onclick="document.getElementById('orderDetailsModal').style.display='none'"></i>
+        </div>
+        
+        <div id="odModalContent"></div>
     </div>
 </div>
     
@@ -2276,6 +2309,32 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         renderCart();
     };
 
+    // --- NEW: HELPER TO GENERATE DAILY SEQUENTIAL ID ---
+    async function getDailyOrderSequence(transaction) {
+        // 1. Get current Date YYYYMMDD
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        const d = String(now.getDate()).padStart(2, '0');
+        const dateKey = `${y}${m}${d}`; // 20260105
+
+        // 2. Reference to daily counter document
+        const counterRef = doc(db, `users/${currentUser.uid}/shops/${currentShopId}/settings`, `orderCounter_${dateKey}`);
+        
+        // 3. Read & Increment inside transaction
+        const snap = await transaction.get(counterRef);
+        let count = 0;
+        if (snap.exists()) {
+            count = snap.data().count;
+        }
+        const nextCount = count + 1;
+        transaction.set(counterRef, { count: nextCount });
+
+        // 4. Format: YYYYMMDD + 6 digit sequence
+        const sequence = String(nextCount).padStart(6, '0');
+        return `${dateKey}${sequence}`;
+    }
+
     window.checkout = async () => {
         if(!cart.length) return showToast("Cart is empty!", "error");
         
@@ -2305,8 +2364,6 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 
         try {
             // PRODUCTION LEVEL: TRANSACTIONAL CHECKOUT
-            // We use runTransaction to lock inventory documents.
-            // If any item is out of stock during the process, it fails and rolls back.
             await runTransaction(db, async (transaction) => {
                 const productReads = [];
                 // 1. Queue all reads
@@ -2325,19 +2382,22 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
                     }
                 });
 
-                // 3. Queue Writes (Deduction & Sales Log)
+                // 3. Generate Custom Order ID
+                const customOrderId = await getDailyOrderSequence(transaction);
+                saleData.customOrderId = customOrderId;
+
+                // 4. Queue Writes (Deduction & Sales Log)
                 productSnaps.forEach((snap, idx) => {
                     const item = cart[idx];
                     const newQty = snap.data().qty - item.qty;
                     transaction.update(snap.ref, { qty: newQty });
 
-                    // We can't use addDoc inside transaction easily for auto-ID, but we can use doc(collection)
                     const logRef = doc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/inventory_logs`));
                     transaction.set(logRef, {
                         date: new Date().toISOString(),
                         productName: item.name,
                         action: 'SALE',
-                        description: `Sold to ${custName}`,
+                        description: `Sold to ${custName} (Ref: ${customOrderId})`,
                         quantityChange: -item.qty,
                         finalQty: newQty,
                         batchNumber: snap.data().batchNumber || 1,
@@ -2347,10 +2407,10 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 
                 const saleRef = doc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/sales`));
                 transaction.set(saleRef, saleData);
-                saleData.id = saleRef.id; // Assign ID for PDF
+                saleData.id = saleRef.id; // Assign document ID for internal use
             });
 
-            generateInvoicePDF({...saleData});
+            generateInvoicePDF({...saleData, id: saleData.customOrderId}); // Use custom ID for PDF
 
             cart = []; currentOtherFees = [];
             document.getElementById('posCustName').value = '';
@@ -2361,7 +2421,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
             
             await loadProducts();
             updateDashboard();
-            showToast("Sale Completed & Bill Generated!", "success");
+            showToast("Sale Completed! Order ID: " + saleData.customOrderId, "success");
 
         } catch (e) {
             console.error(e);
@@ -2760,7 +2820,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         tbody.innerHTML = '';
         
         if(snap.empty) {
-             tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">No orders found.</td></tr>';
+             tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:20px;">No orders found.</td></tr>';
         }
 
         snap.forEach(d => {
@@ -2768,9 +2828,11 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
             const date = new Date(o.date).toLocaleString();
             const isPayLater = o.paymentMethod === 'Pay Later';
             const rowClass = isPayLater ? 'row-danger' : '';
+            const orderIdDisplay = o.customOrderId || o.id.substring(0,8);
             
             tbody.innerHTML += `
-            <tr class="${rowClass}">
+            <tr class="${rowClass}" onclick="viewOrderDetails('${o.id}')" style="cursor:pointer;">
+                <td><span class="order-id-badge">${orderIdDisplay}</span></td>
                 <td>${date}</td>
                 <td>
                     <div style="font-weight:600;">${o.customer?.name}</div>
@@ -2780,7 +2842,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
                 <td style="font-weight:700;">${formatMoney(o.total)}</td>
                 <td><span style="font-size:11px; padding:2px 6px; background:${isPayLater?'#fee2e2':'#dcfce7'}; border-radius:4px;">${isPayLater ? 'Credit' : 'Paid'}</span></td>
                 <td>
-                    <div style="display:flex; gap:5px;">
+                    <div style="display:flex; gap:5px;" onclick="event.stopPropagation()">
                         <button class="btn btn-ghost" style="padding:4px;" title="Add Note" onclick="openNoteModal('${o.id}')"><i class="ri-sticky-note-line"></i></button>
                         <button class="btn btn-ghost" style="padding:4px;" title="Create Alert" onclick="openAlertModal('${o.id}')"><i class="ri-alarm-line"></i></button>
                         <button class="btn btn-ghost" style="padding:4px;" title="Bill" onclick='regenerateBill(${JSON.stringify(o).replace(/'/g, "&#39;")})'><i class="ri-printer-line"></i></button>
@@ -2790,6 +2852,135 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         });
         toggleLoader(false);
     };
+
+    // --- SEARCH ORDER BY ID ---
+    window.searchOrderById = async () => {
+        const inputId = document.getElementById('orderIdSearch').value.trim();
+        if(!inputId) return showToast("Enter Order ID", "error");
+        
+        toggleLoader(true);
+        // Search by 'customOrderId' field
+        const q = query(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/sales`), where("customOrderId", "==", inputId));
+        const snap = await getDocs(q);
+        
+        if(snap.empty) {
+            toggleLoader(false);
+            showToast("Order ID not found", "error");
+            return;
+        }
+
+        // Assume unique ID, take first result
+        const d = snap.docs[0];
+        const orderData = {id: d.id, ...d.data()};
+        
+        toggleLoader(false);
+        showOrderDetailsModal(orderData);
+    };
+    
+    // Bridge from table click (uses Firestore ID to fetch, then show)
+    window.viewOrderDetails = async (firestoreId) => {
+        toggleLoader(true);
+        const d = await getDoc(doc(db, `users/${currentUser.uid}/shops/${currentShopId}/sales`, firestoreId));
+        toggleLoader(false);
+        if(d.exists()) {
+             showOrderDetailsModal({id: d.id, ...d.data()});
+        }
+    };
+
+    async function showOrderDetailsModal(order) {
+        const content = document.getElementById('odModalContent');
+        const customId = order.customOrderId || "N/A";
+
+        // Fetch Related Alerts
+        const alertsQ = query(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/alerts`), where("orderId", "==", order.id));
+        const alertsSnap = await getDocs(alertsQ);
+        let alertHtml = "";
+        alertsSnap.forEach(a => {
+             const ad = a.data();
+             alertHtml += `<div style="font-size:12px; border-left:3px solid var(--warning); padding-left:5px; margin-bottom:5px;">${new Date(ad.targetDate).toLocaleDateString()} - ${ad.message}</div>`;
+        });
+        if(!alertHtml) alertHtml = '<div style="font-size:12px; color:#999;">No alerts set.</div>';
+
+        // Fetch Linked Refunds (Search by text in reason, best effort since structure is loose)
+        // Since user said "Refund is easy with order id", we check if the customId appears in any refund reason
+        // Note: Firestore doesn't support 'contains' queries natively well, so we might need client side filter if list is small, or just rely on manual check.
+        // For robustness in this code, we display a "Check Refund History" link or query exact matches if structured.
+        // Let's do a client-side filter of the last 50 refunds for simplicity
+        const refQ = query(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/refunds`), orderBy('date', 'desc'), limit(50));
+        const refSnap = await getDocs(refQ);
+        let refundHtml = "";
+        refSnap.forEach(r => {
+            const rd = r.data();
+            if(rd.reason && rd.reason.includes(customId)) {
+                refundHtml += `<div style="font-size:12px; background:#eff6ff; color:#1e40af; padding:5px; border-radius:4px; margin-bottom:5px;">
+                    <b>${rd.productName}</b> (Qty: ${rd.qty})<br>Reason: ${rd.reason}
+                </div>`;
+            }
+        });
+        if(!refundHtml) refundHtml = '<div style="font-size:12px; color:#999;">No linked refunds found.</div>';
+
+        const itemsHtml = order.items.map(i => `
+            <div style="display:flex; justify-content:space-between; border-bottom:1px solid #eee; padding:5px 0; font-size:13px;">
+                <span>${i.name} (x${i.qty})</span>
+                <span>${formatMoney(i.sell * i.qty)}</span>
+            </div>
+        `).join('');
+
+        const notesHtml = (order.notes || []).map(n => `<div style="font-size:12px; color:#666; border-left:2px solid #ccc; padding-left:5px; margin-bottom:5px;">${n.text}</div>`).join('') || "No notes.";
+
+        content.innerHTML = `
+            <div style="background:#f9fafb; padding:15px; border-radius:8px; border:1px solid #e5e7eb; margin-bottom:15px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span class="order-id-badge" style="font-size:14px;">#${customId}</span>
+                    <span style="font-size:12px; color:#666;">${new Date(order.date).toLocaleString()}</span>
+                </div>
+                <div style="margin-top:10px;">
+                    <strong>${order.customer.name}</strong><br>
+                    <span style="font-size:13px; color:#666;">${order.customer.phone}</span><br>
+                    <span style="font-size:13px; color:#666;">${order.customer.address || "No Address"}</span>
+                </div>
+            </div>
+
+            <h4 style="margin-bottom:5px;">Items</h4>
+            <div style="margin-bottom:15px;">${itemsHtml}</div>
+            
+            <div style="display:flex; justify-content:space-between; font-weight:700; font-size:16px; margin-bottom:20px; border-top:1px solid #eee; padding-top:10px;">
+                <span>Total Paid (${order.paymentMethod})</span>
+                <span>${formatMoney(order.total)}</span>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">
+                <div>
+                    <h5 style="margin-bottom:5px;">Alerts</h5>
+                    ${alertHtml}
+                </div>
+                <div>
+                    <h5 style="margin-bottom:5px;">Refunds</h5>
+                    ${refundHtml}
+                </div>
+            </div>
+            
+            <div style="margin-top:15px;">
+                <h5 style="margin-bottom:5px;">Notes</h5>
+                ${notesHtml}
+            </div>
+
+            <div style="margin-top:20px; display:flex; gap:10px;">
+                <button class="btn btn-primary" style="flex:1;" onclick='regenerateBill(${JSON.stringify(order).replace(/'/g, "&#39;")})'>Reprint Bill</button>
+                <button class="btn btn-warning" style="flex:1;" onclick="goToRefundForOrder('${customId}')">Process Refund</button>
+            </div>
+        `;
+        
+        document.getElementById('orderDetailsModal').style.display = 'flex';
+    }
+
+    // Helper to jump to refund tab with ID
+    window.goToRefundForOrder = (orderId) => {
+        document.getElementById('orderDetailsModal').style.display = 'none';
+        loadView('refunds');
+        document.getElementById('refundReason').value = `Order ID: ${orderId} - `;
+        showToast("Refund Tab Opened. Order ID Pre-filled.");
+    }
 
     // Notes Logic
     window.openNoteModal = (id) => {
@@ -3129,7 +3320,8 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         const shopName = document.getElementById('shopSelector').options[document.getElementById('shopSelector').selectedIndex].text;
         doc.text(shopName, 14, 22);
         doc.text(`Date: ${new Date(order.date).toLocaleString()}`, 14, 27);
-        doc.text(`Order ID: ${order.id.substring(0,8)}`, 14, 32);
+        const displayId = order.customOrderId || order.id.substring(0,8);
+        doc.text(`Order ID: ${displayId}`, 14, 32);
 
         // Customer
         doc.text("Bill To:", 140, 22);
@@ -3170,7 +3362,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         // Footer
         doc.text("Thank you for your business!", 105, 280, null, null, "center");
 
-        doc.save(`Invoice_${order.id.substring(0,6)}.pdf`);
+        doc.save(`Invoice_${displayId}.pdf`);
     }
 
     window.regenerateBill = (order) => {
