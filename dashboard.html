@@ -62,6 +62,13 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 .logo-preview-box img { max-width: 100%; max-height: 100%; object-fit: contain; }
 .text-logo-preview { font-weight: bold; text-align: center; }
 
+/* CHECKBOX TOGGLE FOR PROFILE */
+.profile-field-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.profile-field-row input[type="text"], .profile-field-row textarea { margin-bottom: 0; flex: 1; }
+.visibility-toggle { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #666; white-space: nowrap; cursor: pointer; user-select: none; }
+.visibility-toggle input { width: auto; margin: 0; cursor: pointer; }
+
+
 /* --- IMAGES --- */
 .prod-thumb { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; border: 1px solid #e5e7eb; cursor: pointer; }
 .prod-preview { width: 100%; height: 150px; object-fit: contain; border: 2px dashed #d1d5db; border-radius: 8px; margin-bottom: 10px; display: none; }
@@ -162,7 +169,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 }
 .order-id-badge {
     font-family: monospace;
-    font-weight: 700;
+    font-weight: 700; 
     color: var(--primary);
     background: #e0e7ff;
     padding: 2px 6px;
@@ -296,6 +303,9 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
                 <div id="profileWarning" class="note-box" style="background:#fee2e2; border-color:#fecaca; color:#991b1b; display:none;">
                     <i class="ri-error-warning-fill"></i> Please complete your profile to enable all features.
                 </div>
+                <div class="note-box">
+                    <i class="ri-information-fill"></i> Use the toggles to choose which details appear on your Invoices, Quotations, and Bills.
+                </div>
 
                 <div style="display:grid; grid-template-columns: 200px 1fr; gap:30px;">
                     <!-- Logo Section -->
@@ -320,14 +330,87 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
                     </div>
 
                     <!-- Details Section -->
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;" id="profFields">
-                        <div><label style="font-size:12px;">Business Owner Name *</label><input id="profOwner" placeholder="Enter full name"></div>
-                        <div><label style="font-size:12px;">Reg No / NIC / License *</label><input id="profReg" placeholder="Registration or ID number"></div>
-                        <div style="grid-column: span 2;"><label style="font-size:12px;">Business Address *</label><textarea id="profAddress" rows="2" placeholder="Full business address"></textarea></div>
-                        <div><label style="font-size:12px;">Phone Number 1 *</label><input id="profPhone1" placeholder="Primary phone"></div>
-                        <div><label style="font-size:12px;">Phone Number 2 (Optional)</label><input id="profPhone2" placeholder="Secondary phone"></div>
-                        <div><label style="font-size:12px;">WhatsApp Number *</label><input id="profWhatsapp" placeholder="WhatsApp number"></div>
-                        <div><label style="font-size:12px;">Email Address (Optional)</label><input id="profEmail" placeholder="Business email"></div>
+                    <div id="profFields">
+                        <!-- Business Name -->
+                        <label style="font-size:12px;">Business Name (Legal) *</label>
+                        <div class="profile-field-row">
+                            <input id="profBizName" placeholder="Enter Business Name">
+                            <label class="visibility-toggle">
+                                <input type="checkbox" id="showBizName" checked> Show on Docs
+                            </label>
+                        </div>
+
+                        <!-- Owner Name -->
+                        <label style="font-size:12px;">Business Owner Name *</label>
+                        <div class="profile-field-row">
+                            <input id="profOwner" placeholder="Enter full name">
+                            <label class="visibility-toggle">
+                                <input type="checkbox" id="showOwner" checked> Show on Docs
+                            </label>
+                        </div>
+
+                        <!-- Reg No -->
+                        <label style="font-size:12px;">Reg No / NIC / License *</label>
+                        <div class="profile-field-row">
+                            <input id="profReg" placeholder="Registration or ID number">
+                            <label class="visibility-toggle">
+                                <input type="checkbox" id="showReg" checked> Show on Docs
+                            </label>
+                        </div>
+
+                        <!-- Address -->
+                        <label style="font-size:12px;">Business Address *</label>
+                        <div class="profile-field-row" style="align-items:flex-start;">
+                            <textarea id="profAddress" rows="2" placeholder="Full business address"></textarea>
+                            <label class="visibility-toggle" style="margin-top:10px;">
+                                <input type="checkbox" id="showAddress" checked> Show on Docs
+                            </label>
+                        </div>
+
+                        <!-- Phone 1 -->
+                        <label style="font-size:12px;">Phone Number 1 *</label>
+                        <div class="profile-field-row">
+                            <input id="profPhone1" placeholder="Primary phone">
+                            <label class="visibility-toggle">
+                                <input type="checkbox" id="showPhone1" checked> Show on Docs
+                            </label>
+                        </div>
+
+                        <!-- Phone 2 -->
+                        <label style="font-size:12px;">Phone Number 2 (Optional)</label>
+                        <div class="profile-field-row">
+                            <input id="profPhone2" placeholder="Secondary phone">
+                            <label class="visibility-toggle">
+                                <input type="checkbox" id="showPhone2" checked> Show on Docs
+                            </label>
+                        </div>
+
+                        <!-- WhatsApp -->
+                        <label style="font-size:12px;">WhatsApp Number *</label>
+                        <div class="profile-field-row">
+                            <input id="profWhatsapp" placeholder="WhatsApp number">
+                            <label class="visibility-toggle">
+                                <input type="checkbox" id="showWhatsapp" checked> Show on Docs
+                            </label>
+                        </div>
+
+                         <!-- FAX (NEW) -->
+                        <label style="font-size:12px;">Fax Number (Optional)</label>
+                        <div class="profile-field-row">
+                            <input id="profFax" placeholder="Fax number">
+                            <label class="visibility-toggle">
+                                <input type="checkbox" id="showFax"> Show on Docs
+                            </label>
+                        </div>
+
+                        <!-- Email -->
+                        <label style="font-size:12px;">Email Address (Optional)</label>
+                        <div class="profile-field-row">
+                            <input id="profEmail" placeholder="Business email">
+                            <label class="visibility-toggle">
+                                <input type="checkbox" id="showEmail" checked> Show on Docs
+                            </label>
+                        </div>
                     </div>
                 </div>
                 
@@ -1397,18 +1480,35 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
             lockProfile(false);
             // Clear fields
             document.querySelectorAll('#profFields input, #profFields textarea').forEach(i => i.value = '');
+            // Default checks
+            document.querySelectorAll('#profFields input[type="checkbox"]').forEach(i => i.checked = true);
             document.getElementById('profLogoContainer').innerHTML = '<span>No Logo</span>';
         }
     }
 
     function fillProfileData(p) {
+        document.getElementById('profBizName').value = p.bizName || '';
         document.getElementById('profOwner').value = p.ownerName || '';
         document.getElementById('profReg').value = p.regNo || '';
         document.getElementById('profAddress').value = p.address || '';
         document.getElementById('profPhone1').value = p.phone1 || '';
         document.getElementById('profPhone2').value = p.phone2 || '';
         document.getElementById('profWhatsapp').value = p.whatsapp || '';
+        document.getElementById('profFax').value = p.fax || '';
         document.getElementById('profEmail').value = p.email || '';
+        document.getElementById('profLogoFont').value = p.logoFont || "'Plus Jakarta Sans'";
+        document.getElementById('profLogoColor').value = p.logoColor || '#4F46E5';
+
+        // Checkboxes
+        document.getElementById('showBizName').checked = p.showBizName !== false;
+        document.getElementById('showOwner').checked = p.showOwner !== false;
+        document.getElementById('showReg').checked = p.showReg !== false;
+        document.getElementById('showAddress').checked = p.showAddress !== false;
+        document.getElementById('showPhone1').checked = p.showPhone1 !== false;
+        document.getElementById('showPhone2').checked = p.showPhone2 !== false;
+        document.getElementById('showWhatsapp').checked = p.showWhatsapp !== false;
+        document.getElementById('showFax').checked = p.showFax !== false;
+        document.getElementById('showEmail').checked = p.showEmail !== false;
         
         const container = document.getElementById('profLogoContainer');
         if(p.logoImage) {
@@ -1420,7 +1520,11 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
     }
 
     window.lockProfile = (lock) => {
-        document.querySelectorAll('#profFields input, #profFields textarea, #profLogoFont, #profLogoColor, #profLogoFile').forEach(i => i.disabled = lock);
+        document.querySelectorAll('#profFields input:not([type="checkbox"]), #profFields textarea, #profLogoFont, #profLogoColor, #profLogoFile').forEach(i => i.disabled = lock);
+        // Also disable toggles if locked? Usually editable even if profile data is locked? 
+        // Let's lock everything for consistency, users click "Edit" to change.
+        document.querySelectorAll('#profFields input[type="checkbox"]').forEach(i => i.disabled = lock);
+
         document.getElementById('btnSaveProfile').style.display = lock ? 'none' : 'inline-flex';
         document.getElementById('btnEditProfile').style.display = lock ? 'inline-flex' : 'none';
         document.getElementById('profInputsLogo').style.display = lock ? 'none' : 'block';
@@ -1430,19 +1534,32 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 
     window.saveProfile = async () => {
         const data = {
+            bizName: document.getElementById('profBizName').value.trim(),
             ownerName: document.getElementById('profOwner').value.trim(),
             regNo: document.getElementById('profReg').value.trim(),
             address: document.getElementById('profAddress').value.trim(),
             phone1: document.getElementById('profPhone1').value.trim(),
             phone2: document.getElementById('profPhone2').value.trim(),
             whatsapp: document.getElementById('profWhatsapp').value.trim(),
+            fax: document.getElementById('profFax').value.trim(),
             email: document.getElementById('profEmail').value.trim(),
             logoFont: document.getElementById('profLogoFont').value,
             logoColor: document.getElementById('profLogoColor').value,
-            logoImage: compressedImageBase64 || (profileCache ? profileCache.logoImage : null)
+            logoImage: compressedImageBase64 || (profileCache ? profileCache.logoImage : null),
+
+            // Visibility Toggles
+            showBizName: document.getElementById('showBizName').checked,
+            showOwner: document.getElementById('showOwner').checked,
+            showReg: document.getElementById('showReg').checked,
+            showAddress: document.getElementById('showAddress').checked,
+            showPhone1: document.getElementById('showPhone1').checked,
+            showPhone2: document.getElementById('showPhone2').checked,
+            showWhatsapp: document.getElementById('showWhatsapp').checked,
+            showFax: document.getElementById('showFax').checked,
+            showEmail: document.getElementById('showEmail').checked
         };
 
-        if(!data.ownerName || !data.regNo || !data.address || !data.phone1 || !data.whatsapp) {
+        if(!data.bizName || !data.ownerName || !data.regNo || !data.address || !data.phone1 || !data.whatsapp) {
             return showToast("Please fill all required (*) fields", "error");
         }
 
@@ -2693,80 +2810,169 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         const doc = new jsPDF(); // A4 by default
         
         const shop = profileCache || {};
+        const accentColor = shop.logoColor || '#4F46E5'; // Use User Color
         
-        // --- HEADER ---
-        // Logo (if exists)
+        // Convert Hex to RGB for jsPDF
+        const hexToRgb = (hex) => {
+            let result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? [parseInt(result[1], 16), parseInt(result[2], 16), parseInt(result[3], 16)] : [79, 70, 229];
+        }
+        const accentRgb = hexToRgb(accentColor);
+
+        // --- LETTERHEAD DESIGN (Left Logo, Right Details) ---
+        
+        // 1. Accent Top Bar
+        doc.setFillColor(accentRgb[0], accentRgb[1], accentRgb[2]);
+        doc.rect(0, 0, 210, 5, 'F'); // Thin top bar
+
+        // 2. Logo (Left)
         if(shop.logoImage) {
             try {
-                doc.addImage(shop.logoImage, 'JPEG', 15, 15, 30, 30);
+                // Keep aspect ratio
+                doc.addImage(shop.logoImage, 'JPEG', 14, 15, 30, 30);
             } catch(e) {}
+        } else {
+             // Fallback text if no logo
+             doc.setFontSize(10);
+             doc.setTextColor(150);
+             doc.text("No Logo", 14, 25);
         }
-        
-        // Company Details (Right Side)
-        doc.setFontSize(14);
-        doc.text(shop.ownerName || "Business Name", 195, 20, null, null, "right");
-        doc.setFontSize(10);
-        doc.text(shop.address || "", 195, 25, null, null, "right");
-        doc.text(shop.phone1 || "", 195, 30, null, null, "right");
-        
-        // Document Title
-        doc.setFontSize(22);
-        doc.setTextColor(41, 128, 185); // Blue
-        doc.text(docData.type.toUpperCase(), 15, 60);
-        doc.setTextColor(0, 0, 0); // Black
-        
-        // Info Box
-        doc.setFontSize(10);
-        doc.text(`To: ${docData.customer.name}`, 15, 70);
-        if(docData.customer.address) doc.text(docData.customer.address, 15, 75);
-        
-        doc.text(`No: ${docData.docId}`, 150, 70);
-        doc.text(`Date: ${docData.date}`, 150, 75);
-        if(docData.dueDate) doc.text(`Due: ${docData.dueDate}`, 150, 80);
 
-        // Table
+        // 3. Business Details (Right, filtered by visibility)
+        let cursorY = 20;
+        const rightMargin = 196;
+        
+        doc.setTextColor(0);
+        
+        // Helper to add right-aligned text if visible
+        const addHeaderDetail = (text, isBold = false, size = 10) => {
+            if(!text) return;
+            doc.setFontSize(size);
+            doc.setFont("helvetica", isBold ? "bold" : "normal");
+            doc.text(text, rightMargin, cursorY, null, null, "right");
+            cursorY += (size / 2) + 1; // Line spacing
+        };
+
+        // Check toggles and print
+        // Business Name
+        if(shop.showBizName !== false) addHeaderDetail(shop.bizName, true, 16); // Bigger bold
+        // Owner Name
+        if(shop.showOwner !== false) addHeaderDetail(shop.ownerName);
+        // Reg No
+        if(shop.showReg !== false) addHeaderDetail(shop.regNo ? `Reg: ${shop.regNo}` : '');
+        // Address (Split lines if long)
+        if(shop.showAddress !== false && shop.address) {
+             const splitAddr = doc.splitTextToSize(shop.address, 80);
+             splitAddr.forEach(line => {
+                doc.text(line, rightMargin, cursorY, null, null, "right");
+                cursorY += 5;
+             });
+        }
+        // Contacts
+        if(shop.showPhone1 !== false && shop.phone1) addHeaderDetail(`Tel: ${shop.phone1}`);
+        if(shop.showPhone2 !== false && shop.phone2) addHeaderDetail(`Tel: ${shop.phone2}`);
+        if(shop.showWhatsapp !== false && shop.whatsapp) addHeaderDetail(`WhatsApp: ${shop.whatsapp}`);
+        if(shop.showFax !== false && shop.fax) addHeaderDetail(`Fax: ${shop.fax}`);
+        if(shop.showEmail !== false && shop.email) addHeaderDetail(shop.email);
+
+
+        // --- DOCUMENT INFO ---
+        const contentStartY = Math.max(cursorY, 60) + 10;
+        
+        doc.setFontSize(22);
+        doc.setTextColor(accentRgb[0], accentRgb[1], accentRgb[2]);
+        doc.setFont("helvetica", "bold");
+        doc.text(docData.type.toUpperCase(), 14, contentStartY);
+        
+        // Reset Text Color
+        doc.setTextColor(0);
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+        
+        // Bill To (Left)
+        doc.text("Bill To:", 14, contentStartY + 10);
+        doc.setFont("helvetica", "bold");
+        doc.text(docData.customer.name, 14, contentStartY + 15);
+        doc.setFont("helvetica", "normal");
+        if(docData.customer.address) {
+             const custAddr = doc.splitTextToSize(docData.customer.address, 70);
+             doc.text(custAddr, 14, contentStartY + 20);
+        }
+
+        // Details (Right)
+        const detailX = 140;
+        doc.text(`Document No:`, detailX, contentStartY + 10);
+        doc.text(`Date:`, detailX, contentStartY + 15);
+        if(docData.dueDate) doc.text(`Due Date:`, detailX, contentStartY + 20);
+
+        doc.setFont("helvetica", "bold");
+        doc.text(docData.docId, 175, contentStartY + 10);
+        doc.text(docData.date, 175, contentStartY + 15);
+        if(docData.dueDate) doc.text(docData.dueDate, 175, contentStartY + 20);
+
+
+        // --- TABLE ---
+        const tableStartY = contentStartY + 35;
         const body = docData.items.map(i => {
             const batchInfo = i.batchNumber ? `(Batch: ${formatBatch(i.batchNumber)})` : '';
             return [`${i.name} ${batchInfo}`, i.qty, formatMoney(i.price), formatMoney(i.total)];
         });
         
         doc.autoTable({
-            startY: 90,
+            startY: tableStartY,
             head: [['Description', 'Qty', 'Unit Price', 'Amount']],
             body: body,
-            theme: 'striped',
-            headStyles: { fillColor: [41, 128, 185] }, // Blue Header matches screenshot vibe
-            styles: { fontSize: 10 }
+            theme: 'grid',
+            headStyles: { 
+                fillColor: accentRgb, // Use custom color
+                textColor: 255,
+                fontStyle: 'bold'
+            },
+            styles: { fontSize: 10, cellPadding: 3 },
+            alternateRowStyles: { fillColor: [245, 247, 250] } // Light grey stripes
         });
 
         // Totals
         let finalY = doc.lastAutoTable.finalY + 10;
-        doc.text(`Subtotal: ${formatMoney(docData.subtotal)}`, 160, finalY, null, null, "right");
+        doc.setFont("helvetica", "normal");
+        
+        doc.text(`Subtotal:`, 140, finalY);
+        doc.text(formatMoney(docData.subtotal), 196, finalY, null, null, "right");
+        
         if(docData.discount > 0) {
-            finalY += 5;
-            doc.text(`Discount: -${formatMoney(docData.discount)}`, 160, finalY, null, null, "right");
+            finalY += 6;
+            doc.text(`Discount:`, 140, finalY);
+            doc.text(`-${formatMoney(docData.discount)}`, 196, finalY, null, null, "right");
         }
         if(docData.tax > 0) {
-            finalY += 5;
-            doc.text(`Tax: +${formatMoney((docData.subtotal-docData.discount)*(docData.tax/100))}`, 160, finalY, null, null, "right");
+            finalY += 6;
+            doc.text(`Tax:`, 140, finalY);
+            doc.text(`+${formatMoney((docData.subtotal-docData.discount)*(docData.tax/100))}`, 196, finalY, null, null, "right");
         }
-        finalY += 8;
-        doc.setFontSize(14);
+        
+        finalY += 10;
+        doc.setFontSize(12);
         doc.setFont("helvetica", "bold");
-        doc.text(`Total: ${formatMoney(docData.total)}`, 160, finalY, null, null, "right");
+        doc.setTextColor(accentRgb[0], accentRgb[1], accentRgb[2]);
+        doc.text(`Total:`, 140, finalY);
+        doc.text(formatMoney(docData.total), 196, finalY, null, null, "right");
 
         // Footer / Signature
         const pageHeight = doc.internal.pageSize.height;
+        doc.setTextColor(0);
         doc.setFontSize(10);
         doc.setFont("helvetica", "normal");
         
-        doc.line(15, pageHeight - 40, 60, pageHeight - 40);
+        doc.setDrawColor(200);
+        doc.line(14, pageHeight - 40, 60, pageHeight - 40);
         doc.text("Prepared By", 37, pageHeight - 35, null, null, "center");
         
-        doc.line(140, pageHeight - 40, 195, pageHeight - 40);
-        doc.text("Authorized Signature", 167, pageHeight - 35, null, null, "center");
+        doc.line(140, pageHeight - 40, 196, pageHeight - 40);
+        doc.text("Authorized Signature", 168, pageHeight - 35, null, null, "center");
         
-        doc.text("Thank you for your business!", 105, pageHeight - 15, null, null, "center");
+        // Bottom Accent
+        doc.setFillColor(accentRgb[0], accentRgb[1], accentRgb[2]);
+        doc.rect(0, pageHeight - 5, 210, 5, 'F');
 
         doc.save(`${docData.type}_${docData.docId}.pdf`);
     }
@@ -3436,59 +3642,25 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
     window.generateInvoicePDF = (order) => {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
+
+        // REUSE THE ADVANCED LETTERHEAD LOGIC
+        // We can adapt `generateDocumentPDF` logic here for immediate bill printing
+        // Construct a temp doc object to reuse the function
+        const docData = {
+            type: "INVOICE",
+            docId: order.customOrderId || order.id.substring(0,8),
+            date: new Date(order.date).toLocaleString(),
+            dueDate: "", 
+            customer: order.customer,
+            items: order.items,
+            subtotal: order.subtotal,
+            discount: order.discountAmt,
+            tax: 0, // POS doesn't have tax field yet
+            total: order.total
+        };
         
-        // Header
-        doc.setFontSize(18);
-        doc.text("INVOICE", 14, 15);
-        
-        doc.setFontSize(10);
-        const shopName = document.getElementById('shopSelector').options[document.getElementById('shopSelector').selectedIndex].text;
-        doc.text(shopName, 14, 22);
-        doc.text(`Date: ${new Date(order.date).toLocaleString()}`, 14, 27);
-        // REMOVED #: Just ID
-        const displayId = order.customOrderId || order.id.substring(0,8);
-        doc.text(`Order ID: ${displayId}`, 14, 32);
-
-        // Customer
-        doc.text("Bill To:", 140, 22);
-        doc.text(order.customer.name, 140, 27);
-        doc.text(order.customer.phone, 140, 32);
-        if(order.customer.address) doc.text(order.customer.address, 140, 37);
-
-        // Table
-        const tableBody = order.items.map(item => [
-            `${item.name} (Batch: ${formatBatch(item.batchNumber||0)})`, // SHOW BATCH
-            item.qty.toString(), 
-            formatMoney(item.sell), 
-            formatMoney(item.sell * item.qty)
-        ]);
-
-        doc.autoTable({
-            head: [['Item', 'Qty', 'Price', 'Total']],
-            body: tableBody,
-            startY: 50,
-            theme: 'grid',
-            headStyles: { fillColor: [79, 70, 229] }
-        });
-
-        let finalY = doc.lastAutoTable.finalY + 10;
-
-        // Totals
-        doc.text(`Subtotal: ${formatMoney(order.subtotal)}`, 140, finalY);
-        doc.text(`Discount: -${formatMoney(order.discountAmt)}`, 140, finalY + 5);
-        doc.text(`Fees: +${formatMoney(order.feesTotal)}`, 140, finalY + 10);
-        doc.setFontSize(12);
-        doc.setFont("helvetica", "bold");
-        doc.text(`Total: ${formatMoney(order.total)}`, 140, finalY + 18);
-        
-        doc.setFontSize(10);
-        doc.setFont("helvetica", "normal");
-        doc.text(`Payment: ${order.paymentMethod}`, 14, finalY + 18);
-
-        // Footer
-        doc.text("Thank you for your business!", 105, 280, null, null, "center");
-
-        doc.save(`Invoice_${displayId}.pdf`);
+        // Call the advanced generator
+        generateDocumentPDF(docData);
     }
 
     window.regenerateBill = (order) => {
