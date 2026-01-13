@@ -398,49 +398,60 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
             </div>
         </div>
 
-        <!-- NEW: REFUNDS TAB -->
+        <!-- NEW: REFUNDS TAB (STRICT) -->
         <div id="view-refunds" class="view">
             
-            <!-- NEW: REFUND FROM ORDER SECTION -->
+            <!-- REFUND FROM ORDER SECTION (THE ONLY WAY) -->
             <div class="card" style="background:#f0f9ff; border-color:#bae6fd;">
-                <h3 style="color:#0369a1;">Refund Partial / Specific Order Items</h3>
+                <h3 style="color:#0369a1;">Refund Portal</h3>
+                <div class="note-box">
+                    <i class="ri-lock-2-fill"></i> Strict Mode: Refunds can only be processed by verifying the Order ID.
+                </div>
                 <div style="display:flex; gap:10px; margin-bottom:10px; margin-top:10px;">
                     <input id="refundOrderIdSearch" placeholder="Scan or Enter Order ID (e.g. 20260105000001)" style="margin:0;">
-                    <button class="btn btn-info" onclick="loadRefundItemsFromOrder()">Load Order Items</button>
+                    <button class="btn btn-info" onclick="loadRefundItemsFromOrder()">Load Order</button>
                 </div>
                 <div id="refundOrderItemsList"></div>
             </div>
 
-            <div class="card">
-                <h3>Process Refund (Manual or Selected)</h3>
-                <div class="note-box" style="margin-bottom:15px;">
-                    <i class="ri-information-fill"></i> Refunded items marked "Return to Inventory" will appear as <b>Blue Stock</b> in the POS.
-                </div>
+            <!-- DYNAMIC REFUND FORM (HIDDEN UNTIL SELECTED) -->
+            <div id="refundActionPanel" class="card" style="display:none; border-left: 5px solid var(--danger);">
+                <h3 style="color:var(--danger)">Confirm Refund</h3>
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; align-items:end;">
+                    
+                    <!-- READ ONLY CONTEXT -->
                     <div>
-                        <label>Select Product (Type Name/SKU)</label>
-                        <!-- Changed to input with datalist to allow auto-filling from order -->
-                        <input id="refundProductSelect" list="refundProductList" placeholder="Type to search..." style="margin:0;">
-                        <datalist id="refundProductList"></datalist>
+                        <label>Product (Batch Verified)</label>
+                        <input id="refundProductDisplay" disabled style="background:#eee; font-weight:bold;">
                     </div>
                     <div>
-                        <label>Refund Reason / Order ID</label>
-                        <input id="refundReason" placeholder="e.g. Defect, Order #123" style="margin:0;">
+                        <label>Original Selling Price</label>
+                        <input id="refundPriceDisplay" disabled style="background:#eee; font-weight:bold;">
+                    </div>
+
+                    <!-- EDITABLE FIELDS -->
+                    <div>
+                        <label>Quantity Returning (Max: <span id="refundMaxQty"></span>)</label>
+                        <input type="number" id="refundQtyInput" placeholder="1" style="margin:0;">
                     </div>
                     <div>
-                        <label>Quantity Returning</label>
-                        <input type="number" id="refundQty" placeholder="1" style="margin:0;">
+                        <label>Reason</label>
+                        <input id="refundReasonInput" placeholder="Reason for return..." style="margin:0;">
                     </div>
-                    <div>
-                        <label>Refund Amount (Money Given Back)</label>
-                        <input type="number" id="refundAmount" placeholder="0.00" style="margin:0;">
-                    </div>
+
                     <div style="display:flex; align-items:center; gap:10px;">
-                        <input type="checkbox" id="refundRestock" checked style="width:auto; margin:0;">
-                        <label for="refundRestock" style="margin:0;">Return to Inventory?</label>
+                        <input type="checkbox" id="refundRestockCheck" checked style="width:auto; margin:0;">
+                        <label for="refundRestockCheck" style="margin:0;">Return to Inventory?</label>
                     </div>
-                    <button class="btn btn-danger" onclick="saveRefund()">Process Refund</button>
+                    <button class="btn btn-danger" onclick="submitStrictRefund()">Process Refund</button>
                 </div>
+                
+                <!-- Hidden fields to store context -->
+                <input type="hidden" id="ctxRefundOrderId">
+                <input type="hidden" id="ctxRefundItemName">
+                <input type="hidden" id="ctxRefundItemBatch">
+                <input type="hidden" id="ctxRefundItemPrice">
+                <input type="hidden" id="ctxRefundItemMaxQty">
             </div>
         </div>
 
@@ -1366,12 +1377,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
             dl.innerHTML += `<option value="${c.name}">${c.address||''}</option>`;
         });
         
-        // Also populate Refund Product Select
-        const refSel = document.getElementById('refundProductList');
-        refSel.innerHTML = '';
-        catalogCache.forEach(p => {
-            refSel.innerHTML += `<option value="${p.name}">`;
-        });
+        // Populate Datalists for Refunds/Docs etc from Catalog (optional, usually dynamic)
     }
 
     // --- PROFILE LOGIC ---
@@ -2252,6 +2258,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
             if(exist.qty >= p.qty) return showToast("Max stock reached", "error");
             exist.qty++;
         } else {
+            // Include batch info for later tracking
             cart.push({...p, qty: 1});
         }
         renderCart();
@@ -2370,7 +2377,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         const saleData = {
             date: new Date().toISOString(),
             subtotal, discountType, discountValue: discountVal, discountAmt, fees: currentOtherFees, feesTotal, total,
-            items: cart,
+            items: cart, // Cart items now include batchNumber from addToCart
             customer: { name: custName, phone: custPhone, address: custAddr },
             paymentMethod, notes: []
         };
@@ -2413,7 +2420,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
                         description: `Sold to ${custName} (Ref: ${customOrderId})`,
                         quantityChange: -item.qty,
                         finalQty: newQty,
-                        batchNumber: snap.data().batchNumber || 1,
+                        batchNumber: snap.data().batchNumber || 1, // Log correct batch
                         initialQty: snap.data().qty
                     });
                 });
@@ -2718,7 +2725,10 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         if(docData.dueDate) doc.text(`Due: ${docData.dueDate}`, 150, 80);
 
         // Table
-        const body = docData.items.map(i => [i.name, i.qty, formatMoney(i.price), formatMoney(i.total)]);
+        const body = docData.items.map(i => {
+            const batchInfo = i.batchNumber ? `(Batch: ${formatBatch(i.batchNumber)})` : '';
+            return [`${i.name} ${batchInfo}`, i.qty, formatMoney(i.price), formatMoney(i.total)];
+        });
         
         doc.autoTable({
             startY: 90,
@@ -2761,12 +2771,16 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         doc.save(`${docData.type}_${docData.docId}.pdf`);
     }
 
-    // --- NEW: REFUNDS LOGIC UPDATED ---
+    // --- NEW: STRICT REFUNDS LOGIC (ORDER ID REQUIRED) ---
     
     // 1. Load Order Items
     window.loadRefundItemsFromOrder = async () => {
         const orderId = document.getElementById('refundOrderIdSearch').value.trim();
         const container = document.getElementById('refundOrderItemsList');
+        const formPanel = document.getElementById('refundActionPanel');
+        
+        // Reset form
+        formPanel.style.display = 'none';
         
         if(!orderId) return showToast("Enter an Order ID", "error");
         
@@ -2777,7 +2791,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         const snap = await getDocs(q);
         
         if(snap.empty) {
-            container.innerHTML = '<div style="color:red;">Order not found. Check ID.</div>';
+            container.innerHTML = '<div style="color:red; padding:10px;">Order not found. Check ID.</div>';
             return;
         }
         
@@ -2791,17 +2805,18 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 
         container.innerHTML = `
             <table style="margin-top:10px;">
-                <thead><tr><th>Product</th><th>Sold Qty</th><th>Sold Price</th><th>Action</th></tr></thead>
+                <thead><tr><th>Product</th><th>Batch</th><th>Sold Qty</th><th>Sold Price</th><th>Action</th></tr></thead>
                 <tbody>
                     ${items.map((item, idx) => `
                         <tr>
                             <td>${item.name}</td>
+                            <td><span class="batch-badge batch-mid">${formatBatch(item.batchNumber||0)}</span></td>
                             <td>${item.qty}</td>
                             <td>${formatMoney(item.sell)}</td>
                             <td>
                                 <button class="btn btn-warning" style="padding:2px 8px; font-size:11px;" 
-                                onclick='fillRefundForm(${JSON.stringify(item).replace(/'/g, "&#39;")}, "${order.customOrderId}")'>
-                                Select
+                                onclick='prepareStrictRefund(${JSON.stringify(item).replace(/'/g, "&#39;")}, "${order.customOrderId}")'>
+                                Refund This
                                 </button>
                             </td>
                         </tr>
@@ -2811,47 +2826,76 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         `;
     };
 
-    // 2. Fill Form
-    window.fillRefundForm = (item, orderId) => {
-        document.getElementById('refundProductSelect').value = item.name;
-        document.getElementById('refundQty').value = 1; 
-        document.getElementById('refundQty').max = item.qty; // Optional constraint hint
-        document.getElementById('refundAmount').value = item.sell;
-        document.getElementById('refundReason').value = `Partial Refund for Order #${orderId}`;
+    // 2. Prepare Form (Strict)
+    window.prepareStrictRefund = (item, orderId) => {
+        const formPanel = document.getElementById('refundActionPanel');
+        formPanel.style.display = 'block';
+        
+        // Fill Visible Fields
+        document.getElementById('refundProductDisplay').value = `${item.name} (Batch: ${formatBatch(item.batchNumber||0)})`;
+        document.getElementById('refundPriceDisplay').value = formatMoney(item.sell);
+        
+        document.getElementById('refundQtyInput').value = 1; 
+        document.getElementById('refundMaxQty').textContent = item.qty;
+        document.getElementById('refundReasonInput').value = ""; // Clear previous reason
+        
+        // Fill Hidden Context Fields
+        document.getElementById('ctxRefundOrderId').value = orderId;
+        document.getElementById('ctxRefundItemName').value = item.name;
+        document.getElementById('ctxRefundItemBatch').value = item.batchNumber || 0;
+        document.getElementById('ctxRefundItemPrice').value = item.sell;
+        document.getElementById('ctxRefundItemMaxQty').value = item.qty;
         
         // Scroll down to form
-        document.getElementById('refundProductSelect').scrollIntoView({behavior: "smooth"});
-        showToast(`Selected: ${item.name}`);
+        formPanel.scrollIntoView({behavior: "smooth"});
     };
 
-    window.saveRefund = async () => {
-        const prodName = document.getElementById('refundProductSelect').value;
-        const reason = document.getElementById('refundReason').value;
-        const qty = parseFloat(document.getElementById('refundQty').value);
-        const amount = parseFloat(document.getElementById('refundAmount').value);
-        const restock = document.getElementById('refundRestock').checked;
+    window.submitStrictRefund = async () => {
+        // Read Context
+        const orderId = document.getElementById('ctxRefundOrderId').value;
+        const prodName = document.getElementById('ctxRefundItemName').value;
+        const batchNum = parseInt(document.getElementById('ctxRefundItemBatch').value);
+        const price = parseFloat(document.getElementById('ctxRefundItemPrice').value);
+        const maxQty = parseFloat(document.getElementById('ctxRefundItemMaxQty').value);
+        
+        // Read User Input
+        const qty = parseFloat(document.getElementById('refundQtyInput').value);
+        const reason = document.getElementById('refundReasonInput').value.trim();
+        const restock = document.getElementById('refundRestockCheck').checked;
 
-        if(!prodName || isNaN(qty) || qty <= 0) return showToast("Valid Product & Qty Required", "error");
+        // Validations
+        if(isNaN(qty) || qty <= 0) return showToast("Invalid Quantity", "error");
+        if(qty > maxQty) return showToast(`Cannot refund more than sold (${maxQty})`, "error");
+        if(!reason) return showToast("Please provide a reason", "error");
+
+        const refundTotal = qty * price;
 
         toggleLoader(true);
         try {
-            // 1. Save Refund Record
+            // 1. Save Refund Record (Linked to original Order ID)
             await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/refunds`), {
-                productName: prodName, reason, qty, amount, restock, date: new Date().toISOString()
+                productName: prodName,
+                orderId: orderId, // Link strictly
+                reason: `${reason} (Ref: ${orderId})`,
+                qty: qty,
+                amount: refundTotal,
+                restock: restock,
+                originalBatch: batchNum,
+                date: new Date().toISOString()
             });
 
-            // 2. If Restock -> Create New Batch with 'isRefund' flag
+            // 2. If Restock -> Create New Batch with 'isRefund' flag BUT referencing original batch
             if(restock) {
-                // Find existing product info to copy images/category
-                const existing = productsCache.find(p => p.name === prodName) || {};
+                // Find existing product info to copy images/category from original ID
+                const existing = productsCache.find(p => p.name === prodName) || {}; // Fallback search by name
                 const image = existing.image || null;
                 const categoryId = existing.categoryId || null;
                 const sku = existing.sku || "";
                 
-                // Determine new batch number
-                // Find max batch for this SKU/Name
+                // Determine new batch number (Sequential)
                 const sameProds = productsCache.filter(p => p.name === prodName);
-                const maxBatch = sameProds.reduce((max, p) => (p.batchNumber > max ? p.batchNumber : max), 0);
+                const maxBatchFound = sameProds.reduce((max, p) => (p.batchNumber > max ? p.batchNumber : max), 0);
+                const newBatchNum = maxBatchFound + 1;
                 
                 await addDoc(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/products`), {
                     name: prodName,
@@ -2859,22 +2903,23 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
                     image: image,
                     categoryId: categoryId,
                     qty: qty,
-                    buy: 0, // Cost is usually 0 or refunded amount for returned items logic, strictly depends on accounting. Keeping 0 for now.
-                    sell: existing.sell || 0, // Keep selling price
+                    buy: 0, // Cost is usually 0 for returns
+                    sell: price, // Resell at original price or current price? Usually original.
                     unit: existing.unit || '',
                     dateAdded: new Date().toISOString(),
-                    batchNumber: maxBatch + 1,
+                    batchNumber: newBatchNum,
                     isRefund: true // THE FLAG
                 });
                 
-                await logInventory(prodName, 'REFUND', `Return: ${reason}`, qty, qty, maxBatch+1, 0);
+                await logInventory(prodName, 'REFUND', `Return from Order ${orderId} (Batch ${batchNum})`, qty, qty, newBatchNum, 0);
             }
 
-            showToast("Refund Processed");
-            document.getElementById('refundReason').value = '';
-            document.getElementById('refundQty').value = '';
-            document.getElementById('refundAmount').value = '';
-            document.getElementById('refundProductSelect').value = '';
+            showToast("Refund Processed Successfully");
+            
+            // Clear UI
+            document.getElementById('refundActionPanel').style.display = 'none';
+            document.getElementById('refundOrderItemsList').innerHTML = "";
+            document.getElementById('refundOrderIdSearch').value = "";
             
             await loadProducts(); // Update POS and Cache
 
@@ -2904,6 +2949,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
             const date = new Date(o.date).toLocaleString();
             const isPayLater = o.paymentMethod === 'Pay Later';
             const rowClass = isPayLater ? 'row-danger' : '';
+            // REMOVE #: Display ID cleanly
             const orderIdDisplay = o.customOrderId || o.id.substring(0,8);
             
             tbody.innerHTML += `
@@ -2977,13 +3023,14 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         });
         if(!alertHtml) alertHtml = '<div style="font-size:12px; color:#999;">No alerts set.</div>';
 
-        // Fetch Linked Refunds (Search by text in reason, best effort since structure is loose)
+        // Fetch Linked Refunds
         const refQ = query(collection(db, `users/${currentUser.uid}/shops/${currentShopId}/refunds`), orderBy('date', 'desc'), limit(50));
         const refSnap = await getDocs(refQ);
         let refundHtml = "";
         refSnap.forEach(r => {
             const rd = r.data();
-            if(rd.reason && rd.reason.includes(customId)) {
+            // Strict check logic
+            if(rd.orderId === customId || (rd.reason && rd.reason.includes(customId))) {
                 refundHtml += `<div style="font-size:12px; background:#eff6ff; color:#1e40af; padding:5px; border-radius:4px; margin-bottom:5px;">
                     <b>${rd.productName}</b> (Qty: ${rd.qty})<br>Reason: ${rd.reason}
                 </div>`;
@@ -2991,19 +3038,21 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         });
         if(!refundHtml) refundHtml = '<div style="font-size:12px; color:#999;">No linked refunds found.</div>';
 
-        const itemsHtml = order.items.map(i => `
-            <div style="display:flex; justify-content:space-between; border-bottom:1px solid #eee; padding:5px 0; font-size:13px;">
-                <span>${i.name} (x${i.qty})</span>
+        const itemsHtml = order.items.map(i => {
+            const batchInfo = i.batchNumber ? `<span class="batch-badge batch-mid">${formatBatch(i.batchNumber)}</span>` : '';
+            return `
+            <div style="display:flex; justify-content:space-between; border-bottom:1px solid #eee; padding:5px 0; font-size:13px; align-items:center;">
+                <div>${i.name} (x${i.qty}) ${batchInfo}</div>
                 <span>${formatMoney(i.sell * i.qty)}</span>
             </div>
-        `).join('');
+        `}).join('');
 
         const notesHtml = (order.notes || []).map(n => `<div style="font-size:12px; color:#666; border-left:2px solid #ccc; padding-left:5px; margin-bottom:5px;">${n.text}</div>`).join('') || "No notes.";
 
         content.innerHTML = `
             <div style="background:#f9fafb; padding:15px; border-radius:8px; border:1px solid #e5e7eb; margin-bottom:15px;">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <span class="order-id-badge" style="font-size:14px;">#${customId}</span>
+                    <span class="order-id-badge" style="font-size:14px;">${customId}</span>
                     <span style="font-size:12px; color:#666;">${new Date(order.date).toLocaleString()}</span>
                 </div>
                 <div style="margin-top:10px;">
@@ -3396,6 +3445,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         const shopName = document.getElementById('shopSelector').options[document.getElementById('shopSelector').selectedIndex].text;
         doc.text(shopName, 14, 22);
         doc.text(`Date: ${new Date(order.date).toLocaleString()}`, 14, 27);
+        // REMOVED #: Just ID
         const displayId = order.customOrderId || order.id.substring(0,8);
         doc.text(`Order ID: ${displayId}`, 14, 32);
 
@@ -3407,7 +3457,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 
         // Table
         const tableBody = order.items.map(item => [
-            item.name, 
+            `${item.name} (Batch: ${formatBatch(item.batchNumber||0)})`, // SHOW BATCH
             item.qty.toString(), 
             formatMoney(item.sell), 
             formatMoney(item.sell * item.qty)
