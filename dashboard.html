@@ -2826,239 +2826,247 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
     }
 
    // --- UPDATED PDF GENERATOR (MATCHING IMAGE STYLE) ---
+   // --- NEW PDF GENERATOR (TARGET STYLE MATCH) ---
     window.generateDocumentPDF = (docData) => {
         const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
+        const doc = new jsPDF(); // Default A4 Portrait
 
-        // --- CONFIG & STYLES ---
+        // --- STYLING CONSTANTS ---
         const shop = profileCache || {};
-        const primaryColor = shop.logoColor || '#1e3a8a'; // Default to a deep blue like the image
+        const primaryColorHex = shop.logoColor || '#1e3a8a'; // Deep Blue
         
-        // Hex to RGB helper
         const hexToRgb = (hex) => {
             let result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
             return result ? [parseInt(result[1], 16), parseInt(result[2], 16), parseInt(result[3], 16)] : [30, 58, 138];
         };
-        const themeColor = hexToRgb(primaryColor);
-
-        // Fonts
-        doc.setFont("helvetica");
+        const themeColor = hexToRgb(primaryColorHex);
+        
+        // Page Metrics
+        const pageWidth = doc.internal.pageSize.width; // ~210mm
+        const pageHeight = doc.internal.pageSize.height; // ~297mm
+        const margin = 14;
+        const contentWidth = pageWidth - (margin * 2);
 
         // --- 1. HEADER SECTION ---
-        // Logo (Top Left)
-        if (shop.logoImage) {
-            try {
-                doc.addImage(shop.logoImage, 'JPEG', 14, 10, 35, 35); // x, y, w, h
-            } catch (e) { console.error("Logo error", e); }
-        }
-
-        // Company Details (Top Right - Aligned Right)
-        doc.setTextColor(themeColor[0], themeColor[1], themeColor[2]);
-        doc.setFontSize(16);
-        doc.setFont("helvetica", "bold");
-        const bizName = shop.bizName || "My Business";
-        doc.text(bizName.toUpperCase(), 196, 20, { align: "right" });
-
-        doc.setTextColor(0);
-        doc.setFontSize(9);
-        doc.setFont("helvetica", "normal");
         
-        let headerY = 26;
-        const addRightLine = (text) => {
-            if(text) {
-                doc.text(text, 196, headerY, { align: "right" });
-                headerY += 4;
+        // RIGHT SIDE: Company Details (Aligned Right)
+        let topY = 15;
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(18);
+        doc.setTextColor(themeColor[0], themeColor[1], themeColor[2]);
+        
+        const bizName = (shop.bizName || "My Business").toUpperCase();
+        doc.text(bizName, pageWidth - margin, topY, { align: "right" });
+        
+        // Address & Contact (Right Aligned, Regular Font)
+        doc.setFontSize(9);
+        doc.setTextColor(0);
+        doc.setFont("helvetica", "normal");
+        let addressY = topY + 6;
+        
+        const addRightText = (txt) => {
+            if(txt) {
+                doc.text(txt, pageWidth - margin, addressY, { align: "right" });
+                addressY += 4;
             }
         };
 
-        addRightLine(shop.address);
+        if(shop.address) {
+            // Split address if too long
+            const addrLines = doc.splitTextToSize(shop.address, 90); 
+            addrLines.forEach(line => addRightText(line));
+        }
+        
         // Combine phones
-        let phones = [];
-        if(shop.phone1) phones.push(shop.phone1);
-        if(shop.phone2) phones.push(shop.phone2);
-        if(phones.length) addRightLine(`Tel: ${phones.join(', ')}`);
-        if(shop.email) addRightLine(`Email: ${shop.email}`);
-        if(shop.whatsapp) addRightLine(`WhatsApp: ${shop.whatsapp}`);
-        if(shop.fax) addRightLine(`Fax: ${shop.fax}`);
-
-        // --- 2. TITLE ---
-        doc.setFontSize(14);
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(themeColor[0], themeColor[1], themeColor[2]);
-        const docTitle = docData.type === 'invoice' ? 'SALES INVOICE' : 'QUOTATION';
-        // Place title on the right, below company info
-        doc.text(docTitle, 196, headerY + 8, { align: "right" });
-
-        // --- 3. CUSTOMER & INVOICE DETAILS (BOXES) ---
-        const boxTopY = Math.max(headerY + 15, 50);
-        const boxHeight = 35;
-        const col1X = 14;
-        const col2X = 110;
-        const boxWidth = 90;
-
-        // Box 1: Customer (Left)
-        doc.setDrawColor(themeColor[0], themeColor[1], themeColor[2]);
-        doc.setLineWidth(0.1);
-        doc.rect(col1X, boxTopY, boxWidth, boxHeight); // Border
+        let contacts = [];
+        if(shop.phone1) contacts.push(shop.phone1);
+        if(shop.phone2) contacts.push(shop.phone2);
+        if(contacts.length) addRightText(`Tel: ${contacts.join(', ')}`);
         
-        // Header Bar
-        doc.setFillColor(themeColor[0], themeColor[1], themeColor[2]); 
-        doc.rect(col1X, boxTopY, boxWidth, 6, 'F'); 
-        doc.setTextColor(255);
-        doc.setFontSize(9);
-        doc.setFont("helvetica", "bold");
-        doc.text("CUSTOMER DETAILS", col1X + 2, boxTopY + 4);
+        if(shop.email) addRightText(`Email: ${shop.email}`);
+        if(shop.whatsapp) addRightText(`WhatsApp: ${shop.whatsapp}`);
 
-        // Content
+        // LEFT SIDE: Customer Details (Aligned Left)
+        // Positioned roughly opposite the company info
+        let custY = 15; 
+        
+        // "CUSTOMER :" Label
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "bold");
         doc.setTextColor(0);
+        doc.text("CUSTOMER :", margin, custY);
+        
+        // Customer Info Block
+        custY += 6;
         doc.setFont("helvetica", "normal");
-        doc.setFontSize(9);
-        let custY = boxTopY + 11;
-        doc.text(docData.customer.name || "Cash Customer", col1X + 2, custY);
+        doc.setFontSize(10);
+        
+        doc.text(docData.customer.name || "Cash Customer", margin, custY);
         custY += 5;
-        if(docData.customer.phone) {
-            doc.text(`Tel: ${docData.customer.phone}`, col1X + 2, custY);
-            custY += 5;
-        }
+        
         if(docData.customer.address) {
-            const splitAddr = doc.splitTextToSize(docData.customer.address, boxWidth - 4);
-            doc.text(splitAddr, col1X + 2, custY);
+            const custAddrLines = doc.splitTextToSize(docData.customer.address, 80);
+            doc.text(custAddrLines, margin, custY);
+            custY += (custAddrLines.length * 5);
+        }
+        if(docData.customer.phone) {
+            doc.text(`Tel: ${docData.customer.phone}`, margin, custY);
         }
 
-        // Box 2: Invoice Info (Right)
-        doc.rect(col2X, boxTopY, boxWidth, boxHeight);
+        // --- 2. META DATA STRIP (Horizontal Box) ---
+        // This simulates the "INVOICE NO | DATE | SALES PERSON" strip in the image
         
-        // Header Bar
-        doc.setFillColor(themeColor[0], themeColor[1], themeColor[2]);
-        doc.rect(col2X, boxTopY, boxWidth, 6, 'F');
-        doc.setTextColor(255);
+        const stripY = Math.max(addressY, custY) + 10;
+        const stripHeight = 12;
+        
+        // Draw Strip Border
+        doc.setDrawColor(0);
+        doc.setLineWidth(0.1);
+        doc.rect(margin, stripY, contentWidth, stripHeight);
+        
+        // Vertical Lines dividing the strip (3 sections)
+        const sectionW = contentWidth / 3;
+        doc.line(margin + sectionW, stripY, margin + sectionW, stripY + stripHeight);
+        doc.line(margin + (sectionW * 2), stripY, margin + (sectionW * 2), stripY + stripHeight);
+        
+        // Strip Headers
+        doc.setFontSize(8);
         doc.setFont("helvetica", "bold");
-        doc.text("DOCUMENT DETAILS", col2X + 2, boxTopY + 4);
-
-        // Content
-        doc.setTextColor(0);
-        doc.setFont("helvetica", "normal");
-        let infoY = boxTopY + 11;
+        doc.setTextColor(100); // Gray for headers
         
-        const drawInfoRow = (label, val, y) => {
-            doc.setFont("helvetica", "bold");
-            doc.text(label, col2X + 2, y);
-            doc.setFont("helvetica", "normal");
-            doc.text(String(val), col2X + 35, y); 
-        };
-
-        drawInfoRow("Number:", docData.docId, infoY); infoY += 6;
-        drawInfoRow("Date:", docData.date, infoY); infoY += 6;
-        if(docData.dueDate) {
-            drawInfoRow("Due Date:", docData.dueDate, infoY); infoY += 6;
-        }
+        const docLabel = docData.type === 'invoice' ? 'INVOICE NO.' : 'QUOTATION NO.';
         
-        // --- 4. TABLE ---
+        doc.text(docLabel, margin + 2, stripY + 4);
+        doc.text("DATE", margin + sectionW + 2, stripY + 4);
+        doc.text("DUE DATE", margin + (sectionW * 2) + 2, stripY + 4);
+        
+        // Strip Values
+        doc.setFontSize(10);
+        doc.setTextColor(0); // Black for values
+        doc.text(docData.docId, margin + 2, stripY + 9);
+        doc.text(docData.date, margin + sectionW + 2, stripY + 9);
+        doc.text(docData.dueDate || "-", margin + (sectionW * 2) + 2, stripY + 9);
+
+        // --- 3. ITEM TABLE ---
+        // Mimicking columns: ITEM CODE | DESCRIPTION | QTY | PRICE | AMOUNT
+        
         const tableBody = docData.items.map(item => [
-            item.sku || "-", 
-            `${item.name} ${item.batchNumber ? '(Batch: ' + formatBatch(item.batchNumber) + ')' : ''}`,
-            item.qty,
-            formatMoney(item.price || item.sell), 
-            formatMoney(item.total) 
+            item.sku || "-",                   // Item Code
+            item.name + (item.batchNumber ? ` (Batch: ${formatBatch(item.batchNumber)})` : ""), // Description
+            item.qty,                          // Qty
+            formatMoney(item.price),           // Sales Price
+            formatMoney(item.total)            // Amount
         ]);
 
         doc.autoTable({
-            startY: boxTopY + boxHeight + 5,
-            head: [['Item Code', 'Description', 'Qty', 'Unit Price', 'Amount']],
+            startY: stripY + stripHeight + 5,
+            head: [['ITEM CODE', 'DESCRIPTION', 'QTY', 'UNIT PRICE', 'AMOUNT']],
             body: tableBody,
-            theme: 'grid',
+            theme: 'grid', // Grid style like the image
             headStyles: {
-                fillColor: themeColor,
+                fillColor: themeColor, // Blue header
                 textColor: 255,
                 fontStyle: 'bold',
-                halign: 'center'
+                halign: 'center',
+                fontSize: 9
+            },
+            bodyStyles: {
+                textColor: 0,
+                fontSize: 9
             },
             columnStyles: {
-                0: { halign: 'center', cellWidth: 25 },
-                2: { halign: 'center', cellWidth: 20 },
-                3: { halign: 'right', cellWidth: 30 }, 
-                4: { halign: 'right', cellWidth: 35 }  
+                0: { halign: 'left', cellWidth: 30 }, // Code
+                1: { halign: 'left' },                // Desc (auto width)
+                2: { halign: 'center', cellWidth: 20 }, // Qty
+                3: { halign: 'right', cellWidth: 30 },  // Price
+                4: { halign: 'right', cellWidth: 35 }   // Amount
             },
             styles: {
-                fontSize: 9,
-                cellPadding: 3,
                 lineColor: [200, 200, 200],
-                lineWidth: 0.1
+                lineWidth: 0.1,
+                cellPadding: 4
             }
         });
 
-        // --- 5. TOTALS & FOOTER ---
+        // --- 4. FOOTER & TOTALS ---
+        
         let finalY = doc.lastAutoTable.finalY + 5;
-        const totalBoxW = 70;
-        const totalBoxX = 196 - totalBoxW;
-        const startTotalY = finalY;
+        
+        // TOTALS BOX (Bottom Right)
+        const totalBoxWidth = 80;
+        const totalBoxX = pageWidth - margin - totalBoxWidth;
+        let currentTotalY = finalY;
 
-        const drawTotalRow = (label, value, isBold=false) => {
+        const drawTotalLine = (label, value, isBold = false) => {
             doc.setFont("helvetica", isBold ? "bold" : "normal");
-            doc.text(label, totalBoxX + 2, finalY + 4);
-            doc.text(value, 196 - 2, finalY + 4, { align: "right" });
-            doc.setDrawColor(220);
-            doc.line(totalBoxX, finalY + 6, 196, finalY + 6);
-            finalY += 7;
+            doc.setFontSize(10);
+            doc.text(label, totalBoxX, currentTotalY + 4);
+            doc.text(value, pageWidth - margin, currentTotalY + 4, { align: "right" });
+            currentTotalY += 6;
         };
 
-        drawTotalRow("Subtotal", formatMoney(docData.subtotal));
+        drawTotalLine("SUB TOTAL", formatMoney(docData.subtotal));
         
         if(docData.discount > 0) {
-            drawTotalRow("Discount", "-" + formatMoney(docData.discount));
+            drawTotalLine("DISCOUNT", "-" + formatMoney(docData.discount));
         }
         
         if(docData.fees && docData.fees.length > 0) {
-             docData.fees.forEach(f => {
-                 drawTotalRow(f.name, "+" + formatMoney(f.amount));
-             });
+            docData.fees.forEach(f => {
+                drawTotalLine(f.name, "+" + formatMoney(f.amount));
+            });
         }
-
+        
         if(docData.tax > 0) {
-            const taxVal = (docData.subtotal - (docData.discount||0)) * (docData.tax / 100);
-            drawTotalRow(`Tax (${docData.tax}%)`, "+" + formatMoney(taxVal));
+            const taxVal = (docData.subtotal - docData.discount) * (docData.tax / 100);
+            drawTotalLine(`TAX (${docData.tax}%)`, "+" + formatMoney(taxVal));
         }
 
-        // Grand Total Box
+        // Grand Total (Highlighted)
+        currentTotalY += 2;
         doc.setFillColor(themeColor[0], themeColor[1], themeColor[2]);
-        doc.rect(totalBoxX, finalY, totalBoxW, 10, 'F');
+        doc.rect(totalBoxX - 2, currentTotalY, totalBoxWidth + 4, 10, 'F');
         doc.setTextColor(255);
-        doc.setFontSize(11);
         doc.setFont("helvetica", "bold");
-        doc.text("TOTAL", totalBoxX + 4, finalY + 7);
-        doc.text(formatMoney(docData.total), 196 - 4, finalY + 7, { align: "right" });
-        
-        // Border around totals
-        doc.setDrawColor(0);
-        doc.rect(totalBoxX, startTotalY, totalBoxW, finalY - startTotalY);
+        doc.setFontSize(12);
+        doc.text("TOTAL", totalBoxX, currentTotalY + 7);
+        doc.text(formatMoney(docData.total), pageWidth - margin, currentTotalY + 7, { align: "right" });
 
-        // --- 6. LEFT FOOTER (Signatures) ---
+        // LEFT FOOTER CONTENT (Remarks & Signatures)
+        
+        // Reset Text Color
         doc.setTextColor(0);
-        doc.setFontSize(8);
         doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
         
-        let leftFooterY = startTotalY + 5;
-        doc.text("Remarks / Notes:", 14, leftFooterY);
-        leftFooterY += 5;
-        doc.line(14, leftFooterY, 110, leftFooterY); // Line for notes
-
-        const pageHeight = doc.internal.pageSize.height;
+        // "Cheques in favour of..."
+        let footerLeftY = finalY + 10;
+        doc.setFont("helvetica", "bold");
+        doc.text("REMARKS / PAYMENT INSTRUCTIONS:", margin, footerLeftY);
+        doc.setFont("helvetica", "normal");
+        footerLeftY += 5;
+        doc.text(`Cheques should be drawn in favour of "${shop.bizName || 'Company'}"`, margin, footerLeftY);
         
-        // Signatures
-        doc.text("Prepared By", 20, pageHeight - 25);
-        doc.line(20, pageHeight - 30, 60, pageHeight - 30);
+        // Signatures (Bottom of Page)
+        const sigY = pageHeight - 30;
         
-        doc.text("Received By", 80, pageHeight - 25);
-        doc.line(80, pageHeight - 30, 120, pageHeight - 30);
+        // Lines
+        doc.setDrawColor(0);
+        doc.setLineWidth(0.1);
+        
+        // Prepared By
+        doc.line(margin, sigY, margin + 40, sigY);
+        doc.text("Prepared By", margin + 5, sigY + 5);
+        
+        // Received By
+        doc.line(margin + 60, sigY, margin + 100, sigY);
+        doc.text("Received By", margin + 65, sigY + 5);
+        
+        // Authorized By
+        doc.line(pageWidth - margin - 50, sigY, pageWidth - margin, sigY);
+        doc.text("Authorized Signature", pageWidth - margin - 45, sigY + 5);
 
-        doc.text("Authorized Signature", 140, pageHeight - 25);
-        doc.line(140, pageHeight - 30, 180, pageHeight - 30);
-
-        // Disclaimer
-        doc.setFontSize(7);
-        doc.text("Cheques should be drawn in favour of " + (shop.bizName || "the company") + ".", 14, pageHeight - 10);
-        doc.text("Thank you for your business!", 196, pageHeight - 10, { align: "right" });
-
+        // --- SAVE ---
         doc.save(`${docData.type}_${docData.docId}.pdf`);
     };
 
