@@ -168,7 +168,7 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
     max-width: 500px;
 }
 .order-id-badge {
-    font-family: monospace;
+    font-family: monospace; 
     font-weight: 700; 
     color: var(--primary);
     background: #e0e7ff;
@@ -259,13 +259,22 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
                 <button class="btn btn-primary" onclick="cancelShopDeletion()" style="white-space:nowrap;">Stop Deletion</button>
             </div>
 
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px;">
+            <!-- UPDATED DASHBOARD DATE FILTER -->
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px; flex-wrap: wrap; gap:10px;">
                 <h4 style="margin:0;">Performance Overview</h4>
-                <select id="dashTimeFilter" style="width: auto; margin:0;" onchange="updateDashboard()">
-                    <option value="daily">Daily (Today)</option>
-                    <option value="monthly" selected>Monthly (This Month)</option>
-                    <option value="yearly">Yearly (This Year)</option>
-                </select>
+                
+                <div style="display:flex; gap:10px; align-items:center;">
+                    <select id="dashFilterType" onchange="toggleDashInputs()" style="width:auto; margin:0; font-weight:600;">
+                        <option value="daily" selected>Daily (Today)</option>
+                        <option value="monthly">Monthly</option>
+                        <option value="yearly">Yearly</option>
+                    </select>
+
+                    <!-- Dynamic Inputs for Calendar -->
+                    <input type="date" id="dashDateInput" style="margin:0; width:auto;" onchange="updateDashboard()">
+                    <input type="month" id="dashMonthInput" style="margin:0; display:none; width:auto;" onchange="updateDashboard()">
+                    <select id="dashYearInput" style="margin:0; display:none; width:auto;" onchange="updateDashboard()"></select>
+                </div>
             </div>
 
             <div class="grid-4">
@@ -1441,7 +1450,18 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         const snap = await getDocs(q);
         salesCache = [];
         snap.forEach(d => salesCache.push({id: d.id, ...d.data()}));
-        updateDashboard();
+        
+        // DASHBOARD FILTER INIT
+        const now = new Date();
+        document.getElementById('dashDateInput').valueAsDate = now;
+        document.getElementById('dashMonthInput').value = now.toISOString().slice(0, 7);
+        const yearSel = document.getElementById('dashYearInput');
+        yearSel.innerHTML = '';
+        for(let y = now.getFullYear(); y >= 2023; y--) {
+            yearSel.innerHTML += `<option value="${y}">${y}</option>`;
+        }
+        toggleDashInputs(); // Set visibility
+        updateDashboard(); // Calculate for 'Today'
         
         // Refresh Orders/Alerts/Documents View if active
         if(document.getElementById('view-orders').classList.contains('active')) loadOrders();
@@ -3758,20 +3778,46 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
         toggleLoader(false);
     };
 
+    window.toggleDashInputs = () => {
+        const type = document.getElementById('dashFilterType').value;
+        document.getElementById('dashDateInput').style.display = type === 'daily' ? 'block' : 'none';
+        document.getElementById('dashMonthInput').style.display = type === 'monthly' ? 'block' : 'none';
+        document.getElementById('dashYearInput').style.display = type === 'yearly' ? 'block' : 'none';
+        
+        // Trigger update when changing view type too
+        updateDashboard();
+    }
+
     window.updateDashboard = () => {
         document.getElementById('dashLow').textContent = productsCache.filter(p => p.qty < 5).length;
         document.getElementById('dashEmp').textContent = document.querySelectorAll('#empGrid .card').length;
-        const filter = document.getElementById('dashTimeFilter').value;
-        const now = new Date();
+        
+        // NEW FILTER LOGIC
+        const filterType = document.getElementById('dashFilterType').value;
         let totalRevenue = 0;
         let totalProfit = 0;
+
         const filteredSales = salesCache.filter(sale => {
             const saleDate = new Date(sale.date);
-            if (filter === 'daily') return saleDate.toDateString() === now.toDateString();
-            if (filter === 'monthly') return saleDate.getMonth() === now.getMonth() && saleDate.getFullYear() === now.getFullYear();
-            if (filter === 'yearly') return saleDate.getFullYear() === now.getFullYear();
+            
+            if (filterType === 'daily') {
+                const dateVal = document.getElementById('dashDateInput').value;
+                if(!dateVal) return false;
+                // Compare YYYY-MM-DD
+                return saleDate.toISOString().split('T')[0] === dateVal;
+            }
+            if (filterType === 'monthly') {
+                const monthVal = document.getElementById('dashMonthInput').value; // YYYY-MM
+                if(!monthVal) return false;
+                return saleDate.toISOString().slice(0, 7) === monthVal;
+            }
+            if (filterType === 'yearly') {
+                const yearVal = parseInt(document.getElementById('dashYearInput').value);
+                return saleDate.getFullYear() === yearVal;
+            }
             return true;
         });
+
         filteredSales.forEach(sale => {
             totalRevenue += sale.total;
             if (sale.items) {
@@ -3783,8 +3829,10 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
                 });
             }
         });
+
         document.getElementById('dashSales').textContent = formatMoney(totalRevenue);
         document.getElementById('dashProfit').textContent = formatMoney(totalProfit);
+        
         if(window.myChart) window.myChart.destroy();
         const ctx = document.getElementById('salesChart');
         window.myChart = new Chart(ctx, {
