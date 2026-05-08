@@ -878,7 +878,10 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 
         <!-- NEW: ALERTS TAB -->
         <div id="view-alerts" class="view">
-             <h3>Reminders & Alerts</h3>
+             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
+                 <h3>Reminders & Alerts</h3>
+                 <button class="btn btn-primary" onclick="openGlobalAlertModal()">+ Custom Alert</button>
+             </div>
              <div class="card" style="overflow-x:auto;">
                  <table id="alertsTable">
                      <thead><tr><th>Target Date</th><th>Frequency</th><th>Message</th><th>Order Ref</th><th>Status</th><th>Action</th></tr></thead>
@@ -1031,6 +1034,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                 <div style="display:flex; justify-content:space-between; margin-bottom:10px; font-size:14px;"><span>(+) Debt Collections (Cash):</span> <strong id="eodDebt" style="color:green;">0.00</strong></div>
                 <div style="display:flex; justify-content:space-between; margin-bottom:10px; font-size:14px;"><span>(-) Cash Refunds:</span> <strong id="eodRefunds" style="color:red;">0.00</strong></div>
                 <div style="display:flex; justify-content:space-between; margin-bottom:10px; font-size:14px;"><span>(-) Daily Expenses:</span> <strong id="eodExpenses" style="color:red;">0.00</strong></div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:10px; font-size:14px;"><span>(-) Staff Cash Advances:</span> <strong id="eodAdvances" style="color:red;">0.00</strong></div>
                 
                 <div style="display:flex; justify-content:space-between; margin-top:15px; padding-top:15px; border-top:2px dashed #ccc; font-size:18px; font-weight:800; color:var(--primary);">
                     <span>EXPECTED CASH IN DRAWER:</span> <span id="eodExpectedCash">0.00</span>
@@ -1475,6 +1479,42 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         <div style="display:flex; gap:10px; margin-top:10px;">
             <button class="btn btn-primary" onclick="saveOrderNote()">Save Note</button>
             <button class="btn btn-ghost" onclick="closeModal('orderNoteModal')">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- NEW: DAILY LOG & ADVANCE MODAL -->
+<div id="dailyLogModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:2000;">
+    <div class="card" style="width:400px; margin:0; border-top:5px solid var(--warning);">
+        <h3 id="dlEmpName">Add Advance / Leave</h3>
+        <input type="hidden" id="payEmpSelect">
+        
+        <label style="font-size:12px;">Date *</label>
+        <input type="date" id="payDate">
+        
+        <label style="font-size:12px;">Attendance Status</label>
+        <select id="payStatus">
+            <option value="P">Present (P)</option>
+            <option value="H">Half Day (H)</option>
+            <option value="LWP">Leave Without Pay (LWP)</option>
+            <option value="PL">Paid Leave (PL)</option>
+        </select>
+        
+        <div style="display:flex; gap:10px;">
+            <div style="flex:1;">
+                <label style="font-size:12px;">Overtime (Hours)</label>
+                <input type="number" id="payOT" value="0" placeholder="0">
+            </div>
+            <div style="flex:1;">
+                <label style="font-size:12px; color:var(--danger); font-weight:bold;">Cash Advance (Rs)</label>
+                <input type="number" id="payAdv" value="0" placeholder="0.00">
+            </div>
+        </div>
+        <div style="font-size:11px; color:#666; margin-bottom:10px;">Note: Cash Advances will be deducted from today's EOD Drawer Balance automatically.</div>
+        
+        <div style="display:flex; gap:10px; margin-top:10px;">
+            <button class="btn btn-primary" onclick="saveDailyLog()">Save Record</button>
+            <button class="btn btn-ghost" onclick="closeModal('dailyLogModal')">Cancel</button>
         </div>
     </div>
 </div>
@@ -3116,7 +3156,10 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         if(isNaN(sell) || sell <= 0) return showToast("Sell Price must be greater than 0", "error");
         if(isNaN(qty) || qty <= 0) return showToast("Quantity must be greater than 0", "error");
 
-        const stockData = { name, buy, sell, qty, unit, image, sku, categoryId };
+        // ENTERPRISE FIX: Securely link the selected Supplier to the Stock Batch!
+        const supplierId = document.getElementById('mpSupplier') ? document.getElementById('mpSupplier').value : "";
+
+        const stockData = { name, buy, sell, qty, unit, image, sku, categoryId, supplierId };
 
         if (sell < buy) {
             document.getElementById('priceWarningMsg').innerHTML = `Loss: ${formatMoney(sell - buy)} per unit`;
@@ -4168,10 +4211,12 @@ window.checkout = async () => {
                     await setDoc(custRef, {
                         name: finalCustName, phone: finalCustPhone, address: custAddr || "", lastUpdated: new Date().toISOString()
                     });
-                    await loadCustomers(); // Update cache silently
+                    await loadCustomers(); 
+                    updateCustomerDatalist(); // ENTERPRISE FIX: Instantly sync the new customer to Documents/POS dropdowns!
                 } else if (custAddr && custAddr !== custSnap.data().address) {
                     // If they exist but gave a new address, safely merge ONLY the address (Don't wipe emails/notes)
                     await updateDoc(custRef, { address: custAddr, lastUpdated: new Date().toISOString() });
+                    // No need to reload datalist here as name/id didn't change
                 }
             }
 
@@ -4563,13 +4608,26 @@ window.autoFillDocCustomer = (name) => {
         
         const tbody = document.getElementById('docItemsBody');
         tbody.innerHTML = '';
+        let priceChangedAlert = false;
+
         quote.items.forEach(i => {
+            // ENTERPRISE FIX: Check LIVE prices against Quoted prices to prevent massive losses!
+            let livePrice = i.price;
+            const liveProd = productsCache.find(p => p.name === i.name);
+            const liveSrv = servicesCache.find(s => s.name === i.name);
+            
+            if (liveProd && liveProd.sell !== i.price) { livePrice = liveProd.sell; priceChangedAlert = true; }
+            else if (liveSrv && liveSrv.price !== i.price) { livePrice = liveSrv.price; priceChangedAlert = true; }
+
+            const newTotal = livePrice * i.qty;
+
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td><input class="doc-item-name" value="${i.name.replace(/"/g, '&quot;')}" list="docProductList" onchange="fillDocPrice(this)"></td>
                 <td><input class="doc-item-qty" type="number" value="${i.qty}" style="width:60px;" onchange="calcDocTotals()"></td>
-                <td><input class="doc-item-price" type="number" value="${i.price}" onchange="calcDocTotals()"></td>
-                <td class="doc-item-total" style="font-weight:bold;">${i.total.toFixed(2)}</td>
+                <!-- Use LIVE price and highlight in orange if changed -->
+                <td><input class="doc-item-price" type="number" value="${livePrice}" style="${livePrice !== i.price ? 'border: 2px solid orange;' : ''}" onchange="calcDocTotals()"></td>
+                <td class="doc-item-total" style="font-weight:bold;">${newTotal.toFixed(2)}</td>
                 <td><button class="btn btn-danger" style="padding:2px 6px;" onclick="this.closest('tr').remove(); calcDocTotals()">x</button></td>
             `;
             tbody.appendChild(tr);
@@ -4577,8 +4635,12 @@ window.autoFillDocCustomer = (name) => {
         document.getElementById('docDiscount').value = quote.discount;
         document.getElementById('docTax').value = quote.tax;
         calcDocTotals();
-        showToast("Converted to Invoice Mode. Please set new ID and Save.");
-    }
+        
+        if (priceChangedAlert) {
+            showToast("Warning: Some market prices have changed since this quotation! Prices updated to LIVE rates.", "warning");
+        } else {
+            showToast("Converted to Invoice Mode. Please set new ID and Save.");
+        }
 
    // --- UPDATED PDF GENERATOR (MATCHING IMAGE STYLE) ---
    // --- NEW PDF GENERATOR (TARGET STYLE MATCH) ---
@@ -5046,8 +5108,11 @@ window.autoFillDocCustomer = (name) => {
                 if(cacheIndex !== -1) salesCache[cacheIndex].creditBalance = newCreditBal;
             }
 
-            // ENTERPRISE FIX: Strict FIFO Restocking (Merge back to original batch)
-            if(restock) {
+            // ENTERPRISE FIX: Validate if the item is a Service. Services CANNOT be restocked!
+            const isServiceItem = servicesCache.some(s => s.name === prodName);
+
+            // ENTERPRISE FIX: Strict FIFO Restocking (Merge back to original batch) ONLY for physical products
+            if(restock && !isServiceItem) {
                 const qOrigBatch = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`), where("name", "==", prodName), where("batchNumber", "==", batchNum));
                 const snapOrig = await getDocs(qOrigBatch);
                 
@@ -5624,94 +5689,73 @@ window.autoFillDocCustomer = (name) => {
         const date = document.getElementById('alertDate').value;
         const freq = document.getElementById('alertFreq').value;
         
-        // Detect if it's a Customer Alert or Order Alert
+        // ENTERPRISE FIX: Correctly identify Entity Types (Order, Customer, Employee)
         let type = 'order';
+        let cleanRefId = targetId;
+        
         if(targetId.startsWith('CUST:')) {
             type = 'customer';
-            targetId = targetId.replace('CUST:', ''); // Remove prefix
+            cleanRefId = targetId.replace('CUST:', ''); 
+        } else if (targetId.startsWith('EMP:')) {
+            type = 'employee';
+            cleanRefId = targetId.replace('EMP:', ''); 
         }
 
         if(!msg || !date) return showToast("Message & Date Required", "error");
 
         toggleLoader(true);
         await addDoc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/alerts`), {
-            refId: targetId, // Changed from orderId to refId to be generic
-            type: type,      // 'order' or 'customer'
-            orderId: type === 'order' ? targetId : null, // Keep for backward compatibility if needed
+            refId: cleanRefId, 
+            type: type,      
+            orderId: type === 'order' ? cleanRefId : null, 
             message: msg,
-            targetDate: date,
+            targetDate: date, // Original starting date
             frequency: freq,
             status: 'active',
             createdAt: new Date().toISOString()
         });
         document.getElementById('createAlertModal').style.display = 'none';
         
-        // If we are in the alerts view, refresh it.
         if(document.getElementById('view-alerts').classList.contains('active')) {
-            await loadAlerts();
-            renderAlertsTable();
+            await renderAlertsTable();
         }
         
         toggleLoader(false);
-        showToast("Alert Created");
+        showToast("Alert Created Successfully!");
     }
 
-    let alertsCache = [];
+    let alertsCache = [  ];
+    
     async function loadAlerts() {
-        // Changed to 'in' array to prevent composite index requirement crashes
         const q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/alerts`), where('status', 'in', ['active', 'triggered']));
         const snap = await getDocs(q);
-        alertsCache = [];
+        alertsCache = [  ];
         snap.forEach(d => alertsCache.push({id: d.id, ...d.data()}));
         
-        // Check for triggered alerts
         const now = new Date();
         let hasNew = false;
-        let triggeredMessages = [];
+        let triggeredMessages = [  ];
 
         for(let a of alertsCache) {
             const tDate = new Date(a.targetDate);
             
+            // ENTERPRISE FIX: Silent Auto-Forwarding Bug Removed!
+            // We ONLY change the status to 'triggered'. We DO NOT change the date until the user explicitly clicks "Mark Done".
             if(tDate <= now && a.status === 'active') {
                 hasNew = true;
                 triggeredMessages.push(a.message);
                 
-                if(a.frequency === 'once') {
-                     // Change status to triggered so it doesn't fire again immediately
-                     await updateDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/alerts`, a.id), { status: 'triggered' });
-                     a.status = 'triggered'; // Update local cache
-                } else {
-                     // Recurring logic: Calculate next date based on NOW, not the old target date
-                     // This prevents infinite loops if user hasn't logged in for months
-                     let nextDate = new Date(); 
-                     if(a.frequency === 'daily') nextDate.setDate(now.getDate() + 1);
-                     if(a.frequency === 'monthly') nextDate.setMonth(now.getMonth() + 1);
-                     if(a.frequency === '3month') nextDate.setMonth(now.getMonth() + 3);
-                     if(a.frequency === '6month') nextDate.setMonth(now.getMonth() + 6);
-                     if(a.frequency === 'yearly') nextDate.setFullYear(now.getFullYear() + 1);
-                     
-                     // Preserve original time of day if possible
-                     nextDate.setHours(tDate.getHours());
-                     nextDate.setMinutes(tDate.getMinutes());
-
-                     await updateDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/alerts`, a.id), { 
-                         targetDate: nextDate.toISOString(),
-                         lastTriggered: now.toISOString()
-                     });
-                     a.targetDate = nextDate.toISOString(); // Update local cache
-                }
+                await updateDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/alerts`, a.id), { status: 'triggered' });
+                a.status = 'triggered'; // Update local cache
             }
-            // If status is 'triggered' (from a previous session) but not 'closed', we still show the badge but don't re-trigger db updates
             else if (a.status === 'triggered') {
-                hasNew = true;
+                hasNew = true; // It's still waiting to be marked as done by the user
             }
         }
 
         const badge = document.getElementById('alertBadge');
         if(hasNew) {
             badge.style.display = 'block';
-            
-            // Show popup only if there are NEW triggers in this run
             if(triggeredMessages.length > 0) {
                 document.getElementById('dashboardAlertMsg').innerHTML = triggeredMessages.join('<br>• ');
                 document.getElementById('dashboardAlertPopup').style.display = 'block';
@@ -5726,28 +5770,29 @@ window.autoFillDocCustomer = (name) => {
     }
 
     window.renderAlertsTable = async () => {
-        // Reload fresh to be sure
         await loadAlerts();
         const tbody = document.querySelector('#alertsTable tbody');
         tbody.innerHTML = '';
+        
         if(alertsCache.length === 0) {
             tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">No active alerts.</td></tr>';
             return;
         }
+        
         alertsCache.forEach(a => {
-            // UI Color coding based on status
             let statusBadge = '';
             let rowStyle = '';
             if (a.status === 'triggered') {
-                statusBadge = '<span style="background:#fee2e2; color:#b91c1c; padding:2px 6px; border-radius:4px; font-size:11px; font-weight:bold;">MISSED / TRIGGERED</span>';
-                rowStyle = 'background:#fef2f2;'; // Light red background
+                statusBadge = '<span style="background:#fee2e2; color:#b91c1c; padding:2px 6px; border-radius:4px; font-size:11px; font-weight:bold;">ACTION REQUIRED</span>';
+                rowStyle = 'background:#fef2f2;'; 
             } else {
-                statusBadge = '<span style="background:#dcfce7; color:#15803d; padding:2px 6px; border-radius:4px; font-size:11px; font-weight:bold;">ACTIVE</span>';
+                statusBadge = '<span style="background:#dcfce7; color:#15803d; padding:2px 6px; border-radius:4px; font-size:11px; font-weight:bold;">PENDING</span>';
             }
 
-            // Clean up reference display
-            let refDisplay = a.refId || a.orderId || '-';
+            let refDisplay = a.refId || '-';
             if(a.type === 'customer') refDisplay = 'Cust: ' + refDisplay;
+            else if(a.type === 'employee') refDisplay = 'Emp: ' + refDisplay;
+            else if(a.type === 'global' || a.refId === 'GENERAL') refDisplay = 'General Alert';
 
             tbody.innerHTML += `
             <tr style="${rowStyle}">
@@ -5756,21 +5801,62 @@ window.autoFillDocCustomer = (name) => {
                 <td>${a.message}</td>
                 <td style="font-family:monospace; font-size:11px; color:var(--primary);">${refDisplay}</td>
                 <td>${statusBadge}</td>
-                <td>
-                    <button class="btn btn-ghost" style="padding:4px 8px; font-size:11px; border-color:#dc2626; color:#dc2626;" onclick="closeAlert('${a.id}')">
-                        <i class="ri-check-double-line"></i> Mark Done
+                <td style="display:flex; gap:5px;">
+                    <!-- ENTERPRISE FIX: Distinct Done vs Delete buttons -->
+                    <button class="btn btn-success" style="padding:4px 8px; font-size:11px;" onclick="closeAlert('${a.id}')" title="Acknowledge & Mark Done">
+                        <i class="ri-check-double-line"></i> Done
+                    </button>
+                    <button class="btn btn-danger" style="padding:4px 8px; font-size:11px;" onclick="deleteAlert('${a.id}')" title="Cancel/Delete completely">
+                        <i class="ri-delete-bin-line"></i>
                     </button>
                 </td>
             </tr>`;
         });
     }
 
+    // ENTERPRISE FIX: Reschedule recurring alerts properly instead of closing them permanently!
     window.closeAlert = async (id) => {
-        if(!confirm("Close this alert?")) return;
+        const a = alertsCache.find(x => x.id === id);
+        if(!a) return;
+        
         toggleLoader(true);
-        await updateDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/alerts`, id), { status: 'closed' });
+        
+        if (a.frequency === 'once') {
+            await updateDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/alerts`, id), { status: 'closed' });
+            showToast("Alert marked as completed.");
+        } else {
+            // Recurring Alert: Calculate NEXT date from NOW
+            let nextDate = new Date();
+            if(a.frequency === 'daily') nextDate.setDate(nextDate.getDate() + 1);
+            else if(a.frequency === 'monthly') nextDate.setMonth(nextDate.getMonth() + 1);
+            else if(a.frequency === '3month') nextDate.setMonth(nextDate.getMonth() + 3);
+            else if(a.frequency === '6month') nextDate.setMonth(nextDate.getMonth() + 6);
+            else if(a.frequency === 'yearly') nextDate.setFullYear(nextDate.getFullYear() + 1);
+            
+            // Preserve the original hour/minute they selected
+            const originalTime = new Date(a.targetDate);
+            nextDate.setHours(originalTime.getHours(), originalTime.getMinutes());
+
+            await updateDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/alerts`, id), { 
+                targetDate: nextDate.toISOString(), 
+                status: 'active', 
+                lastTriggered: new Date().toISOString() 
+            });
+            showToast(`Alert acknowledged. Rescheduled for ${nextDate.toLocaleDateString()}`);
+        }
+        
         await renderAlertsTable();
         toggleLoader(false);
+    }
+
+    // NEW: Function to permanently delete an alert
+    window.deleteAlert = async (id) => {
+        if(!confirm("Permanently delete this alert? It will not trigger again.")) return;
+        toggleLoader(true);
+        await deleteDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/alerts`, id));
+        await renderAlertsTable();
+        toggleLoader(false);
+        showToast("Alert permanently deleted.");
     }
 
     // --- POS THERMAL RECEIPT GENERATION (80mm) ---
@@ -6012,14 +6098,14 @@ window.autoFillDocCustomer = (name) => {
                     <div style="text-align:right;"><span style="color:#666;">Work:</span> <strong>${eHrs} Hrs/Day</strong></div>
                 </div>
 
-                <div style="margin-top:auto; padding-top:10px; border-top:1px dashed #e5e7eb; display:flex; justify-content:space-between; gap:5px;">
-                    <!-- ENTERPRISE FIX: Bound to NEW isolated functions to bypass ghost overwrites in large files -->
-                    <button class="btn btn-info" onclick="openEmployeeHistorySafe('${safeId}', '${safeName}')" title="Attendance Records" style="flex:1; padding:6px; font-size:11px;"><i class="ri-history-line"></i> Records</button>
-                    <button class="btn btn-primary" onclick="printEmployeeIDCard('${safeId}')" title="Print ID Card" style="padding:6px; font-size:11px;"><i class="ri-profile-line"></i> ID Card</button>
-                    <button class="btn btn-ghost" onclick="openEmployeeNoteModalSafe('${safeId}')" title="Notes"><i class="ri-sticky-note-line"></i></button>
-                    <button class="btn btn-ghost" onclick="openAlertModal('EMP:${safeId}')" title="Alerts"><i class="ri-alarm-line"></i></button>
-                    <button class="btn btn-ghost" onclick="editEmployee('${safeId}')" title="Edit"><i class="ri-edit-line"></i></button>
-                    <button class="btn btn-danger" style="padding:6px; font-size:11px;" onclick="deleteEmployee('${safeId}')"><i class="ri-delete-bin-line"></i></button>
+                <div style="margin-top:auto; padding-top:10px; border-top:1px dashed #e5e7eb; display:flex; flex-wrap:wrap; gap:5px;">
+                    <button class="btn btn-warning" onclick="openDailyLogModal('${safeId}', '${safeName}')" style="flex:1; padding:6px; font-size:11px; font-weight:bold;"><i class="ri-money-dollar-circle-line"></i> Advance / Leave</button>
+                    <button class="btn btn-info" onclick="triggerEmpHistory('${safeId}', '${safeName}')" title="Records" style="padding:6px; font-size:11px;"><i class="ri-history-line"></i></button>
+                    <button class="btn btn-primary" onclick="printEmployeeIDCard('${safeId}')" title="Print ID Card" style="padding:6px; font-size:11px;"><i class="ri-profile-line"></i></button>
+                    <button class="btn btn-ghost" onclick="triggerEmpNotes('${safeId}')" title="Notes" style="padding:6px;"><i class="ri-sticky-note-line"></i></button>
+                    <button class="btn btn-ghost" onclick="openAlertModal('EMP:${safeId}')" title="Alerts" style="padding:6px;"><i class="ri-alarm-line"></i></button>
+                    <button class="btn btn-ghost" onclick="editEmployee('${safeId}')" title="Edit" style="padding:6px;"><i class="ri-edit-line"></i></button>
+                    <button class="btn btn-danger" onclick="deleteEmployee('${safeId}')" title="Delete" style="padding:6px;"><i class="ri-delete-bin-line"></i></button>
                 </div>
             </div>`;
         });
@@ -6152,6 +6238,30 @@ window.autoFillDocCustomer = (name) => {
         await loadEmployees();
         toggleLoader(false);
         showToast("Employee Deleted");
+    };
+
+// ENTERPRISE FIX: Missing Daily Log UI Function
+    window.openDailyLogModal = (id, name) => {
+        document.getElementById('dlEmpName').textContent = "Record for: " + name;
+        document.getElementById('payEmpSelect').value = id;
+        
+        // Local timezone date
+        const now = new Date();
+        const localDate = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+        
+        document.getElementById('payDate').value = localDate;
+        document.getElementById('payStatus').value = 'P';
+        document.getElementById('payOT').value = '0';
+        document.getElementById('payAdv').value = '0';
+        openModal('dailyLogModal');
+    };
+    
+    // ENTERPRISE FIX: Custom Global Alerts Function
+    window.openGlobalAlertModal = () => {
+        document.getElementById('alertOrderId').value = "GLOBAL:GENERAL";
+        document.getElementById('alertMsg').value = "";
+        document.getElementById('alertMsg').placeholder = "e.g. Pay electricity bill, Renew license";
+        openModal('createAlertModal');
     };
 
     window.saveDailyLog = async () => {
@@ -6292,7 +6402,10 @@ window.autoFillDocCustomer = (name) => {
                 snap.forEach(d => {
                     const p = d.data();
                     if(p.qty > 0) {
-                        stockVal += (parseFloat(p.buy) * parseFloat(p.qty));
+                        // MATH FIX: Prevent IEEE-754 precision loss during mass accumulation
+                        const itemVal = (parseFloat(p.buy) || 0) * (parseFloat(p.qty) || 0);
+                        stockVal = Math.round((stockVal + itemVal) * 100) / 100;
+                        
                         if(p.qty < 5) lowCount++;
                     }
                 });
@@ -6331,22 +6444,25 @@ window.autoFillDocCustomer = (name) => {
             // Fetch Sales
             const qSales = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`), where("date", ">=", startIso), where("date", "<=", endIso));
             const snapSales = await getDocs(qSales);
+            
+            let totalCOGS = 0; // Total Cost of Goods Sold
+
             snapSales.forEach(d => {
                 const sale = d.data();
                 const saleDate = new Date(sale.date);
                 
-                totalRevenue += sale.total;
+                totalRevenue += sale.total; // total already has discounts deducted and fees added
+                
                 if (sale.items) {
                     sale.items.forEach(item => {
-                        const itemProfit = ((item.sell || 0) - (item.buy || 0)) * (item.qty || 1);
-                        // ENTERPRISE FIX: Strictly round math inside the loop to prevent IEEE-754 floating point avalanche!
-                        totalProfit += Math.round(itemProfit * 100) / 100; 
+                        // MATH FIX: Calculate COGS instead of isolated profit
+                        const itemCost = (parseFloat(item.buy) || 0) * (parseFloat(item.qty) || 1);
+                        totalCOGS = Math.round((totalCOGS + itemCost) * 100) / 100; 
                     });
                 }
-                const adjustments = (sale.feesTotal || 0) - (sale.discountAmt || 0);
-                totalProfit = Math.round((totalProfit + adjustments) * 100) / 100;
                 
-                if(sale.paymentMethod === 'Pay Later') pendingCredit += sale.total;
+                // Unpaid debt tracking
+                if(sale.paymentMethod === 'Pay Later') pendingCredit += (sale.creditBalance || 0);
 
                 // Chart Grouping
                 let key = "";
@@ -6361,8 +6477,12 @@ window.autoFillDocCustomer = (name) => {
             const qRef = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/refunds`), where("date", ">=", startIso), where("date", "<=", endIso));
             const snapRef = await getDocs(qRef);
             snapRef.forEach(d => {
-                totalRevenue -= d.data().amount; 
-                totalProfit -= (d.data().profitReversal || 0); 
+                const r = d.data();
+                totalRevenue -= r.amount; 
+                
+                // Deducting the refunded items' original cost from COGS
+                const refundedItemCost = (parseFloat(r.amount) - (parseFloat(r.profitReversal) || 0));
+                totalCOGS = Math.round((totalCOGS - refundedItemCost) * 100) / 100;
             });
 
             // Fetch Expenses
@@ -6374,7 +6494,9 @@ window.autoFillDocCustomer = (name) => {
 
         } catch (error) { console.error("Dashboard Aggregation Error:", error); }
 
-        const netProfit = totalProfit - totalExpenses;
+        // MATH FIX: The Absolute Accounting Formula for Net Profit
+        totalProfit = Math.round((totalRevenue - totalCOGS) * 100) / 100;
+        const netProfit = Math.round((totalProfit - totalExpenses) * 100) / 100;
 
         // UPDATE UI
         document.getElementById('dashSales').innerHTML = `${formatMoney(totalRevenue)} 
@@ -7128,7 +7250,14 @@ window.setQuickCash = (amount) => {
         // Loop asynchronously to fetch items that are not in cache
         for (let item of h.cart) {
             if(item.isService) {
-                validCart.push(item);
+                // ENTERPRISE FIX: Verify if the service still exists in the database/cache before recalling!
+                const activeService = servicesCache.find(s => s.id === item.id);
+                if (activeService) {
+                    item.sell = activeService.price; // Auto-update to latest price
+                    validCart.push(item);
+                } else {
+                    stockErrors = true; // Service was deleted while cart was on hold!
+                }
                 continue;
             }
             
@@ -7606,7 +7735,19 @@ window.setQuickCash = (amount) => {
     };
 
     window.deleteSupplier = async (id) => {
-        if(!confirm("Delete supplier?")) return;
+        toggleLoader(true);
+        // ENTERPRISE FIX: Referential Integrity Check. Prevent deleting suppliers who have active stock!
+        const qCheck = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`), where("supplierId", "==", id), where("qty", ">", 0), limit(1));
+        const snapCheck = await getDocs(qCheck);
+        
+        if (!snapCheck.empty) {
+            toggleLoader(false);
+            return showToast("Cannot Delete: This supplier is linked to active stock in your inventory!", "error");
+        }
+        toggleLoader(false);
+
+        if(!confirm("Delete supplier? This action cannot be undone.")) return;
+        
         toggleLoader(true);
         await deleteDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/suppliers`, id));
         refreshData();
@@ -7762,7 +7903,7 @@ window.setQuickCash = (amount) => {
         if(!dateInput) return;
         
         toggleLoader(true);
-        let cashSales = 0, cardSales = 0, newCredit = 0, refunds = 0, expenses = 0, debtCollections = 0, otherSales = 0;
+        let cashSales = 0, cardSales = 0, newCredit = 0, refunds = 0, expenses = 0, debtCollections = 0, otherSales = 0, staffAdvances = 0;
 
         // ENTERPRISE FIX: Fetch Full Day's Data from DB, ignoring the 50-limit Cache
         const startDate = new Date(dateInput + "T00:00:00").toISOString();
@@ -7840,9 +7981,20 @@ window.setQuickCash = (amount) => {
             }
         });
 
-        // Calculate Final Cash in Drawer
+        // ENTERPRISE FIX: Fetch Staff Advances given out today (Crucial for Cash Drawer accuracy!)
+        // Loop through current employees to fetch their logs for today
+        for (let emp of employeesCache) {
+            try {
+                const qAdv = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/employees/${emp.id}/logs`), where("date", "==", dateInput));
+                const snapAdv = await getDocs(qAdv);
+                snapAdv.forEach(d => {
+                    staffAdvances += (Number(d.data().advance) || 0);
+                });
+            } catch (e) { console.error("EOD Advance fetch error", e); }
+        }
 
-        const expectedCash = cashSales + debtCollections - refunds - expenses;
+        // Calculate Final Cash in Drawer
+        const expectedCash = cashSales + debtCollections - refunds - expenses - staffAdvances;
 
         // Update UI
         document.getElementById('eodCashSales').textContent = formatMoney(cashSales);
@@ -7852,6 +8004,7 @@ window.setQuickCash = (amount) => {
         document.getElementById('eodDebt').textContent = formatMoney(debtCollections);
         document.getElementById('eodRefunds').textContent = formatMoney(refunds);
         document.getElementById('eodExpenses').textContent = formatMoney(expenses);
+        document.getElementById('eodAdvances').textContent = formatMoney(staffAdvances);
         document.getElementById('eodExpectedCash').textContent = formatMoney(expectedCash);
 
         document.getElementById('eodReportArea').style.display = 'block';
@@ -7968,17 +8121,22 @@ window.setQuickCash = (amount) => {
                         const inTime = new Date(logData.clockInTime);
                         const outTime = now;
                         
-                        // ආයතනයේ සිටි මුළු පැය ගණන ගණනය කිරීම
+                       // ආයතනයේ සිටි මුළු පැය ගණන ගණනය කිරීම
                         const diffMs = outTime - inTime;
-                        const workedHrs = diffMs / (1000 * 60 * 60);
+                        let workedHrs = diffMs / (1000 * 60 * 60);
                         
                         // ADVANCED LOGIC: Fetch employee's specific Standard Hours from cache
                         const empData = employeesCache.find(emp => emp.id === foundEmpId);
                         const stdHours = empData ? (empData.standardHours || 8) : 8;
                         
                         let calculatedOT = 0;
-                        if(workedHrs > stdHours) {
-                            calculatedOT = workedHrs - stdHours; // Dynamic OT calculation!
+                        
+                        // ENTERPRISE FIX: Prevent 24-Hour Ghost Shifts (Forgot to clock out yesterday)
+                        if (workedHrs > 16) {
+                            workedHrs = stdHours; // Auto-cap to standard hours to prevent massive fake OT
+                            showToast(`Warning: Abnormal shift duration. Capped to ${stdHours} hrs. Manager must verify!`, "warning");
+                        } else if (workedHrs > stdHours) {
+                            calculatedOT = workedHrs - stdHours; // Normal OT calculation
                         }
 
                         // Update the database with exact hours and OT
@@ -8129,7 +8287,10 @@ window.setQuickCash = (amount) => {
                 // ENTERPRISE FIX 2: Prevent Division by Zero & NaN crashes for old/corrupted records
                 const baseSal = Number(emp.baseSalary) || 0;
                 const stdHours = Math.max(1, Number(emp.standardHours) || 8); 
-                const dailyRate = baseSal / 30;
+                
+                // MATH FIX: Dynamic Days in Month Calculation (Prevents 31st Day Overpayment / Feb Underpayment)
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                const dailyRate = baseSal / daysInMonth; 
                 const hourlyRate = dailyRate / stdHours;
 
                 processedLogs.forEach(l => {
