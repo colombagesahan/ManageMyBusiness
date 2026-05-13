@@ -1606,7 +1606,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 </div>
 
 <!-- NEW: DEBT SETTLEMENT MODAL -->
-<div id="debtSettlementModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:2000;">
+<div id="debtSettlementModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:4600;">
     <div class="card" style="width:400px; margin:0;">
         <h3 style="color:var(--primary);">Settle Debt</h3>
         <input type="hidden" id="dsCustomerPhone">
@@ -6824,8 +6824,6 @@ window.updateCartQty = (cartIndex, newQtyVal, productId) => {
         renderCart();
     };
 window.settleCreditDebt = async (orderId) => {
-        // ENTERPRISE FIX: Prevent 1-Click Fraud & Accounting Errors! 
-        // Route directly to the highly secure Debt Settlement Modal instead.
         toggleLoader(true);
         try {
             const orderRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`, orderId);
@@ -6838,18 +6836,25 @@ window.settleCreditDebt = async (orderId) => {
                     return showToast("Cannot settle here: Customer profile missing. Please use Debt Collection tab.", "error");
                 }
                 
-                // Calculate total actual debt for this customer safely from DB
+                // ENTERPRISE LOGIC FIX: Bypass Firebase Composite Index Error!
+                // Fetch by phone only, then filter creditBalance in local memory.
                 let totalDebt = 0;
-                const qUnpaid = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`), where("customer.phone", "==", orderData.customer.phone), where("creditBalance", ">", 0));
+                const qUnpaid = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`), where("customer.phone", "==", orderData.customer.phone));
                 const snapUnpaid = await getDocs(qUnpaid);
-                snapUnpaid.forEach(d => totalDebt += d.data().creditBalance);
+                
+                snapUnpaid.forEach(d => {
+                    const data = d.data();
+                    if(data.creditBalance && data.creditBalance > 0) {
+                        totalDebt += data.creditBalance;
+                    }
+                });
                 
                 // Close Sale Details & Open Secure Debt Collection Modal
                 document.getElementById('orderDetailsModal').style.display = 'none';
                 openDebtSettlement(orderData.customer.phone, orderData.customer.name, totalDebt);
             }
         } catch (e) {
-            console.error(e);
+            console.error("Routing Error:", e);
             showToast("Error routing to debt settlement", "error");
         } finally {
             toggleLoader(false);
