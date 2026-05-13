@@ -6736,7 +6736,12 @@ window.autoFillDocCustomer = (name) => {
             snapExp.forEach(d => {
                 const record = d.data();
                 if(record.isIncome) {
-                    otherIncomes += record.amount;
+                    // ENTERPRISE ACCOUNTING FIX: Do NOT count Debt Settlements as "Other Income"!
+                    // The original sale is already counted in Total Revenue. Adding it here inflates Net Profit by 2x.
+                    const desc = record.description ? record.description.toLowerCase() : "";
+                    if (!desc.includes('debt')) {
+                        otherIncomes += record.amount;
+                    }
                 } else {
                     totalExpenses += record.amount;
                 }
@@ -6819,50 +6824,33 @@ window.updateCartQty = (cartIndex, newQtyVal, productId) => {
         renderCart();
     };
 window.settleCreditDebt = async (orderId) => {
-        if(!confirm("Are you sure you want to mark this credit order as PAID (Cash)?")) return;
+        // ENTERPRISE FIX: Prevent 1-Click Fraud & Accounting Errors! 
+        // Route directly to the highly secure Debt Settlement Modal instead.
         toggleLoader(true);
         try {
-            // First get the order total to update cashGiven
             const orderRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`, orderId);
             const snap = await getDoc(orderRef);
-            if(snap.exists()) {
-                const orderData = snap.data();
-                const paidAmount = orderData.creditBalance;
-                const batch = writeBatch(db);
-
-                batch.update(orderRef, { creditBalance: 0 });
-
-                const expRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`));
-                batch.set(expRef, {
-                    description: `Debt Settlement for Order ${orderData.customOrderId || orderId}`,
-                    amount: paidAmount,
-                    isIncome: true,
-                    date: new Date().toISOString()
-                });
-
-                await batch.commit();
-
-                if(window.writeSystemLog) writeSystemLog("DEBT_SETTLEMENT", `Received ${formatMoney(paidAmount)} for order ${orderId}`);
-
-                const cacheIndex = salesCache.findIndex(s => s.id === orderId);
-                if(cacheIndex !== -1) {
-                    salesCache[cacheIndex].creditBalance = 0;
-                    expensesCache.unshift({
-                        id: expRef.id, // CRITICAL FIX: Attach ID to cache
-                        description: `Debt Settlement for Order ${orderData.customOrderId || orderId}`,
-                        amount: paidAmount,
-                        isIncome: true,
-                        date: new Date().toISOString()
-                    });
-                    updateDashboard();
-                }
-            }
             
-            document.getElementById('orderDetailsModal').style.display = 'none';
-            await loadOrders(); // Refresh table
-            showToast("Credit bill marked as settled!");
-        } catch(e) {
-            showToast("Error updating status", "error");
+            if (snap.exists()) {
+                const orderData = snap.data();
+                if (!orderData.customer || !orderData.customer.phone || orderData.customer.phone === "N/A") {
+                    toggleLoader(false);
+                    return showToast("Cannot settle here: Customer profile missing. Please use Debt Collection tab.", "error");
+                }
+                
+                // Calculate total actual debt for this customer safely from DB
+                let totalDebt = 0;
+                const qUnpaid = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`), where("customer.phone", "==", orderData.customer.phone), where("creditBalance", ">", 0));
+                const snapUnpaid = await getDocs(qUnpaid);
+                snapUnpaid.forEach(d => totalDebt += d.data().creditBalance);
+                
+                // Close Sale Details & Open Secure Debt Collection Modal
+                document.getElementById('orderDetailsModal').style.display = 'none';
+                openDebtSettlement(orderData.customer.phone, orderData.customer.name, totalDebt);
+            }
+        } catch (e) {
+            console.error(e);
+            showToast("Error routing to debt settlement", "error");
         } finally {
             toggleLoader(false);
         }
@@ -8228,7 +8216,8 @@ window.setQuickCash = (amount) => {
                 amount: totalPaidNow,
                 isIncome: true,
                 payMethod: payMethod, 
-                date: new Date().toISOString()
+                // 🛡️ ENTERPRISE SECURE TIME FIX: Block Time-Travel Fraud by Cashiers
+                date: window.getSecureTime().toISOString()
             };
             batch.set(expRef, expData);
             expData.id = expRef.id; // CRITICAL FIX: අනාගතයේදී Delete කිරීමට අවශ්‍ය වුවහොත් ID එක සටහන් කරගැනීම
