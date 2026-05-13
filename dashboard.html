@@ -4430,23 +4430,9 @@ window.checkout = async () => {
             const saleRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`));
             currentBatch.set(saleRef, saleData);
             opsCount++;
-            
-            if (opsCount > 0) {
-                batches.push(currentBatch); // ENTERPRISE FIX: දත්ත ඇත්නම් පමණක් අවසාන Batch එක Push කිරීම
-            }
-            saleData.id = saleRef.id; 
+            safeBatchUpdate();
 
-            // ENTERPRISE FIX: Execute batches sequentially to maintain strict Transactional Atomicity
-            for (let b of batches) {
-                await b.commit();
-            }
-            
-            // TRACK LOG
-            if(window.writeSystemLog) {
-                writeSystemLog("SALE_COMPLETED", `Order ${saleData.customOrderId} completed. Value: ${formatMoney(total)} via ${finalPaymentMethod}`);
-            }
-
-            // NEW: SERVICE CRM REMINDER INTEGRATION
+            // NEW: SERVICE CRM REMINDER INTEGRATION (ENTERPRISE FIX: Moved BEFORE batch commit to prevent crash!)
             const serviceDate = document.getElementById('modalServiceDate').value;
             const serviceNote = document.getElementById('modalServiceNote').value.trim();
             
@@ -4462,6 +4448,22 @@ window.checkout = async () => {
                 });
                 opsCount++;
                 safeBatchUpdate();
+            }
+
+            // Push the final configured batch to the list
+            if (opsCount > 0) {
+                batches.push(currentBatch); 
+            }
+            saleData.id = saleRef.id; 
+
+            // ENTERPRISE FIX: Execute batches sequentially ONLY AFTER all operations (including CRM) are loaded
+            for (let b of batches) {
+                await b.commit();
+            }
+            
+            // TRACK LOG
+            if(window.writeSystemLog) {
+                writeSystemLog("SALE_COMPLETED", `Order ${saleData.customOrderId} completed. Value: ${formatMoney(total)} via ${finalPaymentMethod}`);
             }
 
             // ENTERPRISE FIX: Safely auto-save new customers WITHOUT overwriting hidden historical profiles!
