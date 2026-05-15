@@ -1057,7 +1057,13 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             </div>
             <div class="card" id="eodReportArea" style="max-width:600px; display:none;">
                 <h4 style="text-align:center; border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:15px;">Cash Drawer Summary</h4>
-                <div style="display:flex; justify-content:space-between; margin-bottom:10px; font-size:14px;"><span>Opening Cash (Float):</span> <strong>0.00</strong></div>
+                
+                <!-- 🛡️ ENTERPRISE FIX: Interactive Morning Float Input -->
+                <div style="display:flex; justify-content:space-between; margin-bottom:10px; font-size:14px; align-items:center; background:#fefce8; padding:8px; border-radius:8px;">
+                    <span style="font-weight:bold; color:#a16207;">Opening Cash (Float):</span> 
+                    <input type="number" id="eodMorningFloat" value="0" style="width:120px; margin:0; padding:6px; text-align:right; font-weight:bold; border-color:#fde047;" onkeyup="recalculateEODTotal()">
+                </div>
+                
                 <div style="display:flex; justify-content:space-between; margin-bottom:10px; font-size:14px;"><span>(+) Cash Sales:</span> <strong id="eodCashSales" style="color:green;">0.00</strong></div>
                 <div style="display:flex; justify-content:space-between; margin-bottom:10px; font-size:14px;"><span>(+) Debt Collections (Cash):</span> <strong id="eodDebt" style="color:green;">0.00</strong></div>
                 <div style="display:flex; justify-content:space-between; margin-bottom:10px; font-size:14px;"><span>(-) Cash Refunds:</span> <strong id="eodRefunds" style="color:red;">0.00</strong></div>
@@ -4214,14 +4220,21 @@ window.checkout = async () => {
         const discountType = document.getElementById('discountType').value;
         const discountValRaw = parseFloat(document.getElementById('discountValue').value) || 0;
         
-        // ENTERPRISE FIX: Stale Price Validation (Ensure checkout uses LIVE prices)
+        // ENTERPRISE FIX: Stale Price Validation (Ensure checkout uses LIVE prices for BOTH Products and Services)
         let priceChanged = false;
         for (let item of cart) {
-            if (item.isService) continue;
-            const liveProduct = productsCache.find(p => p.id === item.id);
-            if (liveProduct && liveProduct.sell !== item.sell) {
-                item.sell = liveProduct.sell; // Auto-update to latest live price
-                priceChanged = true;
+            if (item.isService) {
+                const liveService = servicesCache.find(s => s.id === item.id);
+                if (liveService && liveService.price !== item.sell) {
+                    item.sell = liveService.price; // Auto-update to latest Service price
+                    priceChanged = true;
+                }
+            } else {
+                const liveProduct = productsCache.find(p => p.id === item.id);
+                if (liveProduct && liveProduct.sell !== item.sell) {
+                    item.sell = liveProduct.sell; // Auto-update to latest Product price
+                    priceChanged = true;
+                }
             }
         }
         if (priceChanged) {
@@ -4238,6 +4251,11 @@ window.checkout = async () => {
         let subtotal = cart.reduce((a,b)=>a+(b.sell*b.qty),0);
         let discountAmt = discountType === 'percent' ? (subtotal * discountVal / 100) : discountVal;
         if(discountAmt > subtotal) discountAmt = subtotal;
+
+        // 🛡️ ENTERPRISE FRAUD PROTECTION: Limit Cashier discounts to a maximum of 10%
+        if (userRole === 'cashier' && discountAmt > (subtotal * 0.10)) {
+            return showToast("Cashiers cannot give more than a 10% discount! Please ask the Manager.", "error");
+        }
 
         const roundToTwo = (num) => Math.round(num * 100) / 100;
         let feesTotal = currentOtherFees.reduce((sum, f) => sum + f.amount, 0);
@@ -5788,37 +5806,62 @@ window.autoFillDocCustomer = (name) => {
     }
 
     window.filterCustomers = debounceSearch(async () => {
-        const term = document.getElementById('custSearch').value.trim();
+        const originalTerm = document.getElementById('custSearch').value.trim();
+        const term = originalTerm.toLowerCase();
         
-        if (term.length >= 3) {
-            document.getElementById('customerGrid').innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding:20px;">Searching Database... <i class="ri-loader-4-line ri-spin"></i></div>';
+        if (originalTerm.length >= 3) {
+            document.getElementById('customerGrid').innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding:20px; font-weight:bold; color:var(--primary);">Searching Omni-Database... <i class="ri-loader-4-line ri-spin"></i></div>';
             
             try {
-                // 1. EXACT ID MATCH (Bulletproof fallback for extremely old records missing the 'phone' field)
-                const exactRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/customers`, term);
+                // 1. EXACT ID MATCH (Bulletproof)
+                const exactRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/customers`, originalTerm);
                 const exactSnap = await getDoc(exactRef);
                 if (exactSnap.exists() && !customersCache.find(c => c.id === exactSnap.id)) {
                     customersCache.unshift({ id: exactSnap.id, ...exactSnap.data() });
                 }
 
-                // 2. PREFIX SEARCH BY PHONE
-                const qPhone = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/customers`), where('phone', '>=', term), where('phone', '<=', term + '\uf8ff'), limit(10));
+                // 2. OMNI-CASE FIRESTORE SEARCH (Bypasses All Case-Sensitivity Limitations)
+                const capTerm = term.charAt(0).toUpperCase() + term.slice(1);
+                const upperTerm = originalTerm.toUpperCase();
                 
-                // 3. MULTI-CASE NAME SEARCH (Fixes case-sensitivity bugs like "new gayan" vs "New gayan")
-                const lowerTerm = term.toLowerCase();
-                const capTerm = term.charAt(0).toUpperCase() + lowerTerm.slice(1);
-                
-                const qNameLow = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/customers`), where('name', '>=', lowerTerm), where('name', '<=', lowerTerm + '\uf8ff'), limit(15));
-                const qNameCap = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/customers`), where('name', '>=', capTerm), where('name', '<=', capTerm + '\uf8ff'), limit(15));
+                const qPhone = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/customers`), where('phone', '>=', originalTerm), where('phone', '<=', originalTerm + '\uf8ff'), limit(10));
+                const qNameLow = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/customers`), where('name', '>=', term), where('name', '<=', term + '\uf8ff'), limit(10));
+                const qNameCap = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/customers`), where('name', '>=', capTerm), where('name', '<=', capTerm + '\uf8ff'), limit(10));
+                const qNameUp = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/customers`), where('name', '>=', upperTerm), where('name', '<=', upperTerm + '\uf8ff'), limit(10));
 
-                const [snapPhone, snapNameLow, snapNameCap] = await Promise.all([getDocs(qPhone), getDocs(qNameLow), getDocs(qNameCap)]);
+                const [snapPhone, snapNameLow, snapNameCap, snapNameUp] = await Promise.all([getDocs(qPhone), getDocs(qNameLow), getDocs(qNameCap), getDocs(qNameUp)]);
                 
-                snapPhone.forEach(d => { if(!customersCache.find(c => c.id === d.id)) customersCache.unshift({id: d.id, ...d.data()}); });
-                snapNameLow.forEach(d => { if(!customersCache.find(c => c.id === d.id)) customersCache.unshift({id: d.id, ...d.data()}); });
-                snapNameCap.forEach(d => { if(!customersCache.find(c => c.id === d.id)) customersCache.unshift({id: d.id, ...d.data()}); });
+                const addToCache = (d) => { if(!customersCache.find(c => c.id === d.id)) customersCache.unshift({id: d.id, ...d.data()}); };
+                
+                snapPhone.forEach(addToCache);
+                snapNameLow.forEach(addToCache);
+                snapNameCap.forEach(addToCache);
+                snapNameUp.forEach(addToCache);
+
+                // 3. ENTERPRISE GHOST-RECOVERY SYSTEM (Cross-Referencing Sales Cache)
+                // If the master profile was deleted/corrupted but they exist in a Sale Bill, recover them instantly!
+                salesCache.forEach(sale => {
+                    if (sale.customer && sale.customer.phone && sale.customer.phone !== "N/A") {
+                        const safePhone = String(sale.customer.phone).toLowerCase();
+                        const safeName = String(sale.customer.name).toLowerCase();
+                        
+                        // If term matches anything in the sale's customer data (Substring match)
+                        if (safePhone.includes(term) || safeName.includes(term)) {
+                            // Check if they are missing from the cache
+                            if (!customersCache.find(c => c.id === sale.customer.phone)) {
+                                customersCache.unshift({
+                                    id: sale.customer.phone,
+                                    name: sale.customer.name,
+                                    phone: sale.customer.phone,
+                                    address: (sale.customer.address || "") + " [Recovered Data]"
+                                });
+                            }
+                        }
+                    }
+                });
 
             } catch (err) {
-                console.error("Advanced Search Error:", err);
+                console.error("Omni-Search Error:", err);
             }
         }
         renderCustomers();
@@ -8361,8 +8404,8 @@ window.setQuickCash = (amount) => {
             } catch (e) { console.error("EOD Advance fetch error", e); }
         }
 
-        // Calculate Final Cash in Drawer
-        const expectedCash = cashSales + debtCollections - refunds - expenses - staffAdvances;
+        // ENTERPRISE FIX: Store base calculations globally for dynamic recalculation
+        window.currentEodBaseCash = cashSales + debtCollections - refunds - expenses - staffAdvances;
 
         // Update UI
         document.getElementById('eodCashSales').textContent = formatMoney(cashSales);
@@ -8373,10 +8416,18 @@ window.setQuickCash = (amount) => {
         document.getElementById('eodRefunds').textContent = formatMoney(refunds);
         document.getElementById('eodExpenses').textContent = formatMoney(expenses);
         document.getElementById('eodAdvances').textContent = formatMoney(staffAdvances);
-        document.getElementById('eodExpectedCash').textContent = formatMoney(expectedCash);
+        
+        window.recalculateEODTotal(); // Call the new dynamic calculator
 
         document.getElementById('eodReportArea').style.display = 'block';
         toggleLoader(false);
+    };
+
+    // 🛡️ ENTERPRISE FIX: Dynamically recalculate Final Drawer Balance when Float changes
+    window.recalculateEODTotal = () => {
+        const floatVal = parseFloat(document.getElementById('eodMorningFloat').value) || 0;
+        const finalExpected = window.currentEodBaseCash + floatVal;
+        document.getElementById('eodExpectedCash').textContent = formatMoney(finalExpected);
     };
 
     window.printEOD = () => {
