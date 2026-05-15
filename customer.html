@@ -267,23 +267,31 @@ input:focus, textarea:focus { border-color: var(--primary); }
         const phone = loggedInCustomer.id;
         
         try {
-            // 1. Calculate EXACT Total Debt (Enterprise Fix: Bypasses the 10-bill limit to find very old unpaid debts)
+            // 1. OMNI-FETCH SALES (Bypasses Firebase Index Errors)
             let totalDebt = 0;
-            const qDebt = query(collection(db, `users/${OWNER_ID}/shops/${activeShopId}/sales`), where("customer.phone", "==", phone), where("creditBalance", ">", 0));
-            const snapDebt = await getDocs(qDebt);
-            snapDebt.forEach(d => {
-                totalDebt += (d.data().creditBalance || 0);
-            });
-
-            // 2. Fetch Recent 10 Bills for the History UI
-            const qSales = query(collection(db, `users/${OWNER_ID}/shops/${activeShopId}/sales`), where("customer.phone", "==", phone), orderBy("date", "desc"), limit(10));
+            let allSales = [];
+            
+            // අදාළ පාරිභෝගිකයාගේ සියලුම බිල්පත් එකවර ගෙන්වා ගැනීම (Index අවශ්‍ය නොවේ)
+            const qSales = query(collection(db, `users/${OWNER_ID}/shops/${activeShopId}/sales`), where("customer.phone", "==", phone));
             const snapSales = await getDocs(qSales);
             
-            let billsHtml = '';
             snapSales.forEach(d => {
                 const s = d.data();
-                
-                // Determine if this specific bill is fully paid or still has credit
+                allSales.push(s);
+                // ණය ගණනය කිරීම Client-Side හිදී සිදු කිරීම
+                if(s.creditBalance && s.creditBalance > 0) {
+                    totalDebt += s.creditBalance;
+                }
+            });
+
+            // බිල්පත් අලුත්ම දින අනුව පෙළගැස්වීම (Sort Client-Side)
+            allSales.sort((a, b) => new Date(b.date) - new Date(a.date));
+            
+            // ඉන්පසු ඉන් අලුත්ම බිල් 10 පමණක් UI එක සඳහා වෙන් කර ගැනීම
+            const recentBills = allSales.slice(0, 10);
+            
+            let billsHtml = '';
+            recentBills.forEach(s => {
                 const isPaid = s.paymentMethod !== 'Pay Later' || (s.creditBalance <= 0);
                 const badge = isPaid 
                     ? `<span style="color:#15803d; background:#dcfce7; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold;">PAID</span>` 
@@ -293,37 +301,53 @@ input:focus, textarea:focus { border-color: var(--primary); }
                 <div class="card" style="padding:12px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
                     <div>
                         <div style="font-weight:700; font-size:14px;">${formatMoney(s.total)}</div>
-                        <div style="font-size:11px; color:#666; margin-top:2px;">${new Date(s.date).toLocaleDateString()} | ${s.items.length} items</div>
+                        <div style="font-size:11px; color:#666; margin-top:2px;">${new Date(s.date).toLocaleDateString()} | ${s.items ? s.items.length : 0} items</div>
                     </div>
                     ${badge}
                 </div>`;
             });
             
+            // බිල්පත් ලැයිස්තුව සහ මුළු ණය මුදල UI එකට යෙදීම
             document.getElementById('totalDebtDisplay').textContent = formatMoney(totalDebt);
             document.getElementById('billsList').innerHTML = billsHtml || '<div style="font-size:12px; color:#999; text-align:center;">No recent purchases.</div>';
             
+            // ණය නොමැති නම් රතු පසුබිම කොළ පැහැයට හැරවීම (UX Fix)
             if(totalDebt <= 0) {
                 document.getElementById('debtBox').className = 'stat-box';
                 document.getElementById('debtBox').style.background = '#dcfce7';
                 document.getElementById('debtBox').style.borderColor = '#86efac';
                 document.getElementById('totalDebtDisplay').style.color = '#15803d';
+                document.getElementById('debtBox').querySelector('div:last-child').style.display = 'none'; // Hide warning msg
+            } else {
+                document.getElementById('debtBox').className = 'stat-box danger';
+                document.getElementById('debtBox').style.background = '#fee2e2';
+                document.getElementById('debtBox').style.borderColor = '#fca5a5';
+                document.getElementById('totalDebtDisplay').style.color = '#b91c1c';
+                document.getElementById('debtBox').querySelector('div:last-child').style.display = 'block'; 
             }
 
-            // 2. Load Service Reminders (using dynamic activeShopId)
-            const qAlerts = query(collection(db, `users/${OWNER_ID}/shops/${activeShopId}/alerts`), where("refId", "==", phone), where("status", "==", "active"));
+            // 2. OMNI-FETCH ALERTS (Bypasses Firebase Index Errors)
+            const qAlerts = query(collection(db, `users/${OWNER_ID}/shops/${activeShopId}/alerts`), where("refId", "==", phone));
             const snapAlerts = await getDocs(qAlerts);
             let remHtml = '';
+            
             snapAlerts.forEach(d => {
                 const a = d.data();
-                remHtml += `
-                <div style="background:#fffbeb; border-left:3px solid #f59e0b; padding:10px; border-radius:4px 8px 8px 4px; margin-bottom:10px;">
-                    <div style="font-size:11px; color:#d97706; font-weight:bold;">Scheduled: ${new Date(a.targetDate).toLocaleDateString()}</div>
-                    <div style="font-size:13px; font-weight:600; margin-top:2px;">${a.message}</div>
-                </div>`;
+                // Active alerts පමණක් පෙරහන් කිරීම Client-side හිදී සිදු කිරීම
+                if (a.status === "active") {
+                    remHtml += `
+                    <div style="background:#fffbeb; border-left:3px solid #f59e0b; padding:10px; border-radius:4px 8px 8px 4px; margin-bottom:10px;">
+                        <div style="font-size:11px; color:#d97706; font-weight:bold;">Scheduled: ${new Date(a.targetDate).toLocaleDateString()}</div>
+                        <div style="font-size:13px; font-weight:600; margin-top:2px;">${a.message}</div>
+                    </div>`;
+                }
             });
             document.getElementById('remindersList').innerHTML = remHtml || '<div style="font-size:12px; color:#999; text-align:center;">No upcoming services.</div>';
 
-        } catch (e) { console.error(e); }
+        } catch (e) { 
+            console.error("Dashboard Load Error:", e); 
+            document.getElementById('billsList').innerHTML = '<div style="font-size:12px; color:red; text-align:center;">Error loading data.</div>';
+        }
         toggleLoader(false);
     }
 
