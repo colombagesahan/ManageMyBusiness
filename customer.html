@@ -432,13 +432,23 @@ input:focus, textarea:focus { border-color: var(--primary); }
                 const r = d.data();
                 const bg = r.status === 'pending' ? '#fee2e2' : '#dcfce7';
                 const col = r.status === 'pending' ? '#b91c1c' : '#15803d';
+                
+                // Manager ගෙන් Reply එකක් ඇත්නම් එය වෙනම කොටුවක අලංකාරව පෙන්වීම
+                const replyHtml = r.adminReply ? `
+                    <div style="margin-top:12px; padding:10px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px;">
+                        <div style="font-size:10px; color:#16a34a; font-weight:bold; margin-bottom:3px;"><i class="ri-customer-service-2-fill"></i> MANAGER REPLY</div>
+                        <div style="font-size:12px; color:#166534; font-weight:600;">${r.adminReply}</div>
+                    </div>
+                ` : '';
+
                 html += `
-                <div class="card" style="padding:10px; font-size:12px;">
-                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                <div class="card" style="padding:12px; font-size:12px;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
                         <span style="font-weight:bold; color:#666;">${new Date(r.createdAt).toLocaleDateString()}</span>
                         <span style="background:${bg}; color:${col}; padding:2px 6px; border-radius:4px; font-weight:bold; font-size:10px;">${r.status.toUpperCase()}</span>
                     </div>
-                    <div style="font-size:13px; font-weight:500;">${r.issueDescription}</div>
+                    <div style="font-size:13px; font-weight:500; color:#1f2937;">${r.issueDescription}</div>
+                    ${replyHtml}
                 </div>`;
             });
             list.innerHTML = html || '<div style="font-size:12px; color:#999; text-align:center;">No previous requests.</div>';
