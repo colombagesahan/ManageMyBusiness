@@ -5581,18 +5581,29 @@ window.autoFillDocCustomer = (name) => {
         const content = document.getElementById('odModalContent');
         const customId = order.customOrderId || "N/A";
 
-        // ENTERPRISE FIX: Fetch Payment History for Debt Settlements
+        // ENTERPRISE FIX: Fetch Payment History for Debt Settlements (With Accurate Allocation)
         const expQ = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`), where("isIncome", "==", true));
         const expSnap = await getDocs(expQ);
         let settlementHtml = "";
+        
         expSnap.forEach(e => {
             const ed = e.data();
             // ENTERPRISE FIX: STRICTLY match ONLY by customId to prevent cross-contamination of receipts!
-            if(ed.description.includes(customId)) {
-                settlementHtml += `<div style="font-size:12px; background:#dcfce7; color:#15803d; padding:5px; border-radius:4px; margin-bottom:5px; border:1px solid #86efac; display:flex; justify-content:space-between; align-items:center;">
-                    <div><b>Paid: ${formatMoney(ed.amount)}</b> <br><span style="font-size:10px;">${new Date(ed.date).toLocaleString()}</span></div>
-                    <i class="ri-checkbox-circle-fill" style="font-size:16px;"></i>
-                </div>`;
+            if(ed.description && ed.description.includes(customId)) {
+                
+                // Determine exact amount allocated to THIS specific bill
+                let allocatedAmount = ed.amount; // Fallback for old legacy records
+                if (ed.breakdown && ed.breakdown[customId]) {
+                    allocatedAmount = ed.breakdown[customId];
+                }
+                
+                // Only show if a positive allocation was made for this bill
+                if (allocatedAmount > 0) {
+                    settlementHtml += `<div style="font-size:12px; background:#dcfce7; color:#15803d; padding:5px; border-radius:4px; margin-bottom:5px; border:1px solid #86efac; display:flex; justify-content:space-between; align-items:center;">
+                        <div><b>Paid: ${formatMoney(allocatedAmount)}</b> <br><span style="font-size:10px;">${new Date(ed.date).toLocaleString()}</span></div>
+                        <i class="ri-checkbox-circle-fill" style="font-size:16px;"></i>
+                    </div>`;
+                }
             }
         });
         
@@ -8240,48 +8251,50 @@ window.setQuickCash = (amount) => {
             unpaidSales.sort((a, b) => new Date(a.date) - new Date(b.date)); // Oldest first
             
             let totalPaidNow = payAmount;
-            const batch = writeBatch(db);
-            let settledOrderIds = [  ]; // ENTERPRISE FIX: Track exactly which orders are paid!
+                const batch = writeBatch(db);
+                let settledOrderIds = [  ]; // ENTERPRISE FIX: Track exactly which orders are paid!
+                let settlementBreakdown = {}; // 🛡️ ENTERPRISE FIX: Track exact mathematical allocation per bill
 
-            for (let sale of unpaidSales) {
-                if (payAmount <= 0) break;
-                settledOrderIds.push(sale.customOrderId || sale.id);
-                
-                const ref = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`, sale.id);
-                
-                // ENTERPRISE FIX: Round mathematically before evaluating conditions
-                payAmount = Math.round(payAmount * 100) / 100;
-                const currentCredit = Math.round(sale.creditBalance * 100) / 100;
+                for (let sale of unpaidSales) {
+                    if (payAmount <= 0) break;
+                    const cId = sale.customOrderId || sale.id;
+                    if(!settledOrderIds.includes(cId)) settledOrderIds.push(cId);
+                    
+                    const ref = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`, sale.id);
+                    
+                    // ENTERPRISE FIX: Round mathematically before evaluating conditions
+                    payAmount = Math.round(payAmount * 100) / 100;
+                    const currentCredit = Math.round(sale.creditBalance * 100) / 100;
 
-                if (payAmount >= currentCredit) {
-                    // Fully pay this bill
-                    const deductedAmount = currentCredit;
-                    payAmount -= deductedAmount;
-                    // ENTERPRISE FIX: Use Firestore decrement to absolutely prevent Concurrency / Race Conditions!
-                    batch.update(ref, { creditBalance: increment(-deductedAmount) });
-                    sale.creditBalance = 0; // Update local cache
-                } else {
-                    // Partially pay this bill
-                    const deductedAmount = payAmount;
-                    batch.update(ref, { creditBalance: increment(-deductedAmount) });
-                    sale.creditBalance -= deductedAmount; // Update local cache
-                    payAmount = 0;
+                    if (payAmount >= currentCredit) {
+                        // Fully pay this bill
+                        const deductedAmount = currentCredit;
+                        payAmount -= deductedAmount;
+                        batch.update(ref, { creditBalance: increment(-deductedAmount) });
+                        sale.creditBalance = 0; // Update local cache
+                        settlementBreakdown[cId] = deductedAmount; // Save allocation
+                    } else {
+                        // Partially pay this bill
+                        const deductedAmount = payAmount;
+                        batch.update(ref, { creditBalance: increment(-deductedAmount) });
+                        sale.creditBalance -= deductedAmount; // Update local cache
+                        settlementBreakdown[cId] = deductedAmount; // Save allocation
+                        payAmount = 0;
+                    }
                 }
-            }
 
-            const payMethod = document.getElementById('dsPayMethod').value;
-            
-            // Log this action as a special Income so EOD handles it properly
-            const expRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`));
-            const expData = {
-                // ENTERPRISE FIX: Inject exactly which Order IDs were settled into the description!
-                description: `Debt Settled (${payMethod}) by ${phone} [${settledOrderIds.join(', ')}]`,
-                amount: totalPaidNow,
-                isIncome: true,
-                payMethod: payMethod, 
-                // 🛡️ ENTERPRISE SECURE TIME FIX: Block Time-Travel Fraud by Cashiers
-                date: window.getSecureTime().toISOString()
-            };
+                const payMethod = document.getElementById('dsPayMethod').value;
+                
+                // Log this action as a special Income so EOD handles it properly
+                const expRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`));
+                const expData = {
+                    description: `Debt Settled (${payMethod}) by ${phone} [${settledOrderIds.join(', ')}]`,
+                    amount: totalPaidNow,
+                    isIncome: true,
+                    payMethod: payMethod, 
+                    breakdown: settlementBreakdown, // 🛡️ ENTERPRISE FIX: Store the exact breakdown mapping
+                    date: window.getSecureTime().toISOString()
+                };
             batch.set(expRef, expData);
             expData.id = expRef.id; // CRITICAL FIX: අනාගතයේදී Delete කිරීමට අවශ්‍ය වුවහොත් ID එක සටහන් කරගැනීම
 
