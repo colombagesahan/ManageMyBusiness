@@ -158,15 +158,15 @@ input:focus, textarea:focus { border-color: var(--primary); }
         appId: "1:237936848306:web:91a996c3d1d3ceda3b48ab"
     };
 
-    // Replace these with your actual IDs from your database
+    // Replace this with your actual OWNER UID from your database
     const OWNER_ID = "YOUR_ADMIN_UID_HERE"; 
-    const SHOP_ID = "YOUR_SHOP_ID_HERE";
     // 🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
     let loggedInCustomer = null;
+    let activeShopId = null; // 🛡️ ENTERPRISE FIX: Dynamically captures the customer's branch!
     let catalogCache = [];
 
     // --- UI Utilities ---
@@ -197,25 +197,37 @@ input:focus, textarea:focus { border-color: var(--primary); }
 
         toggleLoader(true);
         try {
-            const custRef = doc(db, `users/${OWNER_ID}/shops/${SHOP_ID}/customers`, phone);
-            const snap = await getDoc(custRef);
+            // 🛡️ ENTERPRISE OMNI-BRANCH ROUTING: Fetch all branches for this company
+            const shopsSnap = await getDocs(collection(db, `users/${OWNER_ID}/shops`));
+            let found = false;
+
+            // Search through every branch to find where this customer belongs
+            for (let shopDoc of shopsSnap.docs) {
+                const tempShopId = shopDoc.id;
+                const custRef = doc(db, `users/${OWNER_ID}/shops/${tempShopId}/customers`, phone);
+                const custSnap = await getDoc(custRef);
+
+                if (custSnap.exists() && custSnap.data().pin === pin) {
+                    loggedInCustomer = { id: custSnap.id, ...custSnap.data() };
+                    activeShopId = tempShopId; // Lock the user to this specific branch dynamically!
+                    found = true;
+                    break; // Stop searching once found
+                }
+            }
             
-            if (snap.exists() && snap.data().pin === pin) {
-                loggedInCustomer = { id: snap.id, ...snap.data() };
+            if (found) {
                 document.getElementById('view-login').style.display = 'none';
                 document.getElementById('view-dashboard').classList.add('active');
                 document.getElementById('bottomNav').style.display = 'flex';
-                
                 document.getElementById('custNameDisplay').textContent = loggedInCustomer.name;
                 
-                // Initialize Dashboard Data
                 loadDashboardData();
             } else {
                 showToast("Invalid Phone Number or PIN");
             }
         } catch (e) {
             console.error(e);
-            showToast("Connection Error. Ensure Owner ID & Shop ID are correct.");
+            showToast("Connection Error. Ensure Owner ID is correct.");
         }
         toggleLoader(false);
     };
@@ -223,6 +235,7 @@ input:focus, textarea:focus { border-color: var(--primary); }
     window.logoutCustomer = () => {
         if(!confirm("Log out from your account?")) return;
         loggedInCustomer = null;
+        activeShopId = null; // Clear branch lock
         document.getElementById('view-login').style.display = 'flex';
         document.getElementById('bottomNav').style.display = 'none';
         document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
@@ -235,9 +248,9 @@ input:focus, textarea:focus { border-color: var(--primary); }
         const phone = loggedInCustomer.id;
         
         try {
-            // 1. Calculate Debt
+            // 1. Calculate Debt (using dynamic activeShopId)
             let totalDebt = 0;
-            const qSales = query(collection(db, `users/${OWNER_ID}/shops/${SHOP_ID}/sales`), where("customer.phone", "==", phone), orderBy("date", "desc"), limit(10));
+            const qSales = query(collection(db, `users/${OWNER_ID}/shops/${activeShopId}/sales`), where("customer.phone", "==", phone), orderBy("date", "desc"), limit(10));
             const snapSales = await getDocs(qSales);
             
             let billsHtml = '';
@@ -268,8 +281,8 @@ input:focus, textarea:focus { border-color: var(--primary); }
                 document.getElementById('totalDebtDisplay').style.color = '#15803d';
             }
 
-            // 2. Load Service Reminders
-            const qAlerts = query(collection(db, `users/${OWNER_ID}/shops/${SHOP_ID}/alerts`), where("refId", "==", phone), where("status", "==", "active"));
+            // 2. Load Service Reminders (using dynamic activeShopId)
+            const qAlerts = query(collection(db, `users/${OWNER_ID}/shops/${activeShopId}/alerts`), where("refId", "==", phone), where("status", "==", "active"));
             const snapAlerts = await getDocs(qAlerts);
             let remHtml = '';
             snapAlerts.forEach(d => {
@@ -290,8 +303,7 @@ input:focus, textarea:focus { border-color: var(--primary); }
     async function loadCatalog() {
         toggleLoader(true);
         try {
-            // 🛡️ SECURITY: Customers only see names and selling prices, no quantities or buy prices
-            const q = query(collection(db, `users/${OWNER_ID}/shops/${SHOP_ID}/products`), limit(100));
+            const q = query(collection(db, `users/${OWNER_ID}/shops/${activeShopId}/products`), limit(100));
             const snap = await getDocs(q);
             
             let uniqueProds = {};
@@ -341,7 +353,7 @@ input:focus, textarea:focus { border-color: var(--primary); }
         
         toggleLoader(true);
         try {
-            await addDoc(collection(db, `users/${OWNER_ID}/shops/${SHOP_ID}/service_requests`), {
+            await addDoc(collection(db, `users/${OWNER_ID}/shops/${activeShopId}/service_requests`), {
                 customerId: loggedInCustomer.id,
                 customerName: loggedInCustomer.name,
                 customerPhone: loggedInCustomer.id,
@@ -361,7 +373,7 @@ input:focus, textarea:focus { border-color: var(--primary); }
         list.innerHTML = '<div style="text-align:center; font-size:12px; color:#666;">Loading...</div>';
         
         try {
-            const q = query(collection(db, `users/${OWNER_ID}/shops/${SHOP_ID}/service_requests`), where("customerId", "==", loggedInCustomer.id), orderBy("createdAt", "desc"), limit(10));
+            const q = query(collection(db, `users/${OWNER_ID}/shops/${activeShopId}/service_requests`), where("customerId", "==", loggedInCustomer.id), orderBy("createdAt", "desc"), limit(10));
             const snap = await getDocs(q);
             let html = '';
             snap.forEach(d => {
@@ -391,7 +403,7 @@ input:focus, textarea:focus { border-color: var(--primary); }
         
         toggleLoader(true);
         try {
-            await updateDoc(doc(db, `users/${OWNER_ID}/shops/${SHOP_ID}/customers`, loggedInCustomer.id), { pin: p1 });
+            await updateDoc(doc(db, `users/${OWNER_ID}/shops/${activeShopId}/customers`, loggedInCustomer.id), { pin: p1 });
             loggedInCustomer.pin = p1;
             document.getElementById('newPin1').value = '';
             document.getElementById('newPin2').value = '';
