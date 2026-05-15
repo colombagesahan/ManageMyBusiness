@@ -1122,13 +1122,25 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 <!-- NEW: SERVICE CRM TAB (HTML) -->
         <div id="view-crm" class="view">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
-                 <h3><i class="ri-calendar-check-line"></i> Service CRM & Upcoming Reminders</h3>
+                 <h3><i class="ri-calendar-check-line"></i> Service CRM & Reminders</h3>
                  <div style="display:flex; gap:10px;">
                      <input type="month" id="crmMonthFilter" onchange="loadCRM()" style="margin:0; width:auto;">
                      <button class="btn btn-ghost" onclick="loadCRM()"><i class="ri-refresh-line"></i> Refresh</button>
                  </div>
             </div>
-            <div class="note-box"><i class="ri-information-fill"></i> Track upcoming services (e.g., AC Services) linked to sales. Mark them as Done or Reschedule.</div>
+            
+            <!-- 🛡️ NEW: CUSTOMER ONLINE REQUESTS -->
+            <div class="card" style="background:#fffbeb; border-color:#fde68a;">
+                <h4 style="color:#d97706; margin-bottom:10px;"><i class="ri-smartphone-line"></i> Online Service Requests (From Customer Portal)</h4>
+                <div style="overflow-x:auto;">
+                    <table id="onlineRequestsTable" style="width:100%; font-size:13px;">
+                        <thead><tr><th>Date Requested</th><th>Customer</th><th>Service Details</th><th>Status</th><th>Action</th></tr></thead>
+                        <tbody><tr><td colspan="5" style="text-align:center;">Loading requests...</td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="note-box"><i class="ri-information-fill"></i> Track upcoming scheduled services linked to sales.</div>
             <div class="card" style="overflow-x:auto;">
                 <table id="crmTable">
                     <thead><tr><th>Scheduled Date</th><th>Customer</th><th>Note / Service</th><th>Linked Sale ID</th><th>Status</th><th>Actions</th></tr></thead>
@@ -4485,18 +4497,19 @@ window.checkout = async () => {
             }
 
             // ENTERPRISE FIX: Safely auto-save new customers WITHOUT overwriting hidden historical profiles!
+            let generatedPinForBill = null;
             if(finalCustPhone && finalCustPhone !== "N/A") {
                 const custRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/customers`, finalCustPhone);
-                // We MUST check the database directly, because customersCache is limited to 100!
                 const custSnap = await getDoc(custRef);
                 
                 if (!custSnap.exists()) {
-                    // Only create if they truly do not exist in the entire database
+                    // 🛡️ Auto Generate PIN for Portal Login
+                    generatedPinForBill = Math.floor(1000 + Math.random() * 9000).toString();
                     await setDoc(custRef, {
-                        name: finalCustName, phone: finalCustPhone, address: custAddr || "", lastUpdated: new Date().toISOString()
+                        name: finalCustName, phone: finalCustPhone, address: custAddr || "", pin: generatedPinForBill, lastUpdated: new Date().toISOString()
                     });
                     await loadCustomers(); 
-                    updateCustomerDatalist(); // ENTERPRISE FIX: Instantly sync the new customer to Documents/POS dropdowns!
+                    updateCustomerDatalist(); 
                 } else if (custAddr && custAddr !== custSnap.data().address) {
                     // If they exist but gave a new address, safely merge ONLY the address (Don't wipe emails/notes)
                     await updateDoc(custRef, { address: custAddr, lastUpdated: new Date().toISOString() });
@@ -5898,19 +5911,27 @@ window.autoFillDocCustomer = (name) => {
             const custRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/customers`, phone);
 
             // ENTERPRISE FIX: Identity Theft / Overwrite Protection
+            let autoPin = null;
             if (!isEditMode) {
                 const checkSnap = await getDoc(custRef);
                 if (checkSnap.exists()) {
                     toggleLoader(false);
                     return showToast(`Customer ID ${phone} already exists! Please edit them instead.`, "error");
                 }
+                // 🛡️ Generate a random 4-digit PIN for NEW customers
+                autoPin = Math.floor(1000 + Math.random() * 9000).toString();
             }
 
             // Save or Update Customer Data
-            await setDoc(custRef, {
+            const custPayload = {
                 name, phone, whatsapp, email, address,
                 lastUpdated: new Date().toISOString()
-            }, { merge: true });
+            };
+            if (autoPin) custPayload.pin = autoPin; // Save PIN only when creating
+
+            await setDoc(custRef, custPayload, { merge: true });
+            
+            if (autoPin) alert(`Customer Saved! Their Login PIN is: ${autoPin}\n(Please inform the customer)`);
 
             document.getElementById('customerModal').style.display = 'none';
             
@@ -9533,9 +9554,36 @@ window.setQuickCash = (amount) => {
     // ==========================================
     window.loadCRM = async () => {
         const tbody = document.querySelector('#crmTable tbody');
+        const reqBody = document.querySelector('#onlineRequestsTable tbody');
         tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Loading Services...</td></tr>';
+        reqBody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Loading Requests...</td></tr>';
         
-        const monthFilter = document.getElementById('crmMonthFilter').value; // Format YYYY-MM
+        const monthFilter = document.getElementById('crmMonthFilter').value; 
+        
+        // 1. Load Customer Online Requests
+        try {
+            const qReq = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/service_requests`), orderBy('createdAt', 'desc'), limit(20));
+            const snapReq = await getDocs(qReq);
+            let reqHtml = '';
+            snapReq.forEach(d => {
+                const r = {id: d.id, ...d.data()};
+                const bg = r.status === 'pending' ? '#fee2e2' : '#dcfce7';
+                const col = r.status === 'pending' ? '#b91c1c' : '#15803d';
+                reqHtml += `
+                <tr>
+                    <td style="font-weight:bold;">${new Date(r.createdAt).toLocaleString()}</td>
+                    <td><b>${r.customerName}</b><br><span style="font-size:11px; color:#666;">${r.customerPhone}</span></td>
+                    <td style="max-width:200px; white-space:normal;">${r.issueDescription}</td>
+                    <td><span style="background:${bg}; color:${col}; padding:2px 6px; border-radius:4px; font-size:11px; font-weight:bold;">${r.status.toUpperCase()}</span></td>
+                    <td>
+                        ${r.status === 'pending' ? `<button class="btn btn-success" style="padding:4px 8px; font-size:11px;" onclick="markServiceRequestDone('${r.id}')">Mark Resolved</button>` : `<span style="font-size:11px; color:#666;">Completed</span>`}
+                    </td>
+                </tr>`;
+            });
+            reqBody.innerHTML = reqHtml || '<tr><td colspan="5" style="text-align:center; color:#666;">No online requests found.</td></tr>';
+        } catch(e) { console.error("Request Load Error", e); }
+
+        // 2. Load Normal CRM Reminders...
         
         try {
             const q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/alerts`), where("type", "==", "service_reminder"));
@@ -9627,6 +9675,16 @@ window.setQuickCash = (amount) => {
             console.error("CRM Load Error:", e);
             tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:red;">Error loading Service CRM data.</td></tr>';
         }
+    };
+window.markServiceRequestDone = async (id) => {
+        if(!confirm("Mark this customer request as Resolved?")) return;
+        toggleLoader(true);
+        try {
+            await updateDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/service_requests`, id), { status: 'resolved' });
+            await loadCRM();
+            showToast("Request marked as resolved!");
+        } catch(e) { showToast("Error", "error"); }
+        toggleLoader(false);
     };
 
     window.markServiceCRM = async (id, newStatus) => {
