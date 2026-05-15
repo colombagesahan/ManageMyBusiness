@@ -6758,7 +6758,6 @@ window.autoFillDocCustomer = (name) => {
     window.updateDashboard = async () => {
         document.getElementById('dashEmp').textContent = document.querySelectorAll('#empGrid .card').length;
         
-        // Asynchronously fetch accurate stock metrics without freezing UI
         (async () => {
             try {
                 const snap = await getDocs(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`));
@@ -6767,10 +6766,8 @@ window.autoFillDocCustomer = (name) => {
                 snap.forEach(d => {
                     const p = d.data();
                     if(p.qty > 0) {
-                        // MATH FIX: Prevent IEEE-754 precision loss during mass accumulation
                         const itemVal = (parseFloat(p.buy) || 0) * (parseFloat(p.qty) || 0);
                         stockVal = Math.round((stockVal + itemVal) * 100) / 100;
-                        
                         if(p.qty < 5) lowCount++;
                     }
                 });
@@ -6780,14 +6777,14 @@ window.autoFillDocCustomer = (name) => {
             } catch(e) { console.error("Dashboard metrics error", e); }
         })();
         
-        // ENTERPRISE FIX: True Server-Side Date Filtering for Dashboard Accuracy (Bypassing Caches)
         const filterType = document.getElementById('dashFilterType').value;
-        let totalRevenue = 0, totalProfit = 0, totalExpenses = 0, pendingCredit = 0;
+        // 🛡️ ENTERPRISE FIX: Moved totalCOGS to global scope to prevent ReferenceError crash
+        let totalRevenue = 0, totalProfit = 0, totalExpenses = 0, pendingCredit = 0, totalCOGS = 0; 
+        let otherIncomes = 0; // Track additional incomes
         const chartDataMap = {};
 
-        // Determine Date Boundaries
         let startIso = "", endIso = "";
-        const now = new Date();
+        const now = window.getSecureTime ? window.getSecureTime() : new Date(); // Secure Time Fallback
         if (filterType === 'daily') {
             const val = document.getElementById('dashDateInput').value;
             if(!val) return;
@@ -6809,27 +6806,22 @@ window.autoFillDocCustomer = (name) => {
             // Fetch Sales
             const qSales = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`), where("date", ">=", startIso), where("date", "<=", endIso));
             const snapSales = await getDocs(qSales);
-            
-            let totalCOGS = 0; // Total Cost of Goods Sold
 
             snapSales.forEach(d => {
                 const sale = d.data();
                 const saleDate = new Date(sale.date);
                 
-                totalRevenue += sale.total; // total already has discounts deducted and fees added
+                totalRevenue += sale.total; 
                 
                 if (sale.items) {
                     sale.items.forEach(item => {
-                        // MATH FIX: Calculate COGS instead of isolated profit
                         const itemCost = (parseFloat(item.buy) || 0) * (parseFloat(item.qty) || 1);
                         totalCOGS = Math.round((totalCOGS + itemCost) * 100) / 100; 
                     });
                 }
                 
-                // Unpaid debt tracking
                 if(sale.paymentMethod === 'Pay Later') pendingCredit += (sale.creditBalance || 0);
 
-                // Chart Grouping
                 let key = "";
                 if (filterType === 'daily') key = saleDate.getHours().toString().padStart(2, '0') + ":00";
                 else if (filterType === 'monthly') key = new Date(saleDate.getTime() - (saleDate.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
@@ -6844,8 +6836,6 @@ window.autoFillDocCustomer = (name) => {
             snapRef.forEach(d => {
                 const r = d.data();
                 totalRevenue -= r.amount; 
-                
-                // Deducting the refunded items' original cost from COGS
                 const refundedItemCost = (parseFloat(r.amount) - (parseFloat(r.profitReversal) || 0));
                 totalCOGS = Math.round((totalCOGS - refundedItemCost) * 100) / 100;
             });
@@ -6854,29 +6844,24 @@ window.autoFillDocCustomer = (name) => {
             const qExp = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`), where("date", ">=", startIso), where("date", "<=", endIso));
             const snapExp = await getDocs(qExp);
             
-            let otherIncomes = 0; // NEW: Track additional incomes
-            
             snapExp.forEach(d => {
                 const record = d.data();
                 if(record.isIncome) {
-                    // ENTERPRISE ACCOUNTING FIX: Do NOT count Debt Settlements as "Other Income"!
-                    // The original sale is already counted in Total Revenue. Adding it here inflates Net Profit by 2x.
                     const desc = record.description ? record.description.toLowerCase() : "";
                     if (!desc.includes('debt')) {
-                        otherIncomes += record.amount;
+                        otherIncomes += record.amount; // Add only non-debt incomes
                     }
                 } else {
-                    totalExpenses += record.amount;
+                    totalExpenses += record.amount; // Track expenses
                 }
             });
 
         } catch (error) { console.error("Dashboard Aggregation Error:", error); }
 
-        // MATH FIX: The Absolute Accounting Formula for Net Profit (Including Other Incomes)
+        // MATH FIX: The Absolute Accounting Formula for Net Profit
         totalProfit = Math.round((totalRevenue - totalCOGS) * 100) / 100;
         const netProfit = Math.round((totalProfit + otherIncomes - totalExpenses) * 100) / 100;
 
-        // UPDATE UI
         document.getElementById('dashSales').innerHTML = `${formatMoney(totalRevenue)} 
             ${pendingCredit > 0 ? `<span style="font-size:12px; color:#ef4444; display:block; font-weight:normal; margin-top:2px;">(Pending Credit: ${formatMoney(pendingCredit)})</span>` : ''}`;
             
@@ -6884,11 +6869,9 @@ window.autoFillDocCustomer = (name) => {
             <span style="font-size:11px; color:#15803d; display:block; font-weight:bold; margin-top:2px;">(Includes +${formatMoney(otherIncomes)} Other Income)</span>
             <span style="font-size:11px; color:#ef4444; display:block; font-weight:normal;">(After -${formatMoney(totalExpenses)} Expenses)</span>`;
         
-        // REAL CHART LOGIC
         if(window.myChart) window.myChart.destroy();
         const ctx = document.getElementById('salesChart');
         
-        // Prepare sorted labels and data
         const chartLabels = Object.keys(chartDataMap).sort();
         const chartValues = chartLabels.map(l => chartDataMap[l]);
 
