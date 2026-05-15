@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<!-- 🛡️ 250px දක්වා Responsive වීමට Mobile-First Viewport -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>My Account | Customer Portal</title>
+<link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+
+<style>
+/* --- ENTERPRISE MOBILE-FIRST CSS --- */
+:root { --primary: #4F46E5; --bg: #f3f4f6; --text: #1f2937; --card: #ffffff; }
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; -webkit-tap-highlight-color: transparent; }
+body { background: var(--bg); color: var(--text); padding-bottom: 70px; /* Space for bottom nav */ overflow-x: hidden; }
+
+/* Views */
+.view { display: none; padding: 15px; animation: fadeIn 0.3s ease; }
+.view.active { display: block; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Cards & Layouts */
+.card { background: var(--card); border-radius: 12px; padding: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 15px; border: 1px solid #e5e7eb; }
+.stat-box { background: #e0e7ff; padding: 15px; border-radius: 12px; border: 1px solid #c7d2fe; text-align: center; }
+.stat-box.danger { background: #fee2e2; border-color: #fca5a5; color: #b91c1c; }
+
+/* Grid for 250px screens */
+.product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; }
+.product-card { background: white; border-radius: 10px; padding: 10px; text-align: center; border: 1px solid #e5e7eb; display:flex; flex-direction:column; justify-content:space-between; }
+.product-img { width: 100%; height: 80px; object-fit: contain; margin-bottom: 5px; border-radius:6px; }
+
+/* Inputs & Buttons */
+input, textarea { width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; margin-bottom: 10px; font-size: 14px; outline: none; }
+input:focus, textarea:focus { border-color: var(--primary); }
+.btn { width: 100%; padding: 12px; border-radius: 8px; border: none; font-weight: 600; font-size: 14px; cursor: pointer; color: white; background: var(--primary); display:flex; align-items:center; justify-content:center; gap:5px; }
+.btn:active { transform: scale(0.98); }
+.btn-danger { background: #ef4444; }
+
+/* Bottom Navigation */
+.bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; height: 65px; display: flex; justify-content: space-around; align-items: center; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); border-top: 1px solid #e5e7eb; z-index: 1000; }
+.nav-item { display: flex; flex-direction: column; align-items: center; color: #9ca3af; font-size: 10px; font-weight: 600; cursor: pointer; flex: 1; transition:0.2s; }
+.nav-item i { font-size: 22px; margin-bottom: 2px; }
+.nav-item.active { color: var(--primary); }
+
+/* Loaders & Toasts */
+.loader { position: fixed; inset: 0; background: rgba(255,255,255,0.9); z-index: 9999; display: none; align-items: center; justify-content: center; flex-direction: column; }
+.spinner { width: 40px; height: 40px; border: 4px solid #e5e7eb; border-top: 4px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
+@keyframes spin { 100% { transform: rotate(360deg); } }
+.toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #111827; color: white; padding: 10px 20px; border-radius: 20px; font-size: 13px; z-index: 10000; display: none; white-space: nowrap; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+</style>
+</head>
+<body>
+
+<div class="toast" id="toastMsg">Message</div>
+<div class="loader" id="loader"><div class="spinner"></div><div style="margin-top:10px; font-weight:600;">Please wait...</div></div>
+
+<!-- LOGIN VIEW -->
+<div id="view-login" class="view active" style="height: 100vh; display: flex; flex-direction: column; justify-content: center; padding: 20px; background: white; z-index:2000; position:relative;">
+    <div style="text-align:center; margin-bottom:30px;">
+        <div style="width:70px; height:70px; background:#e0e7ff; color:var(--primary); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:35px; margin:0 auto 15px auto;">
+            <i class="ri-user-smile-line"></i>
+        </div>
+        <h2 style="color:var(--primary);">Customer Portal</h2>
+        <p style="color:#666; font-size:13px; margin-top:5px;">Login to view your bills, debts & requests</p>
+    </div>
+    <div class="card" style="border:none; box-shadow:none; padding:0;">
+        <label style="font-size:12px; font-weight:600; color:#4b5563;">Mobile Number</label>
+        <input type="number" id="loginPhone" placeholder="e.g. 0771234567" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+        
+        <label style="font-size:12px; font-weight:600; color:#4b5563; margin-top:5px;">4-Digit Security PIN</label>
+        <input type="password" id="loginPin" placeholder="Enter PIN" maxlength="4">
+        
+        <button class="btn" onclick="attemptLogin()" style="margin-top:15px; padding:15px;"><i class="ri-login-circle-line"></i> Secure Login</button>
+    </div>
+</div>
+
+<!-- DASHBOARD VIEW -->
+<div id="view-dashboard" class="view">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+        <div>
+            <div style="font-size:12px; color:#666;">Welcome back,</div>
+            <div style="font-size:18px; font-weight:800; color:var(--primary);" id="custNameDisplay">Loading...</div>
+        </div>
+        <div style="background:#e0e7ff; padding:8px; border-radius:50%; color:var(--primary);"><i class="ri-notification-3-line"></i></div>
+    </div>
+
+    <!-- Debt Summary -->
+    <div class="stat-box danger" id="debtBox">
+        <div style="font-size:12px; font-weight:600; margin-bottom:5px;">Total Outstanding Debt</div>
+        <div style="font-size:28px; font-weight:900;" id="totalDebtDisplay">Rs 0.00</div>
+        <div style="font-size:11px; margin-top:5px;">Please settle at the store to avoid interruptions.</div>
+    </div>
+
+    <!-- Service Reminders -->
+    <h4 style="margin:20px 0 10px 0; font-size:15px;"><i class="ri-calendar-event-line"></i> Upcoming Services</h4>
+    <div id="remindersList"></div>
+
+    <!-- Recent Bills -->
+    <h4 style="margin:20px 0 10px 0; font-size:15px;"><i class="ri-file-list-3-line"></i> My Recent Bills</h4>
+    <div id="billsList"></div>
+</div>
+
+<!-- STORE CATALOG VIEW -->
+<div id="view-store" class="view">
+    <h3 style="margin-bottom:15px;"><i class="ri-store-2-line"></i> Store Catalog</h3>
+    <input type="text" id="searchStore" placeholder="Search products..." onkeyup="renderCatalog()" style="background:white;">
+    <div class="product-grid" id="catalogGrid"></div>
+</div>
+
+<!-- SERVICE REQUEST VIEW -->
+<div id="view-request" class="view">
+    <h3 style="margin-bottom:15px;"><i class="ri-tools-line"></i> Request a Service</h3>
+    <div class="card">
+        <p style="font-size:12px; color:#666; margin-bottom:15px;">Need an AC repair, installation, or maintenance? Send a request directly to our team.</p>
+        
+        <label style="font-size:12px; font-weight:600;">Describe the issue or service needed *</label>
+        <textarea id="reqDesc" rows="4" placeholder="e.g. My living room AC is not cooling properly..."></textarea>
+        
+        <button class="btn" onclick="submitServiceRequest()"><i class="ri-send-plane-fill"></i> Send Request</button>
+    </div>
+
+    <h4 style="margin:20px 0 10px 0; font-size:15px;">My Previous Requests</h4>
+    <div id="myRequestsList"></div>
+</div>
+
+<!-- SETTINGS VIEW -->
+<div id="view-settings" class="view">
+    <h3 style="margin-bottom:15px;"><i class="ri-settings-4-line"></i> Account Settings</h3>
+    <div class="card">
+        <h4 style="font-size:14px; margin-bottom:10px;">Change Security PIN</h4>
+        <input type="password" id="newPin1" placeholder="New 4-Digit PIN" maxlength="4">
+        <input type="password" id="newPin2" placeholder="Confirm New PIN" maxlength="4">
+        <button class="btn" onclick="changePin()">Update PIN</button>
+    </div>
+    <button class="btn btn-danger" onclick="logoutCustomer()" style="margin-top:20px;"><i class="ri-logout-box-line"></i> Logout Securely</button>
+</div>
+
+<!-- BOTTOM NAVIGATION -->
+<div class="bottom-nav" id="bottomNav" style="display:none;">
+    <div class="nav-item active" onclick="switchTab('dashboard', this)"><i class="ri-home-5-line"></i><span>Home</span></div>
+    <div class="nav-item" onclick="switchTab('store', this)"><i class="ri-store-2-line"></i><span>Store</span></div>
+    <div class="nav-item" onclick="switchTab('request', this)"><i class="ri-tools-line"></i><span>Request</span></div>
+    <div class="nav-item" onclick="switchTab('settings', this)"><i class="ri-user-settings-line"></i><span>Settings</span></div>
+</div>
+
+<!-- LOGIC -->
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+    import { getFirestore, doc, getDoc, collection, query, where, getDocs, orderBy, limit, addDoc, updateDoc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+    // 🔴 🔴 🔴 IMPORTANT: FILL THESE WITH YOUR REAL CREDENTIALS 🔴 🔴 🔴
+    const firebaseConfig = {
+        apiKey: "AIzaSyCZrmkX2RsJTbn4j-WmbuCMudWaETMvXwQ",
+        authDomain: "managemybusiness-b4afb.firebaseapp.com",
+        projectId: "managemybusiness-b4afb",
+        storageBucket: "managemybusiness-b4afb.firebasestorage.app",
+        messagingSenderId: "237936848306",
+        appId: "1:237936848306:web:91a996c3d1d3ceda3b48ab"
+    };
+
+    // Replace these with your actual IDs from your database
+    const OWNER_ID = "YOUR_ADMIN_UID_HERE"; 
+    const SHOP_ID = "YOUR_SHOP_ID_HERE";
+    // 🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴 🔴
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    let loggedInCustomer = null;
+    let catalogCache = [];
+
+    // --- UI Utilities ---
+    const showToast = (msg) => {
+        const t = document.getElementById('toastMsg');
+        t.textContent = msg; t.style.display = 'block';
+        setTimeout(() => t.style.display = 'none', 3000);
+    };
+    const toggleLoader = (show) => document.getElementById('loader').style.display = show ? 'flex' : 'none';
+
+    window.switchTab = (tabId, element) => {
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        document.getElementById(`view-${tabId}`).classList.add('active');
+        element.classList.add('active');
+
+        if(tabId === 'store' && catalogCache.length === 0) loadCatalog();
+        if(tabId === 'request') loadMyRequests();
+    };
+
+    const formatMoney = (a) => `Rs ${(Number(a)||0).toFixed(2)}`;
+
+    // --- Authentication ---
+    window.attemptLogin = async () => {
+        const phone = document.getElementById('loginPhone').value.trim();
+        const pin = document.getElementById('loginPin').value.trim();
+        if(!phone || !pin) return showToast("Phone and PIN required");
+
+        toggleLoader(true);
+        try {
+            const custRef = doc(db, `users/${OWNER_ID}/shops/${SHOP_ID}/customers`, phone);
+            const snap = await getDoc(custRef);
+            
+            if (snap.exists() && snap.data().pin === pin) {
+                loggedInCustomer = { id: snap.id, ...snap.data() };
+                document.getElementById('view-login').style.display = 'none';
+                document.getElementById('view-dashboard').classList.add('active');
+                document.getElementById('bottomNav').style.display = 'flex';
+                
+                document.getElementById('custNameDisplay').textContent = loggedInCustomer.name;
+                
+                // Initialize Dashboard Data
+                loadDashboardData();
+            } else {
+                showToast("Invalid Phone Number or PIN");
+            }
+        } catch (e) {
+            console.error(e);
+            showToast("Connection Error. Ensure Owner ID & Shop ID are correct.");
+        }
+        toggleLoader(false);
+    };
+
+    window.logoutCustomer = () => {
+        if(!confirm("Log out from your account?")) return;
+        loggedInCustomer = null;
+        document.getElementById('view-login').style.display = 'flex';
+        document.getElementById('bottomNav').style.display = 'none';
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+        document.getElementById('loginPin').value = '';
+    };
+
+    // --- Dashboard Data ---
+    async function loadDashboardData() {
+        toggleLoader(true);
+        const phone = loggedInCustomer.id;
+        
+        try {
+            // 1. Calculate Debt
+            let totalDebt = 0;
+            const qSales = query(collection(db, `users/${OWNER_ID}/shops/${SHOP_ID}/sales`), where("customer.phone", "==", phone), orderBy("date", "desc"), limit(10));
+            const snapSales = await getDocs(qSales);
+            
+            let billsHtml = '';
+            snapSales.forEach(d => {
+                const s = d.data();
+                if(s.creditBalance && s.creditBalance > 0) totalDebt += s.creditBalance;
+                
+                const isPaid = s.paymentMethod !== 'Pay Later' || (s.creditBalance <= 0);
+                const badge = isPaid ? `<span style="color:#15803d; background:#dcfce7; padding:2px 6px; border-radius:4px; font-size:10px;">PAID</span>` : `<span style="color:#b91c1c; background:#fee2e2; padding:2px 6px; border-radius:4px; font-size:10px;">CREDIT</span>`;
+                
+                billsHtml += `
+                <div class="card" style="padding:12px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <div style="font-weight:700; font-size:14px;">${formatMoney(s.total)}</div>
+                        <div style="font-size:11px; color:#666; margin-top:2px;">${new Date(s.date).toLocaleDateString()} | ${s.items.length} items</div>
+                    </div>
+                    ${badge}
+                </div>`;
+            });
+            
+            document.getElementById('totalDebtDisplay').textContent = formatMoney(totalDebt);
+            document.getElementById('billsList').innerHTML = billsHtml || '<div style="font-size:12px; color:#999; text-align:center;">No recent purchases.</div>';
+            
+            if(totalDebt <= 0) {
+                document.getElementById('debtBox').className = 'stat-box';
+                document.getElementById('debtBox').style.background = '#dcfce7';
+                document.getElementById('debtBox').style.borderColor = '#86efac';
+                document.getElementById('totalDebtDisplay').style.color = '#15803d';
+            }
+
+            // 2. Load Service Reminders
+            const qAlerts = query(collection(db, `users/${OWNER_ID}/shops/${SHOP_ID}/alerts`), where("refId", "==", phone), where("status", "==", "active"));
+            const snapAlerts = await getDocs(qAlerts);
+            let remHtml = '';
+            snapAlerts.forEach(d => {
+                const a = d.data();
+                remHtml += `
+                <div style="background:#fffbeb; border-left:3px solid #f59e0b; padding:10px; border-radius:4px 8px 8px 4px; margin-bottom:10px;">
+                    <div style="font-size:11px; color:#d97706; font-weight:bold;">Scheduled: ${new Date(a.targetDate).toLocaleDateString()}</div>
+                    <div style="font-size:13px; font-weight:600; margin-top:2px;">${a.message}</div>
+                </div>`;
+            });
+            document.getElementById('remindersList').innerHTML = remHtml || '<div style="font-size:12px; color:#999; text-align:center;">No upcoming services.</div>';
+
+        } catch (e) { console.error(e); }
+        toggleLoader(false);
+    }
+
+    // --- Store Catalog (View Only) ---
+    async function loadCatalog() {
+        toggleLoader(true);
+        try {
+            // 🛡️ SECURITY: Customers only see names and selling prices, no quantities or buy prices
+            const q = query(collection(db, `users/${OWNER_ID}/shops/${SHOP_ID}/products`), limit(100));
+            const snap = await getDocs(q);
+            
+            let uniqueProds = {};
+            snap.forEach(d => {
+                const p = d.data();
+                const key = p.name;
+                if(!uniqueProds[key]) uniqueProds[key] = { name: p.name, image: p.image, price: p.sell, inStock: false };
+                if(p.qty > 0) uniqueProds[key].inStock = true;
+            });
+            catalogCache = Object.values(uniqueProds);
+            window.renderCatalog();
+        } catch (e) { console.error(e); }
+        toggleLoader(false);
+    }
+
+    window.renderCatalog = () => {
+        const term = document.getElementById('searchStore').value.toLowerCase();
+        const grid = document.getElementById('catalogGrid');
+        
+        const filtered = catalogCache.filter(p => p.name.toLowerCase().includes(term));
+        if(filtered.length === 0) return grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding:20px; font-size:12px; color:#999;">No items found.</div>';
+        
+        grid.innerHTML = filtered.map(p => {
+            const img = p.image ? `<img src="${p.image}" class="product-img">` : `<div class="product-img" style="background:#f3f4f6; display:flex; align-items:center; justify-content:center; color:#9ca3af;"><i class="ri-image-line" style="font-size:24px;"></i></div>`;
+            const stockBadge = p.inStock 
+                ? `<div style="font-size:10px; color:#15803d; font-weight:bold; margin-top:5px;">IN STOCK</div>`
+                : `<div style="font-size:10px; color:#ef4444; font-weight:bold; margin-top:5px;">OUT OF STOCK</div>`;
+                
+            return `
+            <div class="product-card">
+                <div>
+                    ${img}
+                    <div style="font-size:12px; font-weight:700; line-height:1.2;">${p.name}</div>
+                </div>
+                <div>
+                    <div style="font-size:14px; color:var(--primary); font-weight:800; margin-top:5px;">${formatMoney(p.price)}</div>
+                    ${stockBadge}
+                </div>
+            </div>`;
+        }).join('');
+    };
+
+    // --- Service Requests ---
+    window.submitServiceRequest = async () => {
+        const desc = document.getElementById('reqDesc').value.trim();
+        if(!desc) return showToast("Please describe the issue.");
+        
+        toggleLoader(true);
+        try {
+            await addDoc(collection(db, `users/${OWNER_ID}/shops/${SHOP_ID}/service_requests`), {
+                customerId: loggedInCustomer.id,
+                customerName: loggedInCustomer.name,
+                customerPhone: loggedInCustomer.id,
+                issueDescription: desc,
+                status: 'pending',
+                createdAt: new Date().toISOString()
+            });
+            document.getElementById('reqDesc').value = '';
+            showToast("Request Sent Successfully!");
+            loadMyRequests();
+        } catch(e) { showToast("Error sending request"); }
+        toggleLoader(false);
+    };
+
+    async function loadMyRequests() {
+        const list = document.getElementById('myRequestsList');
+        list.innerHTML = '<div style="text-align:center; font-size:12px; color:#666;">Loading...</div>';
+        
+        try {
+            const q = query(collection(db, `users/${OWNER_ID}/shops/${SHOP_ID}/service_requests`), where("customerId", "==", loggedInCustomer.id), orderBy("createdAt", "desc"), limit(10));
+            const snap = await getDocs(q);
+            let html = '';
+            snap.forEach(d => {
+                const r = d.data();
+                const bg = r.status === 'pending' ? '#fee2e2' : '#dcfce7';
+                const col = r.status === 'pending' ? '#b91c1c' : '#15803d';
+                html += `
+                <div class="card" style="padding:10px; font-size:12px;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                        <span style="font-weight:bold; color:#666;">${new Date(r.createdAt).toLocaleDateString()}</span>
+                        <span style="background:${bg}; color:${col}; padding:2px 6px; border-radius:4px; font-weight:bold; font-size:10px;">${r.status.toUpperCase()}</span>
+                    </div>
+                    <div style="font-size:13px; font-weight:500;">${r.issueDescription}</div>
+                </div>`;
+            });
+            list.innerHTML = html || '<div style="font-size:12px; color:#999; text-align:center;">No previous requests.</div>';
+        } catch(e) { console.error(e); list.innerHTML = 'Error loading requests.'; }
+    }
+
+    // --- Settings (Change PIN) ---
+    window.changePin = async () => {
+        const p1 = document.getElementById('newPin1').value;
+        const p2 = document.getElementById('newPin2').value;
+        
+        if(!p1 || p1.length !== 4) return showToast("PIN must be exactly 4 digits");
+        if(p1 !== p2) return showToast("PINs do not match");
+        
+        toggleLoader(true);
+        try {
+            await updateDoc(doc(db, `users/${OWNER_ID}/shops/${SHOP_ID}/customers`, loggedInCustomer.id), { pin: p1 });
+            loggedInCustomer.pin = p1;
+            document.getElementById('newPin1').value = '';
+            document.getElementById('newPin2').value = '';
+            showToast("PIN Updated Successfully!");
+        } catch(e) { showToast("Error updating PIN"); }
+        toggleLoader(false);
+    };
+
+</script>
+</body>
+</html>
