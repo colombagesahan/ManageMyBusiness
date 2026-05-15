@@ -1656,13 +1656,15 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 <!-- SERVICE REQUEST REPLY MODAL -->
 <div id="replyRequestModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:4600;">
     <div class="card" style="width:400px; margin:0; border-top:5px solid var(--primary);">
-        <h3 style="color:var(--primary);"><i class="ri-reply-fill"></i> Reply to Customer</h3>
+        <h3 style="color:var(--primary);"><i class="ri-reply-fill"></i> Manage Request</h3>
         <input type="hidden" id="replyReqId">
-        <p style="font-size:12px; color:#666; margin-bottom:10px;">Type your response. This will mark the request as resolved and the customer will see this message in their portal.</p>
-        <textarea id="replyReqText" rows="4" placeholder="e.g. We will send a technician tomorrow at 10 AM..."></textarea>
-        <div style="display:flex; gap:10px; margin-top:15px;">
-            <button class="btn btn-primary" style="flex:1;" onclick="submitRequestReply()"><i class="ri-send-plane-fill"></i> Send Reply & Resolve</button>
-            <button class="btn btn-ghost" onclick="closeModal('replyRequestModal')">Cancel</button>
+        <p style="font-size:12px; color:#666; margin-bottom:10px;">Send a message to the customer, OR mark the job as completely finished.</p>
+        <textarea id="replyReqText" rows="4" placeholder="Type your response here..."></textarea>
+        
+        <div style="display:flex; flex-direction:column; gap:10px; margin-top:15px;">
+            <button class="btn btn-primary" style="justify-content:center;" onclick="submitRequestReply('replied')"><i class="ri-send-plane-fill"></i> Send Reply (Keep In-Progress)</button>
+            <button class="btn btn-success" style="justify-content:center;" onclick="submitRequestReply('resolved')"><i class="ri-check-double-line"></i> Mark as Completely Resolved</button>
+            <button class="btn btn-ghost" style="justify-content:center;" onclick="closeModal('replyRequestModal')">Cancel</button>
         </div>
     </div>
 </div>
@@ -9603,10 +9605,13 @@ window.setQuickCash = (amount) => {
             let reqHtml = '';
             snapReq.forEach(d => {
                 const r = {id: d.id, ...d.data()};
-                const bg = r.status === 'pending' ? '#fee2e2' : '#dcfce7';
-                const col = r.status === 'pending' ? '#b91c1c' : '#15803d';
                 
-                // Reply එකක් තිබේ නම් එය ද Table එකේ පෙන්වීම සඳහා
+                // Status 3 සඳහා වර්ණ ලබා දීම
+                let bg, col, statusText;
+                if(r.status === 'pending') { bg = '#fee2e2'; col = '#b91c1c'; statusText = 'PENDING'; }
+                else if(r.status === 'replied') { bg = '#fef3c7'; col = '#d97706'; statusText = 'IN PROGRESS'; }
+                else { bg = '#dcfce7'; col = '#15803d'; statusText = 'RESOLVED'; }
+                
                 const adminReplyText = r.adminReply ? `<div style="margin-top:8px; padding:6px; background:#f0fdf4; border-left:3px solid #16a34a; font-size:11px; color:#166534;"><i class="ri-reply-fill"></i> <b>Reply:</b> ${r.adminReply}</div>` : '';
 
                 reqHtml += `
@@ -9617,11 +9622,11 @@ window.setQuickCash = (amount) => {
                         <div style="font-size:13px;">${r.issueDescription}</div>
                         ${adminReplyText}
                     </td>
-                    <td><span style="background:${bg}; color:${col}; padding:2px 6px; border-radius:4px; font-size:11px; font-weight:bold;">${r.status.toUpperCase()}</span></td>
+                    <td><span style="background:${bg}; color:${col}; padding:2px 6px; border-radius:4px; font-size:11px; font-weight:bold;">${statusText}</span></td>
                     <td>
-                        ${r.status === 'pending' 
-                            ? `<button class="btn btn-primary" style="padding:4px 8px; font-size:11px;" onclick="openReplyModal('${r.id}')"><i class="ri-reply-fill"></i> Reply / Resolve</button>` 
-                            : `<button class="btn btn-ghost" style="padding:4px 8px; font-size:11px;" disabled><i class="ri-check-double-line"></i> Resolved</button>`}
+                        ${r.status !== 'resolved' 
+                            ? `<button class="btn btn-primary" style="padding:4px 8px; font-size:11px;" onclick="openReplyModal('${r.id}')"><i class="ri-chat-3-line"></i> Manage</button>` 
+                            : `<button class="btn btn-ghost" style="padding:4px 8px; font-size:11px;" disabled><i class="ri-check-double-line"></i> Done</button>`}
                     </td>
                 </tr>`;
             });
@@ -9728,25 +9733,31 @@ window.setQuickCash = (amount) => {
         openModal('replyRequestModal');
     };
 
-    window.submitRequestReply = async () => {
+    window.submitRequestReply = async (actionType) => {
         const id = document.getElementById('replyReqId').value;
         const text = document.getElementById('replyReqText').value.trim();
         
-        if(!text) return showToast("Please type a reply message", "error");
+        // Resolve කරනවා නම් Text එක අනිවාර්ය නැත, නමුත් Reply කරනවා නම් අනිවාර්යයි.
+        if(actionType === 'replied' && !text) return showToast("Please type a reply message", "error");
         
         toggleLoader(true);
         try {
-            await updateDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/service_requests`, id), { 
-                status: 'resolved',
-                adminReply: text,
-                repliedAt: new Date().toISOString()
-            });
+            const updateData = { status: actionType };
+            if(text) {
+                updateData.adminReply = text;
+                updateData.repliedAt = new Date().toISOString();
+            }
+            
+            await updateDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/service_requests`, id), updateData);
             closeModal('replyRequestModal');
             await loadCRM();
-            showToast("Reply sent to customer!");
+            
+            if(actionType === 'resolved') showToast("Request marked as completely resolved!");
+            else showToast("Reply sent. Status updated to In-Progress!");
+            
         } catch(e) { 
             console.error(e);
-            showToast("Error sending reply", "error"); 
+            showToast("Error updating request", "error"); 
         }
         toggleLoader(false);
     };
