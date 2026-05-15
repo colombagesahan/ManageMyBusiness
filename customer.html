@@ -198,20 +198,39 @@ input:focus, textarea:focus { border-color: var(--primary); }
         toggleLoader(true);
         try {
             // 🛡️ ENTERPRISE OMNI-BRANCH ROUTING: Fetch all branches for this company
-            const shopsSnap = await getDocs(collection(db, `users/${OWNER_ID}/shops`));
+            let shopsSnap;
+            try {
+                shopsSnap = await getDocs(collection(db, `users/${OWNER_ID}/shops`));
+            } catch (err) {
+                console.error("Firebase Rules Error:", err);
+                showToast("Permission Denied: Please update Firebase Firestore Rules.");
+                toggleLoader(false);
+                return;
+            }
+
             let found = false;
 
             // Search through every branch to find where this customer belongs
             for (let shopDoc of shopsSnap.docs) {
                 const tempShopId = shopDoc.id;
                 const custRef = doc(db, `users/${OWNER_ID}/shops/${tempShopId}/customers`, phone);
-                const custSnap = await getDoc(custRef);
-
-                if (custSnap.exists() && custSnap.data().pin === pin) {
-                    loggedInCustomer = { id: custSnap.id, ...custSnap.data() };
-                    activeShopId = tempShopId; // Lock the user to this specific branch dynamically!
-                    found = true;
-                    break; // Stop searching once found
+                
+                try {
+                    const custSnap = await getDoc(custRef);
+                    
+                    if (custSnap.exists()) {
+                        const custData = custSnap.data();
+                        
+                        // Type-Safe PIN Comparison (Database එකේ PIN එක Number එකක් වුවද String එකක් වුවද ගැටලුවක් නොවේ)
+                        if (String(custData.pin) === String(pin)) {
+                            loggedInCustomer = { id: custSnap.id, ...custData };
+                            activeShopId = tempShopId; // Lock the user to this specific branch dynamically!
+                            found = true;
+                            break; // Stop searching once found
+                        }
+                    }
+                } catch (err) {
+                    console.warn(`Could not read customers for shop ${tempShopId}`, err);
                 }
             }
             
