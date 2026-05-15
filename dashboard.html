@@ -1653,6 +1653,20 @@ body.pos-fullscreen-mode #view-pos > div > .card {
     </div>
 </div>
 
+<!-- SERVICE REQUEST REPLY MODAL -->
+<div id="replyRequestModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:4600;">
+    <div class="card" style="width:400px; margin:0; border-top:5px solid var(--primary);">
+        <h3 style="color:var(--primary);"><i class="ri-reply-fill"></i> Reply to Customer</h3>
+        <input type="hidden" id="replyReqId">
+        <p style="font-size:12px; color:#666; margin-bottom:10px;">Type your response. This will mark the request as resolved and the customer will see this message in their portal.</p>
+        <textarea id="replyReqText" rows="4" placeholder="e.g. We will send a technician tomorrow at 10 AM..."></textarea>
+        <div style="display:flex; gap:10px; margin-top:15px;">
+            <button class="btn btn-primary" style="flex:1;" onclick="submitRequestReply()"><i class="ri-send-plane-fill"></i> Send Reply & Resolve</button>
+            <button class="btn btn-ghost" onclick="closeModal('replyRequestModal')">Cancel</button>
+        </div>
+    </div>
+</div>
+
 <!-- NEW: SUPPLIER MODAL -->
 <div id="supplierModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:2000;">
     <div class="card" style="width:400px; margin:0;">
@@ -9591,14 +9605,23 @@ window.setQuickCash = (amount) => {
                 const r = {id: d.id, ...d.data()};
                 const bg = r.status === 'pending' ? '#fee2e2' : '#dcfce7';
                 const col = r.status === 'pending' ? '#b91c1c' : '#15803d';
+                
+                // Reply එකක් තිබේ නම් එය ද Table එකේ පෙන්වීම සඳහා
+                const adminReplyText = r.adminReply ? `<div style="margin-top:8px; padding:6px; background:#f0fdf4; border-left:3px solid #16a34a; font-size:11px; color:#166534;"><i class="ri-reply-fill"></i> <b>Reply:</b> ${r.adminReply}</div>` : '';
+
                 reqHtml += `
                 <tr>
                     <td style="font-weight:bold;">${new Date(r.createdAt).toLocaleString()}</td>
                     <td><b>${r.customerName}</b><br><span style="font-size:11px; color:#666;">${r.customerPhone}</span></td>
-                    <td style="max-width:200px; white-space:normal;">${r.issueDescription}</td>
+                    <td style="max-width:250px; white-space:normal;">
+                        <div style="font-size:13px;">${r.issueDescription}</div>
+                        ${adminReplyText}
+                    </td>
                     <td><span style="background:${bg}; color:${col}; padding:2px 6px; border-radius:4px; font-size:11px; font-weight:bold;">${r.status.toUpperCase()}</span></td>
                     <td>
-                        ${r.status === 'pending' ? `<button class="btn btn-success" style="padding:4px 8px; font-size:11px;" onclick="markServiceRequestDone('${r.id}')">Mark Resolved</button>` : `<span style="font-size:11px; color:#666;">Completed</span>`}
+                        ${r.status === 'pending' 
+                            ? `<button class="btn btn-primary" style="padding:4px 8px; font-size:11px;" onclick="openReplyModal('${r.id}')"><i class="ri-reply-fill"></i> Reply / Resolve</button>` 
+                            : `<button class="btn btn-ghost" style="padding:4px 8px; font-size:11px;" disabled><i class="ri-check-double-line"></i> Resolved</button>`}
                     </td>
                 </tr>`;
             });
@@ -9698,14 +9721,33 @@ window.setQuickCash = (amount) => {
             tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:red;">Error loading Service CRM data.</td></tr>';
         }
     };
-window.markServiceRequestDone = async (id) => {
-        if(!confirm("Mark this customer request as Resolved?")) return;
+// අලුතින් එකතු කරන ලද Reply Functions දෙක
+    window.openReplyModal = (id) => {
+        document.getElementById('replyReqId').value = id;
+        document.getElementById('replyReqText').value = '';
+        openModal('replyRequestModal');
+    };
+
+    window.submitRequestReply = async () => {
+        const id = document.getElementById('replyReqId').value;
+        const text = document.getElementById('replyReqText').value.trim();
+        
+        if(!text) return showToast("Please type a reply message", "error");
+        
         toggleLoader(true);
         try {
-            await updateDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/service_requests`, id), { status: 'resolved' });
+            await updateDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/service_requests`, id), { 
+                status: 'resolved',
+                adminReply: text,
+                repliedAt: new Date().toISOString()
+            });
+            closeModal('replyRequestModal');
             await loadCRM();
-            showToast("Request marked as resolved!");
-        } catch(e) { showToast("Error", "error"); }
+            showToast("Reply sent to customer!");
+        } catch(e) { 
+            console.error(e);
+            showToast("Error sending reply", "error"); 
+        }
         toggleLoader(false);
     };
 
