@@ -430,13 +430,16 @@ input:focus, textarea:focus { border-color: var(--primary); }
             let html = '';
             snap.forEach(d => {
                 const r = d.data();
-                const bg = r.status === 'pending' ? '#fee2e2' : '#dcfce7';
-                const col = r.status === 'pending' ? '#b91c1c' : '#15803d';
                 
-                // Manager ගෙන් Reply එකක් ඇත්නම් එය වෙනම කොටුවක අලංකාරව පෙන්වීම
+                // Status 3 සඳහා වර්ණ
+                let bg, col, statusText;
+                if(r.status === 'pending') { bg = '#fee2e2'; col = '#b91c1c'; statusText = 'PENDING'; }
+                else if(r.status === 'replied') { bg = '#fef3c7'; col = '#d97706'; statusText = 'IN PROGRESS'; }
+                else { bg = '#dcfce7'; col = '#15803d'; statusText = 'RESOLVED'; }
+                
                 const replyHtml = r.adminReply ? `
                     <div style="margin-top:12px; padding:10px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px;">
-                        <div style="font-size:10px; color:#16a34a; font-weight:bold; margin-bottom:3px;"><i class="ri-customer-service-2-fill"></i> MANAGER REPLY</div>
+                        <div style="font-size:10px; color:#16a34a; font-weight:bold; margin-bottom:3px;"><i class="ri-customer-service-2-fill"></i> MANAGER UPDATE</div>
                         <div style="font-size:12px; color:#166534; font-weight:600;">${r.adminReply}</div>
                     </div>
                 ` : '';
@@ -445,7 +448,7 @@ input:focus, textarea:focus { border-color: var(--primary); }
                 <div class="card" style="padding:12px; font-size:12px;">
                     <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
                         <span style="font-weight:bold; color:#666;">${new Date(r.createdAt).toLocaleDateString()}</span>
-                        <span style="background:${bg}; color:${col}; padding:2px 6px; border-radius:4px; font-weight:bold; font-size:10px;">${r.status.toUpperCase()}</span>
+                        <span style="background:${bg}; color:${col}; padding:2px 6px; border-radius:4px; font-weight:bold; font-size:10px;">${statusText}</span>
                     </div>
                     <div style="font-size:13px; font-weight:500; color:#1f2937;">${r.issueDescription}</div>
                     ${replyHtml}
