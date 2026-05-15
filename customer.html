@@ -267,18 +267,27 @@ input:focus, textarea:focus { border-color: var(--primary); }
         const phone = loggedInCustomer.id;
         
         try {
-            // 1. Calculate Debt (using dynamic activeShopId)
+            // 1. Calculate EXACT Total Debt (Enterprise Fix: Bypasses the 10-bill limit to find very old unpaid debts)
             let totalDebt = 0;
+            const qDebt = query(collection(db, `users/${OWNER_ID}/shops/${activeShopId}/sales`), where("customer.phone", "==", phone), where("creditBalance", ">", 0));
+            const snapDebt = await getDocs(qDebt);
+            snapDebt.forEach(d => {
+                totalDebt += (d.data().creditBalance || 0);
+            });
+
+            // 2. Fetch Recent 10 Bills for the History UI
             const qSales = query(collection(db, `users/${OWNER_ID}/shops/${activeShopId}/sales`), where("customer.phone", "==", phone), orderBy("date", "desc"), limit(10));
             const snapSales = await getDocs(qSales);
             
             let billsHtml = '';
             snapSales.forEach(d => {
                 const s = d.data();
-                if(s.creditBalance && s.creditBalance > 0) totalDebt += s.creditBalance;
                 
+                // Determine if this specific bill is fully paid or still has credit
                 const isPaid = s.paymentMethod !== 'Pay Later' || (s.creditBalance <= 0);
-                const badge = isPaid ? `<span style="color:#15803d; background:#dcfce7; padding:2px 6px; border-radius:4px; font-size:10px;">PAID</span>` : `<span style="color:#b91c1c; background:#fee2e2; padding:2px 6px; border-radius:4px; font-size:10px;">CREDIT</span>`;
+                const badge = isPaid 
+                    ? `<span style="color:#15803d; background:#dcfce7; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold;">PAID</span>` 
+                    : `<span style="color:#b91c1c; background:#fee2e2; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold;">CREDIT (${formatMoney(s.creditBalance)})</span>`;
                 
                 billsHtml += `
                 <div class="card" style="padding:12px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
