@@ -4517,11 +4517,16 @@ window.checkout = async () => {
                 }
             }
 
+            // 🛡️ ENTERPRISE FIX: Attach the securely generated PIN to the sale data so it prints ONLY on this first bill
+            if (generatedPinForBill) {
+                saleData.initialPin = generatedPinForBill;
+            }
+
             // Generate Bill
             generateInvoicePDF({...saleData, id: saleData.customOrderId}); // Use custom ID for PDF
 
             // UPDATE CACHE FOR DASHBOARD
-            salesCache.unshift(saleData); 
+            salesCache.unshift(saleData);
             cart = []; 
             currentOtherFees = [];
             
@@ -5054,7 +5059,10 @@ window.autoFillDocCustomer = (name) => {
             custY += (custAddrLines.length * 4.5);
         }
         if(docData.customer && docData.customer.phone && docData.customer.phone !== "N/A") {
-            doc.text(`Tel: ${docData.customer.phone}`, margin, custY);
+            // 🛡️ ENTERPRISE FIX: Mask phone number for security in A4 prints
+            const cp = String(docData.customer.phone);
+            const maskedPhone = cp.length >= 9 ? cp.slice(0, 3) + ' **** ' + cp.slice(-3) : cp;
+            doc.text(`Tel: ${maskedPhone}`, margin, custY);
         }
 
         // --- 2. META DATA STRIP ---
@@ -5218,6 +5226,17 @@ window.autoFillDocCustomer = (name) => {
             // Print the terms (split to handle long lines securely)
             const splitTerms = doc.splitTextToSize(termsText, 100);
             doc.text(splitTerms, margin, footerLeftY);
+        }
+
+        // 🛡️ ENTERPRISE FIX: Print initial PIN securely at the bottom of the A4 document (One-Time Print)
+        if (docData.initialPin) {
+            let pinY = pageHeight - 15; // Set it near the bottom margin
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(10);
+            doc.text(`Customer Portal PIN: ${docData.initialPin}`, margin, pinY);
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(8);
+            doc.text(`(For security, please change this PIN after your first login)`, margin, pinY + 4);
         }
 
         // ENTERPRISE FIX: Pop-up Blocker Bypass for A4 POS Receipts & Documents
@@ -6282,6 +6301,18 @@ window.autoFillDocCustomer = (name) => {
         const orderId = order.customOrderId || order.id.substring(0,8);
         const cashierName = currentUser ? (currentUser.email.split('@')[0]) : "Cashier";
 
+        // 🛡️ ENTERPRISE FIX: Phone Number Masking (e.g., 077 **** 567)
+        let customerDisplay = "";
+        if (order.customer && order.customer.name !== "Walk-in Customer") {
+            customerDisplay = `<div>Customer: ${order.customer.name}</div>`;
+            if (order.customer.phone && order.customer.phone !== "N/A") {
+                const cp = String(order.customer.phone);
+                // Mask the phone number for security
+                const maskedPhone = cp.length >= 9 ? cp.slice(0, 3) + ' **** ' + cp.slice(-3) : cp;
+                customerDisplay += `<div>Tel: ${maskedPhone}</div>`;
+            }
+        }
+
         // Generate Items List
         let itemsHtml = '';
         order.items.forEach(i => {
@@ -6355,7 +6386,7 @@ window.autoFillDocCustomer = (name) => {
                     <div>Cashier: ${cashierName}</div>
                     <div>${timeStr}</div>
                 </div>
-                ${order.customer && order.customer.name !== "Walk-in Customer" ? `<div>Customer: ${order.customer.name}</div>` : ''}
+                ${customerDisplay}
 
                 <div class="divider"></div>
 
@@ -6410,8 +6441,16 @@ window.autoFillDocCustomer = (name) => {
 
                 <div class="divider"></div>
                 <div class="center" style="margin-bottom: 5px;">
-                    ${(shop.termsThermal !== undefined ? shop.termsThermal : "Thank You! Come Again.\nExchange within 7 days.").replace(/\n/g, '<br>')}
+                    ${(shop.termsThermal !== undefined ? shop.termsThermal : "Thank You! Come Again.\nExchange within 7 days with original receipt.").replace(/\n/g, '<br>')}
                 </div>
+                
+                ${order.initialPin ? `
+                <div style="margin-top: 8px; padding: 6px; border: 1px dashed #000; text-align: center;">
+                    <div class="bold fs-14">Portal PIN: ${order.initialPin}</div>
+                    <div style="font-size: 9px; margin-top: 3px;">(For security, please change PIN after 1st login)</div>
+                </div>
+                ` : ''}
+                
                 <div class="center" style="font-size: 10px; margin-top: 10px; color: #666;">System by 070 315 0742</div>
                 
                 <${'script'}>
