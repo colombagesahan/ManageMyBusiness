@@ -168,6 +168,7 @@ input:focus, textarea:focus { border-color: var(--primary); }
     let loggedInCustomer = null;
     let activeShopId = null; // 🛡️ ENTERPRISE FIX: Dynamically captures the customer's branch!
     let catalogCache = [];
+    let myRequestsCache = [];
 
     // --- UI Utilities ---
     const showToast = (msg) => {
@@ -428,30 +429,50 @@ input:focus, textarea:focus { border-color: var(--primary); }
             const q = query(collection(db, `users/${OWNER_ID}/shops/${activeShopId}/service_requests`), where("customerId", "==", loggedInCustomer.id), orderBy("createdAt", "desc"), limit(10));
             const snap = await getDocs(q);
             let html = '';
+            myRequestsCache = []; // Reset cache
+            
             snap.forEach(d => {
-                const r = d.data();
+                const r = {id: d.id, ...d.data()};
+                myRequestsCache.push(r);
                 
-                // Status 3 සඳහා වර්ණ
                 let bg, col, statusText;
                 if(r.status === 'pending') { bg = '#fee2e2'; col = '#b91c1c'; statusText = 'PENDING'; }
-                else if(r.status === 'replied') { bg = '#fef3c7'; col = '#d97706'; statusText = 'IN PROGRESS'; }
+                else if(r.status === 'replied') { bg = '#fef3c7'; col = '#d97706'; statusText = 'MANAGER REPLIED'; }
                 else { bg = '#dcfce7'; col = '#15803d'; statusText = 'RESOLVED'; }
                 
-                const replyHtml = r.adminReply ? `
-                    <div style="margin-top:12px; padding:10px; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px;">
-                        <div style="font-size:10px; color:#16a34a; font-weight:bold; margin-bottom:3px;"><i class="ri-customer-service-2-fill"></i> MANAGER UPDATE</div>
-                        <div style="font-size:12px; color:#166534; font-weight:600;">${r.adminReply}</div>
+                // Render Chat History Array
+                let chatHtml = '';
+                if(r.replies && r.replies.length > 0) {
+                    chatHtml = `<div style="margin-top:10px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; padding:10px; display:flex; flex-direction:column; gap:5px; max-height:200px; overflow-y:auto;">`;
+                    r.replies.forEach(msg => {
+                        if(msg.sender === 'admin') {
+                            // Admin/Manager (Left Side, Green)
+                            chatHtml += `<div style="align-self:flex-start; background:#dcfce7; color:#166534; padding:6px 10px; border-radius:10px; border-bottom-left-radius:2px; font-size:11px; max-width:90%;"><b>Manager:</b> ${msg.text}</div>`;
+                        } else {
+                            // Customer (Right Side, Blue)
+                            chatHtml += `<div style="align-self:flex-end; background:#e0e7ff; color:#3730a3; padding:6px 10px; border-radius:10px; border-bottom-right-radius:2px; font-size:11px; max-width:90%; text-align:right;"><b>You:</b> ${msg.text}</div>`;
+                        }
+                    });
+                    chatHtml += `</div>`;
+                }
+
+                // Customer ට Reply කිරීමට Input Box එකක් ලබා දීම
+                const replyInputHtml = r.status !== 'resolved' ? `
+                    <div style="margin-top:10px; display:flex; gap:5px;">
+                        <input type="text" id="custReply_${r.id}" placeholder="Type your reply here..." style="margin-bottom:0; flex:1; font-size:12px; padding:10px; border-radius:20px;">
+                        <button class="btn" style="width:auto; padding:0 15px; border-radius:20px;" onclick="sendCustomerReply('${r.id}')"><i class="ri-send-plane-fill"></i></button>
                     </div>
-                ` : '';
+                ` : `<div style="margin-top:10px; font-size:11px; color:#15803d; text-align:center; font-weight:bold; background:#dcfce7; padding:5px; border-radius:4px;"><i class="ri-check-double-line"></i> This ticket is resolved and closed.</div>`;
 
                 html += `
-                <div class="card" style="padding:12px; font-size:12px;">
+                <div class="card" style="padding:12px; font-size:12px; border:${r.status === 'replied' ? '1px solid #f59e0b' : '1px solid #e5e7eb'};">
                     <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
                         <span style="font-weight:bold; color:#666;">${new Date(r.createdAt).toLocaleDateString()}</span>
                         <span style="background:${bg}; color:${col}; padding:2px 6px; border-radius:4px; font-weight:bold; font-size:10px;">${statusText}</span>
                     </div>
-                    <div style="font-size:13px; font-weight:500; color:#1f2937;">${r.issueDescription}</div>
-                    ${replyHtml}
+                    <div style="font-size:13px; font-weight:700; color:#1f2937; margin-bottom:5px;">Issue: ${r.issueDescription}</div>
+                    ${chatHtml}
+                    ${replyInputHtml}
                 </div>`;
             });
             list.innerHTML = html || '<div style="font-size:12px; color:#999; text-align:center;">No previous requests.</div>';
@@ -476,7 +497,34 @@ input:focus, textarea:focus { border-color: var(--primary); }
         } catch(e) { showToast("Error updating PIN"); }
         toggleLoader(false);
     };
-
+window.sendCustomerReply = async (id) => {
+        const inputField = document.getElementById(`custReply_${id}`);
+        const text = inputField.value.trim();
+        if(!text) return;
+        
+        const r = myRequestsCache.find(x => x.id === id);
+        toggleLoader(true);
+        
+        try {
+            const currentReplies = r.replies || [];
+            currentReplies.push({ sender: 'customer', text: text, date: new Date().toISOString() });
+            
+            // Customer Reply කළ විට, Dashboard එකට එය පෙන්වීමට Status එක යළිත් 'pending' බවට පත් කරයි (Action Required!)
+            await updateDoc(doc(db, `users/${OWNER_ID}/shops/${activeShopId}/service_requests`, id), {
+                replies: currentReplies,
+                status: 'pending',
+                lastUpdatedAt: new Date().toISOString()
+            });
+            
+            inputField.value = '';
+            await loadMyRequests();
+            showToast("Reply sent to Manager!");
+        } catch (e) {
+            console.error(e);
+            showToast("Error sending reply");
+        }
+        toggleLoader(false);
+    };
 </script>
 </body>
 </html>
