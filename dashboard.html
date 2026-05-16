@@ -2830,6 +2830,19 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             loadDocumentsHistory();
             document.getElementById('docDate').value = window.getSecureLocalDateStr();
         }
+        if(viewName === 'crm') {
+            // 🛡️ ENTERPRISE FIX: Secure Auto-fill for Month Filter & Auto Data Load
+            const crmMonthInput = document.getElementById('crmMonthFilter');
+            
+            // කොටුව හිස්ව ඇත්නම් පමණක් (පළමු වරට පැමිණෙන විට) වර්තමාන මාසය පුරවයි
+            if (!crmMonthInput.value) {
+                // යන්ත්‍රයේ වේලාව වෙනස් කළත් නොරැවටෙන Secure Time එකෙන් 'YYYY-MM' පමණක් කපා ගැනීම
+                crmMonthInput.value = window.getSecureLocalDateStr().slice(0, 7); 
+            }
+            
+            // ටැබ් එක ක්ලික් කළ වහාම ස්වයංක්‍රීයව දත්ත ගෙන්වා ගැනීම
+            loadCRM();
+        }
     };
     
     window.openModal = (id) => document.getElementById(id).style.display = 'flex';
