@@ -519,21 +519,24 @@ window.sendCustomerReply = async (id) => {
         if(!text) return;
         
         const r = myRequestsCache.find(x => x.id === id);
-        toggleLoader(true);
+        toggleLoader(true); // Loading එක පෙන්වීම
         
         try {
             const currentReplies = r.replies || [];
             currentReplies.push({ sender: 'customer', text: text, date: new Date().toISOString() });
             
-            // Customer Reply කළ විට, Dashboard එකට එය පෙන්වීමට Status එක යළිත් 'pending' බවට පත් කරයි (Action Required!)
             await updateDoc(doc(db, `users/${OWNER_ID}/shops/${activeShopId}/service_requests`, id), {
                 replies: currentReplies,
-                status: 'pending',
+                status: 'pending', // Manager ට රතු පාටින් පෙන්වීමට
                 lastUpdatedAt: new Date().toISOString()
             });
             
-            inputField.value = '';
-            await loadMyRequests();
+            inputField.value = ''; // අකුරු ටික මැකීම
+            
+            // 💡 ENTERPRISE LOGIC FIX:
+            // "await loadMyRequests();" යන පේළිය සම්පූර්ණයෙන්ම ඉවත් කර ඇත.
+            // onSnapshot තාක්ෂණය මගින් පණිවිඩය ගිය සැණින් UI එක ස්වයංක්‍රීයව අලුත් වේ.
+            
             showToast("Reply sent to Manager!");
         } catch (e) {
             console.error(e);
