@@ -9788,11 +9788,11 @@ window.openReplyModal = (id) => {
         
         if(actionType === 'replied' && !text) return showToast("Please type a reply message", "error");
         
+        // Button එක එබූ සැණින් තත්පර කිහිපයකට Button එක ලොක් කිරීම (ද්විත්ව පණිවිඩ යැවීම වැළැක්වීමට)
         toggleLoader(true);
         try {
             const updateData = { status: actionType };
             if(text) {
-                // අලුත් පණිවිඩය Array එකට එකතු කිරීම
                 const currentReplies = r.replies || [];
                 currentReplies.push({ sender: 'admin', text: text, date: new Date().toISOString() });
                 
@@ -9800,12 +9800,22 @@ window.openReplyModal = (id) => {
                 updateData.lastUpdatedAt = new Date().toISOString();
             }
             
+            // Database එක Update කිරීම
             await updateDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/service_requests`, id), updateData);
-            closeModal('replyRequestModal');
             
+            // 💡 ENTERPRISE LOGIC FIX:
+            if(actionType === 'resolved') {
+                // වැඩේ අවසන් නම් පමණක් Modal එක වසයි
+                closeModal('replyRequestModal');
+                showToast("Ticket Closed and Resolved!");
+            } else {
+                // Reply කළා නම් Modal එක අරගෙනම තියාගනී. ටයිප් කරපු කොටුව පමණක් හිස් කරයි.
+                // onSnapshot මගින් අලුත් මැසේජ් එක Auto-Load වේවි!
+                document.getElementById('replyReqText').value = '';
+                showToast("Reply sent to customer!");
+            }
             
-            if(actionType === 'resolved') showToast("Ticket Closed and Resolved!");
-            else showToast("Reply sent to customer!");
+            // බලෙන් Load කිරීම (await loadCRM();) ඉවත් කර ඇත. onSnapshot බලාගනු ඇත!
             
         } catch(e) { 
             console.error(e);
