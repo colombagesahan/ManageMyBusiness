@@ -1653,18 +1653,22 @@ body.pos-fullscreen-mode #view-pos > div > .card {
     </div>
 </div>
 
-<!-- SERVICE REQUEST REPLY MODAL -->
+<!-- SERVICE REQUEST CHAT MODAL -->
 <div id="replyRequestModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:4600;">
-    <div class="card" style="width:400px; margin:0; border-top:5px solid var(--primary);">
-        <h3 style="color:var(--primary);"><i class="ri-reply-fill"></i> Manage Request</h3>
+    <div class="card" style="width:400px; margin:0; border-top:5px solid var(--primary); display:flex; flex-direction:column; max-height:85vh;">
+        <h3 style="color:var(--primary);"><i class="ri-chat-3-fill"></i> Request Ticket</h3>
         <input type="hidden" id="replyReqId">
-        <p style="font-size:12px; color:#666; margin-bottom:10px;">Send a message to the customer, OR mark the job as completely finished.</p>
-        <textarea id="replyReqText" rows="4" placeholder="Type your response here..."></textarea>
         
-        <div style="display:flex; flex-direction:column; gap:10px; margin-top:15px;">
+        <!-- Chat History Area -->
+        <div id="ticketChatHistory" style="flex:1; overflow-y:auto; background:#f9fafb; padding:10px; border-radius:8px; border:1px solid #e5e7eb; margin:10px 0; display:flex; flex-direction:column; gap:8px; min-height:200px;">
+        </div>
+        
+        <textarea id="replyReqText" rows="2" placeholder="Type your message here..."></textarea>
+        
+        <div style="display:flex; flex-direction:column; gap:10px; margin-top:10px;">
             <button class="btn btn-primary" style="justify-content:center;" onclick="submitRequestReply('replied')"><i class="ri-send-plane-fill"></i> Send Reply (Keep In-Progress)</button>
             <button class="btn btn-success" style="justify-content:center;" onclick="submitRequestReply('resolved')"><i class="ri-check-double-line"></i> Mark as Completely Resolved</button>
-            <button class="btn btn-ghost" style="justify-content:center;" onclick="closeModal('replyRequestModal')">Cancel</button>
+            <button class="btn btn-ghost" style="justify-content:center;" onclick="closeModal('replyRequestModal')">Close Window</button>
         </div>
     </div>
 </div>
@@ -1961,6 +1965,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
     let catalogCache = []; 
     let categoriesCache = []; 
     let cart = [];
+    let crmRequestsCache = [];
     let customersCache = [];
     let salesCache = [];
     let refundsCache = [];
@@ -9602,31 +9607,34 @@ window.setQuickCash = (amount) => {
         try {
             const qReq = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/service_requests`), orderBy('createdAt', 'desc'), limit(20));
             const snapReq = await getDocs(qReq);
+            // 1. Load Customer Online Requests (Ticket System)
             let reqHtml = '';
+            crmRequestsCache = []; // Reset Cache
             snapReq.forEach(d => {
                 const r = {id: d.id, ...d.data()};
+                crmRequestsCache.push(r); // Cache for Chat Modal
                 
-                // Status 3 සඳහා වර්ණ ලබා දීම
                 let bg, col, statusText;
-                if(r.status === 'pending') { bg = '#fee2e2'; col = '#b91c1c'; statusText = 'PENDING'; }
-                else if(r.status === 'replied') { bg = '#fef3c7'; col = '#d97706'; statusText = 'IN PROGRESS'; }
+                if(r.status === 'pending') { bg = '#fee2e2'; col = '#b91c1c'; statusText = 'ACTION REQUIRED'; }
+                else if(r.status === 'replied') { bg = '#fef3c7'; col = '#d97706'; statusText = 'WAITING ON CUSTOMER'; }
                 else { bg = '#dcfce7'; col = '#15803d'; statusText = 'RESOLVED'; }
                 
-                const adminReplyText = r.adminReply ? `<div style="margin-top:8px; padding:6px; background:#f0fdf4; border-left:3px solid #16a34a; font-size:11px; color:#166534;"><i class="ri-reply-fill"></i> <b>Reply:</b> ${r.adminReply}</div>` : '';
+                const replyCount = r.replies ? r.replies.length : 0;
+                const replyBadge = replyCount > 0 ? `<div style="font-size:10px; color:var(--primary); font-weight:bold; margin-top:5px;"><i class="ri-message-3-fill"></i> ${replyCount} Messages in Thread</div>` : '';
 
                 reqHtml += `
-                <tr>
+                <tr style="${r.status === 'pending' ? 'background:#fef2f2;' : ''}">
                     <td style="font-weight:bold;">${new Date(r.createdAt).toLocaleString()}</td>
                     <td><b>${r.customerName}</b><br><span style="font-size:11px; color:#666;">${r.customerPhone}</span></td>
                     <td style="max-width:250px; white-space:normal;">
-                        <div style="font-size:13px;">${r.issueDescription}</div>
-                        ${adminReplyText}
+                        <div style="font-size:13px; font-weight:600; color:#1f2937;">Issue: ${r.issueDescription}</div>
+                        ${replyBadge}
                     </td>
                     <td><span style="background:${bg}; color:${col}; padding:2px 6px; border-radius:4px; font-size:11px; font-weight:bold;">${statusText}</span></td>
                     <td>
-                        ${r.status !== 'resolved' 
-                            ? `<button class="btn btn-primary" style="padding:4px 8px; font-size:11px;" onclick="openReplyModal('${r.id}')"><i class="ri-chat-3-line"></i> Manage</button>` 
-                            : `<button class="btn btn-ghost" style="padding:4px 8px; font-size:11px;" disabled><i class="ri-check-double-line"></i> Done</button>`}
+                        <button class="${r.status === 'resolved' ? 'btn btn-ghost' : 'btn btn-primary'}" style="padding:4px 8px; font-size:11px;" onclick="openReplyModal('${r.id}')">
+                            <i class="ri-chat-3-line"></i> Open Ticket
+                        </button>
                     </td>
                 </tr>`;
             });
@@ -9726,38 +9734,65 @@ window.setQuickCash = (amount) => {
             tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:red;">Error loading Service CRM data.</td></tr>';
         }
     };
-// අලුතින් එකතු කරන ලද Reply Functions දෙක
-    window.openReplyModal = (id) => {
+window.openReplyModal = (id) => {
+        const r = crmRequestsCache.find(x => x.id === id);
         document.getElementById('replyReqId').value = id;
         document.getElementById('replyReqText').value = '';
+        
+        const chatBox = document.getElementById('ticketChatHistory');
+        
+        // 1. Initial Request Bubble (Left side)
+        let chatHtml = `<div style="align-self:flex-start; background:#e0e7ff; color:#3730a3; padding:8px 12px; border-radius:12px; border-bottom-left-radius:2px; font-size:12px; max-width:85%;"><b>${r.customerName}:</b><br>${r.issueDescription}</div>`;
+        
+        // 2. Load Chat History
+        if(r.replies && r.replies.length > 0) {
+            r.replies.forEach(msg => {
+                if(msg.sender === 'admin') {
+                    // Manager Message (Right side, Green)
+                    chatHtml += `<div style="align-self:flex-end; background:#dcfce7; color:#166534; padding:8px 12px; border-radius:12px; border-bottom-right-radius:2px; font-size:12px; max-width:85%; text-align:right;"><b>You (Manager):</b><br>${msg.text}</div>`;
+                } else {
+                    // Customer Reply (Left side, Blue)
+                    chatHtml += `<div style="align-self:flex-start; background:#e0e7ff; color:#3730a3; padding:8px 12px; border-radius:12px; border-bottom-left-radius:2px; font-size:12px; max-width:85%;"><b>${r.customerName}:</b><br>${msg.text}</div>`;
+                }
+            });
+        }
+        
+        chatBox.innerHTML = chatHtml;
         openModal('replyRequestModal');
+        
+        // Auto scroll to latest message
+        setTimeout(() => { chatBox.scrollTop = chatBox.scrollHeight; }, 100);
     };
 
     window.submitRequestReply = async (actionType) => {
         const id = document.getElementById('replyReqId').value;
         const text = document.getElementById('replyReqText').value.trim();
+        const r = crmRequestsCache.find(x => x.id === id);
         
-        // Resolve කරනවා නම් Text එක අනිවාර්ය නැත, නමුත් Reply කරනවා නම් අනිවාර්යයි.
         if(actionType === 'replied' && !text) return showToast("Please type a reply message", "error");
         
         toggleLoader(true);
         try {
             const updateData = { status: actionType };
             if(text) {
-                updateData.adminReply = text;
-                updateData.repliedAt = new Date().toISOString();
+                // අලුත් පණිවිඩය Array එකට එකතු කිරීම
+                const currentReplies = r.replies || [];
+                currentReplies.push({ sender: 'admin', text: text, date: new Date().toISOString() });
+                
+                updateData.replies = currentReplies;
+                updateData.lastUpdatedAt = new Date().toISOString();
             }
             
             await updateDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/service_requests`, id), updateData);
             closeModal('replyRequestModal');
             await loadCRM();
             
-            if(actionType === 'resolved') showToast("Request marked as completely resolved!");
-            else showToast("Reply sent. Status updated to In-Progress!");
+            if(actionType === 'resolved') showToast("Ticket Closed and Resolved!");
+            else showToast("Reply sent to customer!");
             
         } catch(e) { 
             console.error(e);
-            showToast("Error updating request", "error"); 
+            showToast("Error updating ticket", "error"); 
         }
         toggleLoader(false);
     };
