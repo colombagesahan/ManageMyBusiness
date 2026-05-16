@@ -9627,10 +9627,22 @@ window.setQuickCash = (amount) => {
                     const replyCount = r.replies ? r.replies.length : 0;
                     const replyBadge = replyCount > 0 ? `<div style="font-size:10px; color:var(--primary); font-weight:bold; margin-top:5px;"><i class="ri-message-3-fill"></i> ${replyCount} Messages in Thread</div>` : '';
 
+                    // අලුත් කේතය: නමෙහි ඇති කමා/උද්ධෘත ලකුණු ආරක්ෂිතව Escape කිරීම
+                    const safeCustNameReq = String(r.customerName || 'Unknown').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                    
+                    // අලුත් කේතය: See Records බොත්තම
+                    const recordsBtnReq = (r.customerPhone && r.customerPhone !== "N/A") 
+                        ? `<div style="margin-top:5px;"><button class="btn btn-ghost" style="padding:2px 8px; font-size:10px; color:var(--primary); border-color:#c7d2fe; background:#e0e7ff; font-weight:bold;" onclick="openCustomerHistory('${r.customerPhone}', '${safeCustNameReq}')"><i class="ri-history-line"></i> See Records</button></div>` 
+                        : '';
+
                     reqHtml += `
                     <tr style="${r.status === 'pending' ? 'background:#fef2f2;' : ''}">
                         <td style="font-weight:bold;">${new Date(r.createdAt).toLocaleString()}</td>
-                        <td><b>${r.customerName}</b><br><span style="font-size:11px; color:#666;">${r.customerPhone}</span></td>
+                        <td>
+                            <b>${r.customerName}</b><br>
+                            <span style="font-size:11px; color:#666;">${r.customerPhone}</span>
+                            ${recordsBtnReq}
+                        </td>
                         <td style="max-width:250px; white-space:normal;">
                             <div style="font-size:13px; font-weight:600; color:#1f2937;">Issue: ${r.issueDescription.replace(/</g, "&lt;")}</div>
                             ${replyBadge}
@@ -9720,12 +9732,21 @@ window.setQuickCash = (amount) => {
                 const tDate = s.targetDate ? targetDateObj.toLocaleDateString() : '-';
                 const safeNote = (s.message || '-').replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
+                // අලුත් කේතය: නමෙහි ඇති කමා/උද්ධෘත ලකුණු ආරක්ෂිතව Escape කිරීම
+                const safeCustNameSched = String(custName).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                
+                // අලුත් කේතය: See Records බොත්තම
+                const recordsBtnSched = (custPhone && custPhone !== "N/A") 
+                    ? `<div style="margin-top:5px;"><button class="btn btn-ghost" style="padding:2px 8px; font-size:10px; color:var(--primary); border-color:#c7d2fe; background:#e0e7ff; font-weight:bold;" onclick="openCustomerHistory('${custPhone}', '${safeCustNameSched}')"><i class="ri-history-line"></i> See Records</button></div>` 
+                    : '';
+
                 html += `
                 <tr style="${rowStyle}">
                     <td style="font-weight:bold;">${tDate}</td>
                     <td>
                         <div style="font-weight:600;">${custName.replace(/</g, "&lt;")}</div>
                         <div style="font-size:11px; color:#666;">${custPhone}</div>
+                        ${recordsBtnSched}
                     </td>
                     <td style="font-size:13px; max-width:200px; white-space:normal;">${safeNote}</td>
                     <td style="font-family:monospace; font-size:12px; color:var(--primary); font-weight:bold;">${s.orderId || '-'}</td>
