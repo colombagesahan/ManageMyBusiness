@@ -9603,42 +9603,59 @@ window.setQuickCash = (amount) => {
         
         const monthFilter = document.getElementById('crmMonthFilter').value; 
         
-        // 1. Load Customer Online Requests
+        // 1. Load Customer Online Requests (LIVE Ticket System)
         try {
             const qReq = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/service_requests`), orderBy('createdAt', 'desc'), limit(20));
-            const snapReq = await getDocs(qReq);
-            // 1. Load Customer Online Requests (Ticket System)
-            let reqHtml = '';
-            crmRequestsCache = []; // Reset Cache
-            snapReq.forEach(d => {
-                const r = {id: d.id, ...d.data()};
-                crmRequestsCache.push(r); // Cache for Chat Modal
+            
+            // පරණ Listener එකක් ඇත්නම් එය නවතා දමයි
+            if (window.unsubCRMReqs) window.unsubCRMReqs();
+            
+            // 🟢 සජීවීව දත්ත ඇදගැනීම
+            window.unsubCRMReqs = onSnapshot(qReq, (snapReq) => {
+                let reqHtml = '';
+                crmRequestsCache = []; // Reset Cache
                 
-                let bg, col, statusText;
-                if(r.status === 'pending') { bg = '#fee2e2'; col = '#b91c1c'; statusText = 'ACTION REQUIRED'; }
-                else if(r.status === 'replied') { bg = '#fef3c7'; col = '#d97706'; statusText = 'WAITING ON CUSTOMER'; }
-                else { bg = '#dcfce7'; col = '#15803d'; statusText = 'RESOLVED'; }
-                
-                const replyCount = r.replies ? r.replies.length : 0;
-                const replyBadge = replyCount > 0 ? `<div style="font-size:10px; color:var(--primary); font-weight:bold; margin-top:5px;"><i class="ri-message-3-fill"></i> ${replyCount} Messages in Thread</div>` : '';
+                snapReq.forEach(d => {
+                    const r = {id: d.id, ...d.data()};
+                    crmRequestsCache.push(r); // Cache for Chat Modal
+                    
+                    let bg, col, statusText;
+                    if(r.status === 'pending') { bg = '#fee2e2'; col = '#b91c1c'; statusText = 'ACTION REQUIRED'; }
+                    else if(r.status === 'replied') { bg = '#fef3c7'; col = '#d97706'; statusText = 'WAITING ON CUSTOMER'; }
+                    else { bg = '#dcfce7'; col = '#15803d'; statusText = 'RESOLVED'; }
+                    
+                    const replyCount = r.replies ? r.replies.length : 0;
+                    const replyBadge = replyCount > 0 ? `<div style="font-size:10px; color:var(--primary); font-weight:bold; margin-top:5px;"><i class="ri-message-3-fill"></i> ${replyCount} Messages in Thread</div>` : '';
 
-                reqHtml += `
-                <tr style="${r.status === 'pending' ? 'background:#fef2f2;' : ''}">
-                    <td style="font-weight:bold;">${new Date(r.createdAt).toLocaleString()}</td>
-                    <td><b>${r.customerName}</b><br><span style="font-size:11px; color:#666;">${r.customerPhone}</span></td>
-                    <td style="max-width:250px; white-space:normal;">
-                        <div style="font-size:13px; font-weight:600; color:#1f2937;">Issue: ${r.issueDescription}</div>
-                        ${replyBadge}
-                    </td>
-                    <td><span style="background:${bg}; color:${col}; padding:2px 6px; border-radius:4px; font-size:11px; font-weight:bold;">${statusText}</span></td>
-                    <td>
-                        <button class="${r.status === 'resolved' ? 'btn btn-ghost' : 'btn btn-primary'}" style="padding:4px 8px; font-size:11px;" onclick="openReplyModal('${r.id}')">
-                            <i class="ri-chat-3-line"></i> Open Ticket
-                        </button>
-                    </td>
-                </tr>`;
+                    reqHtml += `
+                    <tr style="${r.status === 'pending' ? 'background:#fef2f2;' : ''}">
+                        <td style="font-weight:bold;">${new Date(r.createdAt).toLocaleString()}</td>
+                        <td><b>${r.customerName}</b><br><span style="font-size:11px; color:#666;">${r.customerPhone}</span></td>
+                        <td style="max-width:250px; white-space:normal;">
+                            <div style="font-size:13px; font-weight:600; color:#1f2937;">Issue: ${r.issueDescription.replace(/</g, "&lt;")}</div>
+                            ${replyBadge}
+                        </td>
+                        <td><span style="background:${bg}; color:${col}; padding:2px 6px; border-radius:4px; font-size:11px; font-weight:bold;">${statusText}</span></td>
+                        <td>
+                            <button class="${r.status === 'resolved' ? 'btn btn-ghost' : 'btn btn-primary'}" style="padding:4px 8px; font-size:11px;" onclick="openReplyModal('${r.id}')">
+                                <i class="ri-chat-3-line"></i> Open Ticket
+                            </button>
+                        </td>
+                    </tr>`;
+                });
+                
+                reqBody.innerHTML = reqHtml || '<tr><td colspan="5" style="text-align:center; color:#666;">No online requests found.</td></tr>';
+                
+                // 🔥 ENTERPRISE FIX: Chat Modal එක විවෘතව තිබියදී අලුත් පණිවිඩයක් ආවොත්, Modal එක ඇතුළතම එය සජීවීව Update කිරීම!
+                const modal = document.getElementById('replyRequestModal');
+                const openId = document.getElementById('replyReqId').value;
+                if (modal && modal.style.display === 'flex' && openId) {
+                    const stillExists = crmRequestsCache.find(x => x.id === openId);
+                    if (stillExists) {
+                        openReplyModal(openId); // Chat එක යළිත් Render කරයි (අකුරු ටයිප් කරන කොටුවට බාධාවක් නොවේ)
+                    }
+                }
             });
-            reqBody.innerHTML = reqHtml || '<tr><td colspan="5" style="text-align:center; color:#666;">No online requests found.</td></tr>';
         } catch(e) { console.error("Request Load Error", e); }
 
         // 2. Load Normal CRM Reminders...
@@ -9785,7 +9802,7 @@ window.openReplyModal = (id) => {
             
             await updateDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/service_requests`, id), updateData);
             closeModal('replyRequestModal');
-            await loadCRM();
+            
             
             if(actionType === 'resolved') showToast("Ticket Closed and Resolved!");
             else showToast("Reply sent to customer!");
