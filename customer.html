@@ -146,7 +146,7 @@ input:focus, textarea:focus { border-color: var(--primary); }
 <!-- LOGIC -->
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-    import { getFirestore, doc, getDoc, collection, query, where, getDocs, orderBy, limit, addDoc, updateDoc } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+    import { getFirestore, doc, getDoc, collection, query, where, getDocs, orderBy, limit, addDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
     // 🔴 🔴 🔴 IMPORTANT: FILL THESE WITH YOUR REAL CREDENTIALS 🔴 🔴 🔴
     const firebaseConfig = {
@@ -421,61 +421,77 @@ input:focus, textarea:focus { border-color: var(--primary); }
         toggleLoader(false);
     };
 
+    // 🔴 සජීවීව දත්ත ඇදගන්නා Listener එක නවතා තැබීමට Variable එකක්
+    window.unsubscribeMyRequests = null;
+
     async function loadMyRequests() {
         const list = document.getElementById('myRequestsList');
-        list.innerHTML = '<div style="text-align:center; font-size:12px; color:#666;">Loading...</div>';
+        if (!window.unsubscribeMyRequests) {
+            list.innerHTML = '<div style="text-align:center; font-size:12px; color:#666;"><i class="ri-loader-4-line ri-spin"></i> Loading...</div>';
+        }
         
         try {
-            const q = query(collection(db, `users/${OWNER_ID}/shops/${activeShopId}/service_requests`), where("customerId", "==", loggedInCustomer.id), orderBy("createdAt", "desc"), limit(10));
-            const snap = await getDocs(q);
-            let html = '';
-            myRequestsCache = []; // Reset cache
+            const q = query(collection(db, `users/${OWNER_ID}/shops/${activeShopId}/service_requests`), where("customerId", "==", loggedInCustomer.id), orderBy("createdAt", "desc"), limit(20));
             
-            snap.forEach(d => {
-                const r = {id: d.id, ...d.data()};
-                myRequestsCache.push(r);
+            // පරණ Listener එකක් ඇත්නම් එය නවතා දමයි (Memory Leaks වැළැක්වීමට)
+            if (window.unsubscribeMyRequests) window.unsubscribeMyRequests();
+            
+            // 🟢 සජීවීව දත්ත ලබාගැනීම අරඹයි
+            window.unsubscribeMyRequests = onSnapshot(q, (snap) => {
+                let html = '';
+                myRequestsCache = []; // Reset cache
                 
-                let bg, col, statusText;
-                if(r.status === 'pending') { bg = '#fee2e2'; col = '#b91c1c'; statusText = 'PENDING'; }
-                else if(r.status === 'replied') { bg = '#fef3c7'; col = '#d97706'; statusText = 'MANAGER REPLIED'; }
-                else { bg = '#dcfce7'; col = '#15803d'; statusText = 'RESOLVED'; }
+                snap.forEach(d => {
+                    const r = {id: d.id, ...d.data()};
+                    myRequestsCache.push(r);
+                    
+                    let bg, col, statusText;
+                    if(r.status === 'pending') { bg = '#fee2e2'; col = '#b91c1c'; statusText = 'ACTION REQUIRED (PENDING)'; }
+                    else if(r.status === 'replied') { bg = '#fef3c7'; col = '#d97706'; statusText = 'MANAGER REPLIED'; }
+                    else { bg = '#dcfce7'; col = '#15803d'; statusText = 'RESOLVED'; }
+                    
+                    // Render Chat History Array
+                    let chatHtml = '';
+                    if(r.replies && r.replies.length > 0) {
+                        chatHtml = `<div class="customer-chat-scroll" style="margin-top:10px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; padding:10px; display:flex; flex-direction:column; gap:5px; max-height:200px; overflow-y:auto;">`;
+                        r.replies.forEach(msg => {
+                            if(msg.sender === 'admin') {
+                                chatHtml += `<div style="align-self:flex-start; background:#dcfce7; color:#166534; padding:6px 10px; border-radius:10px; border-bottom-left-radius:2px; font-size:11px; max-width:90%;"><b>Manager:</b> ${msg.text.replace(/</g, "&lt;")}</div>`;
+                            } else {
+                                chatHtml += `<div style="align-self:flex-end; background:#e0e7ff; color:#3730a3; padding:6px 10px; border-radius:10px; border-bottom-right-radius:2px; font-size:11px; max-width:90%; text-align:right;"><b>You:</b> ${msg.text.replace(/</g, "&lt;")}</div>`;
+                            }
+                        });
+                        chatHtml += `</div>`;
+                    }
+
+                    // Customer ට Reply කිරීමට Input Box එක
+                    const replyInputHtml = r.status !== 'resolved' ? `
+                        <div style="margin-top:10px; display:flex; gap:5px;">
+                            <input type="text" id="custReply_${r.id}" placeholder="Type your reply here..." style="margin-bottom:0; flex:1; font-size:12px; padding:10px; border-radius:20px;" onkeypress="if(event.key === 'Enter') sendCustomerReply('${r.id}')">
+                            <button class="btn" style="width:auto; padding:0 15px; border-radius:20px;" onclick="sendCustomerReply('${r.id}')"><i class="ri-send-plane-fill"></i></button>
+                        </div>
+                    ` : `<div style="margin-top:10px; font-size:11px; color:#15803d; text-align:center; font-weight:bold; background:#dcfce7; padding:5px; border-radius:4px;"><i class="ri-check-double-line"></i> This ticket is resolved and closed.</div>`;
+
+                    html += `
+                    <div class="card" style="padding:12px; font-size:12px; border:${r.status === 'replied' ? '1px solid #f59e0b' : '1px solid #e5e7eb'};">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+                            <span style="font-weight:bold; color:#666;">${new Date(r.createdAt).toLocaleDateString()}</span>
+                            <span style="background:${bg}; color:${col}; padding:2px 6px; border-radius:4px; font-weight:bold; font-size:10px;">${statusText}</span>
+                        </div>
+                        <div style="font-size:13px; font-weight:700; color:#1f2937; margin-bottom:5px;">Issue: ${r.issueDescription.replace(/</g, "&lt;")}</div>
+                        ${chatHtml}
+                        ${replyInputHtml}
+                    </div>`;
+                });
                 
-                // Render Chat History Array
-                let chatHtml = '';
-                if(r.replies && r.replies.length > 0) {
-                    chatHtml = `<div style="margin-top:10px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; padding:10px; display:flex; flex-direction:column; gap:5px; max-height:200px; overflow-y:auto;">`;
-                    r.replies.forEach(msg => {
-                        if(msg.sender === 'admin') {
-                            // Admin/Manager (Left Side, Green)
-                            chatHtml += `<div style="align-self:flex-start; background:#dcfce7; color:#166534; padding:6px 10px; border-radius:10px; border-bottom-left-radius:2px; font-size:11px; max-width:90%;"><b>Manager:</b> ${msg.text}</div>`;
-                        } else {
-                            // Customer (Right Side, Blue)
-                            chatHtml += `<div style="align-self:flex-end; background:#e0e7ff; color:#3730a3; padding:6px 10px; border-radius:10px; border-bottom-right-radius:2px; font-size:11px; max-width:90%; text-align:right;"><b>You:</b> ${msg.text}</div>`;
-                        }
-                    });
-                    chatHtml += `</div>`;
-                }
-
-                // Customer ට Reply කිරීමට Input Box එකක් ලබා දීම
-                const replyInputHtml = r.status !== 'resolved' ? `
-                    <div style="margin-top:10px; display:flex; gap:5px;">
-                        <input type="text" id="custReply_${r.id}" placeholder="Type your reply here..." style="margin-bottom:0; flex:1; font-size:12px; padding:10px; border-radius:20px;">
-                        <button class="btn" style="width:auto; padding:0 15px; border-radius:20px;" onclick="sendCustomerReply('${r.id}')"><i class="ri-send-plane-fill"></i></button>
-                    </div>
-                ` : `<div style="margin-top:10px; font-size:11px; color:#15803d; text-align:center; font-weight:bold; background:#dcfce7; padding:5px; border-radius:4px;"><i class="ri-check-double-line"></i> This ticket is resolved and closed.</div>`;
-
-                html += `
-                <div class="card" style="padding:12px; font-size:12px; border:${r.status === 'replied' ? '1px solid #f59e0b' : '1px solid #e5e7eb'};">
-                    <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-                        <span style="font-weight:bold; color:#666;">${new Date(r.createdAt).toLocaleDateString()}</span>
-                        <span style="background:${bg}; color:${col}; padding:2px 6px; border-radius:4px; font-weight:bold; font-size:10px;">${statusText}</span>
-                    </div>
-                    <div style="font-size:13px; font-weight:700; color:#1f2937; margin-bottom:5px;">Issue: ${r.issueDescription}</div>
-                    ${chatHtml}
-                    ${replyInputHtml}
-                </div>`;
+                list.innerHTML = html || '<div style="font-size:12px; color:#999; text-align:center;">No previous requests.</div>';
+                
+                // අලුත් පණිවිඩයක් ආ විට ස්වයංක්‍රීයව පහළටම Scroll කිරීම (Auto Scroll to Bottom)
+                setTimeout(() => {
+                    document.querySelectorAll('.customer-chat-scroll').forEach(el => el.scrollTop = el.scrollHeight);
+                }, 100);
             });
-            list.innerHTML = html || '<div style="font-size:12px; color:#999; text-align:center;">No previous requests.</div>';
+            
         } catch(e) { console.error(e); list.innerHTML = 'Error loading requests.'; }
     }
 
