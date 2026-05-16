@@ -313,7 +313,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                 <div style="display:flex; gap:10px; align-items:center;">
                     <h4 style="margin:0;">Performance Overview</h4>
                 </div>
-                
+                <button onclick="viewExpiringItems()">Check Expiring Items</button>
                 <div style="display:flex; gap:10px; align-items:center;">
                     <select id="dashFilterType" onchange="toggleDashInputs()" style="width:auto; margin:0; font-weight:600;">
                         <option value="daily" selected>Daily (Today)</option>
@@ -1215,6 +1215,38 @@ body.pos-fullscreen-mode #view-pos > div > .card {
     </div>
 </div>
 
+<!-- NEW: BATCH SERIALS MANAGER MODAL -->
+<div id="batchSerialsModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:flex-start; justify-content:center; z-index:2500; padding: 20px; overflow-y:auto;">
+    <div class="card" style="width:100%; max-width:600px; margin:auto; flex-shrink:0;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:10px; border-bottom:1px solid #eee; padding-bottom:10px;">
+            <h3 id="bsModalTitle">Batch Serials Manager</h3>
+            <i class="ri-close-line" style="cursor:pointer; font-size:24px;" onclick="closeModal('batchSerialsModal')"></i>
+        </div>
+        
+        <div style="background:#eff6ff; padding:10px; border-radius:8px; border:1px solid #bfdbfe; margin-bottom:15px;">
+            <div id="bsBatchInfo" style="font-size:13px; font-weight:600; color:#1e40af;"></div>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <div style="font-size:12px; font-weight:bold;">Serial Barcodes Tracking:</div>
+            <button class="btn btn-primary" style="padding:4px 10px; font-size:11px;" onclick="printAvailableSerials()">Print All Available</button>
+        </div>
+
+        <div id="bsSerialsList" style="max-height:400px; overflow-y:auto; border:1px solid #e5e7eb; border-radius:8px;">
+            <table style="width:100%; font-size:12px; border-collapse:collapse;">
+                <thead style="background:#f9fafb; position:sticky; top:0;">
+                    <tr>
+                        <th style="padding:8px; text-align:left; border-bottom:1px solid #e5e7eb;">Barcode (Serial)</th>
+                        <th style="padding:8px; text-align:center; border-bottom:1px solid #e5e7eb;">Status</th>
+                        <th style="padding:8px; text-align:right; border-bottom:1px solid #e5e7eb;">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="bsSerialsBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
 <!-- CATEGORY MODAL -->
 <div id="categoryModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:2000;">
     <div class="card" style="width:400px; margin:0;">
@@ -1311,6 +1343,10 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         <select id="mpSupplier" style="margin-bottom:10px;">
             <option value="">-- No Supplier --</option>
         </select>
+
+ <!-- නව කොටස: Expiry Date -->
+        <label style="font-size:12px; margin-top:5px; display:block; color:var(--danger); font-weight:bold;">Expiry Date * (Required)</label>
+        <input type="date" id="mpExpiry" style="margin-bottom:15px; border:1px solid var(--danger);">
         
         <div style="display:flex; gap:10px; margin-top:10px; flex-wrap:wrap;">
             <button class="btn btn-primary" onclick="saveStock(false)">Save & Close</button>
@@ -1888,7 +1924,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 <script type="module">
     import { initializeApp, deleteApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
     import { getAuth, signOut, onAuthStateChanged, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
-    import { getFirestore, collection, addDoc, getDocs, doc, deleteDoc, updateDoc, query, where, orderBy, setDoc, getDoc, runTransaction, limit, startAfter, writeBatch, enableIndexedDbPersistence, increment, onSnapshot } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, getDocs, doc, deleteDoc, updateDoc, query, where, orderBy, setDoc, getDoc, runTransaction, limit, startAfter, writeBatch, enableIndexedDbPersistence, increment, onSnapshot, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
     // ENTERPRISE FIX: Import Firebase Functions to securely call Gemini AI backend
     import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-functions.js";
 
@@ -1965,6 +2001,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
     let catalogCache = []; 
     let categoriesCache = []; 
     let cart = [];
+    let currentCartSerials = []; // දැනට Cart එකේ තියෙන Serial Barcodes ටික මතක තියාගන්න
     let crmRequestsCache = [];
     let customersCache = [];
     let salesCache = [];
@@ -3236,10 +3273,21 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 
         const filtered = productsCache.filter(p => {
             const matchName = p.name.toLowerCase().includes(term) || (p.sku && p.sku.toLowerCase().includes(term));
-            // ENTERPRISE FIX: Correctly evaluate the dynamic "LOW_STOCK" category without crashing the search
+            
             let matchCat = false;
             if (catFilter === 'LOW_STOCK') {
                 matchCat = (p.qty > 0 && p.qty < 5);
+            } else if (catFilter === 'EXPIRING') {
+                // අලුත්: දින 30 කට අඩුවෙන් ඇති සහ කල් ඉකුත් වූ දේවල් ෆිල්ටර් කිරීම
+                if(!p.expiryDate || p.qty <= 0) {
+                    matchCat = false;
+                } else {
+                    const expDate = new Date(p.expiryDate);
+                    const today = new Date();
+                    const diffTime = expDate - today;
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                    matchCat = (diffDays <= 30);
+                }
             } else {
                 matchCat = catFilter === 'All' || (p.categoryId === catFilter) || (!p.categoryId && catFilter === "");
             }
@@ -3306,10 +3354,11 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                     <td style="color:${p.qty<5 && p.qty>0 ?'red':'inherit'}">${stockDisplay}</td>
                     <td>
                         <td>
-                        <button class="btn btn-ghost" style="padding:4px 8px; border-color:var(--warning); color:var(--warning);" onclick="openWriteOff('${p.id}')" title="Adjust Stock / Owner Drawings"><i class="ri-equalizer-line"></i></button>
-                        <button class="btn btn-warning" style="padding:4px 8px;" onclick="editStock('${p.id}')">Edit</button>
-                        <button class="btn btn-danger" style="padding:4px 8px;" onclick="deleteProduct('${p.id}', this.dataset.name)" data-name="${p.name.replace(/"/g, '&quot;').replace(/'/g, "&#39;")}"><i class="ri-delete-bin-line"></i></button>
-                    </td>
+        <button class="btn btn-info" style="padding:4px 8px; margin-bottom:4px;" onclick="openBatchSerials('${p.id}')"><i class="ri-barcode-box-line"></i> Serials</button><br>
+        <button class="btn btn-ghost" style="padding:4px 8px; border-color:var(--warning); color:var(--warning);" onclick="openWriteOff('${p.id}')" title="Adjust Stock / Owner Drawings"><i class="ri-equalizer-line"></i></button>
+        <button class="btn btn-warning" style="padding:4px 8px;" onclick="editStock('${p.id}')">Edit</button>
+        <button class="btn btn-danger" style="padding:4px 8px;" onclick="deleteProduct('${p.id}', this.dataset.name)" data-name="${p.name.replace(/"/g, '&quot;').replace(/'/g, "&#39;")}"><i class="ri-delete-bin-line"></i></button>
+    </td>
                 </tr>`;
             }).join('');
             
@@ -3347,6 +3396,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         document.getElementById('mpName').value = '';
         document.getElementById('mpImage').value = '';
         document.getElementById('mpCategory').value = '';
+        document.getElementById('mpExpiry').value = ''; // අලුත්: Date එක හිස් කිරීම
 
         document.getElementById('stockSelectContainer').style.display = 'block';
         document.getElementById('stockPreview').style.display = 'none';
@@ -3354,6 +3404,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         document.getElementById('mpBuy').disabled = false;
         document.getElementById('mpQty').disabled = false;
         document.getElementById('mpUnit').disabled = false;
+        document.getElementById('mpExpiry').disabled = false; // අලුත්
 
         const sel = document.getElementById('stockBaseSelect');
         sel.innerHTML = '<option value="">-- Choose Product --</option>';
@@ -3403,8 +3454,8 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         document.getElementById('mpName').value = p.name;
         document.getElementById('mpImage').value = p.image;
         document.getElementById('mpCategory').value = p.categoryId || '';
+        document.getElementById('mpExpiry').value = p.expiryDate || ''; // අලුත්: පරණ Date එක පෙන්වීම
         
-        // BUG FIX: Edit කිරීමේදී Supplier ගේ දත්තය මැකී යාම වැළැක්වීම
         if(document.getElementById('mpSupplier')) {
             document.getElementById('mpSupplier').value = p.supplierId || '';
         }
@@ -3419,9 +3470,11 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         }
         document.getElementById('mpNameDisplay').textContent = p.name;
 
+        // Edit කිරීමේදී මේවා වෙනස් කළ නොහැක
         document.getElementById('mpBuy').disabled = true;
         document.getElementById('mpQty').disabled = true;
         document.getElementById('mpUnit').disabled = true;
+        document.getElementById('mpExpiry').disabled = true; // අලුත්: Expiry date වෙනස් කළ නොහැක
         document.getElementById('mpSell').disabled = false;
 
         openModal('prodModal');
@@ -3436,10 +3489,10 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         const name = document.getElementById('mpName').value;
         const image = document.getElementById('mpImage').value;
         const categoryId = document.getElementById('mpCategory').value;
+        const expiryDate = document.getElementById('mpExpiry').value; // අලුත්
         
         let sku = "";
         
-        // Get SKU for batch calculation
         if(!id) {
              const sel = document.getElementById('stockBaseSelect');
              const opt = sel.options[sel.selectedIndex];
@@ -3452,12 +3505,17 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 
         if(isNaN(buy) || buy < 0) return showToast("Buy Price must be 0 or higher", "error");
         if(isNaN(sell) || sell <= 0) return showToast("Sell Price must be greater than 0", "error");
-        if(isNaN(qty) || qty <= 0) return showToast("Quantity must be greater than 0", "error");
+        
+        // අලුත් නීතිය: Barcode සෑදීමට Qty එක පූර්ණ සංඛ්‍යාවක් (Whole number) විය යුතුයි.
+        if(isNaN(qty) || qty <= 0 || !Number.isInteger(qty)) return showToast("Quantity must be a valid whole number (e.g. 10, 50) for Barcode generation!", "error");
+        
+        // අලුත් නීතිය: Expiry Date අනිවාර්යයි
+        if(!id && !expiryDate) return showToast("Expiry Date is REQUIRED to secure the inventory!", "error");
 
-        // ENTERPRISE FIX: Securely link the selected Supplier to the Stock Batch!
         const supplierId = document.getElementById('mpSupplier') ? document.getElementById('mpSupplier').value : "";
 
-        const stockData = { name, buy, sell, qty, unit, image, sku, categoryId, supplierId };
+        // දත්ත ගොනුවට අලුත් Expiry Date එක යැවීම
+        const stockData = { name, buy, sell, qty, unit, image, sku, categoryId, supplierId, expiryDate };
 
         if (sell < buy) {
             document.getElementById('priceWarningMsg').innerHTML = `Loss: ${formatMoney(sell - buy)} per unit`;
@@ -3474,29 +3532,28 @@ body.pos-fullscreen-mode #view-pos > div > .card {
     async function finalizeStockSave(id, data, keepOpen) {
         toggleLoader(true);
         const isEdit = !!id;
+        let generatedSerialsToPrint = []; // Print කිරීමට Barcodes තබාගැනීමට
         
         if(isEdit) {
-            // EDIT: Batch number stays the same. Simple update.
+            // EDIT Mode (මිල වෙනස් කිරීම පමණි)
             const oldP = productsCache.find(x => x.id === id);
             await updateDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/products`, id), { 
                 sell: data.sell
             });
-            // Log with existing batch number
             await logInventory(data.name, 'EDIT', `Price updated: ${formatMoney(oldP.sell)} -> ${formatMoney(data.sell)}`, 0, data.qty, oldP.batchNumber || 1, data.qty);
         } else {
-            // ENTERPRISE FIX: Eliminate Mass-Read Quota Burn & Batch Race Conditions using Transactional Counters!
+            // NEW STOCK MODE (Barcodes 50 ජනනය කිරීම)
             try {
                 let nextBatchNum = 1;
                 data.dateAdded = new Date().toISOString();
 
                 await runTransaction(db, async (transaction) => {
-                    // First, find the base product to update its internal batch counter securely
                     let baseProdRef = null;
                     let currentMaxBatch = 0;
                     
                     if (data.sku && data.sku.trim() !== "") {
                         const baseQ = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/base_products`), where("sku", "==", data.sku), limit(1));
-                        const bSnap = await getDocs(baseQ); // Safe 1-read query
+                        const bSnap = await getDocs(baseQ); 
                         if (!bSnap.empty) {
                             baseProdRef = bSnap.docs[0].ref;
                             currentMaxBatch = bSnap.docs[0].data().latestBatchNumber || 0;
@@ -3513,26 +3570,37 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                     nextBatchNum = currentMaxBatch + 1;
                     data.batchNumber = nextBatchNum;
 
-                    // Write new product
-                    const newProdRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`));
-                    transaction.set(newProdRef, data);
+                    // 1. අනුක්‍රමික බාර්කෝඩ් (Serial Barcodes) ජනනය කිරීම 
+                    const safeSku = (data.sku && data.sku.trim() !== "") ? data.sku.trim() : "ITM";
+                    const barcodePrefix = `${safeSku}-B${nextBatchNum}`; // උදා: 479200-B3
+                    
+                    const availableSerials = [];
+                    for(let i = 1; i <= data.qty; i++) {
+                        // උදා: 479200-B3-001, 479200-B3-002
+                        const serialString = `${barcodePrefix}-${String(i).padStart(3, '0')}`;
+                        availableSerials.push(serialString);
+                    }
+                    
+                    // Print කිරීම සඳහා මතක තබාගැනීම
+                    generatedSerialsToPrint = [...availableSerials];
 
-                    // Update Base Product counter
+                    // 2. අලුත් Arrays දෙක සමඟ Database එකට ලිවීම
+                    const newProdRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`));
+                    transaction.set(newProdRef, {
+                        ...data,
+                        availableSerials: availableSerials, // විකිණීමට ඇති ලැයිස්තුව
+                        soldSerials: [] // විකුණුම් ලැයිස්තුව (මුලදී හිස්)
+                    });
+
                     if (baseProdRef) {
                         transaction.update(baseProdRef, { latestBatchNumber: nextBatchNum });
                     }
 
-                    // Write log
                     const logRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/inventory_logs`));
                     transaction.set(logRef, {
-                        date: new Date().toISOString(),
-                        productName: data.name,
-                        action: 'ADD',
-                        description: 'New Stock Batch',
-                        quantityChange: data.qty,
-                        finalQty: data.qty,
-                        initialQty: 0,
-                        batchNumber: nextBatchNum
+                        date: new Date().toISOString(), productName: data.name, action: 'ADD',
+                        description: `New Stock Batch (Exp: ${data.expiryDate})`, quantityChange: data.qty,
+                        finalQty: data.qty, initialQty: 0, batchNumber: nextBatchNum
                     });
                 });
             } catch (e) {
@@ -3545,17 +3613,25 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 
         await loadProducts();
         toggleLoader(false);
-        showToast("Stock saved successfully!");
+        showToast("Stock & Serial Barcodes saved successfully!");
         
-        // Handle "Save & Add Another" Logic
+        // 3. ස්වයංක්‍රීයව Print කිරීම අසන කොටස (අලුත් තොගයකදී පමණක්)
+        if (!isEdit && generatedSerialsToPrint.length > 0) {
+            setTimeout(() => {
+                if(confirm(`භාණ්ඩ ${data.qty} ක් තොගයට එකතු විය. කඩේ ඇලවීම සඳහා Barcode ස්ටිකර් ${data.qty} දැන් Print කරන්නද?`)) {
+                    printBatchBarcodes(data.name, data.sell, data.expiryDate, generatedSerialsToPrint);
+                }
+            }, 600);
+        }
+
         if (keepOpen && !isEdit) {
-            // Clear inputs for the next entry
             document.getElementById('mpBuy').value = '';
             document.getElementById('mpSell').value = '';
             document.getElementById('mpQty').value = '';
             document.getElementById('stockBaseSelect').value = '';
             document.getElementById('stockPreview').style.display = 'none';
             document.getElementById('mpName').value = '';
+            document.getElementById('mpExpiry').value = '';
         } else {
             document.getElementById('prodModal').style.display = 'none';
         }
@@ -4202,6 +4278,11 @@ body.pos-fullscreen-mode #view-pos > div > .card {
     }
 
     window.removeFromCart = (idx) => {
+        const item = cart[idx];
+        if(item.serials) {
+            // Cart එකෙන් අයින් කරනකොට මතක තියාගත්ත අංක ටිකත් අයින් කරනවා
+            currentCartSerials = currentCartSerials.filter(s => !item.serials.includes(s));
+        }
         cart.splice(idx, 1);
         renderCart();
     };
@@ -4473,7 +4554,17 @@ window.checkout = async () => {
                 const newQty = currentStock - item.qty;
 
                 // ENTERPRISE FIX: Use Firestore increment to prevent race conditions when multiple cashiers sell simultaneously
-                currentBatch.update(prodRef, { qty: increment(-item.qty) });
+                // ENTERPRISE FIX: අනුක්‍රමික බාර්කෝඩ් Lock කිරීම
+                if (item.serials && item.serials.length > 0) {
+                    currentBatch.update(prodRef, { 
+                        qty: increment(-item.qty),
+                        availableSerials: arrayRemove(...item.serials), // විකිණීමට ඇති ලැයිස්තුවෙන් ඉවත් කිරීම
+                        soldSerials: arrayUnion(...item.serials)       // විකුණූ ලැයිස්තුවට එකතු කිරීම (SOLD Lock)
+                    });
+                } else {
+                    // පැරණි විදියේ ස්ටිකර් නොමැති භාණ්ඩ සඳහා පමණක් (Fallback)
+                    currentBatch.update(prodRef, { qty: increment(-item.qty) }); 
+                }
                 safeBatchUpdate();
 
                 const logRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/inventory_logs`));
@@ -4561,7 +4652,8 @@ window.checkout = async () => {
 
             // UPDATE CACHE FOR DASHBOARD
             salesCache.unshift(saleData);
-            cart = []; 
+            cart = [];
+            currentCartSerials = []; 
             currentOtherFees = [];
             
             document.getElementById('discountValue').value = '';
@@ -7094,105 +7186,116 @@ window.handlePosSearchEnter = async (e) => {
         if (e.key === 'Enter') {
             e.preventDefault(); 
             
-            // ENTERPRISE FIX: Block hardware scanners from injecting items while checking out OR if a scan is already processing (Race Condition Fix)
             if (window.isCheckingOut || window.isScanningBarcode) {
-                document.getElementById('posSearch').value = ''; // Flush scanner buffer
+                document.getElementById('posSearch').value = ''; 
                 return showToast("System is processing... Please scan slightly slower.", "warning");
             }
             
             const term = document.getElementById('posSearch').value.trim();
             if(!term) return;
             
-            window.isScanningBarcode = true; // Lock execution for hardware scanners
+            window.isScanningBarcode = true;
             toggleLoader(true);
             
             try {
-                // ENTERPRISE FIX: Hybrid Barcode Scanner (Ultra-Fast)
-                let batches =[];
-            
-            // 1. මුලින්ම Local Cache එක පරීක්ෂා කිරීම (වේගවත් කිරීම සඳහා)
-            productsCache.forEach(p => {
-                if(p.sku === term && (p.qty > 0 || p.isService)) {
-                    batches.push(p);
+                // 1. පරීක්ෂාව: මේක විකුණලා ඉවර වුණ හොර Barcode එකක්ද? (FRAUD ALERT)
+                const qSold = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`), where('soldSerials', 'array-contains', term), limit(1));
+                const snapSold = await getDocs(qSold);
+                
+                if (!snapSold.empty) {
+                    toggleLoader(false);
+                    window.isScanningBarcode = false;
+                    document.getElementById('posSearch').value = '';
+                    alert("🚨 FRAUD ALERT! 🚨\n\nමෙම Barcode අංකය මීට පෙර විකුණා අවසන් වූවකි! (Already Sold)\nකරුණාකර කළමනාකරු දැනුවත් කරන්න.");
+                    return showToast("Fraud Alert! Barcode reused.", "error");
                 }
-            });
 
-            // 2. Cache එකේ නැත්නම් පමණක් Database එකෙන් ගෙන්වා ගැනීම (පැරණි භාණ්ඩ සඳහා)
-            if(batches.length === 0) {
-                const qSku = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`), where('sku', '==', term));
-                const snap = await getDocs(qSku);
-                snap.forEach(d => {
-                    const data = d.data();
-                    if(data.qty > 0 || data.isService) {
-                        const newP = {id: d.id, ...data};
-                        batches.push(newP);
-                        productsCache.push(newP); // මීළඟ වතාවේ වේගවත් වීමට Cache එකට එකතු කිරීම
-                    }
-                });
-            }
+                // 2. පරීක්ෂාව: මේක විකිණීමට තියෙන (AVAILABLE) නිවැරදි Barcode එකක්ද?
+                const qAvail = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`), where('availableSerials', 'array-contains', term), limit(1));
+                const snapAvail = await getDocs(qAvail);
 
-            if(batches.length > 0) {
-                    // FIFO SORTING: පැරණිම Batch එක (Batch අංකය අඩුම එක) මුලට ගෙන ඒම
-                    batches.sort((a, b) => (a.batchNumber || 0) - (b.batchNumber || 0));
-                    
-                    // SMART CROSS-BATCH LOGIC: Cart එකේ දැනටමත් තියෙන ප්‍රමාණය අඩු කරලා, ඉඩ තියෙන Batch එකක් හොයමු
-                    let selectedBatch = null;
-                    for (let b of batches) {
-                        const inCart = cart.find(x => x.id === b.id);
-                        const cartQty = inCart ? inCart.qty : 0;
-                        if (b.qty - cartQty > 0 || b.isService) {
-                            selectedBatch = b; // තවදුරටත් එකතු කරන්න ඉඩ තියෙන පැරණිම තොගය!
-                            break;
-                        }
+                if (!snapAvail.empty) {
+                    // නිවැරදි Barcode එකක් හමුවුණා!
+                    if (currentCartSerials.includes(term)) {
+                        toggleLoader(false);
+                        window.isScanningBarcode = false;
+                        document.getElementById('posSearch').value = '';
+                        return showToast("This specific packet is already in the cart!", "warning");
                     }
 
-                    if(selectedBatch) {
-                        // Cache එකේ නැත්නම් දමා ගැනීම
-                        if(!productsCache.find(p => p.id === selectedBatch.id)) {
-                            productsCache.push(selectedBatch);
-                        }
-                        
-                        addToCart(selectedBatch.id); // Add to Cart
-                        document.getElementById('posSearch').value = ''; 
-                        filterPos(); // Reset UI
-                    } else {
-                        showToast("All available stock for this item is already in the cart!", "warning");
-                        document.getElementById('posSearch').select();
+                    const batchDoc = snapAvail.docs[0];
+                    const selectedBatch = { id: batchDoc.id, ...batchDoc.data() };
+
+                    // Cache එකේ නැත්නම් දමා ගැනීම
+                    if(!productsCache.find(p => p.id === selectedBatch.id)) {
+                        productsCache.push(selectedBatch);
                     }
                     
-                    // Keep Focus for continuous scanning
+                    // Cart එකට මේ අංකයත් එක්කම එකතු කිරීම
+                    addSerialToCart(selectedBatch, term);
+
+                    document.getElementById('posSearch').value = ''; 
+                    filterPos(); // Reset UI
                     setTimeout(() => { document.getElementById('posSearch').focus(); }, 50);
 
                 } else {
-                    // SKU එකට ගැළපෙන කිසිවක් පද්ධතියේ නැත්නම්
-                    showToast("Barcode not found in system!", "error");
-                    document.getElementById('posSearch').select();
+                    // 3. පරීක්ෂාව: මේක සමාගමේ Original (Global SKU) Barcode එකක්ද?
+                    const qSku = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`), where('sku', '==', term), limit(1));
+                    const snapSku = await getDocs(qSku);
+
+                    if (!snapSku.empty) {
+                        // කඩේ ස්ටිකර් නොගහා කම්මැලිකමට සමාගමේ Barcode එක ස්කෑන් කරලා! (STRICT BLOCK)
+                        document.getElementById('posSearch').value = '';
+                        alert("අවවාදයි! ⚠️\n\nමෙය සමාගමේ මුල් Barcode එකයි (Global SKU).\nපද්ධතියේ ආරක්ෂාව සඳහා කරුණාකර කඩෙන් ඇලවූ Barcode ස්ටිකරය පමණක් ස්කෑන් කරන්න.");
+                    } else {
+                        showToast("Barcode not found in system!", "error");
+                        document.getElementById('posSearch').select();
+                    }
                 }
             } catch (err) {
                 console.error("Scanner Error:", err);
                 showToast("Error processing barcode.", "error");
             } finally {
                 toggleLoader(false);
-                window.isScanningBarcode = false; // Release scanner lock securely
+                window.isScanningBarcode = false; 
             }
         }
     };
+// Cart එකට Serial එකත් එක්කම දාන අලුත් Helper Function එක
+    window.addSerialToCart = (p, serial) => {
+        const exist = cart.find(x => x.id === p.id);
+        
+        currentCartSerials.push(serial); // මතක තබාගන්න
+
+        if(exist) {
+            if((exist.qty + 1) <= p.qty) {
+                exist.qty++;
+                if(!exist.serials) exist.serials = [];
+                exist.serials.push(serial); // Cart item එක ඇතුලෙත් Barcode අංක ටික ලියාගන්නවා
+                window.isNewItemAdded = false;
+            } else {
+                return showToast(`Max stock reached for this batch!`, "error");
+            }
+        } else {
+            cart.push({...p, qty: 1, serials: [serial]});
+            window.isNewItemAdded = true;
+        }
+        renderCart();
+    };
     
 window.clearEntireCart = () => {
-        // ENTERPRISE FIX: Block UI tampering while backend checkout logic is executing!
         if (window.isCheckingOut) {
             return showToast("Cannot clear cart while a checkout is processing!", "error");
         }
-        
         if(cart.length === 0) return;
         if(!confirm("Are you sure you want to clear the entire order?")) return;
         
         const total = document.getElementById('cartTotal').textContent;
-        // ENTERPRISE FIX: Log Aborted Sales to catch Cashier Fraud!
         if(window.writeSystemLog) writeSystemLog("ABORTED_SALE", `Cart cleared manually. Value: ${total}`);
         
-        cart = [  ];
-        currentOtherFees = [  ];
+        cart = [];
+        currentCartSerials = []; // අංක මතකය සම්පූර්ණයෙන්ම හිස් කිරීම
+        currentOtherFees = [];
         document.getElementById('discountValue').value = '';
         if(document.getElementById('posCashGiven')) document.getElementById('posCashGiven').value = '';
         
@@ -9920,6 +10023,185 @@ window.openReplyModal = (id) => {
         } finally {
             toggleLoader(false);
         }
+    };
+
+// --- NEW: BATCH BARCODE PRINTING (SERIALIZED) ---
+    window.printBatchBarcodes = (productName, price, expiryDate, serialsArray) => {
+        toggleLoader(true);
+        
+        // Canvas එකක් යොදාගෙන Barcodes ටික Images බවට පත් කිරීම
+        const hiddenCanvas = document.createElement('canvas');
+        let stickersHtml = '';
+        const shopName = (profileCache && profileCache.bizName) ? profileCache.bizName : "Our Shop";
+
+        setTimeout(() => {
+            serialsArray.forEach(serialCode => {
+                let barcodeImgSrc = "";
+                try {
+                    JsBarcode(hiddenCanvas, serialCode, { 
+                        format: "CODE128", 
+                        displayValue: true, 
+                        height: 40, 
+                        fontSize: 12, 
+                        margin: 5,
+                        textMargin: 2
+                    });
+                    barcodeImgSrc = hiddenCanvas.toDataURL("image/png");
+                } catch(e) {
+                    console.error("Barcode generation failed for", serialCode);
+                }
+
+                if (barcodeImgSrc) {
+                    // එක ස්ටිකරයක HTML සැකැස්ම (උස/පළල Sticker Printer වලටත් ගැලපේ)
+                    stickersHtml += `
+                        <div class="sticker">
+                            <div class="shop">${shopName}</div>
+                            <div class="name">${productName.substring(0, 25)}</div>
+                            <div class="price">Rs. ${formatMoney(price).replace(currentCurrency, '')}</div>
+                            <img src="${barcodeImgSrc}" class="barcode" />
+                            <div class="exp">Exp: ${expiryDate}</div>
+                        </div>
+                    `;
+                }
+            });
+
+            // Print Window එක සෑදීම
+            const printWindow = window.open('', '', 'height=800,width=800');
+            printWindow.document.write(`
+                <html><head><title>Print Batch Barcodes</title>
+                <style>
+                    body { 
+                        font-family: sans-serif; 
+                        margin: 0; 
+                        padding: 10px; 
+                        display: flex; 
+                        flex-wrap: wrap; 
+                        gap: 10px; 
+                        justify-content: flex-start;
+                    }
+                    /* සාමාන්‍ය ස්ටිකර් සයිස් එකකට ගැලපෙන ලෙස (උදා: 50mm x 30mm) */
+                    .sticker { 
+                        width: 180px; 
+                        height: 120px; 
+                        border: 1px dashed #ccc; 
+                        padding: 5px; 
+                        text-align: center; 
+                        box-sizing: border-box;
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: center;
+                        align-items: center;
+                        overflow: hidden;
+                    }
+                    .shop { font-size: 10px; font-weight: bold; text-transform: uppercase; margin-bottom: 2px; }
+                    .name { font-size: 11px; font-weight: bold; line-height: 1.1; margin-bottom: 2px; }
+                    .price { font-size: 13px; font-weight: 900; color: #000; margin-bottom: 2px; }
+                    .barcode { max-width: 100%; height: 45px; }
+                    .exp { font-size: 9px; font-weight: bold; margin-top: 2px; }
+                    
+                    @media print {
+                        body { padding: 0; gap: 5px; }
+                        .sticker { border: none; page-break-inside: avoid; }
+                    }
+                </style>
+                </head><body>
+                    ${stickersHtml}
+                    <script>
+                        window.onload = function() { 
+                            setTimeout(() => { window.print(); window.close(); }, 800); 
+                        };
+                    <\/script>
+                </body></html>
+            `);
+            printWindow.document.close();
+            toggleLoader(false);
+        }, 300); // සුළු වෙලාවක් දෙන්නේ බාර්කෝඩ් සියල්ල ජනනය වීමටයි.
+    };
+
+let currentBatchForSerials = null;
+
+    window.openBatchSerials = (id) => {
+        const p = productsCache.find(x => x.id === id);
+        if(!p) return;
+        
+        currentBatchForSerials = p;
+        document.getElementById('bsModalTitle').textContent = `Manage Batch: ${formatBatch(p.batchNumber)}`;
+        
+        // Expiry Date එක පැනලා නම් රතු පාටින් පෙන්නනවා
+        const isExpired = p.expiryDate && new Date(p.expiryDate) < new Date();
+        document.getElementById('bsBatchInfo').innerHTML = `Product: ${p.name} | Price: ${formatMoney(p.sell)} <br> Exp Date: <span style="color:${isExpired ? 'red' : 'inherit'}; font-weight:bold;">${p.expiryDate || 'N/A'} ${isExpired ? '(EXPIRED!)' : ''}</span>`;
+        
+        const tbody = document.getElementById('bsSerialsBody');
+        let html = '';
+        
+        // 1. තාම විකිණිලා නැති (AVAILABLE) ලිස්ට් එක
+        (p.availableSerials || []).forEach(serial => {
+            html += `
+            <tr>
+                <td style="padding:8px; border-bottom:1px solid #eee; font-family:monospace; font-weight:bold;">${serial}</td>
+                <td style="padding:8px; border-bottom:1px solid #eee; text-align:center;"><span style="background:#dcfce7; color:#15803d; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold;">AVAILABLE</span></td>
+                <td style="padding:8px; border-bottom:1px solid #eee; text-align:right;">
+                    <button class="btn btn-ghost" style="padding:2px 6px; font-size:11px;" onclick="reprintSingleSerial('${serial}')"><i class="ri-printer-line"></i> Reprint</button>
+                </td>
+            </tr>`;
+        });
+        
+        // 2. විකිණිලා ඉවර වුණ (SOLD) ලිස්ට් එක
+        (p.soldSerials || []).forEach(serial => {
+            html += `
+            <tr style="background:#fef2f2; opacity:0.7;">
+                <td style="padding:8px; border-bottom:1px solid #eee; font-family:monospace; font-weight:bold; text-decoration:line-through;">${serial}</td>
+                <td style="padding:8px; border-bottom:1px solid #eee; text-align:center;"><span style="background:#fee2e2; color:#b91c1c; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold;">SOLD</span></td>
+                <td style="padding:8px; border-bottom:1px solid #eee; text-align:right;">
+                    <button class="btn btn-ghost" style="padding:2px 6px; font-size:11px;" disabled>Locked</button>
+                </td>
+            </tr>`;
+        });
+
+        if(html === '') {
+            html = '<tr><td colspan="3" style="text-align:center; padding:10px; color:#666;">No individual serials found for this batch. (Old system format)</td></tr>';
+        }
+        
+        tbody.innerHTML = html;
+        openModal('batchSerialsModal');
+    };
+
+    window.reprintSingleSerial = (serial) => {
+        if(!currentBatchForSerials) return;
+        if(window.writeSystemLog) writeSystemLog("BARCODE_REPRINT", `Admin reprinted single barcode: ${serial}`);
+        printBatchBarcodes(currentBatchForSerials.name, currentBatchForSerials.sell, currentBatchForSerials.expiryDate || 'N/A', [serial]);
+    };
+
+    window.printAvailableSerials = () => {
+        if(!currentBatchForSerials || !currentBatchForSerials.availableSerials || currentBatchForSerials.availableSerials.length === 0) {
+            return showToast("No available serials to print", "error");
+        }
+        if(confirm(`Are you sure you want to print all ${currentBatchForSerials.availableSerials.length} available stickers?`)) {
+            if(window.writeSystemLog) writeSystemLog("BARCODE_REPRINT_ALL", `Admin reprinted all available barcodes for Batch ${currentBatchForSerials.batchNumber}`);
+            printBatchBarcodes(currentBatchForSerials.name, currentBatchForSerials.sell, currentBatchForSerials.expiryDate || 'N/A', currentBatchForSerials.availableSerials);
+        }
+    };
+
+    // --- EXPIRY DATE FILTER LOGIC (FEFO) ---
+    window.viewExpiringItems = () => {
+        loadView('products');
+        
+        const catFilter = document.getElementById('stockFilterCategory');
+        let opt = document.getElementById('optExpiring');
+        if(!opt) {
+            opt = document.createElement('option');
+            opt.id = 'optExpiring';
+            opt.value = 'EXPIRING';
+            opt.text = '⏰ Expiring Soon (< 30 Days)';
+            opt.style.color = '#d97706';
+            opt.style.fontWeight = 'bold';
+            catFilter.appendChild(opt);
+        }
+        
+        catFilter.value = 'EXPIRING';
+        document.getElementById('prodSearch').value = ''; 
+        filterProducts(); // Standard filter function handles it based on below logic
+        showToast("Filtered to Expiring & Expired Items", "info");
     };
 </script>
 
