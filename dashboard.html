@@ -629,6 +629,10 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                         <label>Quantity Returning (Max: <span id="refundMaxQty"></span>)</label>
                         <input type="number" id="refundQtyInput" placeholder="1" style="margin:0;">
                     </div>
+<div>
+        <label style="color:var(--danger); font-weight:bold;">Scan the Returned Item's Barcode *</label>
+        <input id="refundSerialScan" placeholder="Scan the physical sticker here..." style="margin:0; border:2px solid var(--danger);">
+    </div>
                     <div>
                         <label>Reason</label>
                         <input id="refundReasonInput" placeholder="Reason for return..." style="margin:0;">
@@ -1247,6 +1251,23 @@ body.pos-fullscreen-mode #view-pos > div > .card {
     </div>
 </div>
 
+<!-- NEW: MANUAL SERIAL INPUT MODAL (STRICT MODE) -->
+<div id="posSerialInputModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.8); display:none; align-items:center; justify-content:center; z-index:4600; backdrop-filter: blur(3px);">
+    <div class="card" style="width:350px; text-align:center; padding:30px; border-top: 5px solid var(--primary); margin:0;">
+        <h3 style="color:var(--primary); margin-bottom:10px;"><i class="ri-barcode-box-line"></i> Verify Physical Item</h3>
+        <p style="font-size:13px; color:#666; margin-bottom:20px;">
+            To prevent inventory mismatches, please look at the sticker on the physical item and type the <b>last 3 digits</b> (or full barcode).
+        </p>
+        
+        <input type="text" id="manualSerialInput" placeholder="e.g. 005" style="text-align:center; font-weight:bold; font-size:24px; letter-spacing:3px; padding:15px; text-transform:uppercase;" onkeypress="if(event.key === 'Enter') confirmManualSerial()">
+        
+        <div style="display:flex; gap:10px; margin-top:20px;">
+            <button class="btn btn-primary" style="flex:1; justify-content:center;" onclick="confirmManualSerial()">Verify & Add</button>
+            <button class="btn btn-ghost" onclick="closeModal('posSerialInputModal')">Cancel</button>
+        </div>
+    </div>
+</div>
+
 <!-- CATEGORY MODAL -->
 <div id="categoryModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:2000;">
     <div class="card" style="width:400px; margin:0;">
@@ -1802,6 +1823,22 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             <button class="btn btn-info" onclick="executeReprint('58mm')" style="width:100%; justify-content:center; font-size:14px; padding:10px;">58mm Thermal</button>
             <button class="btn btn-success" onclick="executeReprint('A4')" style="width:100%; justify-content:center; font-size:14px; padding:10px;">A4 Document</button>
             <button class="btn btn-ghost" onclick="closeModal('printSizeModal')" style="width:100%; justify-content:center; margin-top:10px;">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- NEW: POS BATCH SELECTION MODAL -->
+<div id="posBatchSelectModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.6); display:none; align-items:center; justify-content:center; z-index:4500; backdrop-filter: blur(2px);">
+    <div class="card" style="width:400px; max-height:85vh; display:flex; flex-direction:column; margin:0; padding:20px; border-top: 5px solid var(--primary);">
+        <div style="display:flex; justify-content:space-between; margin-bottom:10px; border-bottom:1px solid #eee; padding-bottom:10px;">
+            <h3 style="color:var(--primary); margin:0;"><i class="ri-stack-line"></i> Select Batch</h3>
+            <i class="ri-close-line" style="cursor:pointer; font-size:24px;" onclick="closeModal('posBatchSelectModal')"></i>
+        </div>
+        
+        <div id="posBatchSelectProductInfo" style="font-weight:900; font-size:15px; margin-bottom:15px; text-align:center; color:#1f2937;"></div>
+        
+        <div id="posBatchSelectList" style="flex:1; overflow-y:auto; padding-right:5px; display:flex; flex-direction:column; gap:10px;">
+            <!-- Batches will be generated here -->
         </div>
     </div>
 </div>
@@ -4012,49 +4049,49 @@ body.pos-fullscreen-mode #view-pos > div > .card {
     };
 
 
-    // --- POS ---
     function renderPosGrid() {
         const grid = document.getElementById('posGrid');
-        const term = document.getElementById('posSearch').value.toLowerCase();
+        
+        // 🚀 SMART SEARCH INTELLIGENCE (For Grid Filtering)
+        let termRaw = document.getElementById('posSearch').value.toLowerCase().trim();
+        let term = termRaw;
+        if(term.includes('-b')) {
+            term = term.split('-b')[0].trim(); // Local filter එක සඳහාත් Base SKU එක පමණක් ගනී
+        }
         
         const itemType = document.getElementById('posItemType').value;
         const prodCatFilter = document.getElementById('posFilterCategory').value;
         const srvCatFilter = document.getElementById('posServiceCategory').value;
 
-        let combined =[];
+        let combined = [];
 
-        // 1. PROCESS PRODUCTS (If itemType is 'product' or 'all')
         if(itemType === 'product' || itemType === 'all') {
             const groupedProds = {};
-            
             productsCache.forEach(p => {
-                if(p.qty <= 0) return; // Ignore out of stock
+                if(p.qty <= 0) return; 
                 
                 const matchName = p.name.toLowerCase().includes(term) || (p.sku && p.sku.toLowerCase().includes(term));
                 const matchCat = prodCatFilter === 'All' || (p.categoryId === prodCatFilter) || (!p.categoryId && prodCatFilter === "");
                 
                 if(matchName && matchCat) {
-                    const key = p.sku || p.name; // Group by SKU or Name
+                    const key = p.sku || p.name; 
                     if(!groupedProds[key]) {
-                        groupedProds[key] = { ...p, totalQty: 0, batches:[] };
+                        groupedProds[key] = { ...p, totalQty: 0, batches: [] };
                     }
                     groupedProds[key].totalQty += p.qty;
                     groupedProds[key].batches.push(p);
                 }
             });
 
-            // Resolve the Best Batch (FIFO) for display
             Object.values(groupedProds).forEach(g => {
                 g.batches.sort((a,b) => (a.batchNumber||0) - (b.batchNumber||0));
                 const oldestBatch = g.batches[0];
                 g.displayPrice = oldestBatch.sell;
                 g.oldestBatchId = oldestBatch.id; 
-                g.oldestBatchNum = oldestBatch.batchNumber;
                 combined.push(g);
             });
         }
 
-        // 2. PROCESS SERVICES (If itemType is 'service' or 'all')
         if(itemType === 'service' || itemType === 'all') {
             const srvFiltered = servicesCache.filter(s => {
                 const matchName = s.name.toLowerCase().includes(term);
@@ -4107,24 +4144,27 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         grid.innerHTML = htmlStr;
     }
 
-    // MEMORY OPTIMIZED: Dynamic Server-Side Search
+    // MEMORY OPTIMIZED & SMART SEARCH INTELLIGENCE
     window.filterPos = debounceSearch(async () => {
-        const term = document.getElementById('posSearch').value.trim();
-        const catFilter = document.getElementById('posFilterCategory').value;
+        let originalTerm = document.getElementById('posSearch').value.trim();
         
+        // 🚀 SMART SEARCH INTELLIGENCE: අතින් ටයිප් කරන විට සම්පූර්ණ Serial එකෙන් Base SKU එක පමණක් වෙන් කර ගැනීම
+        let term = originalTerm;
+        if (term.toUpperCase().includes('-B')) {
+            term = term.toUpperCase().split('-B')[0].trim();
+        }
+
         if (term.length >= 2) {
             document.getElementById('posGrid').innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: var(--primary); padding: 20px;">Searching Database...</div>';
             
-            // 1. Barcode/SKU හරහා කෙළින්ම Database එකෙන් සෙවීම (Highest Speed)
+            // Base SKU එක පමණක් Database එකට යවා සෙවීම (Firebase Cost ඉතිරි වේ)
             const qSku = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`), where('sku', '==', term), limit(20));
             
-            // 2. නමින් සෙවීම (Firebase Prefix Search) - Note: මුල් අකුර Capital කර යවයි.
             const capTerm = term.charAt(0).toUpperCase() + term.slice(1);
             const qName = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`), where('name', '>=', capTerm), where('name', '<=', capTerm + '\uf8ff'), limit(30));
 
             const itemType = document.getElementById('posItemType').value;
             
-            // ONLY fetch products from server if we are viewing products or all
             if(itemType === 'product' || itemType === 'all') {
                 const [snapSku, snapName] = await Promise.all([getDocs(qSku), getDocs(qName)]);
                 
@@ -4133,7 +4173,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             }
         }
         renderPosGrid();
-    }, 400); // තත්පර 0.4 කින් පසුව ක්‍රියාත්මක වේ (Debounced)
+    }, 400);
 
     // --- POS FULLSCREEN LOGIC ---
     window.togglePosFullScreen = () => {
@@ -4176,10 +4216,14 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         }
     });
 
+    // Strict Mode සඳහා තාවකාලිකව Batch එක මතක තබාගන්නා විචල්‍යය
+    let pendingBatchForManualSerial = null;
+
     window.addToCart = (id) => {
         const p = productsCache.find(x => x.id === id) || servicesCache.map(s => ({...s, sell: s.price, isService: true})).find(x => x.id === id);
         if(!p) return;
 
+        // සේවා (Services) සඳහා කෙලින්ම Cart එකට දමයි
         if(p.isService) {
             const exist = cart.find(x => x.id === id);
             if(exist) exist.qty++; else cart.push({...p, qty: 1});
@@ -4188,31 +4232,136 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             return;
         }
 
-        // --- SMART BATCH FINDER ---
+        // --- බහු-තොග (MULTI-BATCH) තේරීමේ තර්කය ---
         const allBatches = productsCache.filter(x => {
             if (p.sku && x.sku === p.sku) return true;
             if (!p.sku && x.name === p.name) return true;
             return false;
         }).filter(x => x.qty > 0).sort((a,b) => (a.batchNumber||0) - (b.batchNumber||0));
-        let added = false;
+
+        if(allBatches.length === 0) return showToast("Out of stock!", "error");
+
+        if(allBatches.length === 1) {
+            // ඇත්තේ එකම එක Batch එකක් නම්, කෙලින්ම යවයි
+            processBatchSelection(allBatches[0]);
+        } else {
+            // Batches කිහිපයක් ඇත්නම් අලුත් Modal එක පෙන්වයි
+            openBatchSelectModal(allBatches, p.name);
+        }
+    };
+
+    window.openBatchSelectModal = (batches, productName) => {
+        document.getElementById('posBatchSelectProductInfo').textContent = productName;
+        const list = document.getElementById('posBatchSelectList');
         
-        for(let batch of allBatches) {
+        let minWithStock = Infinity;
+        let maxWithStock = -1;
+        
+        batches.forEach(b => {
+            const bNum = b.batchNumber || 1;
+            if(bNum < minWithStock) minWithStock = bNum;
+            if(bNum > maxWithStock) maxWithStock = bNum;
+        });
+
+        list.innerHTML = batches.map(b => {
+            const bNum = b.batchNumber || 1;
+            let batchClass = 'batch-mid'; // Grey (මධ්‍යම වර්ණය)
+            
+            if (b.isRefund) {
+                batchClass = 'batch-refund'; // Blue 
+            } else if (bNum === minWithStock) {
+                batchClass = 'batch-oldest'; // Red
+            } else if (bNum === maxWithStock) {
+                batchClass = 'batch-latest'; // Green
+            }
+
+            const isExpired = b.expiryDate && new Date(b.expiryDate) < new Date();
+            const expColor = isExpired ? '#ef4444' : '#d97706';
+            const expStr = b.expiryDate ? `<div style="font-size:11px; color:${expColor}; font-weight:bold; margin-top:3px;"><i class="ri-calendar-event-line"></i> Exp: ${b.expiryDate} ${isExpired ? '(EXPIRED!)' : ''}</div>` : '';
+
+            return `
+            <div style="border:1px solid #e5e7eb; border-radius:8px; padding:12px; display:flex; justify-content:space-between; align-items:center; background:#f9fafb; transition:0.2s;">
+                <div>
+                    <span class="batch-badge ${batchClass}" style="font-size:10px; padding:3px 6px;">${b.isRefund ? 'RETURNED ITEM' : 'BATCH: ' + formatBatch(bNum)}</span>
+                    <div style="font-weight:900; font-size:18px; color:var(--primary); margin-top:6px;">${formatMoney(b.sell)}</div>
+                    <div style="font-size:12px; color:#4b5563; font-weight:600;">Available Stock: <span style="color:#111827;">${b.qty}</span></div>
+                    ${expStr}
+                </div>
+                <button class="btn btn-primary" style="padding:10px 15px; box-shadow:0 2px 4px rgba(0,0,0,0.1);" onclick="selectBatchForCart('${b.id}')">Select</button>
+            </div>`;
+        }).join('');
+
+        openModal('posBatchSelectModal');
+    };
+
+    window.selectBatchForCart = (batchId) => {
+        const batch = productsCache.find(x => x.id === batchId);
+        if(batch) {
+            processBatchSelection(batch);
+            closeModal('posBatchSelectModal');
+        }
+    };
+
+    // තෝරාගත් Batch එකෙන් Serial අංකය ඉල්ලීමේ තර්කනය (Strict Mode)
+    function processBatchSelection(batch) {
+        if (batch.availableSerials && batch.availableSerials.length > 0) {
+            
+            // Cashier ගෙන් භෞතික පැකට්ටුවේ අංකය ඉල්ලීම සඳහා Modal එක විවෘත කිරීම
+            pendingBatchForManualSerial = batch;
+            document.getElementById('manualSerialInput').value = '';
+            openModal('posSerialInputModal');
+            
+            // Auto focus the input field for faster typing
+            setTimeout(() => document.getElementById('manualSerialInput').focus(), 100);
+            
+        } else {
+            // Serial අංක නැති පරණ භාණ්ඩ සඳහා (Old Unserialized Fallback)
             const exist = cart.find(x => x.id === batch.id);
             if(exist) {
                 if((exist.qty + 1) <= batch.qty) {
                     exist.qty++;
                     window.isNewItemAdded = false;
-                    added = true; break;
+                } else {
+                    return showToast(`Max stock reached for this batch!`, "error");
                 }
             } else {
                 cart.push({...batch, qty: 1});
                 window.isNewItemAdded = true;
-                added = true; break;
             }
+            renderCart();
+        }
+    }
+
+    // Cashier විසින් අංකය ටයිප් කර Enter එබූ පසු නිරවද්‍යතාවය පරීක්ෂා කිරීම
+    window.confirmManualSerial = () => {
+        const inputVal = document.getElementById('manualSerialInput').value.trim().toUpperCase();
+        if (!inputVal) return showToast("Please enter the digits from the sticker!", "error");
+
+        const batch = pendingBatchForManualSerial;
+        if (!batch) return closeModal('posSerialInputModal');
+
+        // 1. ටයිප් කළ අංකය Available ලිස්ට් එකේ තියෙනවද කියලා බලනවා
+        const matchedSerial = batch.availableSerials.find(s => s.toUpperCase().endsWith(inputVal) || s.toUpperCase() === inputVal);
+
+        if (!matchedSerial) {
+            document.getElementById('manualSerialInput').value = ''; // Reset input
+            return showToast(`Serial ending with '${inputVal}' not found in this batch! Check the sticker again.`, "error");
         }
 
-        if(!added) return showToast(`Max stock reached for all available batches!`, "error");
-        renderCart();
+        // 2. ඒ අංකය දැනටමත් Cart එකට දාලද කියලා බලනවා
+        if (currentCartSerials.includes(matchedSerial)) {
+            document.getElementById('manualSerialInput').value = '';
+            return showToast("This specific packet is already in the cart!", "warning");
+        }
+
+        // 3. සියල්ල නිවැරදි නම්, අදාළ නිවැරදි Serial අංකය Cart එකට බාර දෙනවා!
+        addSerialToCart(batch, matchedSerial);
+        
+        closeModal('posSerialInputModal');
+        showToast("Item Verified and Added!", "success");
+        
+        // ඊළඟ බිලට සූදානම් වීමට Search Box එකට Focus එක ගෙන යාම
+        setTimeout(() => document.getElementById('posSearch').focus(), 100);
     };
 
     window.renderCart = () => {
@@ -5494,16 +5643,7 @@ window.autoFillDocCustomer = (name) => {
         const batchNum = parseInt(document.getElementById('ctxRefundItemBatch').value);
         const price = parseFloat(document.getElementById('refundPriceDisplay').value);
         const maxQty = parseFloat(document.getElementById('ctxRefundItemMaxQty').value);
-        const originalSoldPrice = parseFloat(document.getElementById('ctxRefundItemPrice').value); // ENTERPRISE FIX
-        
-        if(isNaN(price) || price < 0) return showToast("Invalid Refund Price", "error");
-        
-        // ENTERPRISE SECURITY FIX: Prevent Cashiers from refunding more than the item's original sold price!
-        if(price > originalSoldPrice) {
-            window.isRefundingProcessing = false;
-            return showToast(`Fraud Alert: Refund price cannot exceed original sold price (${formatMoney(originalSoldPrice)})`, "error");
-        }
-        
+        const originalSoldPrice = parseFloat(document.getElementById('ctxRefundItemPrice').value); 
         const buyPrice = parseFloat(document.getElementById('ctxRefundItemBuyPrice').value) || 0;
         
         // Read User Input
@@ -5511,27 +5651,39 @@ window.autoFillDocCustomer = (name) => {
         const reason = document.getElementById('refundReasonInput').value.trim();
         const restock = document.getElementById('refundRestockCheck').checked;
 
+        // NEW: ආපසු ගෙනා භාණ්ඩයේ ස්ටිකර් බාර්කෝඩ් එක
+        const returnSerialElement = document.getElementById('refundSerialScan');
+        const returnSerial = returnSerialElement ? returnSerialElement.value.trim() : "";
+
         // Validations
+        if(isNaN(price) || price < 0) return showToast("Invalid Refund Price", "error");
+        
+        if(price > originalSoldPrice) {
+            window.isRefundingProcessing = false;
+            return showToast(`Fraud Alert: Refund price cannot exceed original sold price (${formatMoney(originalSoldPrice)})`, "error");
+        }
+        
         if(isNaN(qty) || qty <= 0) return showToast("Invalid Quantity", "error");
         if(qty > maxQty) return showToast(`Cannot refund more than sold (${maxQty})`, "error");
         if(!reason) return showToast("Please provide a reason", "error");
 
+        const isServiceItem = servicesCache.some(s => s.name === prodName);
+
+        // ENTERPRISE FIX: Restock කරනවා නම් ස්ටිකරය ස්කෑන් කර තිබීම අනිවාර්යයි!
+        if(restock && !isServiceItem && !returnSerial) {
+            window.isRefundingProcessing = false;
+            return showToast("You must scan the returned item's sticker to restock it!", "error");
+        }
+
         const refundTotal = qty * price;
-
         toggleLoader(true);
+
         try {
-            const profitReversal = (price - buyPrice) * qty; // NEW: Calculate exact profit to reverse
+            const profitReversal = (price - buyPrice) * qty;
 
-            // 1. Save Refund Record (Linked to original Order ID)
-            await addDoc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/refunds`), {
-                productName: prodName, orderId: orderId, reason: `${reason} (Ref: ${orderId})`,
-                qty: qty, amount: refundTotal, profitReversal: profitReversal,
-                restock: restock, originalBatch: batchNum, date: new Date().toISOString()
-            });
-
-            let cashOutToCustomer = refundTotal; // Default full cash return
+            let cashOutToCustomer = refundTotal; 
             
-            // ENTERPRISE FIX: Automatically deduct refunded amount from pending Debts!
+            // ණය (Debt) අඩු කිරීමේ කොටස
             const qSale = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`), where("customOrderId", "==", orderId));
             const snapSale = await getDocs(qSale);
             let saleDocToUpdate = null;
@@ -5542,52 +5694,63 @@ window.autoFillDocCustomer = (name) => {
                 const saleData = saleDoc.data();
                 if(saleData.creditBalance > 0) {
                     const cancelledDebt = Math.min(saleData.creditBalance, refundTotal);
-                    cashOutToCustomer = refundTotal - cancelledDebt; // ONLY give back cash that was actually paid!
-                    
+                    cashOutToCustomer = refundTotal - cancelledDebt;
                     newCreditBal = saleData.creditBalance - cancelledDebt;
                     saleDocToUpdate = saleDoc;
                 }
             }
 
-            // 1. Save Refund Record with ACCURATE Cash Flow data
+            // Refund වාර්තාව Database එකේ සටහන් කිරීම
             await addDoc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/refunds`), {
                 productName: prodName, orderId: orderId, reason: `${reason} (Ref: ${orderId})`,
                 qty: qty, amount: refundTotal, cashOutToCustomer: cashOutToCustomer, profitReversal: profitReversal,
                 restock: restock, originalBatch: batchNum, date: new Date().toISOString()
             });
 
+            // ණය තිබුණා නම් එය Update කිරීම
             if (saleDocToUpdate) {
                 await updateDoc(saleDocToUpdate.ref, { creditBalance: newCreditBal });
                 const cacheIndex = salesCache.findIndex(s => s.id === saleDocToUpdate.id);
                 if(cacheIndex !== -1) salesCache[cacheIndex].creditBalance = newCreditBal;
             }
 
-            // ENTERPRISE FIX: Validate if the item is a Service. Services CANNOT be restocked!
-            const isServiceItem = servicesCache.some(s => s.name === prodName);
-
-            // ENTERPRISE FIX: Strict FIFO Restocking (Merge back to original batch) ONLY for physical products
+            // ENTERPRISE FIX: අනුක්‍රමික බාර්කෝඩ් එක නැවත තොගයට එකතු කිරීම (Restocking)
             if(restock && !isServiceItem) {
                 const qOrigBatch = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`), where("name", "==", prodName), where("batchNumber", "==", batchNum));
                 const snapOrig = await getDocs(qOrigBatch);
                 
                 if(!snapOrig.empty) {
-                    // Original batch document still exists! Just increment its quantity.
                     const origDoc = snapOrig.docs[0];
-                    await updateDoc(origDoc.ref, { qty: increment(qty) });
-                    await logInventory(prodName, 'REFUND', `Restocked to original Batch ${batchNum}`, qty, origDoc.data().qty + qty, batchNum, origDoc.data().qty);
+                    
+                    // 1. පරීක්ෂාව: මේක ඇත්තටම විකුණපු එකක්ද?
+                    const soldList = origDoc.data().soldSerials || [];
+                    if(!soldList.includes(returnSerial)) {
+                        throw new Error(`Fraud Alert: Barcode ${returnSerial} is NOT recorded as sold from this batch! Cannot refund.`);
+                    }
+
+                    // 2. අනුක්‍රමික බාර්කෝඩ් එක Sold වලින් අයින් කරලා Available එකට දානවා
+                    await updateDoc(origDoc.ref, { 
+                        qty: increment(qty),
+                        soldSerials: arrayRemove(returnSerial),     
+                        availableSerials: arrayUnion(returnSerial)  
+                    });
+                    
+                    await logInventory(prodName, 'REFUND', `Restocked Serial ${returnSerial} to Batch ${batchNum}`, qty, origDoc.data().qty + qty, batchNum, origDoc.data().qty);
                 } else {
-                    // Original batch was completely deleted. Recreate it with its ORIGINAL batch number to keep it front of the shelf!
+                    // පැරණි තොගය සම්පූර්ණයෙන්ම මකා දමා ඇත්නම්, අලුතින් ඒක හදලා Serial එක දානවා
                     const existing = productsCache.find(p => p.name === prodName) || {}; 
                     await addDoc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`), {
                         name: prodName, sku: existing.sku || "", image: existing.image || null, categoryId: existing.categoryId || null,
                         qty: qty, buy: buyPrice, sell: price, unit: existing.unit || '',
-                        dateAdded: new Date().toISOString(), batchNumber: batchNum, isRefund: true 
+                        dateAdded: new Date().toISOString(), batchNumber: batchNum, isRefund: true,
+                        availableSerials: [returnSerial], // අංකය දමයි
+                        soldSerials: []
                     });
-                    await logInventory(prodName, 'REFUND', `Recreated Batch ${batchNum} from return`, qty, qty, batchNum, 0);
+                    await logInventory(prodName, 'REFUND', `Recreated Batch ${batchNum} from return (${returnSerial})`, qty, qty, batchNum, 0);
                 }
             }
             
-            writeSystemLog("REFUND_PROCESSED", `Refunded ${qty}x ${prodName} for Order ${orderId}. Restocked: ${restock}`);
+            if(window.writeSystemLog) writeSystemLog("REFUND_PROCESSED", `Refunded ${qty}x ${prodName} for Order ${orderId}. Restocked: ${restock}`);
 
             showToast("Refund Processed Successfully");
             
@@ -5595,8 +5758,8 @@ window.autoFillDocCustomer = (name) => {
             document.getElementById('refundActionPanel').style.display = 'none';
             document.getElementById('refundOrderItemsList').innerHTML = "";
             document.getElementById('refundOrderIdSearch').value = "";
+            if(returnSerialElement) returnSerialElement.value = "";
             
-            // LOGICAL FIX: Instantly update cache and dashboard without needing a page refresh
             refundsCache.unshift({
                 productName: prodName,
                 orderId: orderId,
@@ -5605,15 +5768,14 @@ window.autoFillDocCustomer = (name) => {
                 date: new Date().toISOString()
             });
             updateDashboard();
-
-            await loadProducts(); // Update POS and Cache
+            await loadProducts(); 
 
         } catch(e) {
             console.error(e);
-            showToast("Error processing refund", "error");
+            showToast(e.message || "Error processing refund", "error");
         } finally {
             toggleLoader(false);
-            window.isRefundingProcessing = false; // Lock එක නැවත විවෘත කරයි
+            window.isRefundingProcessing = false; 
         }
     }
 
