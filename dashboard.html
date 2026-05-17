@@ -1251,15 +1251,18 @@ body.pos-fullscreen-mode #view-pos > div > .card {
     </div>
 </div>
 
-<!-- NEW: MANUAL SERIAL INPUT MODAL (STRICT MODE) -->
-<div id="posSerialInputModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.8); display:none; align-items:center; justify-content:center; z-index:4600; backdrop-filter: blur(3px);">
-    <div class="card" style="width:350px; text-align:center; padding:30px; border-top: 5px solid var(--primary); margin:0;">
+<!-- NEW: MANUAL SERIAL INPUT MODAL (STRICT OTP-STYLE) -->
+<div id="posSerialInputModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.85); display:none; align-items:center; justify-content:center; z-index:4600; backdrop-filter: blur(3px);">
+    <div class="card" style="width:380px; text-align:center; padding:30px; border-top: 5px solid var(--primary); margin:0;">
         <h3 style="color:var(--primary); margin-bottom:10px;"><i class="ri-barcode-box-line"></i> Verify Physical Item</h3>
-        <p style="font-size:13px; color:#666; margin-bottom:20px;">
-            To prevent inventory mismatches, please look at the sticker on the physical item and type the <b>last 3 digits</b> (or full barcode).
+        <p style="font-size:13px; color:#666; margin-bottom:15px;" id="serialModalDesc">
+            Enter the EXACT serial number from the sticker.
         </p>
         
-        <input type="text" id="manualSerialInput" placeholder="e.g. 005" style="text-align:center; font-weight:bold; font-size:24px; letter-spacing:3px; padding:15px; text-transform:uppercase;" onkeypress="if(event.key === 'Enter') confirmManualSerial()">
+        <!-- Dynamic Input Boxes Container -->
+        <div id="serialBoxesContainer" style="display:flex; justify-content:center; gap:8px; margin-bottom:20px; flex-wrap:wrap;">
+            <!-- Boxes will be injected here via JavaScript -->
+        </div>
         
         <div style="display:flex; gap:10px; margin-top:20px;">
             <button class="btn btn-primary" style="flex:1; justify-content:center;" onclick="confirmManualSerial()">Verify & Add</button>
@@ -3609,12 +3612,16 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 
                     // 1. අනුක්‍රමික බාර්කෝඩ් (Serial Barcodes) ජනනය කිරීම 
                     const safeSku = (data.sku && data.sku.trim() !== "") ? data.sku.trim() : "ITM";
-                    const barcodePrefix = `${safeSku}-B${nextBatchNum}`; // උදා: 479200-B3
+                    const barcodePrefix = `${safeSku}-B${nextBatchNum}`; 
+                    
+                    // 🚀 තොගයේ ප්‍රමාණය අනුව බිංදු ගණන (Padding) තීරණය කිරීම
+                    // භාණ්ඩ 5ක් නම් 1 (උදා: 5), 50ක් නම් 2 (උදා: 50), 500ක් නම් 3 (උදා: 500)
+                    const padLength = data.qty.toString().length; 
                     
                     const availableSerials = [];
                     for(let i = 1; i <= data.qty; i++) {
-                        // උදා: 479200-B3-001, 479200-B3-002
-                        const serialString = `${barcodePrefix}-${String(i).padStart(3, '0')}`;
+                        // උදා: 479200-B3-1, 479200-B3-01, 479200-B3-001
+                        const serialString = `${barcodePrefix}-${String(i).padStart(padLength, '0')}`;
                         availableSerials.push(serialString);
                     }
                     
@@ -4302,65 +4309,112 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         }
     };
 
-    // තෝරාගත් Batch එකෙන් Serial අංකය ඉල්ලීමේ තර්කනය (Strict Mode)
+   // තෝරාගත් Batch එකෙන් Serial අංකය ඉල්ලීමේ තර්කනය (Strict OTP Mode)
     function processBatchSelection(batch) {
         if (batch.availableSerials && batch.availableSerials.length > 0) {
             
-            // Cashier ගෙන් භෞතික පැකට්ටුවේ අංකය ඉල්ලීම සඳහා Modal එක විවෘත කිරීම
             pendingBatchForManualSerial = batch;
-            document.getElementById('manualSerialInput').value = '';
-            openModal('posSerialInputModal');
             
-            // Auto focus the input field for faster typing
-            setTimeout(() => document.getElementById('manualSerialInput').focus(), 100);
+            // 1. මේ Batch එකේ Serial අංකයේ දිග (කෑලි ගණන) හොයාගැනීම
+            const sampleSerial = batch.availableSerials[0];
+            const serialSuffix = sampleSerial.split('-').pop(); // අන්තිම කෑල්ල (උදා: 005 හෝ 1)
+            const boxCount = serialSuffix.length; // කොටු කීයක් ඕනෙද කියලා තීරණය වීම
+            
+            document.getElementById('serialModalDesc').innerHTML = `කරුණාකර පැකට්ටුවේ ඇති <b>ඉලක්කම් ${boxCount} කින්</b> යුත් අංකය හරියටම ඇතුළත් කරන්න.`;
+            
+            const container = document.getElementById('serialBoxesContainer');
+            container.innerHTML = ''; // පරණ කොටු මකා දැමීම
+
+            // 2. අදාළ ගණනට කොටු ටික (Input Boxes) නිර්මාණය කිරීම
+            for(let i=0; i<boxCount; i++) {
+                const inp = document.createElement('input');
+                inp.type = 'text';
+                inp.maxLength = 1; // එක කොටුවකට එක ඉලක්කමයි!
+                inp.style = 'width:45px; height:55px; font-size:24px; text-align:center; font-weight:900; border:2px solid #d1d5db; border-radius:8px; background:#f9fafb; outline:none;';
+                
+                // ඉලක්කමක් ගැසූ වහාම ඊළඟ කොටුවට පැනීම
+                inp.oninput = function() {
+                    this.value = this.value.replace(/[^0-9]/g, ''); // ඉලක්කම් පමණයි
+                    if(this.value && i < boxCount - 1) {
+                        container.children[i+1].focus();
+                    }
+                };
+                
+                // Backspace එකට සහ Enter එකට සහය දැක්වීම
+                inp.onkeydown = function(e) {
+                    if(e.key === 'Backspace' && !this.value && i > 0) {
+                        container.children[i-1].focus();
+                        container.children[i-1].value = ''; // පරණ අකුර මකනවා
+                    }
+                    if(e.key === 'Enter') {
+                        confirmManualSerial();
+                    }
+                };
+                container.appendChild(inp);
+            }
+
+            openModal('posSerialInputModal');
+            // පළමු කොටුවට Focus එක දීම
+            setTimeout(() => { if(container.children[0]) container.children[0].focus(); }, 100);
             
         } else {
-            // Serial අංක නැති පරණ භාණ්ඩ සඳහා (Old Unserialized Fallback)
+            // පරණ Barcode නැති භාණ්ඩ සඳහා Fallback
             const exist = cart.find(x => x.id === batch.id);
             if(exist) {
                 if((exist.qty + 1) <= batch.qty) {
-                    exist.qty++;
-                    window.isNewItemAdded = false;
+                    exist.qty++; window.isNewItemAdded = false;
                 } else {
                     return showToast(`Max stock reached for this batch!`, "error");
                 }
             } else {
-                cart.push({...batch, qty: 1});
-                window.isNewItemAdded = true;
+                cart.push({...batch, qty: 1}); window.isNewItemAdded = true;
             }
             renderCart();
         }
     }
 
-    // Cashier විසින් අංකය ටයිප් කර Enter එබූ පසු නිරවද්‍යතාවය පරීක්ෂා කිරීම
+    // Cashier සියලුම කොටු පුරවා Enter එබූ පසු
     window.confirmManualSerial = () => {
-        const inputVal = document.getElementById('manualSerialInput').value.trim().toUpperCase();
-        if (!inputVal) return showToast("Please enter the digits from the sticker!", "error");
+        const container = document.getElementById('serialBoxesContainer');
+        const inputs = container.querySelectorAll('input');
+        let inputVal = '';
+
+        // 1. කොටු සියල්ල පුරවා ඇත්දැයි බැලීම
+        for(let inp of inputs) {
+            if(!inp.value) {
+                inp.focus();
+                return showToast("කරුණාකර කොටු සියල්ල සම්පූර්ණ කරන්න!", "error");
+            }
+            inputVal += inp.value;
+        }
 
         const batch = pendingBatchForManualSerial;
         if (!batch) return closeModal('posSerialInputModal');
 
-        // 1. ටයිප් කළ අංකය Available ලිස්ට් එකේ තියෙනවද කියලා බලනවා
-        const matchedSerial = batch.availableSerials.find(s => s.toUpperCase().endsWith(inputVal) || s.toUpperCase() === inputVal);
+        // 2. ගැසූ අංකය (උදා: 005) Available ලිස්ට් එකේ අගට ගැලපෙනවාදැයි බැලීම (Exact Match)
+        const matchedSerial = batch.availableSerials.find(s => {
+            const suffix = s.split('-').pop(); // අග කෑල්ල ගන්නවා
+            return suffix === inputVal; // 100% ක් සමානදැයි බලනවා
+        });
 
         if (!matchedSerial) {
-            document.getElementById('manualSerialInput').value = ''; // Reset input
-            return showToast(`Serial ending with '${inputVal}' not found in this batch! Check the sticker again.`, "error");
+            // වැරදි නම් කොටු ටික හිස් කරලා මුලට එනවා
+            inputs.forEach(i => i.value = '');
+            inputs[0].focus();
+            return showToast(`'${inputVal}' අංකය මෙම තොගයේ නොමැත! ස්ටිකරය නැවත බලන්න.`, "error");
         }
 
-        // 2. ඒ අංකය දැනටමත් Cart එකට දාලද කියලා බලනවා
+        // 3. Cart එකේ දැනටමත් තියෙනවද බැලීම
         if (currentCartSerials.includes(matchedSerial)) {
-            document.getElementById('manualSerialInput').value = '';
-            return showToast("This specific packet is already in the cart!", "warning");
+            inputs.forEach(i => i.value = '');
+            inputs[0].focus();
+            return showToast("මෙම පැකට්ටුව දැනටමත් බිලට ඇතුළත් කර ඇත!", "warning");
         }
 
-        // 3. සියල්ල නිවැරදි නම්, අදාළ නිවැරදි Serial අංකය Cart එකට බාර දෙනවා!
+        // 4. සියල්ල හරි නම් Cart එකට දැමීම
         addSerialToCart(batch, matchedSerial);
-        
         closeModal('posSerialInputModal');
         showToast("Item Verified and Added!", "success");
-        
-        // ඊළඟ බිලට සූදානම් වීමට Search Box එකට Focus එක ගෙන යාම
         setTimeout(() => document.getElementById('posSearch').focus(), 100);
     };
 
@@ -4376,6 +4430,13 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             return `<div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:13px; align-items:center;">
                 <div style="flex:1;">
                    <div style="font-weight:500;">${i.name}</div>
+                   
+                   <!-- NEW: Serial අංකය Cart එකේ පෙන්වීම -->
+                   ${i.serials && i.serials.length > 0 ? 
+                     `<div style="font-family:monospace; font-size:11px; color:var(--primary); font-weight:900; background:#e0e7ff; padding:2px 6px; border-radius:4px; display:inline-block; margin-top:2px; border:1px solid #c7d2fe;">
+                         S/N: ${i.serials.map(s => s.split('-').pop()).join(', ')}
+                     </div>` 
+                   : ''}
                    <div style="color:#666; font-size:11px; display:flex; align-items:center; gap:5px; margin-top:4px;">
                        ${formatMoney(i.sell)} x 
                        <div style="display:flex; border:1px solid #d1d5db; border-radius:4px; overflow:hidden;">
