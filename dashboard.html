@@ -4621,7 +4621,7 @@ window.checkout = async () => {
         setTimeout(() => document.getElementById('modalCustPhone').focus(), 100);
     };
 
-        // THIS DOES THE ACTUAL SAVING AFTER MODAL CONFIRMATION
+        // THIS DOES THE ACTUAL SAVING AFTER MODAL CONFIRMATION (100% ENTERPRISE ACID COMPLIANT)
     window.finalizeCheckout = async () => {
         if(window.isCheckingOut) return;
         
@@ -4632,6 +4632,11 @@ window.checkout = async () => {
 
         if(paymentMethod === "Pay Later" && (!custName || !custPhone || !custAddr)) {
             return showToast("Name, Phone & Address Required for Pay Later", "error");
+        }
+
+        // ආරක්ෂිත සීමාව: එක බිලකට භාණ්ඩ වර්ග 150 කට වඩා ඇතුළත් කළ නොහැක (Firebase 500-op limit එක නිසා)
+        if(cart.length > 150) {
+            return showToast("Maximum 150 different item types allowed per bill. Please split into two bills.", "error");
         }
 
         document.getElementById('checkoutCustomerModal').style.display = 'none';
@@ -4648,18 +4653,6 @@ window.checkout = async () => {
 
         const finalCustName = custName || "Walk-in Customer";
         const finalCustPhone = custPhone || "N/A";
-
-        // PREVENT NEGATIVE STOCK RACE CONDITION
-        for (let item of cart) {
-            if (item.isService) continue;
-            const productInCache = productsCache.find(p => p.id === item.id);
-            if (!productInCache || productInCache.qty < item.qty) {
-                toggleLoader(false);
-                window.isCheckingOut = false;
-                if(btnCheckout) { btnCheckout.innerHTML = originalBtnText; btnCheckout.disabled = false; }
-                return showToast(`Insufficient stock for ${item.name}! Available: ${productInCache ? productInCache.qty : 0}`, "error");
-            }
-        }
 
         const discountType = document.getElementById('discountType').value;
         const discountVal = parseFloat(document.getElementById('discountValue').value) || 0;
@@ -4689,8 +4682,20 @@ window.checkout = async () => {
             showToast("Advance covers the full amount! Saved as a Cash Sale.", "info");
         }
 
-        // CRITICAL FIX: Ensure saleData is constructed correctly and completely!
+        // 1. Generate Custom Order ID (🛡️ Secured Time)
+        const now = window.getSecureTime();
+        const localDateStr = window.getSecureLocalDateStr();
+        const dateKey = localDateStr.replace(/-/g, '');
+        const timeSeq = String(now.getHours()).padStart(2, '0') + String(now.getMinutes()).padStart(2, '0') + String(now.getSeconds()).padStart(2, '0');
+        const randomSalt = Math.floor(1000 + Math.random() * 9000); 
+        const customOrderId = `${dateKey}${timeSeq}-${randomSalt}`;
+
+        // 2. Prepare CRM fields before transaction
+        const serviceDate = document.getElementById('modalServiceDate') ? document.getElementById('modalServiceDate').value : '';
+        const serviceNote = document.getElementById('modalServiceNote') ? document.getElementById('modalServiceNote').value.trim() : '';
+
         const saleData = {
+            customOrderId: customOrderId,
             date: new Date().toISOString(),
             subtotal: roundToTwo(subtotal), 
             discountType: discountType, 
@@ -4704,161 +4709,169 @@ window.checkout = async () => {
             balance: roundToTwo(balance > 0 ? balance : 0), 
             creditBalance: roundToTwo(creditBalance), 
             items: cart, 
-            customer: { 
-                name: finalCustName, 
-                phone: finalCustPhone, 
-                address: custAddr || "" 
-            },
+            customer: { name: finalCustName, phone: finalCustPhone, address: custAddr || "" },
             notes: []
         };
 
         try {
-            // ENTERPRISE SMART BATCHING: Break ops into multiple batches to bypass the 500 limit
-            let batches = [];
-            let currentBatch = writeBatch(db);
-            let opsCount = 0;
+            // 🛡️ ENTERPRISE FIX: ATOMIC TRANSACTION (Read-Before-Write Strict Protocol)
+            await runTransaction(db, async (transaction) => {
+                
+                const productRefs = [];
+                let customerRef = null;
+                let customerSnap = null;
 
-            const safeBatchUpdate = () => {
-                opsCount++;
-                if (opsCount >= 450) { // Safety margin below 500
-                    batches.push(currentBatch);
-                    currentBatch = writeBatch(db);
-                    opsCount = 0;
+                // ==========================================
+                // PHASE 1: ALL READS (Must happen before writes)
+                // ==========================================
+
+                // Read 1: Products
+                for (let item of cart) {
+                    if (item.isService) continue; // සේවා සඳහා තොග පරීක්ෂාවක් අවශ්‍ය නැත
+
+                    const prodRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/products`, item.id);
+                    const pSnap = await transaction.get(prodRef);
+
+                    if (!pSnap.exists()) {
+                        throw new Error(`Error: Item '${item.name}' has been deleted from the database!`);
+                    }
+
+                    const pData = pSnap.data();
+
+                    // Check Qty Live
+                    if (pData.qty < item.qty) {
+                        throw new Error(`Insufficient stock for '${item.name}'! Available: ${pData.qty}`);
+                    }
+
+                    // Strict Serial Collision Check (Concurrecy Fraud Prevention)
+                    if (item.serials && item.serials.length > 0) {
+                        const currentAvailable = pData.availableSerials || [];
+                        for (let serial of item.serials) {
+                            if (!currentAvailable.includes(serial)) {
+                                throw new Error(`Collision Alert: Serial ${serial.split('-').pop()} for '${item.name}' was just sold at another counter!`);
+                            }
+                        }
+                    }
+
+                    productRefs.push({ ref: prodRef, snapData: pData, cartItem: item });
                 }
-            };
 
-            // 1. Generate Custom Order ID (🛡️ Secured Time)
-            const now = window.getSecureTime();
-            const localDateStr = window.getSecureLocalDateStr(); // Strictly Sri Lanka Time
-            const dateKey = localDateStr.replace(/-/g, '');
-            
-            // Generate pseudo-sequential ID for offline support (Timestamp based + Random Salt)
-            const timeSeq = String(now.getHours()).padStart(2, '0') + String(now.getMinutes()).padStart(2, '0') + String(now.getSeconds()).padStart(2, '0');
-            const randomSalt = Math.floor(1000 + Math.random() * 9000); // ENTERPRISE FIX: එකම තත්පරයේ බිල් 2ක් ගැසුවත් ID එක වෙනස් වේ
-            const customOrderId = `${dateKey}${timeSeq}-${randomSalt}`;
-            saleData.customOrderId = customOrderId;
+                // Read 2: Customer Profile
+                if (finalCustPhone && finalCustPhone !== "N/A") {
+                    customerRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/customers`, finalCustPhone);
+                    customerSnap = await transaction.get(customerRef);
+                }
 
-            // 2. Queue Writes for Stock Deduction & Logs
-            cart.forEach(item => {
-                // NEW SMART LOGIC: If it's a Service, just log the sale but do NOT deduct stock!
-                if (item.isService) {
+                // ==========================================
+                // PHASE 2: ALL WRITES (Only executes if all reads succeed)
+                // ==========================================
+
+                // Write 1: Update Products & Add Inventory Logs
+                for (let pObj of productRefs) {
+                    const { ref, snapData, cartItem } = pObj;
+
+                    let updatePayload = { qty: increment(-cartItem.qty) };
+
+                    if (cartItem.serials && cartItem.serials.length > 0) {
+                        updatePayload.availableSerials = arrayRemove(...cartItem.serials);
+                        updatePayload.soldSerials = arrayUnion(...cartItem.serials);
+                    }
+
+                    transaction.update(ref, updatePayload);
+
                     const logRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/inventory_logs`));
-                    currentBatch.set(logRef, {
+                    transaction.set(logRef, {
                         date: new Date().toISOString(),
-                        productName: item.name,
-                        action: 'SERVICE_SALE',
-                        description: `Service provided to ${finalCustName} (Ref: ${customOrderId})`,
-                        quantityChange: 0, 
-                        finalQty: 0, 
-                        batchNumber: 0, 
-                        initialQty: 0
+                        productName: cartItem.name,
+                        action: 'SALE',
+                        description: `Sold to ${finalCustName} (Ref: ${customOrderId})`,
+                        quantityChange: -cartItem.qty,
+                        finalQty: snapData.qty - cartItem.qty,
+                        batchNumber: cartItem.batchNumber || 1,
+                        initialQty: snapData.qty
                     });
-                    safeBatchUpdate();
-                    return; // Skip the rest of the loop for this item
                 }
 
-                const prodRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/products`, item.id);
-                // We trust the client's cache (item.qty_in_db) for offline capability
-                const productInCache = productsCache.find(p => p.id === item.id);
-                const currentStock = productInCache ? productInCache.qty : item.qty; 
-                const newQty = currentStock - item.qty;
+                // Write 2: Add Service Logs (if any)
+                for (let item of cart) {
+                    if (item.isService) {
+                        const logRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/inventory_logs`));
+                        transaction.set(logRef, {
+                            date: new Date().toISOString(),
+                            productName: item.name,
+                            action: 'SERVICE_SALE',
+                            description: `Service provided to ${finalCustName} (Ref: ${customOrderId})`,
+                            quantityChange: 0, finalQty: 0, batchNumber: 0, initialQty: 0
+                        });
+                    }
+                }
 
-                // ENTERPRISE FIX: Use Firestore increment to prevent race conditions when multiple cashiers sell simultaneously
-                // ENTERPRISE FIX: අනුක්‍රමික බාර්කෝඩ් Lock කිරීම
-                if (item.serials && item.serials.length > 0) {
-                    currentBatch.update(prodRef, { 
-                        qty: increment(-item.qty),
-                        availableSerials: arrayRemove(...item.serials), // විකිණීමට ඇති ලැයිස්තුවෙන් ඉවත් කිරීම
-                        soldSerials: arrayUnion(...item.serials)       // විකුණූ ලැයිස්තුවට එකතු කිරීම (SOLD Lock)
+                // Write 3: Create/Update Customer Profile safely
+                let generatedPinForBill = null;
+                if (customerRef) {
+                    if (!customerSnap.exists()) {
+                        generatedPinForBill = Math.floor(1000 + Math.random() * 9000).toString();
+                        transaction.set(customerRef, {
+                            name: finalCustName,
+                            phone: finalCustPhone,
+                            address: custAddr || "",
+                            pin: generatedPinForBill,
+                            lastUpdated: new Date().toISOString()
+                        });
+                    } else if (custAddr && custAddr !== customerSnap.data().address) {
+                        // Keep old history, only update address
+                        transaction.update(customerRef, {
+                            address: custAddr,
+                            lastUpdated: new Date().toISOString()
+                        });
+                    }
+                }
+
+                if (generatedPinForBill) {
+                    saleData.initialPin = generatedPinForBill; 
+                }
+
+                // Write 4: Service CRM Reminder
+                if (serviceDate) {
+                    if (!finalCustPhone || finalCustPhone === "N/A") {
+                        throw new Error("You MUST select or register a customer to set a Service Reminder!");
+                    }
+                    const alertRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/alerts`));
+                    transaction.set(alertRef, {
+                        refId: finalCustPhone, type: 'service_reminder', orderId: customOrderId,
+                        message: serviceNote || `Service Due for Inv #${customOrderId}`,
+                        targetDate: serviceDate, frequency: 'once', status: 'active', createdAt: new Date().toISOString()
                     });
-                } else {
-                    // පැරණි විදියේ ස්ටිකර් නොමැති භාණ්ඩ සඳහා පමණක් (Fallback)
-                    currentBatch.update(prodRef, { qty: increment(-item.qty) }); 
                 }
-                safeBatchUpdate();
 
-                const logRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/inventory_logs`));
-                currentBatch.set(logRef, {
-                    date: new Date().toISOString(),
-                    productName: item.name,
-                    action: 'SALE',
-                    description: `Sold to ${finalCustName} (Ref: ${customOrderId})`,
-                    quantityChange: -item.qty,
-                    finalQty: newQty,
-                    batchNumber: item.batchNumber || 1,
-                    initialQty: currentStock
-                });
-                safeBatchUpdate();
-            });
+                // Write 5: Finally, Save the Sale Document
+                const saleRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`));
+                saleData.id = saleRef.id; // Store ID for local cache
+                transaction.set(saleRef, saleData);
 
-            // 3. Save the Sale Record
-            const saleRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`));
-            currentBatch.set(saleRef, saleData);
-            opsCount++;
-            safeBatchUpdate();
+            }); // ====== END OF ATOMIC TRANSACTION ======
 
-            // NEW: SERVICE CRM REMINDER INTEGRATION (ENTERPRISE FIX: Moved BEFORE batch commit to prevent crash!)
-            const serviceDate = document.getElementById('modalServiceDate').value;
-            const serviceNote = document.getElementById('modalServiceNote').value.trim();
-            
-            if (serviceDate) {
-                if (!finalCustPhone || finalCustPhone === "N/A") {
-                    throw new Error("You MUST select or register a customer to set a Service Reminder!");
-                }
-                const alertRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/alerts`));
-                currentBatch.set(alertRef, {
-                    refId: finalCustPhone, type: 'service_reminder', orderId: customOrderId,
-                    message: serviceNote || `Service Due for Inv #${customOrderId}`,
-                    targetDate: serviceDate, frequency: 'once', status: 'active', createdAt: new Date().toISOString()
-                });
-                opsCount++;
-                safeBatchUpdate();
-            }
+            // ==========================================
+            // PHASE 3: POST-TRANSACTION CLEANUP (Only if successful)
+            // ==========================================
 
-            // Push the final configured batch to the list
-            if (opsCount > 0) {
-                batches.push(currentBatch); 
-            }
-            saleData.id = saleRef.id; 
-
-            // ENTERPRISE FIX: Execute batches sequentially ONLY AFTER all operations (including CRM) are loaded
-            for (let b of batches) {
-                await b.commit();
-            }
-            
-            // TRACK LOG
             if(window.writeSystemLog) {
                 writeSystemLog("SALE_COMPLETED", `Order ${saleData.customOrderId} completed. Value: ${formatMoney(total)} via ${finalPaymentMethod}`);
             }
 
-            // ENTERPRISE FIX: Safely auto-save new customers WITHOUT overwriting hidden historical profiles!
-            let generatedPinForBill = null;
+            // Sync Customer Cache Manually to avoid another network call
             if(finalCustPhone && finalCustPhone !== "N/A") {
-                const custRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/customers`, finalCustPhone);
-                const custSnap = await getDoc(custRef);
-                
-                if (!custSnap.exists()) {
-                    // 🛡️ Auto Generate PIN for Portal Login
-                    generatedPinForBill = Math.floor(1000 + Math.random() * 9000).toString();
-                    await setDoc(custRef, {
-                        name: finalCustName, phone: finalCustPhone, address: custAddr || "", pin: generatedPinForBill, lastUpdated: new Date().toISOString()
-                    });
-                    await loadCustomers(); 
-                    updateCustomerDatalist(); 
-                } else if (custAddr && custAddr !== custSnap.data().address) {
-                    // If they exist but gave a new address, safely merge ONLY the address (Don't wipe emails/notes)
-                    await updateDoc(custRef, { address: custAddr, lastUpdated: new Date().toISOString() });
-                    // No need to reload datalist here as name/id didn't change
+                const cIndex = customersCache.findIndex(c => c.id === finalCustPhone);
+                if (cIndex === -1) {
+                    customersCache.unshift({ id: finalCustPhone, name: finalCustName, phone: finalCustPhone, address: custAddr || "" });
+                    updateCustomerDatalist();
+                } else if (custAddr) {
+                    customersCache[cIndex].address = custAddr;
                 }
             }
 
-            // 🛡️ ENTERPRISE FIX: Attach the securely generated PIN to the sale data so it prints ONLY on this first bill
-            if (generatedPinForBill) {
-                saleData.initialPin = generatedPinForBill;
-            }
-
             // Generate Bill
-            generateInvoicePDF({...saleData, id: saleData.customOrderId}); // Use custom ID for PDF
+            generateInvoicePDF({...saleData, id: saleData.customOrderId}); 
 
             // UPDATE CACHE FOR DASHBOARD
             salesCache.unshift(saleData);
@@ -4868,7 +4881,6 @@ window.checkout = async () => {
             
             document.getElementById('discountValue').value = '';
             
-            // Clear Cash Given and Balance
             if(document.getElementById('posCashGiven')) document.getElementById('posCashGiven').value = '';
             if(document.getElementById('posBalance')) document.getElementById('posBalance').textContent = '0.00';
             
@@ -4884,13 +4896,12 @@ window.checkout = async () => {
             renderFees();
             
             await loadProducts();
-            updateDashboard(); // Now this will correctly calculate the newly added sale
+            updateDashboard(); 
             
             // ADVANCED UX FIX: Show Change Return Modal for Cash Sales
             if(saleData.paymentMethod.includes('Cash') && saleData.balance > 0) {
                 document.getElementById('changeReturnAmount').textContent = formatMoney(saleData.balance);
                 document.getElementById('changeReturnModal').style.display = 'flex';
-                // Auto focus button for keyboard friendly operation
                 setTimeout(() => { document.getElementById('btnNextOrder').focus(); }, 100);
             } else {
                 showToast("Sale Completed! Order ID: " + saleData.customOrderId, "success");
@@ -4898,20 +4909,18 @@ window.checkout = async () => {
 
         } catch (e) {
             console.error("Checkout Error:", e);
-            // BUG FIX: Object එකක් පැමිණි විට සැබෑ Error Message එක Cashier ට පෙන්වීම
+            // Show exact error (e.g. Collision Alert or Insufficient Stock)
             const errMsg = e.message ? e.message : (typeof e === 'string' ? e : "Error processing sale. Try again.");
             showToast(errMsg, "error");
         } finally {
             window.isCheckingOut = false;
             toggleLoader(false);
             
-            // UX FIX: බොත්තම යථා තත්වයට පත් කිරීම
             if(btnCheckout) {
                 btnCheckout.innerHTML = originalBtnText;
                 btnCheckout.disabled = false;
             }
             
-            // ඊළඟ බිලට යාමට සූදානම් කිරීම
             setTimeout(() => {
                 const searchEl = document.getElementById('posSearch');
                 if (searchEl) searchEl.focus();
