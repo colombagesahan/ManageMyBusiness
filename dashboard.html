@@ -1656,15 +1656,24 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         </div>
     </div>
 </div>
+
 <!-- CUSTOMER MODAL (ADD/EDIT) -->
-<div id="customerModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:2000;">
+<div id="customerModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.85); display:none; align-items:center; justify-content:center; z-index:2000; backdrop-filter:blur(3px);">
     <div class="card" style="width:400px; margin:0;">
-        <h3>Manage Customer</h3>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+            <h3 style="margin:0;">Manage Customer</h3>
+            <div style="display:flex; gap:5px;">
+                <!-- 🚀 අංකය අහිමි වූවන් සඳහා විශේෂිත බොත්තම -->
+                <button id="btnLostNumber" class="btn btn-danger" style="display:none; padding:4px 8px; font-size:11px;" onclick="markNumberAsLost()" title="Mark this number as recycled/lost"><i class="ri-user-unfollow-line"></i> Lost SIM</button>
+                <button id="btnMigratePhone" class="btn btn-warning" style="display:none; padding:4px 8px; font-size:11px;" onclick="openMigrateCustomer()"><i class="ri-sim-card-line"></i> Change No.</button>
+            </div>
+        </div>
+        
         <label style="font-size:12px;">Customer Name *</label>
         <input id="custName" placeholder="Full Name">
         
         <label style="font-size:12px;">Phone Number (ID) *</label>
-        <input id="custPhone" placeholder="e.g. 0771234567" type="number">
+        <input id="custPhone" placeholder="e.g. 0771234567" type="text">
         <div style="font-size:11px; color:#6b7280; margin-bottom:10px;">This will be used as the Customer ID.</div>
 
         <label style="font-size:12px;">WhatsApp Number (Optional)</label>
@@ -1677,8 +1686,27 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         <textarea id="custAddress" rows="2" placeholder="Full Address"></textarea>
 
         <div style="display:flex; gap:10px; margin-top:10px;">
-            <button class="btn btn-primary" onclick="saveCustomer()">Save Customer</button>
+            <button class="btn btn-primary" onclick="saveCustomer()">Save Profile</button>
             <button class="btn btn-ghost" onclick="closeModal('customerModal')">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- 🚀 NEW: IDENTITY MIGRATION MODAL -->
+<div id="migrateCustomerModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.9); display:none; align-items:center; justify-content:center; z-index:5000; backdrop-filter:blur(5px);">
+    <div class="card" style="width:400px; margin:0; border-top:5px solid var(--warning);">
+        <h3 style="color:var(--warning); margin-bottom:5px;"><i class="ri-exchange-box-line"></i> Identity Migration</h3>
+        <p style="font-size:11px; color:#666; margin-bottom:20px;">Move all past sales, debts, and records securely to a new phone number. The old number will be freed for reuse.</p>
+        
+        <label style="font-size:12px; color:#9ca3af;">Current Phone Number</label>
+        <input id="migOldPhone" disabled style="font-weight:bold; background:#f3f4f6; margin-bottom:15px;">
+        
+        <label style="font-size:12px; font-weight:bold; color:var(--primary);">New Phone Number *</label>
+        <input id="migNewPhone" type="text" placeholder="Enter new number..." style="font-weight:bold; font-size:16px; border:2px solid var(--primary);">
+        
+        <div style="display:flex; gap:10px; margin-top:15px;">
+            <button class="btn btn-warning" style="flex:1;" onclick="submitCustomerMigration()">Migrate Data</button>
+            <button class="btn btn-ghost" onclick="closeModal('migrateCustomerModal')">Cancel</button>
         </div>
     </div>
 </div>
@@ -2673,41 +2701,65 @@ body.pos-fullscreen-mode #view-pos > div > .card {
     }, 300);
 
     // ENTERPRISE FIX: Deep Database Fetching for Auto-Fill (Bypassing 100-limit cache)
-    window.autoFillPosCustomer = async (phone) => {
-        if (!phone) return;
+    window.autoFillPosCustomer = async (rawPhone) => {
+        if (!rawPhone) return;
+        
+        // 🚀 1. NORMALIZE FIRST (Block invalid formats instantly)
+        const phone = normalizePhone(rawPhone);
+        if(phone !== rawPhone) document.getElementById('modalCustPhone').value = phone;
         
         let c = customersCache.find(x => x.id === phone);
         
-        // If not in local 100-limit cache, search the LIVE database!
+        // 🚀 2. DEEP RESOLUTION (Bypassing Cache Limits to Prevent Ghost Resurrection)
         if (!c) {
             try {
+                // පළමුව Active Database එකේ බලයි
                 const docRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/customers`, phone);
                 const docSnap = await getDoc(docRef);
+                
                 if (docSnap.exists()) {
                     c = { id: docSnap.id, ...docSnap.data() };
-                    customersCache.unshift(c); // Add to local cache for speed next time
+                    customersCache.unshift(c); 
+                } else {
+                    // Active එකේ නැත්නම්, මේක Migrate කරපු අංකයක්ද කියල Archive එක පීරලා බලයි (Ultimate Truth)
+                    const archiveQ = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/customer_archives`), where("originalId", "==", phone), limit(1));
+                    const archSnap = await getDocs(archiveQ);
+                    
+                    if (!archSnap.empty) {
+                        const forwardedTo = archSnap.docs[0].data().forwardedTo;
+                        showToast(`Alert: Number migrated! Auto-switched to new ID: ${forwardedTo}`, "warning");
+                        
+                        // ආශ්චර්යය මෙතනයි! Cashier ටත් හොරෙන් අංකය මාරු කරලා, අලුත් අංකයෙන් Function එක ආයෙත් දුවවනවා.
+                        document.getElementById('modalCustPhone').value = forwardedTo;
+                        return autoFillPosCustomer(forwardedTo); 
+                    }
                 }
-            } catch(e) { console.error("Error fetching hidden customer:", e); }
+            } catch(e) { console.error("Error deeply resolving customer identity:", e); }
         }
 
+        // 3. Populate Form or Reset
         if(c) {
             document.getElementById('modalCustName').value = c.name;
             document.getElementById('modalCustAddr').value = c.address || '';
             
-            // ENTERPRISE SECURITY: Bypass 50-limit cache and deeply scan database for ANY unpaid debts!
+            // Deeply scan database for ANY unpaid debts!
             let totalDebt = 0;
-            const qUnpaid = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`), where("customer.phone", "==", phone), where("creditBalance", ">", 0));
+            const qUnpaid = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`), where("customer.phone", "==", c.id), where("creditBalance", ">", 0));
             const snapUnpaid = await getDocs(qUnpaid);
             snapUnpaid.forEach(d => { totalDebt += (d.data().creditBalance || 0); });
             
             if (totalDebt > 0) {
                 showToast(`Warning: This customer owes ${formatMoney(totalDebt)} in pending credit!`, "warning");
                 document.getElementById('modalCustName').style.color = 'var(--danger)';
-                document.getElementById('modalCustName').value = c.name; 
             } else {
                 document.getElementById('modalCustName').style.color = 'inherit';
-                showToast("Customer loaded successfully!");
+                showToast("Customer profile loaded.");
             }
+        } else {
+            // Truly new identity. No history, no archives. Safe to proceed as a New Customer.
+            document.getElementById('modalCustName').value = '';
+            document.getElementById('modalCustAddr').value = '';
+            document.getElementById('modalCustName').style.color = 'inherit';
         }
     };
 
@@ -3776,62 +3828,66 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 
         toggleLoader(true);
         try {
-            // Pre-calculate target batch number outside transaction
+            // ENTERPRISE FIX: Run getDocs completely OUTSIDE the transaction!
             const targetProdsQ = query(collection(db, `users/${dbOwnerId}/shops/${targetShopId}/products`), where("sku", "==", sourceProd.sku || ""));
             const targetSnap = await getDocs(targetProdsQ);
             let targetMaxBatch = 0;
             targetSnap.forEach(d => { if (d.data().batchNumber > targetMaxBatch) targetMaxBatch = d.data().batchNumber; });
             const newTargetBatch = targetMaxBatch + 1;
 
-            // ENTERPRISE FIX: Use strictly isolated runTransaction to verify LIVE stock before deducting!
+            let targetBaseQ;
+            if (sourceProd.sku && sourceProd.sku.trim() !== "") {
+                targetBaseQ = query(collection(db, `users/${dbOwnerId}/shops/${targetShopId}/base_products`), where("sku", "==", sourceProd.sku));
+            } else {
+                targetBaseQ = query(collection(db, `users/${dbOwnerId}/shops/${targetShopId}/base_products`), where("name", "==", sourceProd.name));
+            }
+            const tbSnap = await getDocs(targetBaseQ);
+            const needsNewBaseProd = tbSnap.empty;
+
+            // ENTERPRISE FIX: Strict Atomicity and Array Slicing
             await runTransaction(db, async (transaction) => {
                 const sourceRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/products`, sourceProdId);
                 const sourceDoc = await transaction.get(sourceRef);
                 
                 if (!sourceDoc.exists() || sourceDoc.data().qty < qty) {
-                    throw new Error(`Transfer Failed: Actual stock in database is lower than requested quantity! Available: ${sourceDoc.exists() ? sourceDoc.data().qty : 0}`);
+                    throw new Error(`Transfer Failed: Actual stock in database is lower than requested quantity!`);
+                }
+
+                const sData = sourceDoc.data();
+                let transferredSerials = [];
+                let updatePayload = { qty: increment(-qty) };
+
+                // Slice the exact amount of serials to transfer
+                if (sData.availableSerials && sData.availableSerials.length >= qty) {
+                    transferredSerials = sData.availableSerials.slice(0, qty);
+                    updatePayload.availableSerials = arrayRemove(...transferredSerials);
                 }
 
                 // 1. Deduct from Source Branch securely
-                transaction.update(sourceRef, { qty: increment(-qty) });
+                transaction.update(sourceRef, updatePayload);
 
                 // Log Source Inventory
                 const sLogRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/inventory_logs`));
                 transaction.set(sLogRef, {
-                date: new Date().toISOString(), productName: sourceProd.name, action: 'TRANSFER_OUT',
-                    description: `Sent to ${targetShop.name}`, quantityChange: -qty, finalQty: sourceDoc.data().qty - qty,
-                    batchNumber: sourceProd.batchNumber || 1, initialQty: sourceDoc.data().qty
+                    date: new Date().toISOString(), productName: sourceProd.name, action: 'TRANSFER_OUT',
+                    description: `Sent to ${targetShop.name}`, quantityChange: -qty, finalQty: sData.qty - qty,
+                    batchNumber: sourceProd.batchNumber || 1, initialQty: sData.qty
                 });
 
-            // 2. Add to Target Branch
-            // We need to determine the latest batch number in the target branch for this product
-            const targetProdsQ = query(collection(db, `users/${dbOwnerId}/shops/${targetShopId}/products`), where("sku", "==", sourceProd.sku || ""));
-            const targetSnap = await getDocs(targetProdsQ);
-            let targetMaxBatch = 0;
-            targetSnap.forEach(d => {
-                if (d.data().batchNumber > targetMaxBatch) targetMaxBatch = d.data().batchNumber;
-            });
-            const newTargetBatch = targetMaxBatch + 1;
-
-            // ENTERPRISE FIX: Prevent "UNKNOWN" SKU collisions for Barcode-less items
-            // Target Base Product logic
-                let targetBaseQ;
-                if (sourceProd.sku && sourceProd.sku.trim() !== "") {
-                    targetBaseQ = query(collection(db, `users/${dbOwnerId}/shops/${targetShopId}/base_products`), where("sku", "==", sourceProd.sku));
-                } else {
-                    targetBaseQ = query(collection(db, `users/${dbOwnerId}/shops/${targetShopId}/base_products`), where("name", "==", sourceProd.name));
-                }
-                const tbSnap = await getDocs(targetBaseQ);
-                if(tbSnap.empty) {
+                // 2. Add Base Product to Target if missing
+                if(needsNewBaseProd) {
                     const newBpRef = doc(collection(db, `users/${dbOwnerId}/shops/${targetShopId}/base_products`));
                     transaction.set(newBpRef, { name: sourceProd.name, image: sourceProd.image || null, sku: sourceProd.sku || "", categoryId: "", created: new Date().toISOString() });
                 }
 
+                // 3. Add to Target Branch with the transferred Serials!
                 const targetProdRef = doc(collection(db, `users/${dbOwnerId}/shops/${targetShopId}/products`));
                 transaction.set(targetProdRef, {
                     name: sourceProd.name, sku: sourceProd.sku || "", image: sourceProd.image || null, categoryId: "",
                     qty: qty, buy: sourceProd.buy, sell: sourceProd.sell, unit: sourceProd.unit || '',
-                    dateAdded: new Date().toISOString(), batchNumber: newTargetBatch, isTransfer: true
+                    dateAdded: new Date().toISOString(), batchNumber: newTargetBatch, isTransfer: true,
+                    availableSerials: transferredSerials, // SECURE: Sent exact barcodes!
+                    soldSerials: []
                 });
 
                 const tLogRef = doc(collection(db, `users/${dbOwnerId}/shops/${targetShopId}/inventory_logs`));
@@ -3843,7 +3899,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             
             // TRACK LOG
             if(window.writeSystemLog) writeSystemLog("STOCK_TRANSFER", `Transferred ${qty}x ${sourceProd.name} from ${sourceShop.name} to ${targetShop.name}`);
-            showToast("Transfer Successful!", "success");
+            showToast("Transfer Successful! (Serials Synced)", "success");
             
             // Clear inputs
             document.getElementById('transferQty').value = '';
@@ -3851,12 +3907,12 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             
             // Refresh Caches
             await loadProducts(); 
-            await loadTransfersUI(); // Reload UI
+            await loadTransfersUI(); 
             updateDashboard();
 
         } catch(e) {
             console.error(e);
-            showToast("Transfer failed", "error");
+            showToast(e.message || "Transfer failed", "error");
         } finally {
             toggleLoader(false);
         }
@@ -4625,7 +4681,9 @@ window.checkout = async () => {
     window.finalizeCheckout = async () => {
         if(window.isCheckingOut) return;
         
-        const custPhone = document.getElementById('modalCustPhone').value.trim();
+        const custPhoneRaw = document.getElementById('modalCustPhone').value.trim();
+        // 🚀 ENTERPRISE FIX: Normalize before saving to prevent bad data entering DB!
+        const custPhone = custPhoneRaw ? normalizePhone(custPhoneRaw) : ""; 
         const custName = document.getElementById('modalCustName').value.trim();
         const custAddr = document.getElementById('modalCustAddr').value.trim();
         const paymentMethod = document.getElementById('posPaymentMethod').value;
@@ -5149,7 +5207,17 @@ window.autoFillDocCustomer = (name) => {
 
                         const take = Math.min(currentQty, remainingToDeduct);
                         
-                        transaction.update(data.ref, { qty: currentQty - take });
+                        let updatePayload = { qty: currentQty - take };
+                        
+                        // ENTERPRISE FIX: Slice and register Serials as sold when Invoicing!
+                        const pData = data.snap.data();
+                        if (pData.availableSerials && pData.availableSerials.length >= take) {
+                            const slicedSerials = pData.availableSerials.slice(0, take);
+                            updatePayload.availableSerials = arrayRemove(...slicedSerials);
+                            updatePayload.soldSerials = arrayUnion(...slicedSerials);
+                        }
+
+                        transaction.update(data.ref, updatePayload);
                         
                         const logRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/inventory_logs`));
                         transaction.set(logRef, {
@@ -5704,10 +5772,9 @@ window.autoFillDocCustomer = (name) => {
     };
 
     window.submitStrictRefund = async () => {
-        if (window.isRefundingProcessing) return; // ද්විත්ව ක්ලික් කිරීම් වළක්වයි
+        if (window.isRefundingProcessing) return; 
         window.isRefundingProcessing = true;
         
-        // Read Context
         const orderId = document.getElementById('ctxRefundOrderId').value;
         const prodName = document.getElementById('ctxRefundItemName').value;
         const batchNum = parseInt(document.getElementById('ctxRefundItemBatch').value);
@@ -5716,30 +5783,21 @@ window.autoFillDocCustomer = (name) => {
         const originalSoldPrice = parseFloat(document.getElementById('ctxRefundItemPrice').value); 
         const buyPrice = parseFloat(document.getElementById('ctxRefundItemBuyPrice').value) || 0;
         
-        // Read User Input
         const qty = parseFloat(document.getElementById('refundQtyInput').value);
         const reason = document.getElementById('refundReasonInput').value.trim();
         const restock = document.getElementById('refundRestockCheck').checked;
 
-        // NEW: ආපසු ගෙනා භාණ්ඩයේ ස්ටිකර් බාර්කෝඩ් එක
         const returnSerialElement = document.getElementById('refundSerialScan');
         const returnSerial = returnSerialElement ? returnSerialElement.value.trim() : "";
 
         // Validations
-        if(isNaN(price) || price < 0) return showToast("Invalid Refund Price", "error");
-        
-        if(price > originalSoldPrice) {
-            window.isRefundingProcessing = false;
-            return showToast(`Fraud Alert: Refund price cannot exceed original sold price (${formatMoney(originalSoldPrice)})`, "error");
-        }
-        
-        if(isNaN(qty) || qty <= 0) return showToast("Invalid Quantity", "error");
-        if(qty > maxQty) return showToast(`Cannot refund more than sold (${maxQty})`, "error");
-        if(!reason) return showToast("Please provide a reason", "error");
+        if(isNaN(price) || price < 0) { window.isRefundingProcessing = false; return showToast("Invalid Refund Price", "error"); }
+        if(price > originalSoldPrice) { window.isRefundingProcessing = false; return showToast(`Fraud Alert: Refund price cannot exceed original sold price`, "error"); }
+        if(isNaN(qty) || qty <= 0) { window.isRefundingProcessing = false; return showToast("Invalid Quantity", "error"); }
+        if(qty > maxQty) { window.isRefundingProcessing = false; return showToast(`Cannot refund more than sold (${maxQty})`, "error"); }
+        if(!reason) { window.isRefundingProcessing = false; return showToast("Please provide a reason", "error"); }
 
         const isServiceItem = servicesCache.some(s => s.name === prodName);
-
-        // ENTERPRISE FIX: Restock කරනවා නම් ස්ටිකරය ස්කෑන් කර තිබීම අනිවාර්යයි!
         if(restock && !isServiceItem && !returnSerial) {
             window.isRefundingProcessing = false;
             return showToast("You must scan the returned item's sticker to restock it!", "error");
@@ -5749,94 +5807,95 @@ window.autoFillDocCustomer = (name) => {
         toggleLoader(true);
 
         try {
-            const profitReversal = (price - buyPrice) * qty;
-
-            let cashOutToCustomer = refundTotal; 
-            
-            // ණය (Debt) අඩු කිරීමේ කොටස
+            // ENTERPRISE FIX: Run all external queries before the transaction
             const qSale = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`), where("customOrderId", "==", orderId));
             const snapSale = await getDocs(qSale);
-            let saleDocToUpdate = null;
-            let newCreditBal = 0;
+            let saleRef = null;
+            if(!snapSale.empty) saleRef = snapSale.docs[0].ref;
 
-            if(!snapSale.empty) {
-                const saleDoc = snapSale.docs[0];
-                const saleData = saleDoc.data();
-                if(saleData.creditBalance > 0) {
-                    const cancelledDebt = Math.min(saleData.creditBalance, refundTotal);
-                    cashOutToCustomer = refundTotal - cancelledDebt;
-                    newCreditBal = saleData.creditBalance - cancelledDebt;
-                    saleDocToUpdate = saleDoc;
-                }
-            }
-
-            // Refund වාර්තාව Database එකේ සටහන් කිරීම
-            await addDoc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/refunds`), {
-                productName: prodName, orderId: orderId, reason: `${reason} (Ref: ${orderId})`,
-                qty: qty, amount: refundTotal, cashOutToCustomer: cashOutToCustomer, profitReversal: profitReversal,
-                restock: restock, originalBatch: batchNum, date: new Date().toISOString()
-            });
-
-            // ණය තිබුණා නම් එය Update කිරීම
-            if (saleDocToUpdate) {
-                await updateDoc(saleDocToUpdate.ref, { creditBalance: newCreditBal });
-                const cacheIndex = salesCache.findIndex(s => s.id === saleDocToUpdate.id);
-                if(cacheIndex !== -1) salesCache[cacheIndex].creditBalance = newCreditBal;
-            }
-
-            // ENTERPRISE FIX: අනුක්‍රමික බාර්කෝඩ් එක නැවත තොගයට එකතු කිරීම (Restocking)
+            let origProdRef = null;
+            let needsRecreation = false;
             if(restock && !isServiceItem) {
                 const qOrigBatch = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`), where("name", "==", prodName), where("batchNumber", "==", batchNum));
                 const snapOrig = await getDocs(qOrigBatch);
-                
                 if(!snapOrig.empty) {
-                    const origDoc = snapOrig.docs[0];
-                    
-                    // 1. පරීක්ෂාව: මේක ඇත්තටම විකුණපු එකක්ද?
-                    const soldList = origDoc.data().soldSerials || [];
-                    if(!soldList.includes(returnSerial)) {
-                        throw new Error(`Fraud Alert: Barcode ${returnSerial} is NOT recorded as sold from this batch! Cannot refund.`);
-                    }
-
-                    // 2. අනුක්‍රමික බාර්කෝඩ් එක Sold වලින් අයින් කරලා Available එකට දානවා
-                    await updateDoc(origDoc.ref, { 
-                        qty: increment(qty),
-                        soldSerials: arrayRemove(returnSerial),     
-                        availableSerials: arrayUnion(returnSerial)  
-                    });
-                    
-                    await logInventory(prodName, 'REFUND', `Restocked Serial ${returnSerial} to Batch ${batchNum}`, qty, origDoc.data().qty + qty, batchNum, origDoc.data().qty);
+                    origProdRef = snapOrig.docs[0].ref;
                 } else {
-                    // පැරණි තොගය සම්පූර්ණයෙන්ම මකා දමා ඇත්නම්, අලුතින් ඒක හදලා Serial එක දානවා
-                    const existing = productsCache.find(p => p.name === prodName) || {}; 
-                    await addDoc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`), {
-                        name: prodName, sku: existing.sku || "", image: existing.image || null, categoryId: existing.categoryId || null,
-                        qty: qty, buy: buyPrice, sell: price, unit: existing.unit || '',
-                        dateAdded: new Date().toISOString(), batchNumber: batchNum, isRefund: true,
-                        availableSerials: [returnSerial], // අංකය දමයි
-                        soldSerials: []
-                    });
-                    await logInventory(prodName, 'REFUND', `Recreated Batch ${batchNum} from return (${returnSerial})`, qty, qty, batchNum, 0);
+                    needsRecreation = true; // Completely depleted and deleted batch
                 }
             }
-            
+
+            const profitReversal = (price - buyPrice) * qty;
+
+            // ENTERPRISE FIX: ATOMIC TRANSACTION FOR REFUNDS
+            await runTransaction(db, async (transaction) => {
+                let cashOutToCustomer = refundTotal; 
+                let newCreditBal = 0;
+
+                // 1. Read Sale & Update Credit
+                if(saleRef) {
+                    const sDoc = await transaction.get(saleRef);
+                    if(sDoc.exists() && sDoc.data().creditBalance > 0) {
+                        const cancelledDebt = Math.min(sDoc.data().creditBalance, refundTotal);
+                        cashOutToCustomer = refundTotal - cancelledDebt;
+                        newCreditBal = sDoc.data().creditBalance - cancelledDebt;
+                        transaction.update(saleRef, { creditBalance: newCreditBal });
+                    }
+                }
+
+                // 2. Write Refund Record
+                const refundDocRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/refunds`));
+                transaction.set(refundDocRef, {
+                    productName: prodName, orderId: orderId, reason: `${reason} (Ref: ${orderId})`,
+                    qty: qty, amount: refundTotal, cashOutToCustomer: cashOutToCustomer, profitReversal: profitReversal,
+                    restock: restock, originalBatch: batchNum, date: new Date().toISOString()
+                });
+
+                // 3. Read Product & Restore Stock Safely
+                if(restock && !isServiceItem) {
+                    if (origProdRef) {
+                        const pDoc = await transaction.get(origProdRef);
+                        if (!pDoc.exists()) throw new Error("Product data corrupted during refund.");
+                        
+                        const pData = pDoc.data();
+                        const soldList = pData.soldSerials || [];
+                        if(!soldList.includes(returnSerial)) {
+                            throw new Error(`Fraud Alert: Barcode ${returnSerial} is NOT recorded as sold from this batch! Cannot refund.`);
+                        }
+
+                        transaction.update(origProdRef, { 
+                            qty: increment(qty),
+                            soldSerials: arrayRemove(returnSerial),     
+                            availableSerials: arrayUnion(returnSerial)  
+                        });
+
+                        const logRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/inventory_logs`));
+                        transaction.set(logRef, { date: new Date().toISOString(), productName: prodName, action: 'REFUND', description: `Restocked Serial ${returnSerial} to Batch ${batchNum}`, quantityChange: qty, finalQty: pData.qty + qty, batchNumber: batchNum, initialQty: pData.qty });
+                    } else if (needsRecreation) {
+                        const existing = productsCache.find(p => p.name === prodName) || {}; 
+                        const newProdRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`));
+                        transaction.set(newProdRef, {
+                            name: prodName, sku: existing.sku || "", image: existing.image || null, categoryId: existing.categoryId || null,
+                            qty: qty, buy: buyPrice, sell: price, unit: existing.unit || '',
+                            dateAdded: new Date().toISOString(), batchNumber: batchNum, isRefund: true,
+                            availableSerials: [returnSerial], soldSerials: []
+                        });
+
+                        const logRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/inventory_logs`));
+                        transaction.set(logRef, { date: new Date().toISOString(), productName: prodName, action: 'REFUND', description: `Recreated Batch ${batchNum} from return (${returnSerial})`, quantityChange: qty, finalQty: qty, batchNumber: batchNum, initialQty: 0 });
+                    }
+                }
+            });
+
             if(window.writeSystemLog) writeSystemLog("REFUND_PROCESSED", `Refunded ${qty}x ${prodName} for Order ${orderId}. Restocked: ${restock}`);
 
-            showToast("Refund Processed Successfully");
+            showToast("Refund Processed Atomically & Successfully!");
             
-            // Clear UI
             document.getElementById('refundActionPanel').style.display = 'none';
             document.getElementById('refundOrderItemsList').innerHTML = "";
             document.getElementById('refundOrderIdSearch').value = "";
             if(returnSerialElement) returnSerialElement.value = "";
             
-            refundsCache.unshift({
-                productName: prodName,
-                orderId: orderId,
-                amount: refundTotal,
-                profitReversal: profitReversal,
-                date: new Date().toISOString()
-            });
             updateDashboard();
             await loadProducts(); 
 
@@ -6137,16 +6196,27 @@ window.autoFillDocCustomer = (name) => {
     }
     // --- CUSTOMERS LOGIC ---
 
-    // 1. Load Customers
-    window.loadCustomers = async () => {
-        // MEMORY OPTIMIZED: මුලින්ම ගෙන එන්නේ අලුත්ම පාරිභෝගිකයින් 100 පමණි.
+    // 1. Load Customers (ENTERPRISE FIX: Reactive Snapshot Listeners)
+    window.loadCustomers = () => {
+        // පරණ Listener එකක් ඇත්නම් එය නවතා දමයි (To prevent memory leaks when changing shops)
+        if (window.unsubCustomers) {
+            window.unsubCustomers();
+            window.unsubCustomers = null;
+        }
+
         const q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/customers`), orderBy('lastUpdated', 'desc'), limit(100));
-        const snap = await getDocs(q);
-        customersCache =[];
-        snap.forEach(d => customersCache.push({id: d.id, ...d.data()})); 
         
-        renderCustomers();
-        updateCustomerDatalist(); // LOGIC FIX: Auto sync dropdowns when customer changes
+        // 🚀 සජීවීව දත්ත වලට සවන්දීම (Real-time Firebase Data Sync)
+        window.unsubCustomers = onSnapshot(q, (snapshot) => {
+            customersCache = [];
+            // Firebase Local Cache හරහා දත්ත එන බැවින් මෙහිදී Read Quota නාස්ති නොවේ
+            snapshot.forEach(d => customersCache.push({ id: d.id, ...d.data() }));
+            
+            renderCustomers();
+            updateCustomerDatalist(); // ඩ්‍රොප්ඩවුන් සියල්ල ඔටෝ අප්ඩේට් වේ!
+        }, (error) => {
+            console.error("Customer Live Sync Error:", error);
+        });
     };
 
     // 2. Render Grid (ENTERPRISE FIX: Bulletproof against missing/corrupted database fields!)
@@ -6268,18 +6338,26 @@ window.autoFillDocCustomer = (name) => {
         renderCustomers();
     }, 400);
 
-    // 3. Save Customer (Create/Update)
+    // 3. Save Customer (Create/Update with Omni-Format Smart Parser)
     window.saveCustomer = async () => {
         const name = document.getElementById('custName').value.trim();
-        // ENTERPRISE FIX: Strictly sanitize phone IDs to prevent dual-profiles due to spaces or symbols
         const rawPhone = document.getElementById('custPhone').value.trim();
-        const phone = rawPhone.replace(/[^0-9]/g, ''); 
+        
+        // 🚀 ENTERPRISE FIX: Omni-Format Smart Phone Normalization
+        let phone = rawPhone.replace(/[^0-9]/g, ''); // අකුරු, හිස්තැන් මකා දමයි
+        if (phone.startsWith('0094') && phone.length === 13) {
+            phone = '0' + phone.substring(4);
+        } else if (phone.startsWith('94') && phone.length === 11) {
+            phone = '0' + phone.substring(2);
+        } else if (phone.length === 9) {
+            phone = '0' + phone;
+        } // විදේශීය අංක (10ට වැඩි) ඒ ආකාරයෙන්ම ඉතිරි වේ
         
         const whatsapp = document.getElementById('custWhatsapp').value.trim();
         const email = document.getElementById('custEmail').value.trim();
         const address = document.getElementById('custAddress').value.trim();
 
-        if(!name || !phone) return showToast("Name and Phone (ID) in numbers are required", "error");
+        if(!name || !phone) return showToast("Name and Phone (ID) are required", "error");
 
         const isEditMode = document.getElementById('custPhone').disabled;
 
@@ -6287,7 +6365,6 @@ window.autoFillDocCustomer = (name) => {
         try {
             const custRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/customers`, phone);
 
-            // ENTERPRISE FIX: Identity Theft / Overwrite Protection
             let autoPin = null;
             if (!isEditMode) {
                 const checkSnap = await getDoc(custRef);
@@ -6295,20 +6372,18 @@ window.autoFillDocCustomer = (name) => {
                     toggleLoader(false);
                     return showToast(`Customer ID ${phone} already exists! Please edit them instead.`, "error");
                 }
-                // 🛡️ Generate a random 4-digit PIN for NEW customers
                 autoPin = Math.floor(1000 + Math.random() * 9000).toString();
             }
 
-            // Save or Update Customer Data
             const custPayload = {
                 name, phone, whatsapp, email, address,
                 lastUpdated: new Date().toISOString()
             };
-            if (autoPin) custPayload.pin = autoPin; // Save PIN only when creating
+            if (autoPin) custPayload.pin = autoPin;
 
             await setDoc(custRef, custPayload, { merge: true });
             
-            if (autoPin) alert(`Customer Saved! Their Login PIN is: ${autoPin}\n(Please inform the customer)`);
+            if (autoPin) alert(`Customer Saved!\nNormalized ID: ${phone}\nLogin PIN: ${autoPin}`);
 
             document.getElementById('customerModal').style.display = 'none';
             
@@ -6319,11 +6394,11 @@ window.autoFillDocCustomer = (name) => {
             document.getElementById('custEmail').value = '';
             document.getElementById('custAddress').value = '';
 
-            await loadCustomers();
+            // Note: 'loadCustomers()' is completely REMOVED here. 
+            // The Real-time Listener (onSnapshot) will auto-refresh the UI instantly!
             showToast("Customer Saved Successfully");
 
         } catch (error) {
-            // මෙතනින් තමයි error එකක් ආවොත් අල්ලගන්නේ (catch block)
             console.error(error);
             showToast("Error saving customer", "error");
         } finally {
@@ -6331,28 +6406,40 @@ window.autoFillDocCustomer = (name) => {
         }
     };
 
-    // 4. Edit Customer (Populate Modal)
+    // 🚀 OMNI-FORMAT SMART PARSER (Global Utility)
+    window.normalizePhone = (rawPhone) => {
+        let phone = String(rawPhone).replace(/[^0-9]/g, '');
+        if (phone.startsWith('0094') && phone.length === 13) phone = '0' + phone.substring(4);
+        else if (phone.startsWith('94') && phone.length === 11) phone = '0' + phone.substring(2);
+        else if (phone.length === 9 && !phone.startsWith('0')) phone = '0' + phone;
+        return phone;
+    };
+
     window.editCustomer = (id) => {
         const c = customersCache.find(x => x.id === id);
         if(!c) return;
         
         document.getElementById('custName').value = c.name;
         document.getElementById('custPhone').value = c.id;
-        document.getElementById('custPhone').disabled = true; // ID cannot be changed once created
+        document.getElementById('custPhone').disabled = true; 
         document.getElementById('custWhatsapp').value = c.whatsapp || '';
         document.getElementById('custEmail').value = c.email || '';
         document.getElementById('custAddress').value = c.address || '';
         
+        // 🚀 Show Migrate & Lost Buttons only in edit mode
+        document.getElementById('btnMigratePhone').style.display = 'inline-flex';
+        document.getElementById('btnLostNumber').style.display = 'inline-flex';
         openModal('customerModal');
     };
 
-// Note: When opening modal for *new* customer, re-enable phone field
     const originalOpenModal = window.openModal;
     window.openModal = (id) => {
         if(id === 'customerModal') {
             document.getElementById('custPhone').disabled = false;
             if(!document.getElementById('custName').value) {
                 document.getElementById('custPhone').value = '';
+                document.getElementById('btnMigratePhone').style.display = 'none';
+                document.getElementById('btnLostNumber').style.display = 'none';
             }
         }
         document.getElementById(id).style.display = 'flex';
@@ -6361,11 +6448,199 @@ window.autoFillDocCustomer = (name) => {
     window.closeModal = (id) => {
         document.getElementById(id).style.display = 'none';
     };
+
+    // 🚀 IDENTITY MIGRATION LOGIC (Detachment & Archival)
+    window.openMigrateCustomer = () => {
+        const oldPhone = document.getElementById('custPhone').value;
+        if(!oldPhone) return;
+        document.getElementById('migOldPhone').value = oldPhone;
+        document.getElementById('migNewPhone').value = '';
+        openModal('migrateCustomerModal');
+    };
+
+    // 🚀 IDENTITY MIGRATION LOGIC (With CFKU - Cascading Foreign Key Updates)
+    window.submitCustomerMigration = async () => {
+        if (window.isMigratingIdentity) return;
+        
+        const oldPhone = document.getElementById('migOldPhone').value;
+        const newPhoneRaw = document.getElementById('migNewPhone').value;
+        const newPhone = normalizePhone(newPhoneRaw);
+
+        if (!newPhone || newPhone.length < 9) return showToast("Enter a valid new phone number!", "error");
+        if (oldPhone === newPhone) return showToast("New number is the same as the old one!", "warning");
+
+        window.isMigratingIdentity = true;
+        toggleLoader(true);
+
+        try {
+            // 🚀 STEP 1: Pre-fetch all pending Alerts for this old number
+            // Transaction එක ඇතුලේ Get ගහන්න බැරි නිසා ඊට කලින් අදාල Alerts ටික හොයාගන්නවා
+            const qAlerts = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/alerts`), where("refId", "==", oldPhone));
+            const snapAlerts = await getDocs(qAlerts);
+            const alertsToUpdate = [];
+            snapAlerts.forEach(d => alertsToUpdate.push(d.ref));
+
+            await runTransaction(db, async (t) => {
+                const oldRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/customers`, oldPhone);
+                const newRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/customers`, newPhone);
+                
+                const oldSnap = await t.get(oldRef);
+                const newSnap = await t.get(newRef);
+
+                if (!oldSnap.exists()) throw new Error("Original customer profile is missing or corrupted!");
+                if (newSnap.exists()) throw new Error(`Number ${newPhone} is already registered to another customer!`);
+
+                const oldData = oldSnap.data();
+                
+                let pHistory = oldData.phone_history || [];
+                pHistory.push({ phone: oldPhone, migratedAt: new Date().toISOString() });
+
+                // Create New Profile
+                const newProfileData = {
+                    ...oldData,
+                    phone: newPhone,
+                    phone_history: pHistory,
+                    lastUpdated: new Date().toISOString()
+                };
+                t.set(newRef, newProfileData);
+
+                // Create Forwarding Archive (Absolute Truth for POS Ghost Prevention)
+                const timestampKey = new Date().toISOString().replace(/[:.-]/g, '');
+                const archiveId = `${oldPhone}_v${timestampKey}`;
+                const archiveRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/customer_archives`, archiveId);
+                
+                t.set(archiveRef, {
+                    originalId: oldPhone,
+                    forwardedTo: newPhone,
+                    archivedAt: new Date().toISOString(),
+                    reason: "Identity Migrated"
+                });
+
+                // 🚀 STEP 2: CASCADING UPDATE - Update all future Service Reminders to new phone!
+                alertsToUpdate.forEach(alertRef => {
+                    t.update(alertRef, { refId: newPhone, lastUpdatedViaMigration: new Date().toISOString() });
+                });
+
+                // Delete Old Profile
+                t.delete(oldRef);
+            });
+
+            if(window.writeSystemLog) writeSystemLog("IDENTITY_MIGRATION", `Customer migrated from ${oldPhone} to ${newPhone}. Cascaded ${alertsToUpdate.length} alerts.`);
+            
+            closeModal('migrateCustomerModal');
+            closeModal('customerModal');
+            showToast("Identity Migrated Successfully! CRM & Records updated.");
+            
+            // Reload CRM if active, so it shows pure updated DB data!
+            if(document.getElementById('view-crm').classList.contains('active')) loadCRM();
+
+        } catch(e) {
+            console.error("Migration Error:", e);
+            showToast(e.message || "Failed to migrate identity", "error");
+        } finally {
+            toggleLoader(false);
+            window.isMigratingIdentity = false;
+        }
+    };
+
+// 🚀 AUTOMATED QUARANTINE LOGIC (For Telecom Recycled Numbers)
+    window.markNumberAsLost = async () => {
+        if (window.isMigratingIdentity) return;
+
+        const oldPhone = document.getElementById('custPhone').value;
+        if (!oldPhone) return;
+
+        // Cashier ගෙන් තහවුරු කර ගැනීම
+        if (!confirm(`Are you sure this SIM/Number (${oldPhone}) is now used by a DIFFERENT person?\n\nThe previous customer's debts and history will be moved to a Temporary ID so you can register the new person. Proceed?`)) return;
+
+        // කෘත්‍රිම අංකය සෑදීම (අගට 000 දැමීම)
+        let newPhone = oldPhone + "000";
+        if (oldPhone.endsWith("000")) newPhone = oldPhone + "1"; // ආරක්ෂාවට
+
+        window.isMigratingIdentity = true;
+        toggleLoader(true);
+
+        try {
+            // STEP 1: Pre-fetch alerts
+            const qAlerts = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/alerts`), where("refId", "==", oldPhone));
+            const snapAlerts = await getDocs(qAlerts);
+            const alertsToUpdate = [];
+            snapAlerts.forEach(d => alertsToUpdate.push(d.ref));
+
+            // STEP 2: Atomic Transfer
+            await runTransaction(db, async (t) => {
+                const oldRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/customers`, oldPhone);
+                const newRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/customers`, newPhone);
+                
+                const oldSnap = await t.get(oldRef);
+                const newSnap = await t.get(newRef);
+
+                if (newSnap.exists()) {
+                    newPhone = newPhone + Math.floor(Math.random() * 9); // කලාතුරකින් සිදුවිය හැකි ගැටුමක් වැළැක්වීමට
+                }
+                if (!oldSnap.exists()) throw new Error("Profile is missing!");
+
+                const oldData = oldSnap.data();
+                
+                let pHistory = oldData.phone_history || [];
+                pHistory.push({ phone: oldPhone, migratedAt: new Date().toISOString(), reason: "SIM Recycled" });
+
+                // නමට අගින් (LOST NUMBER) කියා එකතු කිරීම, එවිට Cashier ට එය පැහැදිලිව පෙනේ
+                let updatedName = oldData.name;
+                if (!updatedName.includes("(LOST NUMBER)")) {
+                    updatedName = updatedName + " (LOST NUMBER)";
+                }
+
+                const newProfileData = {
+                    ...oldData,
+                    name: updatedName,
+                    phone: newPhone,
+                    phone_history: pHistory,
+                    lastUpdated: new Date().toISOString()
+                };
+                t.set(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/customers`, newPhone), newProfileData);
+
+                // Archive Pointer (POS එක හිරවීම වැළැක්වීමට)
+                const timestampKey = new Date().toISOString().replace(/[:.-]/g, '');
+                const archiveId = `${oldPhone}_v${timestampKey}`;
+                const archiveRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/customer_archives`, archiveId);
+                
+                t.set(archiveRef, {
+                    originalId: oldPhone,
+                    forwardedTo: newPhone,
+                    archivedAt: new Date().toISOString(),
+                    reason: "Telecom Recycled"
+                });
+
+                // Cascade alerts
+                alertsToUpdate.forEach(alertRef => {
+                    t.update(alertRef, { refId: newPhone, lastUpdatedViaMigration: new Date().toISOString() });
+                });
+
+                t.delete(oldRef);
+            });
+
+            if(window.writeSystemLog) writeSystemLog("IDENTITY_QUARANTINED", `Customer ${oldPhone} marked as Lost SIM. Safely moved to ${newPhone}.`);
+            
+            closeModal('customerModal');
+            showToast(`Success! Old records safely moved to Temporary ID: ${newPhone}. You can now register the new customer.`, "success");
+            
+            if(document.getElementById('view-crm').classList.contains('active')) loadCRM();
+
+        } catch(e) {
+            console.error("Quarantine Error:", e);
+            showToast(e.message || "Failed to quarantine identity", "error");
+        } finally {
+            toggleLoader(false);
+            window.isMigratingIdentity = false;
+        }
+    };
     
-    // 5. Delete Customer
+    // 5. Delete Customer (ENTERPRISE FIX: Versioned Archival & Identity Detachment)
     window.deleteCustomer = async (id) => {
         toggleLoader(true);
-        // ENTERPRISE FIX: Block deletion of customers with pending debts
+        
+        // Block deletion if they have pending debts
         const qDebt = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`), where("customer.phone", "==", id), where("creditBalance", ">", 0));
         const snapDebt = await getDocs(qDebt);
         
@@ -6375,13 +6650,39 @@ window.autoFillDocCustomer = (name) => {
         }
         toggleLoader(false);
 
-        if(!confirm(`Delete customer ${id}? This cannot be undone.`)) return;
+        if(!confirm(`Are you sure you want to delete customer ${id}?\nTheir past sales history will be archived securely.`)) return;
         
         toggleLoader(true);
-        await deleteDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/customers`, id));
-        await loadCustomers();
-        toggleLoader(false);
-        showToast("Customer Deleted");
+        try {
+            const custRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/customers`, id);
+            const custSnap = await getDoc(custRef);
+
+            if (custSnap.exists()) {
+                const custData = custSnap.data();
+                
+                // 🚀 1. Archive the customer data with a versioned Timestamp ID
+                const timestampKey = new Date().toISOString().replace(/[:.-]/g, '');
+                const archiveId = `${id}_v${timestampKey}`;
+                const archiveRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/customer_archives`, archiveId);
+                
+                await setDoc(archiveRef, {
+                    ...custData,
+                    originalId: id,
+                    archivedAt: new Date().toISOString()
+                });
+
+                // 🚀 2. Delete from main active database safely
+                await deleteDoc(custRef);
+                
+                // Note: The Live Snapshot Listener will auto-update the UI instantly
+                showToast("Customer archived & deleted successfully!");
+            }
+        } catch(e) {
+            console.error("Archival Error:", e);
+            showToast("Failed to delete customer", "error");
+        } finally {
+            toggleLoader(false);
+        }
     };
 
     // 6. Customer Notes
@@ -8594,35 +8895,54 @@ window.setQuickCash = (amount) => {
     // ==========================================
     // 2. DEBT COLLECTION LOGIC (ENTERPRISE GRADE)
     // ==========================================
+    // 🚀 DUAL-IDENTITY DEBT LOADER
     window.loadDebts = async () => {
         const tbody = document.querySelector('#debtTable tbody');
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Loading Debts from Server...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Aggregating Debts across identities...</td></tr>';
         
-        // ENTERPRISE FIX: Fetch directly from DB instead of salesCache (which is limited to latest 50)
         const q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`), where("creditBalance", ">", 0));
         const snap = await getDocs(q);
         
+        // Build Identity Alias Map
+        const aliasMap = {};
+        customersCache.forEach(c => {
+            if (c.phone_history) {
+                c.phone_history.forEach(h => aliasMap[h.phone] = c); // Map old phone to current Customer object
+            }
+        });
+
         const debtors = {};
         snap.forEach(d => {
             const sale = {id: d.id, ...d.data()};
             if(sale.customer && sale.customer.phone && sale.customer.phone !== "N/A") {
-                const phone = sale.customer.phone;
-                if(!debtors[phone]) debtors[phone] = { name: sale.customer.name, phone: phone, debt: 0 };
-                debtors[phone].debt += sale.creditBalance;
+                const billedPhone = sale.customer.phone;
+                
+                // If this billed phone is old, redirect it to the CURRENT active profile!
+                const activeIdentity = aliasMap[billedPhone] || { name: sale.customer.name, phone: billedPhone };
+                const currentPhoneId = activeIdentity.phone || activeIdentity.id;
+
+                if(!debtors[currentPhoneId]) {
+                    debtors[currentPhoneId] = { name: activeIdentity.name, phone: currentPhoneId, debt: 0, oldPhones: new Set() };
+                }
+                debtors[currentPhoneId].debt += sale.creditBalance;
+                
+                if(billedPhone !== currentPhoneId) debtors[currentPhoneId].oldPhones.add(billedPhone);
             }
         });
 
         const arr = Object.values(debtors);
-        tbody.innerHTML = arr.length ? arr.map(d => `
+        tbody.innerHTML = arr.length ? arr.map(d => {
+            const oldInfo = d.oldPhones.size > 0 ? `<br><span style="font-size:10px; color:#d97706;">Includes debts from old No: ${Array.from(d.oldPhones).join(', ')}</span>` : '';
+            return `
             <tr>
                 <td style="font-weight:bold;">${d.name}</td>
-                <td>${d.phone}</td>
+                <td>${d.phone} ${oldInfo}</td>
                 <td style="color:var(--danger); font-weight:900;">${formatMoney(d.debt)}</td>
                 <td>
-                    <button class="btn btn-success" onclick="openDebtSettlement('${d.phone}', '${d.name}', ${d.debt})">Receive Payment</button>
+                    <button class="btn btn-success" onclick="openDebtSettlement('${d.phone}', '${d.name.replace(/'/g, "\\'")}', ${d.debt})">Receive Payment</button>
                 </td>
-            </tr>
-        `).join('') : '<tr><td colspan="4" style="text-align:center;">No pending debts found!</td></tr>';
+            </tr>`;
+        }).join('') : '<tr><td colspan="4" style="text-align:center;">No pending debts found!</td></tr>';
     };
 
     window.openDebtSettlement = (phone, name, debt) => {
@@ -8633,12 +8953,11 @@ window.setQuickCash = (amount) => {
         openModal('debtSettlementModal');
     };
 
+    // 🚀 DUAL-IDENTITY RECEIPTING (Payment Processing)
     window.processDebtPayment = async () => {
-        // ENTERPRISE FIX: Javascript Execution Lock to prevent Double-Click Financial Fraud!
         if(window.isProcessingDebt) return;
         
-        const phone = document.getElementById('dsCustomerPhone').value;
-        // ENTERPRISE FIX: Strictly round the input to 2 decimals to prevent IEEE-754 floating point infinite debt loops!
+        const currentActivePhone = document.getElementById('dsCustomerPhone').value;
         let payAmount = Math.round(parseFloat(document.getElementById('dsPayAmount').value) * 100) / 100;
         
         const totalDebtText = document.getElementById('dsTotalDebt').textContent.replace(/[^0-9.-]+/g,"");
@@ -8647,78 +8966,78 @@ window.setQuickCash = (amount) => {
         if(isNaN(payAmount) || payAmount <= 0) return showToast("Enter a valid amount", "error");
         if(payAmount > maxDebt) return showToast(`Cannot pay more than total debt (${formatMoney(maxDebt)})`, "error");
         
-        window.isProcessingDebt = true; // Lock execution
+        window.isProcessingDebt = true;
         toggleLoader(true);
         
         try {
-            // ENTERPRISE FIX: Fetch unpaid sales directly from Database, NOT from limited Cache!
-            const qUnpaid = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`), where("creditBalance", ">", 0));
-            const snapUnpaid = await getDocs(qUnpaid);
-            let unpaidSales =[];
-            
-            snapUnpaid.forEach(d => {
-                const s = {id: d.id, ...d.data()};
-                if(s.customer && s.customer.phone === phone) unpaidSales.push(s);
+            // Find all phones (current + old) to query unpaid sales
+            let phonesToQuery = [currentActivePhone];
+            const cust = customersCache.find(x => x.id === currentActivePhone);
+            if (cust && cust.phone_history) cust.phone_history.forEach(h => phonesToQuery.push(h.phone));
+
+            // Fetch unpaid sales concurrently
+            const unpaidPromises = phonesToQuery.map(p => getDocs(query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`), where("customer.phone", "==", p), where("creditBalance", ">", 0))));
+            const unpaidSnaps = await Promise.all(unpaidPromises);
+
+            let unpaidSales = [];
+            unpaidSnaps.forEach(snap => {
+                snap.forEach(d => unpaidSales.push({id: d.id, ...d.data()}));
             });
             unpaidSales.sort((a, b) => new Date(a.date) - new Date(b.date)); // Oldest first
             
             let totalPaidNow = payAmount;
-                const batch = writeBatch(db);
-                let settledOrderIds = [  ]; // ENTERPRISE FIX: Track exactly which orders are paid!
-                let settlementBreakdown = {}; // 🛡️ ENTERPRISE FIX: Track exact mathematical allocation per bill
+            const batch = writeBatch(db);
+            let settledOrderIds = []; 
+            let settlementBreakdown = {}; 
+            let billedPhonesInvolved = new Set(); // Track which actual numbers got paid
 
-                for (let sale of unpaidSales) {
-                    if (payAmount <= 0) break;
-                    const cId = sale.customOrderId || sale.id;
-                    if(!settledOrderIds.includes(cId)) settledOrderIds.push(cId);
-                    
-                    const ref = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`, sale.id);
-                    
-                    // ENTERPRISE FIX: Round mathematically before evaluating conditions
-                    payAmount = Math.round(payAmount * 100) / 100;
-                    const currentCredit = Math.round(sale.creditBalance * 100) / 100;
-
-                    if (payAmount >= currentCredit) {
-                        // Fully pay this bill
-                        const deductedAmount = currentCredit;
-                        payAmount -= deductedAmount;
-                        batch.update(ref, { creditBalance: increment(-deductedAmount) });
-                        sale.creditBalance = 0; // Update local cache
-                        settlementBreakdown[cId] = deductedAmount; // Save allocation
-                    } else {
-                        // Partially pay this bill
-                        const deductedAmount = payAmount;
-                        batch.update(ref, { creditBalance: increment(-deductedAmount) });
-                        sale.creditBalance -= deductedAmount; // Update local cache
-                        settlementBreakdown[cId] = deductedAmount; // Save allocation
-                        payAmount = 0;
-                    }
-                }
-
-                const payMethod = document.getElementById('dsPayMethod').value;
+            for (let sale of unpaidSales) {
+                if (payAmount <= 0) break;
+                const cId = sale.customOrderId || sale.id;
+                if(!settledOrderIds.includes(cId)) settledOrderIds.push(cId);
+                billedPhonesInvolved.add(sale.customer.phone);
                 
-                // Log this action as a special Income so EOD handles it properly
-                const expRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`));
-                const expData = {
-                    description: `Debt Settled (${payMethod}) by ${phone} [${settledOrderIds.join(', ')}]`,
-                    amount: totalPaidNow,
-                    isIncome: true,
-                    payMethod: payMethod, 
-                    breakdown: settlementBreakdown, // 🛡️ ENTERPRISE FIX: Store the exact breakdown mapping
-                    date: window.getSecureTime().toISOString()
-                };
+                const ref = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`, sale.id);
+                
+                payAmount = Math.round(payAmount * 100) / 100;
+                const currentCredit = Math.round(sale.creditBalance * 100) / 100;
+
+                if (payAmount >= currentCredit) {
+                    const deductedAmount = currentCredit;
+                    payAmount -= deductedAmount;
+                    batch.update(ref, { creditBalance: increment(-deductedAmount) });
+                    settlementBreakdown[cId] = deductedAmount; 
+                } else {
+                    const deductedAmount = payAmount;
+                    batch.update(ref, { creditBalance: increment(-deductedAmount) });
+                    settlementBreakdown[cId] = deductedAmount; 
+                    payAmount = 0;
+                }
+            }
+
+            const payMethod = document.getElementById('dsPayMethod').value;
+            const expRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`));
+            
+            // 🚀 DUAL-IDENTITY AUDIT LOG
+            const expData = {
+                description: `Debt Settled (${payMethod}) by active identity ${currentActivePhone} [Orders: ${settledOrderIds.join(', ')}]`,
+                amount: totalPaidNow,
+                isIncome: true,
+                payMethod: payMethod,
+                settledByPhone: currentActivePhone,
+                originalBilledPhones: Array.from(billedPhonesInvolved), // Audit Trail: Which old numbers were paid
+                breakdown: settlementBreakdown,
+                date: window.getSecureTime().toISOString()
+            };
             batch.set(expRef, expData);
-            expData.id = expRef.id; // CRITICAL FIX: අනාගතයේදී Delete කිරීමට අවශ්‍ය වුවහොත් ID එක සටහන් කරගැනීම
 
             await batch.commit();
             
-            // Log to Audit Trail
-            if(window.writeSystemLog) writeSystemLog("DEBT_SETTLEMENT", `Received ${formatMoney(totalPaidNow)} from ${phone}`);
+            if(window.writeSystemLog) writeSystemLog("DEBT_SETTLEMENT", `Received ${formatMoney(totalPaidNow)} from ${currentActivePhone}`);
 
             closeModal('debtSettlementModal');
             showToast("Payment Processed Successfully!");
             
-            // Refresh Caches
             refreshData(); 
             loadDebts();
 
@@ -8727,7 +9046,7 @@ window.setQuickCash = (amount) => {
             showToast("Error processing payment", "error");
         } finally {
             toggleLoader(false);
-            window.isProcessingDebt = false; // Release lock securely
+            window.isProcessingDebt = false; 
         }
     };
 
@@ -9325,45 +9644,58 @@ window.setQuickCash = (amount) => {
     window.openCustomerHistory = async (phone, name) => {
         document.getElementById('chName').textContent = name + " (" + phone + ")";
         const tl = document.getElementById('chTimeline');
-        tl.innerHTML = '<div style="text-align:center; padding:20px;">Fetching all records... <i class="ri-loader-4-line ri-spin"></i></div>';
+        tl.innerHTML = '<div style="text-align:center; padding:20px;">Fetching comprehensive history (including past numbers)... <i class="ri-loader-4-line ri-spin"></i></div>';
         document.getElementById('customerHistoryModal').style.display = 'flex';
 
         try {
-            const qSales = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`), where("customer.phone", "==", phone));
-            const snapSales = await getDocs(qSales);
-            
-            const qExp = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`), where("isIncome", "==", true));
-            const snapExp = await getDocs(qExp);
+            // 🚀 SMART AGGREGATION: Get all historical phone numbers for this identity
+            let phonesToQuery = [phone];
+            const cust = customersCache.find(x => x.id === phone);
+            if (cust && cust.phone_history) {
+                cust.phone_history.forEach(h => phonesToQuery.push(h.phone));
+            }
 
-            let records = [  ];
+            // 🚀 CONCURRENT MAP-REDUCE: Fetch without triggering Firebase limits!
+            const salesPromises = phonesToQuery.map(p => getDocs(query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`), where("customer.phone", "==", p))));
+            const expensePromises = phonesToQuery.map(p => getDocs(query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`), where("isIncome", "==", true))));
 
-            snapSales.forEach(d => {
-                const s = d.data();
-                // ENTERPRISE FIX: Added customOrderId and firestoreId to link directly to the Sale Details Modal
-                records.push({
-                    type: 'SALE',
-                    firestoreId: d.id,
-                    customId: s.customOrderId || d.id.substring(0,8),
-                    date: new Date(s.date),
-                    title: `Purchased Items (${s.paymentMethod})`,
-                    desc: `Total: ${formatMoney(s.total)} | Items: ${s.items.map(i=>i.name).join(', ')}`,
-                    color: s.paymentMethod === 'Pay Later' ? '#ef4444' : '#3b82f6'
+            const salesSnaps = await Promise.all(salesPromises);
+            const expSnaps = await Promise.all(expensePromises);
+
+            let records = [];
+
+            // Combine Sales
+            salesSnaps.forEach(snap => {
+                snap.forEach(d => {
+                    const s = d.data();
+                    records.push({
+                        type: 'SALE',
+                        firestoreId: d.id,
+                        customId: s.customOrderId || d.id.substring(0,8),
+                        date: new Date(s.date),
+                        title: `Purchased Items (${s.paymentMethod}) ${s.customer.phone !== phone ? `<span style="font-size:9px; background:#fef3c7; color:#d97706; padding:2px; border-radius:3px;">Via Old No: ${s.customer.phone}</span>` : ''}`,
+                        desc: `Total: ${formatMoney(s.total)} | Items: ${s.items.map(i=>i.name).join(', ')}`,
+                        color: s.paymentMethod === 'Pay Later' ? '#ef4444' : '#3b82f6'
+                    });
                 });
             });
 
-            snapExp.forEach(d => {
-                const e = d.data();
-                if(e.description.includes(phone) || e.description.toLowerCase().includes('debt')) {
-                    if(e.description.includes(phone)) {
+            // Combine Expenses (Payments)
+            expSnaps.forEach((snap, idx) => {
+                const queriedPhone = phonesToQuery[idx];
+                snap.forEach(d => {
+                    const e = d.data();
+                    // Dual-Identity Check: Check if it matches the current OR old numbers
+                    if(e.description.includes(queriedPhone) || e.settledByPhone === queriedPhone || (e.originalBilledPhones && e.originalBilledPhones.includes(queriedPhone))) {
                         records.push({
                             type: 'PAYMENT',
                             date: new Date(e.date),
                             title: `Debt Settled (Payment Received)`,
-                            desc: `Amount Paid: ${formatMoney(e.amount)}`,
+                            desc: `Amount Paid: ${formatMoney(e.amount)} ${e.settledByPhone !== queriedPhone ? `(Covering Old Bill)` : ''}`,
                             color: '#10b981'
                         });
                     }
-                }
+                });
             });
 
             records.sort((a,b) => b.date - a.date); // Newest first
@@ -9374,13 +9706,10 @@ window.setQuickCash = (amount) => {
             }
 
             tl.innerHTML = records.map(r => {
-                // ENTERPRISE FIX: Make Sales Records Clickable to open Sale Details Modal
                 const isSale = r.type === 'SALE';
                 const cursorStyle = isSale ? 'cursor:pointer;' : '';
                 const hoverEffect = isSale ? `onmouseover="this.style.backgroundColor='#f9fafb'"` + ` onmouseout="this.style.backgroundColor='transparent'"` : '';
                 const onClickAction = isSale ? `onclick="viewOrderDetails('${r.firestoreId}')"` : '';
-                
-                // Show Order ID Badge for Sales
                 const orderIdBadge = isSale ? `<span style="font-family:monospace; font-size:10px; background:#e0e7ff; color:var(--primary); padding:2px 6px; border-radius:4px; margin-left:10px; border:1px solid #c7d2fe;">ID: ${r.customId}</span>` : '';
 
                 return `
@@ -9915,21 +10244,33 @@ window.setQuickCash = (amount) => {
                 const snap = await t.get(ref);
                 if(!snap.exists() || snap.data().qty < qty) throw new Error("Insufficient stock for this deduction!");
 
-                t.update(ref, { qty: increment(-qty) });
+                const pData = snap.data();
+                let updatePayload = { qty: increment(-qty) };
+                let removedSerials = [];
+
+                // ENTERPRISE FIX: Slice and permanently remove Serials so they cannot be scanned again!
+                if (pData.availableSerials && pData.availableSerials.length >= qty) {
+                    removedSerials = pData.availableSerials.slice(0, qty);
+                    updatePayload.availableSerials = arrayRemove(...removedSerials);
+                    // Add to a trash bin for auditing
+                    updatePayload.writtenOffSerials = arrayUnion(...removedSerials);
+                }
+
+                t.update(ref, updatePayload);
 
                 const logRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/inventory_logs`));
                 t.set(logRef, {
-                    date: new Date().toISOString(), productName: snap.data().name,
-                    action: 'WRITE_OFF', description: `[${reason}] ${note}`,
-                    quantityChange: -qty, finalQty: snap.data().qty - qty,
-                    batchNumber: snap.data().batchNumber || 1, initialQty: snap.data().qty
+                    date: new Date().toISOString(), productName: pData.name,
+                    action: 'WRITE_OFF', description: `[${reason}] ${note} (Serials Removed: ${removedSerials.length})`,
+                    quantityChange: -qty, finalQty: pData.qty - qty,
+                    batchNumber: pData.batchNumber || 1, initialQty: pData.qty
                 });
             });
 
             closeModal('writeoffModal');
             await loadProducts();
             updateDashboard();
-            showToast("Stock Adjusted Successfully!");
+            showToast("Stock Adjusted & Serials Cleared Successfully!");
             if(window.writeSystemLog) writeSystemLog("WRITE_OFF", `Deducted ${qty} from ${id}. Reason: ${reason}`);
 
         } catch (e) {
@@ -10043,22 +10384,40 @@ window.setQuickCash = (amount) => {
                 tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:#6b7280;">No service reminders found for this period.</td></tr>';
                 return;
             }
+// 🚀 ENTERPRISE FIX: Build Alias Map for CRM to prevent Amnesia Bug
+            const aliasMap = {};
+            customersCache.forEach(c => {
+                if (c.phone_history) {
+                    c.phone_history.forEach(h => aliasMap[h.phone] = c);
+                }
+            });
 
             for (let s of services) {
-                // ආරක්ෂිතව පාරිභෝගික නම සෙවීම (Bypassing 100-limit cache safely)
                 let custName = "Unknown Customer";
                 let custPhone = s.refId || "N/A";
+                let migratedBadge = "";
                 
-                const c = customersCache.find(x => String(x.id) === String(s.refId));
-                if (c) {
-                    custName = c.name;
+                // 1. Check if it's a migrated old number
+                const activeIdentity = aliasMap[custPhone];
+                if (activeIdentity) {
+                    custName = activeIdentity.name;
+                    custPhone = activeIdentity.id; // Show the NEW active number!
+                    migratedBadge = `<span style="font-size:9px; background:#fef3c7; color:#d97706; padding:2px; border-radius:3px; margin-left:5px;">(Migrated)</span>`;
                 } else {
-                    // Cache එකේ නැත්නම් කෙලින්ම Database එකෙන් සොයයි
-                    try {
-                        const custDoc = await getDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/customers`, s.refId));
-                        if(custDoc.exists()) custName = custDoc.data().name;
-                    } catch(e) {}
+                    // 2. Standard lookup
+                    const c = customersCache.find(x => String(x.id) === String(s.refId));
+                    if (c) {
+                        custName = c.name;
+                    } else {
+                        try {
+                            const custDoc = await getDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/customers`, s.refId));
+                            if(custDoc.exists()) custName = custDoc.data().name;
+                        } catch(e) {}
+                    }
                 }
+
+                // Append the migrated badge to the name if applicable
+                custName = custName.replace(/</g, "&lt;") + migratedBadge;
 
                 const now = new Date();
                 const targetDateObj = new Date(s.targetDate);
