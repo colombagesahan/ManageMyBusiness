@@ -74,6 +74,23 @@ input:focus, textarea:focus { border-color: var(--primary); }
     </div>
 </div>
 
+<!-- RECLAIM IDENTITY VIEW (For Dummy Accounts) -->
+<div id="view-reclaim" class="view" style="height: 100vh; display: flex; flex-direction: column; justify-content: center; padding: 20px; background: white; z-index:1500; position:relative;">
+    <div style="text-align:center; margin-bottom:20px;">
+        <div style="width:70px; height:70px; background:#fef3c7; color:#d97706; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:35px; margin:0 auto 15px auto;">
+            <i class="ri-sim-card-line"></i>
+        </div>
+        <h2 style="color:#d97706;">Update Your Number</h2>
+        <p style="color:#666; font-size:13px; margin-top:10px; line-height:1.5;">
+            Welcome back <b id="reclaimNameDisplay"></b>! <br>We detected that your old number is no longer active. To continue viewing your history, please enter your <b>current new mobile number</b>.
+        </p>
+    </div>
+    <div class="card" style="border:1px solid #fde68a; background:#fffbeb;">
+        <label style="font-size:12px; font-weight:600; color:#92400e;">Current Mobile Number *</label>
+        <input type="number" id="reclaimNewPhone" placeholder="e.g. 0771112222" style="border-color:#fcd34d;">
+        <button class="btn" style="background:#d97706; margin-top:10px;" onclick="claimNewIdentity()">Update & Continue <i class="ri-arrow-right-line"></i></button>
+    </div>
+</div>
 <!-- DASHBOARD VIEW -->
 <div id="view-dashboard" class="view">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
@@ -190,67 +207,105 @@ input:focus, textarea:focus { border-color: var(--primary); }
 
     const formatMoney = (a) => `Rs ${(Number(a)||0).toFixed(2)}`;
 
-    // --- Authentication ---
-    window.attemptLogin = async () => {
-        const phone = document.getElementById('loginPhone').value.trim();
-        const pin = document.getElementById('loginPin').value.trim();
-        if(!phone || !pin) return showToast("Phone and PIN required");
+    // 🚀 OMNI-FORMAT PARSER (Global)
+    const normalizePhone = (rawPhone) => {
+        let phone = String(rawPhone).replace(/[^0-9]/g, '');
+        if (phone.startsWith('0094') && phone.length === 13) phone = '0' + phone.substring(4);
+        else if (phone.startsWith('94') && phone.length === 11) phone = '0' + phone.substring(2);
+        else if (phone.length === 9 && !phone.startsWith('0')) phone = '0' + phone;
+        return phone;
+    };
 
+    // --- Authentication (ENTERPRISE CONCURRENT ROUTER) ---
+    window.attemptLogin = async () => {
+        let rawPhone = document.getElementById('loginPhone').value.trim();
+        const pin = document.getElementById('loginPin').value.trim();
+        if(!rawPhone || !pin) return showToast("Phone and PIN required");
+
+        const phone = normalizePhone(rawPhone);
         toggleLoader(true);
+
         try {
-            // 🛡️ ENTERPRISE OMNI-BRANCH ROUTING: Fetch all branches for this company
             let shopsSnap;
             try {
                 shopsSnap = await getDocs(collection(db, `users/${OWNER_ID}/shops`));
             } catch (err) {
                 console.error("Firebase Rules Error:", err);
-                showToast("Permission Denied: Please update Firebase Firestore Rules.");
-                toggleLoader(false);
-                return;
+                showToast("Permission Denied: Database Rules Error.");
+                toggleLoader(false); return;
             }
 
-            let found = false;
-
-            // Search through every branch to find where this customer belongs
-            for (let shopDoc of shopsSnap.docs) {
-                const tempShopId = shopDoc.id;
-                const custRef = doc(db, `users/${OWNER_ID}/shops/${tempShopId}/customers`, phone);
-                
-                try {
-                    const custSnap = await getDoc(custRef);
-                    
-                    if (custSnap.exists()) {
-                        const custData = custSnap.data();
-                        
-                        // Type-Safe PIN Comparison (Database එකේ PIN එක Number එකක් වුවද String එකක් වුවද ගැටලුවක් නොවේ)
-                        if (String(custData.pin) === String(pin)) {
-                            loggedInCustomer = { id: custSnap.id, ...custData };
-                            activeShopId = tempShopId; // Lock the user to this specific branch dynamically!
-                            found = true;
-                            break; // Stop searching once found
-                        }
-                    }
-                } catch (err) {
-                    console.warn(`Could not read customers for shop ${tempShopId}`, err);
-                }
-            }
+            // 🚀 PARALLEL EXECUTION: Check all shops at the exact same time! (O(1) Time Complexity)
+            const resolutionPromises = shopsSnap.docs.map(shopDoc => resolveIdentityInShop(shopDoc.id, phone, pin));
+            const results = await Promise.all(resolutionPromises);
             
-            if (found) {
+            // බලනවා කොයි කඩෙන් හරි සාර්ථක ප්‍රතිඵලයක් ආවාද කියලා
+            const validResult = results.find(r => r.found);
+
+            if (validResult) {
+                loggedInCustomer = validResult.customer;
+                activeShopId = validResult.shopId;
+
                 document.getElementById('view-login').style.display = 'none';
-                document.getElementById('view-dashboard').classList.add('active');
-                document.getElementById('bottomNav').style.display = 'flex';
-                document.getElementById('custNameDisplay').textContent = loggedInCustomer.name;
-                
-                loadDashboardData();
+
+                // 🚀 IDENTITY RECLAMATION PROTOCOL: Check if user is stuck in a Dummy Account
+                if (loggedInCustomer.id.endsWith("000") || (loggedInCustomer.name && loggedInCustomer.name.includes("(LOST NUMBER)"))) {
+                    // Force user to update their number!
+                    document.getElementById('view-reclaim').classList.add('active');
+                    document.getElementById('reclaimNameDisplay').textContent = loggedInCustomer.name.replace(" (LOST NUMBER)", "").trim();
+                } else {
+                    // Normal Login
+                    document.getElementById('view-dashboard').classList.add('active');
+                    document.getElementById('bottomNav').style.display = 'flex';
+                    document.getElementById('custNameDisplay').textContent = loggedInCustomer.name;
+                    loadDashboardData();
+                }
             } else {
                 showToast("Invalid Phone Number or PIN");
             }
         } catch (e) {
             console.error(e);
-            showToast("Connection Error. Ensure Owner ID is correct.");
+            showToast("Connection Error. Please check your network.");
         }
         toggleLoader(false);
     };
+
+    // 🚀 RECURSIVE DEEP RESOLUTION (The Graph Traversal Engine)
+    async function resolveIdentityInShop(shopId, targetPhone, pin) {
+        let currentPhone = targetPhone;
+        let depth = 0; // Prevent infinite loops
+
+        while (depth < 5) {
+            try {
+                const cRef = doc(db, `users/${OWNER_ID}/shops/${shopId}/customers`, currentPhone);
+                const cSnap = await getDoc(cRef);
+                
+                // 1. අදාළ අංකයේ ගිණුම හමුවී PIN එකත් හරි නම්..
+                if (cSnap.exists() && String(cSnap.data().pin) === String(pin)) {
+                    return { found: true, shopId: shopId, customer: { id: cSnap.id, ...cSnap.data() } };
+                }
+
+                // 2. අදාළ අංකය හෝ PIN එක වැරදි නම්, පද්ධතිය Archive එකට බැස හොයයි (Deep Pointer Resolution)
+                const archiveQ = query(collection(db, `users/${OWNER_ID}/shops/${shopId}/customer_archives`), where("originalId", "==", currentPhone));
+                const archSnap = await getDocs(archiveQ);
+                
+                if (!archSnap.empty) {
+                    let archives = [];
+                    archSnap.forEach(d => archives.push(d.data()));
+                    archives.sort((a,b) => new Date(b.archivedAt) - new Date(a.archivedAt)); // Latest first
+                    
+                    currentPhone = archives[0].forwardedTo; // පාරිභෝගිකයාගේ අලුත් අංකය සොයාගනී
+                    depth++; // Loop එක නැවත දුවයි අලුත් අංකය අරගෙන! (Hop to next)
+                } else {
+                    break; // Archive එකෙත් නැත්නම් මේක ඇත්තටම වැරදි ලොගින් එකක්
+                }
+            } catch (e) {
+                console.warn(`Resolution failed at depth ${depth} in shop ${shopId}`, e);
+                break;
+            }
+        }
+        return { found: false };
+    }
 
     window.logoutCustomer = () => {
         if(!confirm("Log out from your account?")) return;
@@ -541,6 +596,61 @@ window.sendCustomerReply = async (id) => {
         } catch (e) {
             console.error(e);
             showToast("Error sending reply");
+        }
+        toggleLoader(false);
+    };
+// 🚀 AUTO IDENTITY FIXER (Transforms Dummy Profile to Real Profile securely)
+    window.claimNewIdentity = async () => {
+        const rawNewPhone = document.getElementById('reclaimNewPhone').value.trim();
+        const newPhone = normalizePhone(rawPhone);
+
+        if (!newPhone || newPhone.length < 9) return showToast("Enter a valid mobile number.");
+
+        toggleLoader(true);
+        try {
+            // Check if this new number already exists!
+            const newRef = doc(db, `users/${OWNER_ID}/shops/${activeShopId}/customers`, newPhone);
+            const newSnap = await getDoc(newRef);
+
+            if (newSnap.exists()) {
+                toggleLoader(false);
+                return showToast("This number is already registered! Please contact the store.", "error");
+            }
+
+            // පරණ Dummy ගිණුම කියවා ගැනීම
+            const oldRef = doc(db, `users/${OWNER_ID}/shops/${activeShopId}/customers`, loggedInCustomer.id);
+            
+            let updatedName = loggedInCustomer.name.replace(" (LOST NUMBER)", "").trim();
+            let pHistory = loggedInCustomer.phone_history || [];
+            pHistory.push({ phone: loggedInCustomer.id, migratedAt: new Date().toISOString(), reason: "Portal Claimed" });
+
+            // අලුත් අංකයෙන් Profile එක සෑදීම
+            const newProfileData = {
+                ...loggedInCustomer,
+                id: newPhone, // Local update
+                name: updatedName,
+                phone: newPhone,
+                phone_history: pHistory,
+                lastUpdated: new Date().toISOString()
+            };
+            
+            // පරණ Dummy එක මකා අලුත් එක සෑදීම
+            await setDoc(newRef, newProfileData);
+            await deleteDoc(oldRef);
+
+            // Update local state & UI
+            loggedInCustomer = newProfileData;
+            document.getElementById('view-reclaim').classList.remove('active');
+            document.getElementById('view-dashboard').classList.add('active');
+            document.getElementById('bottomNav').style.display = 'flex';
+            document.getElementById('custNameDisplay').textContent = loggedInCustomer.name;
+            
+            showToast("Phone Number Updated Successfully!");
+            loadDashboardData();
+
+        } catch(e) {
+            console.error("Claim Error:", e);
+            showToast("An error occurred. Try again.");
         }
         toggleLoader(false);
     };
