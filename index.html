@@ -90,6 +90,13 @@
         .contact-info i { color: var(--primary-light); font-size: 20px; }
         .legal-row { border-top: 1px solid rgba(255,255,255,0.1); padding-top: 30px; display: flex; justify-content: space-between; font-size: 13px;}
 
+        /* LOGIN SELECTION CARDS */
+        .login-type-card { background: #f8fafc; border: 2px solid #e2e8f0; border-radius: 16px; padding: 25px 15px; text-align: center; cursor: pointer; transition: 0.3s; flex: 1; }
+        .login-type-card:hover { border-color: var(--primary); background: #f0f9ff; transform: translateY(-5px); box-shadow: 0 10px 20px -5px rgba(2, 132, 199, 0.2); }
+        .login-type-card i { font-size: 40px; color: var(--primary); margin-bottom: 15px; display: block; }
+        .login-type-card h4 { color: var(--secondary); margin-bottom: 5px; font-size: 16px; }
+        .login-type-card p { font-size: 12px; color: var(--text-light); }
+
         /* RESPONSIVE */
         @media(max-width: 992px) {
             .hero-content { grid-template-columns: 1fr; text-align: center; }
@@ -118,7 +125,8 @@
                 <a href="#manual">මාර්ගෝපදේශය</a>
             </div>
             <div style="display:flex; gap:15px;">
-                <button class="btn btn-outline" onclick="login()"><i class="ri-user-settings-line" style="margin-right:8px;"></i> Staff Login</button>
+                <!-- 🚀 UPDATED: General Login Button -->
+                <button class="btn btn-outline" onclick="openLoginModal()"><i class="ri-login-circle-line" style="margin-right:8px;"></i> පිවිසෙන්න (Login)</button>
             </div>
         </div>
     </nav>
@@ -130,11 +138,12 @@
                 <h1 style="font-family: 'Noto Sans Sinhala', sans-serif;">ශ්‍රී ලංකාවේ ප්‍රමුඛතම <br><span style="color: var(--primary);">වායුසමීකරණ (AC)</span> සේවා සපයන්නන්.</h1>
                 <p>වසර ගණනාවක විශ්වාසය සමගින් ඔබේ නිවසට සහ ආයතනයට උසස්ම තත්ත්වයේ වායුසමීකරණ යන්ත්‍ර විකිණීම, සවිකිරීම සහ නඩත්තු කිරීම. මෙය අප ආයතනයේ නිල කළමනාකරණ ද්වාරයයි.</p>
                 <div style="display:flex; gap:15px; flex-wrap: wrap; align-items: center;">
-                    <button class="btn btn-primary" onclick="login()" style="font-size: 16px; padding: 15px 30px;"><i class="ri-login-circle-line" style="margin-right:8px;"></i> කාර්යමණ්ඩල පිවිසුම</button>
-                    <a href="#contact" class="btn btn-outline" style="font-size: 16px; padding: 15px 30px;">අපව අමතන්න</a>
+                    <!-- 🚀 UPDATED: Customer & Staff Login Buttons -->
+                    <button class="btn btn-primary" onclick="goToCustomerPortal()" style="font-size: 16px; padding: 15px 30px;"><i class="ri-user-smile-line" style="margin-right:8px;"></i> පාරිභෝගික පිවිසුම</button>
+                    <button class="btn btn-outline" onclick="staffLogin()" style="font-size: 16px; padding: 15px 30px; background: white;"><i class="ri-admin-line" style="margin-right:8px;"></i> කාර්යමණ්ඩලය</button>
                 </div>
                 <div style="margin-top:20px; font-size:13px; color:#64748b; display:flex; align-items:center; gap:8px;">
-                    <i class="ri-shield-check-fill" style="color:#10b981; font-size:16px;"></i> Secure Staff & Admin Portal. Authorized access only.
+                    <i class="ri-shield-check-fill" style="color:#10b981; font-size:16px;"></i> Secure Staff & Customer Portals. Authorized access only.
                 </div>
             </div>
             <div class="hero-img-box">
@@ -199,7 +208,7 @@
         <div class="container">
             <div class="section-title">
                 <h2>නවීන කළමනාකරණ පද්ධතිය</h2>
-                <p>Nawarathna Cool Engineering කාර්යමණ්ඩලය සඳහා වෙන්වූ ERP සහ POS පද්ධතියෙහි පහසුකම්.</p>
+                <p>Nawarathna Cool Engineering කාර්යමණ්ඩලය සහ පාරිභෝගිකයින් සඳහා වෙන්වූ ERP පද්ධතියෙහි පහසුකම්.</p>
             </div>
             <div class="grid-3">
                 <div class="feature-card">
@@ -208,9 +217,9 @@
                     <p>අමතර කොටස් සහ යන්ත්‍ර විකිණීමේදී ක්ෂණික බිල්පත් නිකුත් කිරීම. Serial Number Barcodes හරහා වංචා වළක්වා ගැනීම.</p>
                 </div>
                 <div class="feature-card">
-                    <div class="icon-box"><i class="ri-calendar-check-line"></i></div>
-                    <h3>Service CRM (නඩත්තු සිහිකැඳවීම්)</h3>
-                    <p>පාරිභෝගිකයාගේ ඊළඟ AC Service එක ස්වයංක්‍රීයව මතක් කිරීම සහ මාසික නඩත්තු ගිවිසුම් කළමනාකරණය.</p>
+                    <div class="icon-box" style="background:#fef3c7; color:#d97706;"><i class="ri-smartphone-line"></i></div>
+                    <h3>පාරිභෝගික ද්වාරය (Customer App)</h3>
+                    <p>පාරිභෝගිකයින්ට තම දුරකථනය හරහා බිල්පත් බැලීමට, සේවා දිනයන් දැනගැනීමට සහ නඩත්තු ඉල්ලීම් (Requests) යැවීමට හැක.</p>
                 </div>
                 <div class="feature-card">
                     <div class="icon-box"><i class="ri-archive-line"></i></div>
@@ -218,9 +227,9 @@
                     <p>AC අමතර කොටස්, ගෑස් සිලින්ඩර් සහ යන්ත්‍ර තොග (Inventory) නිවැරදිව පවත්වා ගැනීම සහ Low-stock alerts.</p>
                 </div>
                 <div class="feature-card">
-                    <div class="icon-box"><i class="ri-file-list-3-line"></i></div>
-                    <h3>Quotations & Invoices</h3>
-                    <p>නව ව්‍යාපෘති සඳහා ඇස්තමේන්තු (Quotations) සහ බිල්පත් (Invoices) සකසා පාරිභෝගිකයින්ට WhatsApp කිරීම.</p>
+                    <div class="icon-box"><i class="ri-calendar-check-line"></i></div>
+                    <h3>Service CRM (නඩත්තු සිහිකැඳවීම්)</h3>
+                    <p>පාරිභෝගිකයාගේ ඊළඟ AC Service එක ස්වයංක්‍රීයව මතක් කිරීම සහ මාසික නඩත්තු ගිවිසුම් කළමනාකරණය.</p>
                 </div>
                 <div class="feature-card">
                     <div class="icon-box"><i class="ri-user-settings-line"></i></div>
@@ -240,8 +249,8 @@
     <section id="manual" class="section">
         <div class="container">
             <div class="section-title">
-                <h2>කාර්යමණ්ඩල මාර්ගෝපදේශය</h2>
-                <p>පද්ධතියට ඇතුළු වී දෛනික කටයුතු සිදුකරන ආකාරය පිළිබඳ උපදෙස්.</p>
+                <h2>පද්ධති මාර්ගෝපදේශය</h2>
+                <p>ඔබගේ ගිණුමට ඇතුළු වී සේවා ලබාගන්නා ආකාරය පිළිබඳ උපදෙස්.</p>
             </div>
             
             <div class="timeline">
@@ -249,34 +258,27 @@
                     <div class="step-number"><i class="ri-login-circle-line"></i></div>
                     <div class="step-content">
                         <h3>1. පද්ධතියට පිවිසීම</h3>
-                        <p>ඉහළ ඇති "Staff Login" බොත්තම භාවිතා කර, ආයතනයෙන් ඔබට ලබා දී ඇති නිල Google ගිණුම හෝ Email එක හරහා පද්ධතියට පිවිසෙන්න.</p>
+                        <p>ඉහළ ඇති "පිවිසෙන්න" බොත්තම ඔබා ඔබ පාරිභෝගිකයෙකු ද, නැතහොත් කාර්යමණ්ඩලයේ අයෙකු දැයි තෝරා අදාළ ගිණුමට ලොග් වන්න.</p>
+                    </div>
+                </div>
+                <div class="timeline-step">
+                    <div class="step-number"><i class="ri-smartphone-line"></i></div>
+                    <div class="step-content">
+                        <h3>2. පාරිභෝගිකයින් සඳහා (Customers)</h3>
+                        <p>පාරිභෝගිකයින්ට තම දුරකථන අංකය සහ අප විසින් ලබා දුන් 4-Digit PIN අංකය භාවිතා කර තම බිල්පත් සහ Warranty විස්තර බලාගත හැක.</p>
                     </div>
                 </div>
                 <div class="timeline-step">
                     <div class="step-number"><i class="ri-settings-4-line"></i></div>
                     <div class="step-content">
-                        <h3>2. තොග සහ සේවා ඇතුළත් කිරීම</h3>
-                        <p>ගබඩාවට ලැබෙන නව AC යන්ත්‍ර සහ අමතර කොටස් 'Add Stock' හරහා ඇතුළත් කරන්න. බාර්කෝඩ් ස්ටිකර් මුද්‍රණය කර අලවන්න.</p>
-                    </div>
-                </div>
-                <div class="timeline-step">
-                    <div class="step-number"><i class="ri-printer-line"></i></div>
-                    <div class="step-content">
-                        <h3>3. බිල්පත් සහ Quotation සෑදීම</h3>
-                        <p>'Smart POS' හරහා ක්ෂණික බිල්පත් නිකුත් කරන්න. විශාල ව්‍යාපෘති සඳහා 'Documents' ටැබ් එක හරහා Quotation සකස් කරන්න.</p>
-                    </div>
-                </div>
-                <div class="timeline-step">
-                    <div class="step-number"><i class="ri-safe-line"></i></div>
-                    <div class="step-content">
-                        <h3>4. EOD (දෛනික වාර්තා) සහ ආරක්ෂාව</h3>
-                        <p>දවස අවසානයේදී 'End of Day' රිපෝට් එක ලබාගෙන මුදල් ලාච්චුවේ ශේෂය (Drawer Balance) පරීක්ෂා කර කළමනාකාරිත්වයට භාර දෙන්න.</p>
+                        <h3>3. කාර්යමණ්ඩලය සඳහා (Staff Only)</h3>
+                        <p>කළමනාකරුවන්ට සහ කාර්මික ශිල්පීන්ට ආයතනයේ නිල Google ගිණුම හරහා ඇතුළු වී, තොග ඇතුළත් කිරීම්, බිල්පත් නිකුත් කිරීම් සහ EOD වාර්තා සෑදිය හැක.</p>
                     </div>
                 </div>
             </div>
             
             <div style="text-align:center; margin-top:50px;">
-                <button class="btn btn-primary" onclick="login()"><i class="ri-dashboard-line"></i> Dashboard වෙත යන්න</button>
+                <button class="btn btn-primary" onclick="openLoginModal()"><i class="ri-shield-keyhole-line"></i> දැන්ම පිවිසෙන්න</button>
             </div>
         </div>
     </section>
@@ -294,7 +296,7 @@
                     <a href="#services">අපගේ සේවාවන්</a>
                     <a href="#features">පද්ධති පහසුකම්</a>
                     <a href="#manual">මාර්ගෝපදේශය</a>
-                    <a href="#" onclick="login()">කාර්යමණ්ඩල පිවිසුම</a>
+                    <a href="#" onclick="openLoginModal()">පද්ධතියට පිවිසෙන්න</a>
                 </div>
                 <div class="footer-col">
                     <h4>නීතිමය තොරතුරු</h4>
@@ -324,6 +326,37 @@
             </div>
         </div>
     </footer>
+
+    <!-- 🚀 NEW: LOGIN SELECTION MODAL -->
+    <div id="loginModal" style="position:fixed; inset:0; background:rgba(15, 23, 42, 0.7); z-index:2500; display:none; align-items:center; justify-content:center; backdrop-filter:blur(5px);">
+        <div style="background:white; padding:40px; width:100%; max-width:550px; border-radius:24px; position:relative; box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);">
+            <i class="ri-close-line" style="position:absolute; top:20px; right:20px; cursor:pointer; font-size:24px; color:#64748b;" onclick="closeLoginModal()"></i>
+            
+            <h2 style="color:var(--secondary); text-align:center; margin-bottom:10px;">පද්ධතියට පිවිසෙන්න</h2>
+            <p style="text-align:center; color:var(--text-light); margin-bottom:30px; font-size:15px;">කරුණාකර ඔබගේ ගිණුම් වර්ගය තෝරන්න.</p>
+            
+            <div style="display:flex; gap:20px; flex-wrap:wrap;">
+                <!-- Customer Login Option -->
+                <div onclick="goToCustomerPortal()" class="login-type-card">
+                    <i class="ri-user-smile-fill"></i>
+                    <h4>පාරිභෝගික පිවිසුම</h4>
+                    <p>(Customer Portal)</p>
+                    <div style="font-size:11px; color:#94a3b8; margin-top:10px;">View bills, warranties & request AC services</div>
+                </div>
+                
+                <!-- Staff Login Option -->
+                <div onclick="staffLogin()" class="login-type-card">
+                    <i class="ri-shield-user-fill"></i>
+                    <h4>කාර්යමණ්ඩලය</h4>
+                    <p>(Staff & Admin)</p>
+                    <div style="font-size:11px; color:#94a3b8; margin-top:10px;">Manage POS, inventory, CRM & payroll</div>
+                </div>
+            </div>
+            <div style="text-align:center; margin-top:20px; font-size:12px; color:#94a3b8;">
+                <i class="ri-lock-2-line"></i> Secured by Enterprise Authentication
+            </div>
+        </div>
+    </div>
 
     <!-- LEGAL MODAL -->
     <div id="legalModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:2000; display:none; align-items:center; justify-content:center; backdrop-filter:blur(5px);">
@@ -355,14 +388,28 @@
         const provider = new GoogleAuthProvider();
 
         onAuthStateChanged(auth, (user) => {
-            // Already logged in? Redirect to dashboard.
+            // Already logged in? Redirect to dashboard (Staff Only)
             if (user) window.location.href = "dashboard.html";
         });
 
-        window.login = () => {
+        // 🚀 NEW LOGIC: Login Selection Functions
+        window.openLoginModal = () => document.getElementById('loginModal').style.display = 'flex';
+        window.closeLoginModal = () => document.getElementById('loginModal').style.display = 'none';
+
+        // 1. Staff Login (Google Auth)
+        window.staffLogin = () => {
             signInWithPopup(auth, provider)
                 .then(() => window.location.href = "dashboard.html")
                 .catch((error) => alert("Login failed: " + error.message));
+        };
+
+        // 2. Customer Portal Redirect (Passes the exact Owner ID)
+        window.goToCustomerPortal = () => {
+            // 🔴 Replace this if your actual OWNER UID is different!
+            const OWNER_ID = "QUogZRttqPeJsrNoyITA5YEfJe63"; 
+            
+            // Redirects to customer.html with the URL parameter needed
+            window.location.href = `customer.html?owner=${OWNER_ID}`;
         };
     </script>
 
@@ -389,7 +436,10 @@
         
         window.onclick = function(event) {
             const modal = document.getElementById('legalModal');
+            // Close login modal if clicked outside
+            const loginModal = document.getElementById('loginModal');
             if (event.target == modal) modal.style.display = "none";
+            if (event.target == loginModal) loginModal.style.display = "none";
         }
     </script>
 </body>
