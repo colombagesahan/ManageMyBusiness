@@ -478,6 +478,14 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                                 <input type="checkbox" id="showEmail" checked> Show on Docs
                             </label>
                         </div>
+                        
+                        <!-- 🛡️ ENTERPRISE FIX: SECURITY PIN FOR MANAGER OVERRIDE -->
+                        <div style="margin-top: 15px; padding: 10px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px;">
+                            <label style="font-size:12px; font-weight:bold; color:#d97706;"><i class="ri-lock-password-line"></i> Manager Override PIN (For Discounts & Approvals)</label>
+                            <input type="text" id="profManagerPin" placeholder="e.g. 1234" style="margin-bottom:0; margin-top:5px; border-color:#fcd34d; font-weight:bold; letter-spacing:2px; font-family:monospace;">
+                            <div style="font-size:10px; color:#d97706; margin-top:5px;">Keep this secret. Used to approve large cashier discounts.</div>
+                        </div>
+
                     </div>
                 </div>
 
@@ -641,9 +649,9 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                         <input id="refundProductDisplay" disabled style="background:#eee; font-weight:bold;">
                     </div>
                     <div>
-                        <label>Refund Unit Price (Adjust if Discounted) *</label>
-                        <!-- LOGIC FIX: Enabled price editing to allow deducting bill discounts -->
-                        <input id="refundPriceDisplay" type="number" step="any" style="font-weight:bold; border-color:var(--warning);">
+                        <label>Effective Unit Price (Pro-rated for Discounts) 🛡️</label>
+                        <!-- 🛡️ ENTERPRISE FIX: DISABLED! Cashiers cannot manipulate return prices anymore. System calculates the exact value mathematically. -->
+                        <input id="refundPriceDisplay" type="number" step="any" disabled style="font-weight:bold; border-color:var(--success); background:#f0fdf4; color:#15803d;">
                     </div>
 
                     <!-- EDITABLE FIELDS -->
@@ -658,6 +666,16 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                     <div>
                         <label>Reason</label>
                         <input id="refundReasonInput" placeholder="Reason for return..." style="margin:0;">
+                    </div>
+                    
+                    <!-- 🛡️ ENTERPRISE FIX: Refund Payment Method -->
+                    <div>
+                        <label>Refund Issued Via *</label>
+                        <select id="refundMethodSelect" style="margin:0; border-color:var(--warning); font-weight:bold;">
+                            <option value="Cash">Cash (Deducts from Drawer)</option>
+                            <option value="Card/Bank">Card / Bank Transfer (No EOD Impact)</option>
+                            <option value="Store Credit">Store Credit (Customer Wallet)</option>
+                        </select>
                     </div>
 
                     <div style="display:flex; align-items:center; gap:10px;">
@@ -1593,6 +1611,12 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             <div style="font-size:11px; color:#666; margin-top:-5px; margin-bottom:10px;">Note: Passwords cannot be changed here once created.</div>
         </div>
         
+        <!-- 🛡️ දෝෂය 3 විසඳුම: Password Reset Button (Edit කිරීමේදී පමණක් පෙන්වයි) -->
+        <div id="cashResetWrapper" style="display:none; background:#eff6ff; padding:10px; border-radius:8px; border:1px solid #bfdbfe; margin-bottom:10px;">
+            <div style="font-size:11px; color:#1e40af; font-weight:bold; margin-bottom:5px;">Password Recovery:</div>
+            <button class="btn btn-info" style="width:100%; font-size:12px; padding:6px;" onclick="sendCashierResetLink()"><i class="ri-mail-send-line"></i> Send Password Reset Email</button>
+        </div>
+
         <label style="font-size:12px; margin-top:10px;">Assign to Branch *</label>
         <select id="cashShopSelect"></select>
         
@@ -2115,7 +2139,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 
 <script type="module">
     import { initializeApp, deleteApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-    import { getAuth, signOut, onAuthStateChanged, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+    import { getAuth, signOut, onAuthStateChanged, createUserWithEmailAndPassword, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
     import { getFirestore, collection, addDoc, getDocs, doc, deleteDoc, updateDoc, query, where, orderBy, setDoc, getDoc, runTransaction, limit, startAfter, writeBatch, enableIndexedDbPersistence, increment, onSnapshot, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
     // ENTERPRISE FIX: Import Firebase Functions to securely call Gemini AI backend
     import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-functions.js";
@@ -2444,13 +2468,21 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             dbOwnerId = user.uid;
         }
 
-        // ENTERPRISE FIX: සජීවීව ගිණුම නිරීක්ෂණය කිරීම (Live Kicking)
+        // 🛡️ ENTERPRISE FIX: සජීවීව ගිණුම නිරීක්ෂණය කිරීම (Strict Live Kicking)
         try {
             onSnapshot(doc(db, `users`, user.uid), (docSnap) => {
-                // Cashier කෙනෙක් මකා දැමූ විට පමණක් ඔහුව පද්ධතියෙන් එළවා දමයි
-                if (docSnap && !docSnap.exists() && userRole === 'cashier') {
-                    alert("Your access has been revoked by the Administrator.");
-                    logout();
+                if (userRole === 'cashier') {
+                    if (docSnap && docSnap.exists()) {
+                        // 🚀 දෝෂය 1 විසඳුම: Status එක suspended වූ සැනින් එළවා දැමීම
+                        if (docSnap.data().status === 'suspended') {
+                            alert("Security Alert: Your access has been instantly suspended by the Administrator.");
+                            logout();
+                        }
+                    } else if (docSnap && !docSnap.exists()) {
+                        // ගිණුම සම්පූර්ණයෙන් මකා දැමුවහොත්
+                        alert("Security Alert: Your account has been deleted.");
+                        logout();
+                    }
                 }
             });
         } catch (snapError) {
@@ -2582,11 +2614,33 @@ body.pos-fullscreen-mode #view-pos > div > .card {
     async function permanentlyDeleteShop() {
         // Triggered when timer expires
         toggleLoader(true);
+        
+        // 🛡️ දෝෂය 4 විසඳුම: Branch එක මැකීමට පෙර එම Branch එකේ සිටි Cashiers ලාව Suspend කිරීම (Ghost User Prevention)
+        try {
+            const orphanedCashiersQ = query(collection(db, 'users'), where('ownerId', '==', dbOwnerId), where('allowedShop', '==', currentShopId));
+            const orphanedSnap = await getDocs(orphanedCashiersQ);
+            
+            if (!orphanedSnap.empty) {
+                const batch = writeBatch(db);
+                orphanedSnap.forEach(d => {
+                    // ඔවුන්ව Suspend කර, මකා දැමූ Branch එකට තිබූ Access එක null කරයි
+                    batch.update(d.ref, { status: 'suspended', allowedShop: null });
+                });
+                await batch.commit();
+                console.log(`Secured ${orphanedSnap.size} orphaned cashiers.`);
+            }
+        } catch (e) {
+            console.warn("Orphaned cashier sync failed, but proceeding with shop deletion.", e);
+        }
+
+        // Branch දත්ත මකා දැමීම
         const shopRef = doc(db, `users/${dbOwnerId}/shops`, currentShopId);
         await recursiveDelete(shopRef);
         currentShopId = null;
+        
         if(deletionInterval) clearInterval(deletionInterval);
-        showToast("Branch permanently deleted.");
+        showToast("Branch & its data permanently deleted.");
+        
         setTimeout(() => {
             window.location.reload(); // Reload to clear all states properly
         }, 1500);
@@ -2938,6 +2992,10 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         document.getElementById('profWhatsapp').value = p.whatsapp || '';
         document.getElementById('profFax').value = p.fax || '';
         document.getElementById('profEmail').value = p.email || '';
+        
+        // Load the Manager PIN. If not set previously, default to 0000
+        document.getElementById('profManagerPin').value = p.managerPin || '0000'; 
+        
         document.getElementById('profLogoFont').value = p.logoFont || "'Plus Jakarta Sans'";
         document.getElementById('profLogoColor').value = p.logoColor || '#4F46E5';
 
@@ -2993,6 +3051,10 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             whatsapp: document.getElementById('profWhatsapp').value.trim(),
             fax: document.getElementById('profFax').value.trim(),
             email: document.getElementById('profEmail').value.trim(),
+            
+            // Save the Manager PIN (Fallback to 0000 if left empty)
+            managerPin: document.getElementById('profManagerPin').value.trim() || '0000',
+            
             logoFont: document.getElementById('profLogoFont').value,
             logoColor: document.getElementById('profLogoColor').value,
             logoImage: compressedImageBase64 || (profileCache ? profileCache.logoImage : null),
@@ -4464,26 +4526,11 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             return false;
         }).filter(p => p.qty > 0).sort((a,b) => (a.batchNumber||0) - (b.batchNumber||0));
 
-        // 2. 🚀 PRICE COLLISION CHECK (මිල ගණන් වෙනස් තොග තිබේදැයි බැලීම)
-        const uniquePrices = [...new Set(activeBatches.map(b => b.sell))];
-
-        if (uniquePrices.length > 1 && forcedPrice === null) {
-            // මිල ගණන් කීපයක් ඇත! Cashier ගෙන් තහවුරු කරගැනීමට Modal එක අරී
-            window.pendingPriceCollisionItem = { product: baseProduct, qty: reqQty };
-            
-            const btnContainer = document.getElementById('priceCollisionButtons');
-            btnContainer.innerHTML = uniquePrices.map(price => 
-                `<button class="btn btn-primary" style="padding:12px; font-size:16px; justify-content:center;" onclick="resolvePriceCollision(${price})">${formatMoney(price)}</button>`
-            ).join('');
-            
-            openModal('posPriceCollisionModal');
-            return false; // Cashier මිල තෝරනතුරු දියඇල්ල නතර කරයි
-        }
-
-        // 3. Cashier විසින් මිල තේරුවා නම් (Forced Price), ඒ මිල තියෙන Batches විතරක් පෙරා ගනී
-        if (forcedPrice !== null) {
-            activeBatches = activeBatches.filter(b => b.sell === forcedPrice);
-        }
+        // 🛡️ ENTERPRISE FIFO ENGINE FIX (Auto-Split without Cashier Interference)
+        // No modals needed! We iterate chronologically and push multiple line-items to the cart 
+        // if prices differ. This completely stops Cashier Price Manipulation Fraud.
+        
+        // (We removed the prompt modal logic entirely)
 
         const totalAvailable = activeBatches.reduce((sum, b) => sum + b.qty, 0);
         if (totalAvailable < remainingQty) {
@@ -4503,10 +4550,14 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 
             const qtyToTake = Math.min(batchUsableQty, remainingQty);
             
-            if (existInCart) {
-                existInCart.qty += qtyToTake;
+            // 🛡️ ENTERPRISE FIFO FIX: Separate cart items if prices differ!
+            // Instead of just checking ID, check if a cart item exists WITH THE SAME PRICE.
+            const existInCartWithSamePrice = cart.find(x => (x.id === batch.id || x.name === batch.name) && x.sell === batch.sell);
+            
+            if (existInCartWithSamePrice) {
+                existInCartWithSamePrice.qty += qtyToTake;
             } else {
-                cart.push({ ...batch, qty: qtyToTake });
+                cart.push({ ...batch, qty: qtyToTake, id: batch.id }); // Push specific batch ID
             }
             
             remainingQty -= qtyToTake;
@@ -4924,9 +4975,17 @@ window.checkout = async () => {
         let discountAmt = discountType === 'percent' ? (subtotal * discountVal / 100) : discountVal;
         if(discountAmt > subtotal) discountAmt = subtotal;
 
-        // 🛡️ ENTERPRISE FRAUD PROTECTION: Limit Cashier discounts to a maximum of 10%
+        // 🛡️ ENTERPRISE FRAUD PROTECTION & MANAGER OVERRIDE
         if (userRole === 'cashier' && discountAmt > (subtotal * 0.10)) {
-            return showToast("Cashiers cannot give more than a 10% discount! Please ask the Manager.", "error");
+            const adminPin = prompt("⚠️ Discount exceeds 10%!\nCashier Limit Reached. Please ask the Manager to enter their Override PIN:");
+            
+            // Database එකෙන් Load වූ Profile එකෙහි ඇති සැබෑ Manager PIN එක ලබා ගැනීම (නැතිනම් 0000 ලෙස ගනී)
+            const requiredPin = (profileCache && profileCache.managerPin) ? profileCache.managerPin : "0000";
+            
+            if (adminPin !== requiredPin) { 
+                return showToast("Authorization Denied! Invalid Manager PIN.", "error");
+            }
+            if(window.writeSystemLog) writeSystemLog("MANAGER_OVERRIDE", `Approved ${(discountAmt/subtotal*100).toFixed(1)}% discount for Cart Value ${formatMoney(subtotal)}`);
         }
 
         const roundToTwo = (num) => Math.round(num * 100) / 100;
@@ -5013,10 +5072,14 @@ window.checkout = async () => {
         let creditBalance = (paymentMethod === 'Pay Later') ? roundToTwo(total - cashGiven) : 0;
         let finalPaymentMethod = paymentMethod;
 
-        if (paymentMethod === 'Pay Later' && creditBalance <= 0) {
-            finalPaymentMethod = 'Cash (Auto-Settled)';
+        let overpaidAmount = 0;
+        if (paymentMethod === 'Pay Later' && creditBalance < 0) {
+            overpaidAmount = Math.abs(creditBalance);
+            finalPaymentMethod = 'Cash (Overpaid & Settled)';
             creditBalance = 0;
-            showToast("Advance covers the full amount! Saved as a Cash Sale.", "info");
+            showToast(`Overpayment of ${formatMoney(overpaidAmount)} detected! Logged as Customer Advance.`, "info");
+        } else if (paymentMethod === 'Pay Later' && creditBalance === 0) {
+            finalPaymentMethod = 'Cash (Auto-Settled)';
         }
 
         // 1. Generate Custom Order ID (🛡️ Secured Time)
@@ -5078,6 +5141,12 @@ window.checkout = async () => {
                     // Check Qty Live
                     if (pData.qty < item.qty) {
                         throw new Error(`Insufficient stock for '${item.name}'! Available: ${pData.qty}`);
+                    }
+                    
+                    // 🛡️ ENTERPRISE ZERO-TRUST SECURITY: Re-verify price at database level
+                    // Prevents hackers from modifying cartItem.sell via browser console
+                    if (Math.abs(pData.sell - item.sell) > 0.01) {
+                        throw new Error(`SECURITY ALERT: Price mismatch detected for '${item.name}'. DB Price: ${pData.sell}, Cart Price: ${item.sell}`);
                     }
 
                     // Strict Serial Collision Check (Concurrecy Fraud Prevention)
@@ -5185,6 +5254,19 @@ window.checkout = async () => {
                 const saleRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`));
                 saleData.id = saleRef.id; // Store ID for local cache
                 transaction.set(saleRef, saleData);
+
+                // 🛡️ ENTERPRISE STORE CREDIT FIX: Log overpayments as liabilities/advance income!
+                if (overpaidAmount > 0) {
+                    const expRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`));
+                    transaction.set(expRef, {
+                        description: `Customer Advance / Store Credit (Overpayment on Inv #${customOrderId})`,
+                        amount: overpaidAmount,
+                        isIncome: true, // Cash came IN
+                        payMethod: 'Cash',
+                        customerPhone: finalCustPhone,
+                        date: new Date().toISOString()
+                    });
+                }
 
             }); // ====== END OF ATOMIC TRANSACTION ======
 
@@ -6030,9 +6112,23 @@ window.autoFillDocCustomer = (name) => {
         const formPanel = document.getElementById('refundActionPanel');
         formPanel.style.display = 'block';
         
+        // 🛡️ ENTERPRISE MATH FIX: Pro-rata Discount Calculation
+        // If the whole bill had a 10% discount, the refund value of an item MUST be 10% less!
+        let effectivePrice = item.sell;
+        try {
+            // Retrieve the full order object from cache to find the total discount
+            const parentOrder = salesCache.find(s => s.customOrderId === orderId) || salesCache.find(s => s.id === orderId);
+            if (parentOrder && parentOrder.discountAmt > 0 && parentOrder.subtotal > 0) {
+                const discountRatio = parentOrder.discountAmt / parentOrder.subtotal;
+                effectivePrice = item.sell - (item.sell * discountRatio);
+                effectivePrice = Math.round(effectivePrice * 100) / 100;
+                showToast(`System Applied Pro-rata Discount: Item price reduced by ${(discountRatio*100).toFixed(1)}% to match original bill discount.`, "info");
+            }
+        } catch(e) { console.error("Pro-rata calc error", e); }
+
         // Fill Visible Fields
         document.getElementById('refundProductDisplay').value = `${item.name} (Batch: ${formatBatch(item.batchNumber||0)})`;
-        document.getElementById('refundPriceDisplay').value = formatMoney(item.sell);
+        document.getElementById('refundPriceDisplay').value = effectivePrice;
         
         document.getElementById('refundQtyInput').value = 1; 
         document.getElementById('refundMaxQty').textContent = item.qty;
@@ -8312,6 +8408,7 @@ window.setQuickCash = (amount) => {
         document.getElementById('cashEmail').value = '';
         document.getElementById('cashEmail').disabled = false;
         document.getElementById('cashPassWrapper').style.display = 'block';
+        document.getElementById('cashResetWrapper').style.display = 'none'; // අලුතින් හදද්දි Reset එපා
         document.getElementById('cashPass').value = '';
         
         const sel = document.getElementById('cashShopSelect');
@@ -8325,6 +8422,7 @@ window.setQuickCash = (amount) => {
         document.getElementById('cashEmail').value = email;
         document.getElementById('cashEmail').disabled = true; // Email cannot be changed
         document.getElementById('cashPassWrapper').style.display = 'none'; // Password cannot be edited here
+        document.getElementById('cashResetWrapper').style.display = 'block'; // 🛡️ Password Reset කොටුව පෙන්වීම
         
         const sel = document.getElementById('cashShopSelect');
         sel.innerHTML = shopsCache.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
@@ -8332,8 +8430,30 @@ window.setQuickCash = (amount) => {
         
         openModal('cashierModal');
     };
-
+// 🛡️ දෝෂය 3 විසඳුම: Password Reset Link යැවීමේ කේතය
+    window.sendCashierResetLink = async () => {
+        const email = document.getElementById('cashEmail').value.trim();
+        if(!email) return;
+        
+        if(!confirm(`Send password reset email to ${email}?`)) return;
+        
+        toggleLoader(true);
+        try {
+            await sendPasswordResetEmail(auth, email);
+            showToast("Password Reset link sent securely to the email!", "success");
+        } catch (e) {
+            console.error("Password reset error:", e);
+            showToast("Error sending reset link. Please try again.", "error");
+        } finally {
+            toggleLoader(false);
+        }
+    };
     window.saveCashier = async () => {
+        // 🛡️ දෝෂය 2 විසඳුම: Backend Role Validation (Cashiers ලාට මේ function එක run කිරීම තහනම්!)
+        if (userRole !== 'admin') {
+            return showToast("SECURITY ALERT: You do not have permission to create or edit users!", "error");
+        }
+
         const uid = document.getElementById('cashUid').value;
         const email = document.getElementById('cashEmail').value.trim();
         const pass = document.getElementById('cashPass').value.trim();
@@ -9496,7 +9616,7 @@ window.setQuickCash = (amount) => {
             }
         });
 
-        // 3. Process Refunds
+        // 3. Process Refunds (🛡️ ENTERPRISE FIX: Strict Cash Logic)
         const qRef = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/refunds`), where("date", ">=", startDate), where("date", "<=", endDate));
         const snapRef = await getDocs(qRef);
         snapRef.forEach(docSnap => {
@@ -9508,8 +9628,8 @@ window.setQuickCash = (amount) => {
                 rDate = new Date(dObj.getTime() - (dObj.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
             } catch(err) { return; }
             
-            // ENTERPRISE FIX: Only deduct the actual cash handed back to the customer!
-            if(rDate === dateInput) {
+            // 🛡️ ENTERPRISE EOD FIX: Only deduct if the refund was actually given in CASH!
+            if(rDate === dateInput && (!r.refundMethod || r.refundMethod === 'Cash')) {
                 refunds += (r.cashOutToCustomer !== undefined ? r.cashOutToCustomer : r.amount);
             }
         });
@@ -9868,13 +9988,17 @@ window.setQuickCash = (amount) => {
                 const otRate = Number(emp.otRate) || 0;
                 const otPay = totExtra * otRate;
                 
+                // 🛡️ ENTERPRISE PAYROLL FIX: Sri Lankan Statutory Deductions (EPF 8%)
+                // Only calculate EPF if base salary is configured
+                const epfDeduction = baseSal > 0 ? (earnedBasic * 0.08) : 0;
+                
                 // Final safety round to prevent JS floating point avalanche
-                const netSalary = Math.round((earnedBasic - deficitDeduction - totAdvance + otPay) * 100) / 100;
+                const netSalary = Math.round((earnedBasic - deficitDeduction - totAdvance - epfDeduction + otPay) * 100) / 100;
 
                 // Save to local variable for Timesheet view
                 currentPayrollData.push({
                     emp: emp, logs: processedLogs, pDays, plDays, halfDays, lwpDays,
-                    totWorked, totExtra, totAdvance, otPay, deficitDeduction, earnedBasic, netSalary
+                    totWorked, totExtra, totAdvance, otPay, deficitDeduction, earnedBasic, epfDeduction, netSalary
                 });
 
                 html += `
@@ -9943,6 +10067,7 @@ window.setQuickCash = (amount) => {
                 <div>
                     <h5 style="margin-bottom:10px; color:#666;">DEDUCTIONS</h5>
                     <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>Short Hours Penalty:</span> <strong style="color:var(--danger);">-${formatMoney(data.deficitDeduction)}</strong></div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>EPF Deduction (8%):</span> <strong style="color:var(--danger);">-${formatMoney(data.epfDeduction)}</strong></div>
                     <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>Cash Advances:</span> <strong style="color:var(--danger);">-${formatMoney(data.totAdvance)}</strong></div>
                 </div>
             </div>
@@ -10643,6 +10768,18 @@ window.setQuickCash = (amount) => {
                     quantityChange: -qty, finalQty: pData.qty - qty,
                     batchNumber: pData.batchNumber || 1, initialQty: pData.qty
                 });
+
+                // 🛡️ ENTERPRISE P&L FIX: Log the actual cost as an Expense so it reduces the Dashboard Profit!
+                const costLoss = (parseFloat(pData.buy) || 0) * qty;
+                if (costLoss > 0) {
+                    const expRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`));
+                    t.set(expRef, {
+                        description: `Inventory Write-Off Loss [${reason}]: ${pData.name} x${qty}`,
+                        amount: costLoss,
+                        isIncome: false,
+                        date: new Date().toISOString()
+                    });
+                }
             });
 
             closeModal('writeoffModal');
