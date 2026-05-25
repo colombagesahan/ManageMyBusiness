@@ -3,27 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ManageMyBusiness | ඔබේ ව්‍යාපාරය එකම තැනකින්</title>
-    <meta name="description" content="POS, තොග පාලනය, සේවක කළමනාකරණය එකම තැනකින්.">
+    <title>Nawarathna Cool Engineering Pvt LTD | System Portal</title>
+    <meta name="description" content="වායුසමීකරණ පද්ධති (AC) විකිණීම, සවිකිරීම සහ නඩත්තු කිරීමේ විශිෂ්ටයෝ.">
     
     <!-- FONTS & ICONS -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Sinhala:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
-    
-    <!-- LEMON SQUEEZY SCRIPT -->
-    <script src="https://app.lemonsqueezy.com/js/lemon.js" defer></script>
 
     <style>
+        /* COOL ENGINEERING THEME */
         :root {
-            --primary: #0ea5e9; /* Light Blue / Cyan Theme */
-            --primary-dark: #0284c7;
-            --secondary: #1e293b;
+            --primary: #0284c7; /* Cool Blue for AC Company */
+            --primary-light: #38bdf8;
+            --secondary: #0f172a;
             --text-main: #334155;
             --text-light: #64748b;
             --bg: #ffffff;
-            --bg-alt: #f8fafc;
+            --bg-alt: #f0f9ff; /* Ice Blue Background */
             --accent: #f59e0b;
         }
         * { box-sizing: border-box; margin: 0; padding: 0; scroll-behavior: smooth; }
@@ -32,66 +30,64 @@
         /* UTILITIES */
         .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
         .btn { display: inline-flex; align-items: center; justify-content: center; padding: 12px 28px; border-radius: 50px; font-weight: 600; transition: all 0.3s ease; cursor: pointer; border: none; font-size: 15px; }
-        .btn-primary { background: var(--primary); color: white; box-shadow: 0 10px 20px -10px rgba(14, 165, 233, 0.5); }
-        .btn-primary:hover { background: var(--primary-dark); transform: translateY(-2px); box-shadow: 0 15px 25px -10px rgba(14, 165, 233, 0.6); }
+        .btn-primary { background: var(--primary); color: white; box-shadow: 0 10px 20px -10px rgba(2, 132, 199, 0.5); }
+        .btn-primary:hover { background: #0369a1; transform: translateY(-2px); box-shadow: 0 15px 25px -10px rgba(2, 132, 199, 0.6); }
         .btn-outline { border: 2px solid var(--primary); background: transparent; color: var(--primary); }
         .btn-outline:hover { background: var(--primary); color: white; }
         
         /* NAVBAR */
         .navbar { height: 80px; display: flex; align-items: center; position: fixed; top: 0; width: 100%; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); z-index: 1000; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
         .nav-content { display: flex; justify-content: space-between; align-items: center; width: 100%; }
-        .logo { font-size: 22px; font-weight: 800; color: var(--secondary); display: flex; align-items: center; gap: 8px; text-decoration: none; font-family: 'Plus Jakarta Sans', sans-serif;}
+        .logo { font-size: 20px; font-weight: 800; color: var(--secondary); display: flex; align-items: center; gap: 8px; text-decoration: none; font-family: 'Plus Jakarta Sans', sans-serif;}
         .nav-links { display: flex; gap: 35px; }
         .nav-links a { text-decoration: none; color: var(--text-main); font-weight: 600; font-size: 15px; transition: 0.2s; }
         .nav-links a:hover { color: var(--primary); }
         
         /* HERO */
-        .hero { padding: 160px 0 80px 0; background: linear-gradient(135deg, #f0f9ff 0%, #ffffff 100%); position: relative; overflow: hidden;}
+        .hero { padding: 160px 0 80px 0; background: linear-gradient(135deg, #e0f2fe 0%, #ffffff 100%); position: relative; overflow: hidden;}
         .hero-content { display: grid; grid-template-columns: 1fr 1fr; gap: 50px; align-items: center; }
-        .hero h1 { font-size: 48px; line-height: 1.2; margin-bottom: 24px; font-weight: 800; color: var(--secondary); }
+        .hero h1 { font-size: 42px; line-height: 1.2; margin-bottom: 24px; font-weight: 800; color: var(--secondary); }
         .hero p { font-size: 18px; color: var(--text-light); margin-bottom: 40px; }
         .hero-img-box { position: relative; }
-        .hero-img-box img { width: 100%; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.15); border: 4px solid white; }
+        .hero-img-box img { width: 100%; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.15); border: 4px solid white; object-fit: cover; height: 400px;}
         
-        /* FEATURES */
+        /* FEATURES / SERVICES */
         .section { padding: 100px 0; }
         .bg-alt { background: var(--bg-alt); }
-        .section-title { text-align: center; margin-bottom: 60px; max-width: 600px; margin-inline: auto; }
+        .section-title { text-align: center; margin-bottom: 60px; max-width: 700px; margin-inline: auto; }
         .section-title h2 { font-size: 32px; font-weight: 800; color: var(--secondary); margin-bottom: 15px; }
         .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; }
         .feature-card { padding: 40px 30px; border-radius: 20px; background: white; border: 1px solid #e2e8f0; transition: 0.3s; text-align: center; }
-        .feature-card:hover { border-color: var(--primary); transform: translateY(-5px); box-shadow: 0 20px 40px -15px rgba(14,165,233,0.15); }
+        .feature-card:hover { border-color: var(--primary-light); transform: translateY(-5px); box-shadow: 0 20px 40px -15px rgba(2, 132, 199, 0.15); }
         .icon-box { width: 70px; height: 70px; background: #e0f2fe; color: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 32px; margin: 0 auto 20px auto; }
 
-        /* HOW IT WORKS / USER MANUAL */
+        /* USER MANUAL / SYSTEM GUIDE */
         .timeline { position: relative; max-width: 800px; margin: 0 auto; }
-        .timeline::before { content: ''; position: absolute; left: 50%; transform: translateX(-50%); width: 4px; height: 100%; background: #e2e8f0; border-radius: 4px; }
+        .timeline::before { content: ''; position: absolute; left: 50%; transform: translateX(-50%); width: 4px; height: 100%; background: #bae6fd; border-radius: 4px; }
         .timeline-step { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; position: relative; }
         .timeline-step:nth-child(even) { flex-direction: row-reverse; }
         .step-content { width: 45%; background: white; padding: 30px; border-radius: 16px; box-shadow: 0 10px 30px -15px rgba(0,0,0,0.1); border: 1px solid #f1f5f9; }
         .step-number { width: 50px; height: 50px; background: var(--primary); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 800; position: absolute; left: 50%; transform: translateX(-50%); border: 6px solid var(--bg-alt); z-index: 2; }
-        .step-content h3 { color: var(--secondary); margin-bottom: 10px; font-size: 20px; }
-        .step-content p { color: var(--text-light); font-size: 15px; }
+        .step-content h3 { color: var(--secondary); margin-bottom: 10px; font-size: 18px; font-weight: 700;}
+        .step-content p { color: var(--text-light); font-size: 14px; }
 
-        /* PRICING */
-        .price-card { background: white; padding: 50px 40px; border-radius: 24px; border: 1px solid #e2e8f0; position: relative; text-align: center; transition: 0.3s; }
-        .price-card:hover { transform: translateY(-5px); }
-        .price-card.popular { border: 2px solid var(--primary); box-shadow: 0 20px 40px -10px rgba(14,165,233,0.2); background: #f0f9ff; }
-        .badge { position: absolute; top: -15px; left: 50%; transform: translateX(-50%); background: var(--accent); color: white; padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 700; }
-        .price { font-size: 48px; font-weight: 800; margin: 20px 0; color: var(--secondary); font-family: 'Plus Jakarta Sans', sans-serif;}
-        .price span { font-size: 18px; color: var(--text-light); font-weight: 500; }
-        .check-list { list-style: none; margin: 30px 0; text-align: left; }
-        .check-list li { display: flex; gap: 12px; margin-bottom: 15px; color: var(--text-main); font-size: 15px; font-weight: 500;}
+        /* AC SERVICES CARDS */
+        .service-card { background: white; padding: 40px 30px; border-radius: 24px; border: 1px solid #e2e8f0; position: relative; text-align: center; transition: 0.3s; }
+        .service-card:hover { transform: translateY(-5px); border-color: var(--primary); box-shadow: 0 20px 40px -10px rgba(2, 132, 199, 0.15); }
+        .service-card.popular { border: 2px solid var(--primary); background: #f8fafc; }
+        .badge { position: absolute; top: -15px; left: 50%; transform: translateX(-50%); background: var(--primary); color: white; padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 700; }
+        .check-list { list-style: none; margin: 20px 0; text-align: left; }
+        .check-list li { display: flex; gap: 12px; margin-bottom: 15px; color: var(--text-main); font-size: 14px; font-weight: 500;}
         .check-list i { color: var(--primary); font-size: 18px;}
 
         /* FOOTER */
-        footer { background: var(--secondary); color: #cbd5e1; padding: 80px 0 30px 0; font-size: 15px; }
+        footer { background: var(--secondary); color: #cbd5e1; padding: 80px 0 30px 0; font-size: 15px; border-top: 5px solid var(--primary);}
         .footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 50px; margin-bottom: 60px; }
         .footer-col h4 { color: white; margin-bottom: 25px; font-weight: 700; font-size: 18px;}
         .footer-col a { display: block; color: #94a3b8; text-decoration: none; margin-bottom: 12px; transition: 0.2s; }
         .footer-col a:hover { color: white; padding-left: 5px;}
         .contact-info { display: flex; gap: 15px; margin-bottom: 15px; align-items: flex-start; }
-        .contact-info i { color: var(--primary); font-size: 20px; }
+        .contact-info i { color: var(--primary-light); font-size: 20px; }
         .legal-row { border-top: 1px solid rgba(255,255,255,0.1); padding-top: 30px; display: flex; justify-content: space-between; font-size: 13px;}
 
         /* RESPONSIVE */
@@ -104,7 +100,7 @@
             .step-content { width: calc(100% - 80px); }
         }
         @media(max-width: 768px) {
-            .hero h1 { font-size: 36px; }
+            .hero h1 { font-size: 32px; }
             .nav-links { display: none; }
             .footer-grid { grid-template-columns: 1fr; }
         }
@@ -115,15 +111,14 @@
     <!-- NAVBAR -->
     <nav class="navbar">
         <div class="container nav-content">
-            <a href="#" class="logo"><i class="ri-bar-chart-box-fill" style="color:var(--primary);"></i> ManageMyBusiness</a>
+            <a href="#" class="logo"><i class="ri-snowy-line" style="color:var(--primary); font-size:26px;"></i> Nawarathna Cool Eng.</a>
             <div class="nav-links">
-                <a href="#features">විශේෂාංග</a>
-                <a href="#manual">භාවිතා කරන ආකාරය</a>
-                <a href="#pricing">මිල ගණන්</a>
+                <a href="#services">අපගේ සේවාවන්</a>
+                <a href="#features">පද්ධති පහසුකම්</a>
+                <a href="#manual">මාර්ගෝපදේශය</a>
             </div>
             <div style="display:flex; gap:15px;">
-                <button class="btn btn-outline" onclick="login()">පිවිසෙන්න</button>
-                <button class="btn btn-primary" onclick="login()">ගිණුමක් සාදන්න</button>
+                <button class="btn btn-outline" onclick="login()"><i class="ri-user-settings-line" style="margin-right:8px;"></i> Staff Login</button>
             </div>
         </div>
     </nav>
@@ -132,165 +127,156 @@
     <section class="hero">
         <div class="container hero-content">
             <div>
-                <h1>ඔබේ ව්‍යාපාරය <br><span style="color: var(--primary);">එකම තැනකින්</span> පාලනය කරන්න.</h1>
-                <p>පැරණි පොත්පත් සහ සංකීර්ණ මෘදුකාංග වෙනුවට අදම ඩිජිටල් වන්න. Smart POS, තොග පාලනය (Inventory), සහ සේවක වැටුප් පාලනය ඉතා පහසුවෙන්.</p>
-                <div style="display:flex; gap:15px; flex-wrap: wrap;">
-                    <button class="btn btn-primary" onclick="login()" style="font-size: 16px; padding: 15px 40px;">නොමිලේ ආරම්භ කරන්න <i class="ri-arrow-right-line" style="margin-left:8px;"></i></button>
+                <h1 style="font-family: 'Noto Sans Sinhala', sans-serif;">ශ්‍රී ලංකාවේ ප්‍රමුඛතම <br><span style="color: var(--primary);">වායුසමීකරණ (AC)</span> සේවා සපයන්නන්.</h1>
+                <p>වසර ගණනාවක විශ්වාසය සමගින් ඔබේ නිවසට සහ ආයතනයට උසස්ම තත්ත්වයේ වායුසමීකරණ යන්ත්‍ර විකිණීම, සවිකිරීම සහ නඩත්තු කිරීම. මෙය අප ආයතනයේ නිල කළමනාකරණ ද්වාරයයි.</p>
+                <div style="display:flex; gap:15px; flex-wrap: wrap; align-items: center;">
+                    <button class="btn btn-primary" onclick="login()" style="font-size: 16px; padding: 15px 30px;"><i class="ri-login-circle-line" style="margin-right:8px;"></i> කාර්යමණ්ඩල පිවිසුම</button>
+                    <a href="#contact" class="btn btn-outline" style="font-size: 16px; padding: 15px 30px;">අපව අමතන්න</a>
                 </div>
-                <div style="margin-top:20px; font-size:14px; color:#64748b; display:flex; align-items:center; gap:8px;">
-                    <i class="ri-checkbox-circle-fill" style="color:#10b981;"></i> කිසිදු මූලික ගෙවීමක් අවශ්‍ය නොවේ.
+                <div style="margin-top:20px; font-size:13px; color:#64748b; display:flex; align-items:center; gap:8px;">
+                    <i class="ri-shield-check-fill" style="color:#10b981; font-size:16px;"></i> Secure Staff & Admin Portal. Authorized access only.
                 </div>
             </div>
             <div class="hero-img-box">
                 <!-- Decorative background blob -->
                 <div style="position:absolute; inset:-20px; background:var(--primary); filter:blur(50px); opacity:0.2; border-radius:50%; z-index:-1;"></div>
-                <img src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80" alt="Dashboard Preview">
+                <img src="https://images.unsplash.com/photo-1621905252507-b35492d90cb4?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80" alt="AC Installation & Service">
             </div>
         </div>
     </section>
 
-    <!-- FEATURES -->
-    <section id="features" class="section">
+    <!-- OUR AC SERVICES -->
+    <section id="services" class="section">
         <div class="container">
             <div class="section-title">
-                <h2>ව්‍යාපාරයට අවශ්‍ය සියල්ලම</h2>
-                <p>ඔබේ වෙළඳසැල, ෆාමසිය, හාඩ්වෙයාර් එක හෝ ඕනෑම ව්‍යාපාරයක් පහසුවෙන් දියුණු කරගැනීමට අවශ්‍ය සියලුම පහසුකම් මෙහි අඩංගුයි.</p>
+                <h2>අපගේ ප්‍රධාන සේවාවන්</h2>
+                <p>ඔබගේ සියලුම වායුසමීකරණ අවශ්‍යතා සඳහා එකම විසඳුම Nawarathna Cool Engineering වෙතින්.</p>
+            </div>
+            <div class="grid-3" style="align-items: center;">
+                <!-- SERVICE 1 -->
+                <div class="service-card">
+                    <div class="icon-box" style="background:#fef3c7; color:#d97706;"><i class="ri-home-smile-line"></i></div>
+                    <h3>ගෘහස්ථ වායුසමීකරණය</h3>
+                    <p style="color:#64748b; font-size:14px; margin-bottom:20px;">නිවාස සහ කුඩා කාර්යාල සඳහා.</p>
+                    <ul class="check-list">
+                        <li><i class="ri-check-circle-fill"></i> නව AC යන්ත්‍ර සවිකිරීම</li>
+                        <li><i class="ri-check-circle-fill"></i> මාසික / වාර්ෂික නඩත්තුව</li>
+                        <li><i class="ri-check-circle-fill"></i> Gas පිරවීම සහ Leak සෑදීම</li>
+                    </ul>
+                </div>
+
+                <!-- SERVICE 2 -->
+                <div class="service-card popular">
+                    <span class="badge">Enterprise Solutions</span>
+                    <div class="icon-box" style="background:#e0e7ff; color:#4f46e5;"><i class="ri-building-2-line"></i></div>
+                    <h3>වාණිජ AC පද්ධති</h3>
+                    <p style="color:#64748b; font-size:14px; margin-bottom:20px;">විශාල ගොඩනැගිලි සහ කර්මාන්තශාලා සඳහා.</p>
+                    <ul class="check-list">
+                        <li><i class="ri-check-circle-fill"></i> Central AC පද්ධති ස්ථාපනය</li>
+                        <li><i class="ri-check-circle-fill"></i> Chiller / VRV Systems නඩත්තුව</li>
+                        <li><i class="ri-check-circle-fill"></i> 24/7 Breakdown Services</li>
+                        <li><i class="ri-check-circle-fill"></i> වෘත්තීය ඉංජිනේරු උපදේශනය</li>
+                    </ul>
+                </div>
+
+                <!-- SERVICE 3 -->
+                <div class="service-card">
+                    <div class="icon-box" style="background:#dcfce7; color:#15803d;"><i class="ri-tools-line"></i></div>
+                    <h3>අමතර කොටස් සහ අලුත්වැඩියාව</h3>
+                    <p style="color:#64748b; font-size:14px; margin-bottom:20px;">සියලුම සන්නාමයන්හි අමතර කොටස්.</p>
+                    <ul class="check-list">
+                        <li><i class="ri-check-circle-fill"></i> Compressor අලුත්වැඩියාව</li>
+                        <li><i class="ri-check-circle-fill"></i> Board Repair & Servicing</li>
+                        <li><i class="ri-check-circle-fill"></i> Original අමතර කොටස් විකිණීම</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SYSTEM FEATURES -->
+    <section id="features" class="section bg-alt">
+        <div class="container">
+            <div class="section-title">
+                <h2>නවීන කළමනාකරණ පද්ධතිය</h2>
+                <p>Nawarathna Cool Engineering කාර්යමණ්ඩලය සඳහා වෙන්වූ ERP සහ POS පද්ධතියෙහි පහසුකම්.</p>
             </div>
             <div class="grid-3">
                 <div class="feature-card">
                     <div class="icon-box"><i class="ri-shopping-cart-2-line"></i></div>
                     <h3>Smart POS පද්ධතිය</h3>
-                    <p>Barcode පහසුකම, Cash / Card සහ ණයට දීමේ (Pay Later) ක්‍රම සමඟින් ඉතා වේගවත් බිල්පත් නිකුත් කිරීමේ හැකියාව.</p>
+                    <p>අමතර කොටස් සහ යන්ත්‍ර විකිණීමේදී ක්ෂණික බිල්පත් නිකුත් කිරීම. Serial Number Barcodes හරහා වංචා වළක්වා ගැනීම.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon-box"><i class="ri-calendar-check-line"></i></div>
+                    <h3>Service CRM (නඩත්තු සිහිකැඳවීම්)</h3>
+                    <p>පාරිභෝගිකයාගේ ඊළඟ AC Service එක ස්වයංක්‍රීයව මතක් කිරීම සහ මාසික නඩත්තු ගිවිසුම් කළමනාකරණය.</p>
                 </div>
                 <div class="feature-card">
                     <div class="icon-box"><i class="ri-archive-line"></i></div>
-                    <h3>තොග කළමනාකරණය</h3>
-                    <p>භාණ්ඩ වල තොග (Stock), මිල ගණන් සහ අඩු වන භාණ්ඩ පිළිබඳව (Low-stock) Alerts ලබාදීමේ ස්වයංක්‍රීය පද්ධතිය.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="icon-box"><i class="ri-store-2-line"></i></div>
-                    <h3>ශාඛා සහ Cashiers</h3>
-                    <p>ඔබේ ශාඛා කිහිපයක් එකම තැනකින් පාලනය කරන්න. ශාඛා අතර භාණ්ඩ යැවීම සහ Cashier ලා සඳහා වෙනම Login ලබාදීම.</p>
-                </div>
-                <div class="feature-card">
-                    <div class="icon-box"><i class="ri-team-line"></i></div>
-                    <h3>සේවක පාලනය සහ වැටුප්</h3>
-                    <p>සේවකයින්ගේ පැමිණීම, අත්තිකාරම් (Advances), සහ Overtime ගණනය කර ස්වයංක්‍රීයව පඩි පත්‍රිකා (Salary Slips) සෑදීම.</p>
+                    <h3>අමතර කොටස් තොග පාලනය</h3>
+                    <p>AC අමතර කොටස්, ගෑස් සිලින්ඩර් සහ යන්ත්‍ර තොග (Inventory) නිවැරදිව පවත්වා ගැනීම සහ Low-stock alerts.</p>
                 </div>
                 <div class="feature-card">
                     <div class="icon-box"><i class="ri-file-list-3-line"></i></div>
-                    <h3>ඉන්වොයිස් සහ Quotations</h3>
-                    <p>ඔබේ ව්‍යාපාරයේ නම, Logo එක සහ නීතිමය විස්තර සහිතව වෘත්තීය මට්ටමේ (Professional) PDF බිල්පත් සාදා WhatsApp කිරීම.</p>
+                    <h3>Quotations & Invoices</h3>
+                    <p>නව ව්‍යාපෘති සඳහා ඇස්තමේන්තු (Quotations) සහ බිල්පත් (Invoices) සකසා පාරිභෝගිකයින්ට WhatsApp කිරීම.</p>
                 </div>
                 <div class="feature-card">
-                    <div class="icon-box"><i class="ri-bar-chart-box-line"></i></div>
-                    <h3>ලාභ අලාභ වාර්තා</h3>
-                    <p>දෛනික, මාසික සහ වාර්ෂික ආදායම් වාර්තා (Sales Reports) සහ ශුද්ධ ලාභය (Net Profit) ප්‍රස්ථාර මගින් බලාගැනීම.</p>
+                    <div class="icon-box"><i class="ri-user-settings-line"></i></div>
+                    <h3>කාර්මික ශිල්පීන්ගේ කළමනාකරණය</h3>
+                    <p>කාර්මික ශිල්පීන්ගේ සහ සේවකයින්ගේ පැමිණීම, OT සහ වැටුප් (Payroll) ස්වයංක්‍රීයව ගණනය කිරීම.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="icon-box"><i class="ri-money-dollar-box-line"></i></div>
+                    <h3>ණය එකතු කිරීම (Debt Collection)</h3>
+                    <p>පාරිභෝගිකයින්ගෙන් ලැබිය යුතු හිඟ මුදල් (Credit Balances) සහ අත්තිකාරම් මුදල් පහසුවෙන් හඳුනාගැනීම.</p>
                 </div>
             </div>
         </div>
     </section>
 
     <!-- USER MANUAL / HOW TO USE -->
-    <section id="manual" class="section bg-alt">
+    <section id="manual" class="section">
         <div class="container">
             <div class="section-title">
-                <h2>පද්ධතිය භාවිතා කරන්නේ කෙසේද?</h2>
-                <p>විනාඩි 5ක් ඇතුළත ඔබේ ව්‍යාපාරය ඩිජිටල් කරගන්න. මෙම පියවර 4 අනුගමනය කරන්න.</p>
+                <h2>කාර්යමණ්ඩල මාර්ගෝපදේශය</h2>
+                <p>පද්ධතියට ඇතුළු වී දෛනික කටයුතු සිදුකරන ආකාරය පිළිබඳ උපදෙස්.</p>
             </div>
             
             <div class="timeline">
                 <div class="timeline-step">
-                    <div class="step-number">1</div>
+                    <div class="step-number"><i class="ri-login-circle-line"></i></div>
                     <div class="step-content">
-                        <h3>ගිණුමක් සාදා ගැනීම</h3>
-                        <p>ඉහළ ඇති "නොමිලේ ආරම්භ කරන්න" බොත්තම ඔබා ඔබගේ Google Email ගිණුම හරහා ඉතා ආරක්ෂිතව පද්ධතියට ලොග් වන්න. වෙනත් මුරපද මතක තබාගැනීමට අවශ්‍ය නොවේ.</p>
+                        <h3>1. පද්ධතියට පිවිසීම</h3>
+                        <p>ඉහළ ඇති "Staff Login" බොත්තම භාවිතා කර, ආයතනයෙන් ඔබට ලබා දී ඇති නිල Google ගිණුම හෝ Email එක හරහා පද්ධතියට පිවිසෙන්න.</p>
                     </div>
                 </div>
                 <div class="timeline-step">
-                    <div class="step-number">2</div>
+                    <div class="step-number"><i class="ri-settings-4-line"></i></div>
                     <div class="step-content">
-                        <h3>ශාඛාව සහ Profile එක සෑදීම</h3>
-                        <p>පද්ධතියට ඇතුළු වූ පසු ඔබේ ව්‍යාපාරයේ හෝ ශාඛාවේ නම (Branch Name) සහ මුදල් ඒකකය (Rs) තෝරාගන්න. ඉන්පසු 'Profile' මෙනුවට ගොස් ඔබේ ලාංඡනය (Logo), ලිපිනය සහ දුරකථන අංක ඇතුළත් කරන්න.</p>
+                        <h3>2. තොග සහ සේවා ඇතුළත් කිරීම</h3>
+                        <p>ගබඩාවට ලැබෙන නව AC යන්ත්‍ර සහ අමතර කොටස් 'Add Stock' හරහා ඇතුළත් කරන්න. බාර්කෝඩ් ස්ටිකර් මුද්‍රණය කර අලවන්න.</p>
                     </div>
                 </div>
                 <div class="timeline-step">
-                    <div class="step-number">3</div>
+                    <div class="step-number"><i class="ri-printer-line"></i></div>
                     <div class="step-content">
-                        <h3>භාණ්ඩ සහ තොග ඇතුළත් කිරීම</h3>
-                        <p>'Add Products' වෙත ගොස් ඔබ විකුණන භාණ්ඩවල පින්තූර සහ නම් ඇතුළත් කරන්න. ඉන්පසු 'Add Stock' හරහා එම භාණ්ඩ මිලදී ගත් මිල, විකුණන මිල සහ තොග ප්‍රමාණය (Quantity) ඇතුළත් කරන්න.</p>
+                        <h3>3. බිල්පත් සහ Quotation සෑදීම</h3>
+                        <p>'Smart POS' හරහා ක්ෂණික බිල්පත් නිකුත් කරන්න. විශාල ව්‍යාපෘති සඳහා 'Documents' ටැබ් එක හරහා Quotation සකස් කරන්න.</p>
                     </div>
                 </div>
                 <div class="timeline-step">
-                    <div class="step-number">4</div>
+                    <div class="step-number"><i class="ri-safe-line"></i></div>
                     <div class="step-content">
-                        <h3>බිල්පත් නිකුත් කිරීම (POS)</h3>
-                        <p>දැන් ඔබ සූදානම්! 'Smart POS' මෙනුවට ගොස් පාරිභෝගිකයින්ට ක්ෂණිකව බිල්පත් නිකුත් කරන්න. Cash, Card හෝ ණයට ලබා දීම (Pay Later) මෙහිදී තෝරාගත හැක.</p>
+                        <h3>4. EOD (දෛනික වාර්තා) සහ ආරක්ෂාව</h3>
+                        <p>දවස අවසානයේදී 'End of Day' රිපෝට් එක ලබාගෙන මුදල් ලාච්චුවේ ශේෂය (Drawer Balance) පරීක්ෂා කර කළමනාකාරිත්වයට භාර දෙන්න.</p>
                     </div>
                 </div>
             </div>
             
             <div style="text-align:center; margin-top:50px;">
-                <button class="btn btn-primary" onclick="login()">දැන්ම ආරම්භ කරමු</button>
-            </div>
-        </div>
-    </section>
-
-    <!-- PRICING -->
-    <section id="pricing" class="section">
-        <div class="container">
-            <div class="section-title">
-                <h2>මිල ගණන්</h2>
-                <p>සැඟවුණු ගාස්තු නොමැත. ඔබේ ව්‍යාපාරයට ගැළපෙන පැකේජය තෝරාගන්න.</p>
-            </div>
-            <div class="grid-3" style="align-items: center;">
-                <!-- FREE PLAN -->
-                <div class="price-card">
-                    <h3>Starter (ආරම්භක)</h3>
-                    <div class="price">Rs. 0 <span>/මාසයට</span></div>
-                    <p style="color:#64748b; font-size:14px; margin-bottom:20px;">කුඩා ව්‍යාපාර අත්හදා බැලීම සඳහා.</p>
-                    <ul class="check-list">
-                        <li><i class="ri-check-circle-fill"></i> 1 ශාඛාවක් පමණි</li>
-                        <li><i class="ri-check-circle-fill"></i> භාණ්ඩ 50 ක සීමාවක්</li>
-                        <li><i class="ri-check-circle-fill"></i> මූලික POS පහසුකම්</li>
-                        <li style="color:#94a3b8;"><i class="ri-close-circle-fill" style="color:#cbd5e1;"></i> සේවක කළමනාකරණය නැත</li>
-                        <li style="color:#94a3b8;"><i class="ri-close-circle-fill" style="color:#cbd5e1;"></i> PDF බිල්පත් සෑදීම නැත</li>
-                    </ul>
-                    <button class="btn btn-outline" onclick="login()" style="width:100%; margin-top:10px;">නොමිලේ අරඹන්න</button>
-                </div>
-
-                <!-- PRO PLAN (Lemon Squeezy) -->
-                <div class="price-card popular">
-                    <span class="badge">වඩාත් ජනප්‍රිය</span>
-                    <h3>Pro Business</h3>
-                    <div class="price">$29 <span>/මාසයට</span></div>
-                    <p style="color:#64748b; font-size:14px; margin-bottom:20px;">දියුණු වන ව්‍යාපාර සඳහා සියලුම පහසුකම්.</p>
-                    <ul class="check-list">
-                        <li><i class="ri-check-circle-fill"></i> <b>අසීමිත</b> ශාඛා ප්‍රමාණයක්</li>
-                        <li><i class="ri-check-circle-fill"></i> <b>අසීමිත</b> භාණ්ඩ ප්‍රමාණයක්</li>
-                        <li><i class="ri-check-circle-fill"></i> Cashier ගිණුම් ලබාදීම</li>
-                        <li><i class="ri-check-circle-fill"></i> සේවක පාලනය සහ වැටුප් (Payroll)</li>
-                        <li><i class="ri-check-circle-fill"></i> Professional PDF Invoices/Quotations</li>
-                    </ul>
-                    <!-- LEMON SQUEEZY BUTTON -->
-                    <a href="https://your-store.lemonsqueezy.com/checkout/buy/..." class="btn btn-primary lemonsqueezy-button" style="width:100%; margin-top:10px;">
-                        මිලදී ගන්න (Upgrade)
-                    </a>
-                </div>
-
-                <!-- ENTERPRISE -->
-                <div class="price-card">
-                    <h3>Enterprise</h3>
-                    <div class="price">කතා කරගැනීමට</div>
-                    <p style="color:#64748b; font-size:14px; margin-bottom:20px;">විශාල ජාල සහ Supermarkets සඳහා.</p>
-                    <ul class="check-list">
-                        <li><i class="ri-check-circle-fill"></i> වෙන්වූ Server පහසුකම්</li>
-                        <li><i class="ri-check-circle-fill"></i> ඔබට අවශ්‍ය වෙනස්කම් කරදීම</li>
-                        <li><i class="ri-check-circle-fill"></i> පැය 24 පුරා දුරකථන සහය</li>
-                        <li><i class="ri-check-circle-fill"></i> පවතින දත්ත පද්ධතියට ඇතුළත් කිරීම</li>
-                    </ul>
-                    <a href="mailto:sahandilshan@gmail.com" class="btn btn-outline" style="width:100%; margin-top:10px;">අපව අමතන්න</a>
-                </div>
+                <button class="btn btn-primary" onclick="login()"><i class="ri-dashboard-line"></i> Dashboard වෙත යන්න</button>
             </div>
         </div>
     </section>
@@ -300,41 +286,41 @@
         <div class="container">
             <div class="footer-grid">
                 <div class="footer-col">
-                    <a href="#" class="logo" style="color:white; margin-bottom:20px; font-family:'Plus Jakarta Sans', sans-serif;"><i class="ri-bar-chart-box-fill"></i> ManageMyBusiness</a>
-                    <p style="color:#94a3b8; font-size:14px;">ශ්‍රී ලාංකික ව්‍යාපාරිකයින් වෙනුවෙන්ම නිර්මාණය කරන ලද පහසුම සහ විශ්වාසවන්තම ව්‍යාපාරික මෘදුකාංගය.</p>
+                    <div class="logo" style="color:white; margin-bottom:20px; font-family:'Plus Jakarta Sans', sans-serif;"><i class="ri-snowy-line"></i> Nawarathna Cool Eng.</div>
+                    <p style="color:#94a3b8; font-size:14px;">ශ්‍රී ලංකාවේ ප්‍රමුඛතම වායුසමීකරණ යන්ත්‍ර විකිණීම, සවිකිරීම සහ නඩත්තු කිරීමේ ආයතනය. වසර ගණනාවක පාරිභෝගික විශ්වාසය සමගින්.</p>
                 </div>
                 <div class="footer-col">
                     <h4>සබැඳි (Links)</h4>
-                    <a href="#features">විශේෂාංග</a>
-                    <a href="#manual">භාවිතා කරන ආකාරය</a>
-                    <a href="#pricing">මිල ගණන්</a>
-                    <a href="#" onclick="login()">ගිණුමට පිවිසෙන්න</a>
+                    <a href="#services">අපගේ සේවාවන්</a>
+                    <a href="#features">පද්ධති පහසුකම්</a>
+                    <a href="#manual">මාර්ගෝපදේශය</a>
+                    <a href="#" onclick="login()">කාර්යමණ්ඩල පිවිසුම</a>
                 </div>
                 <div class="footer-col">
                     <h4>නීතිමය තොරතුරු</h4>
                     <a href="#" onclick="openLegal('privacy')">රහස්‍යතා ප්‍රතිපත්තිය</a>
-                    <a href="#" onclick="openLegal('terms')">භාවිතයේ කොන්දේසි</a>
-                    <a href="#" onclick="openLegal('refund')">මුදල් ආපසු ගෙවීම්</a>
+                    <a href="#" onclick="openLegal('terms')">පද්ධති කොන්දේසි</a>
+                    <a href="#" onclick="openLegal('support')">තාක්ෂණික සහය</a>
                 </div>
                 <div class="footer-col">
                     <h4>අපව අමතන්න</h4>
                     <div class="contact-info">
-                        <i class="ri-user-3-fill"></i>
-                        <div>Sahan Dilshan Colombage</div>
-                    </div>
-                    <div class="contact-info">
                         <i class="ri-map-pin-fill"></i>
-                        <div>110, Ranala Road,<br>Habarakada, Homagama.</div>
+                        <div>Nawarathna Cool Engineering Pvt LTD,<br>Main Road, Sri Lanka.</div>
                     </div>
                     <div class="contact-info">
                         <i class="ri-phone-fill"></i>
-                        <div>070 315 0742</div>
+                        <div>07X XXX XXXX</div>
+                    </div>
+                    <div class="contact-info">
+                        <i class="ri-mail-fill"></i>
+                        <div>info@nawarathnacool.com</div>
                     </div>
                 </div>
             </div>
             <div class="legal-row">
-                <div>&copy; 2024 ManageMyBusiness. All rights reserved. Developed by Sahan.</div>
-                <div>Made with ❤️ in Sri Lanka</div>
+                <div>&copy; 2026 Nawarathna Cool Engineering Pvt LTD. All rights reserved. System Developed by Sahan.</div>
+                <div>Advanced ERP & CRM Engine</div>
             </div>
         </div>
     </footer>
@@ -344,7 +330,7 @@
         <div style="background:white; padding:40px; width:100%; max-width:600px; max-height:80vh; overflow-y:auto; border-radius:20px; position:relative; box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);">
             <i class="ri-close-line" style="position:absolute; top:20px; right:20px; cursor:pointer; font-size:24px; color:#64748b;" onclick="document.getElementById('legalModal').style.display='none'"></i>
             <h2 id="legalTitle" style="margin-bottom:20px; color:var(--secondary);"></h2>
-            <div id="legalBody" style="font-size:15px; color:#475569; line-height:1.8;"></div>
+            <div id="legalBody" style="font-size:14px; color:#475569; line-height:1.8;"></div>
         </div>
     </div>
 
@@ -353,6 +339,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
         import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 
+        // 🔴 KEEP YOUR EXACT FIREBASE CONFIG HERE
         const firebaseConfig = {
             apiKey: "AIzaSyCZrmkX2RsJTbn4j-WmbuCMudWaETMvXwQ",
             authDomain: "managemybusiness-b4afb.firebaseapp.com",
@@ -368,6 +355,7 @@
         const provider = new GoogleAuthProvider();
 
         onAuthStateChanged(auth, (user) => {
+            // Already logged in? Redirect to dashboard.
             if (user) window.location.href = "dashboard.html";
         });
 
@@ -389,13 +377,13 @@
             
             if(type === 'privacy') {
                 title.innerText = "රහස්‍යතා ප්‍රතිපත්තිය (Privacy Policy)";
-                body.innerHTML = "<p><strong>1. Data Collection:</strong> අපි ලබාගන්නා ඔබගේ ඊමේල් ලිපිනය සහ තොරතුරු පද්ධතියට ලොග් වීමට පමණක් භාවිතා වේ.</p><p><strong>2. Data Usage:</strong> ඔබගේ ව්‍යාපාරික දත්ත කිසිදු බාහිර පාර්ශවයකට ලබා නොදේ.</p><p><strong>3. Security:</strong> දත්ත ආරක්ෂාව සඳහා Google Firebase හි ඉහළම ආරක්ෂිත ක්‍රමවේද භාවිතා කර ඇත.</p>";
+                body.innerHTML = "<p><strong>1. දත්ත භාවිතය:</strong> මෙම පද්ධතියේ ඇතුළත් කරන සියලුම පාරිභෝගික දත්ත සහ ව්‍යාපාරික දත්ත Nawarathna Cool Engineering ආයතනයේ පෞද්ගලික දේපලක් වේ.</p><p><strong>2. ආරක්ෂාව:</strong> ආයතනයේ දත්ත ආරක්ෂාව සඳහා ඉහළම ගණයේ තාක්ෂණය (Enterprise Security) භාවිතා කර ඇත.</p>";
             } else if(type === 'terms') {
-                title.innerText = "භාවිතයේ කොන්දේසි (Terms of Service)";
-                body.innerHTML = "<p><strong>1. අනුමැතිය:</strong> මෙම පද්ධතිය භාවිතා කිරීමෙන් ඔබ අපගේ නීති වලට එකඟ වේ.</p><p><strong>2. වගකීම:</strong> ඔබගේ ගිණුම හරහා සිදුවන ගනුදෙනු වල සම්පූර්ණ වගකීම ඔබ සතු වේ.</p><p><strong>3. ගිණුම් අත්හිටුවීම:</strong> නීතිවිරෝධී කටයුතු සඳහා පද්ධතිය භාවිතා කළහොත් ගිණුම අත්හිටුවීමට අපට අයිතියක් ඇත.</p>";
-            } else if(type === 'refund') {
-                title.innerText = "මුදල් ආපසු ගෙවීම් (Refund Policy)";
-                body.innerHTML = "<p><strong>දින 14ක කාලයක්:</strong> ඔබ Pro Package එක මිලදී ගෙන ඒ පිළිබඳව සෑහීමකට පත් නොවන්නේ නම් දින 14ක් ඇතුළත අපව අමතා සම්පූර්ණ මුදල නැවත ලබාගත හැක.</p><p><strong>අවලංගු කිරීම:</strong> ඕනෑම අවස්ථාවක ඔබගේ Subscription එක අවලංගු කළ හැක.</p>";
+                title.innerText = "පද්ධති කොන්දේසි (System Terms)";
+                body.innerHTML = "<p><strong>1. බලයලත් ප්‍රවේශය (Authorized Access):</strong> මෙම පද්ධතියට ප්‍රවේශ විය හැක්කේ ආයතනයේ කළමනාකාරිත්වය විසින් අවසර ලබා දී ඇති සේවකයින්ට පමණි.</p><p><strong>2. වගකීම:</strong> පද්ධතිය හරහා සිදුකරන සෑම ගනුදෙනුවක්ම සහ වෙනස්කමක්ම (Log) සටහන් වන අතර එහි වගකීම අදාළ සේවකයා සතු වේ.</p>";
+            } else if(type === 'support') {
+                title.innerText = "තාක්ෂණික සහය (Technical Support)";
+                body.innerHTML = "<p>මෙම පද්ධතිය සම්බන්ධයෙන් කිසියම් තාක්ෂණික දෝෂයක් ඇත්නම් ප්‍රධාන කළමනාකරු හෝ පද්ධති පරිපාලක (System Administrator) දැනුවත් කරන්න.</p><p>System Architecture & ERP Engine designed securely for business scaling.</p>";
             }
         }
         
