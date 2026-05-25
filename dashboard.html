@@ -3030,12 +3030,21 @@ body.pos-fullscreen-mode #view-pos > div > .card {
     }
 
     window.lockProfile = (lock) => {
-        document.querySelectorAll('#profFields input:not([type="checkbox"]), #profFields textarea, #profLogoFont, #profLogoColor, #profLogoFile, #profScaleMode, #profScalePrefix').forEach(i => i.disabled = lock);
-        document.querySelectorAll('#profFields input[type="checkbox"]').forEach(i => i.disabled = lock);
+        // 🛡️ ENTERPRISE FIX: Make sure ALL fields (including Manager PIN and Document Terms) are correctly locked/unlocked
+        document.querySelectorAll('#profFields input:not([type="checkbox"]), #profFields textarea, #profLogoFont, #profLogoColor, #profLogoFile, #profScaleMode, #profScalePrefix, #profManagerPin, #profTermsThermal, #profTermsA4, #profTermsInvoice, #profTermsQuote').forEach(i => {
+            if (i) i.disabled = lock;
+        });
+        document.querySelectorAll('#profFields input[type="checkbox"]').forEach(i => {
+            if (i) i.disabled = lock;
+        });
 
-        document.getElementById('btnSaveProfile').style.display = lock ? 'none' : 'inline-flex';
-        document.getElementById('btnEditProfile').style.display = lock ? 'inline-flex' : 'none';
-        document.getElementById('profInputsLogo').style.display = lock ? 'none' : 'block';
+        const btnSave = document.getElementById('btnSaveProfile');
+        const btnEdit = document.getElementById('btnEditProfile');
+        const logoInputs = document.getElementById('profInputsLogo');
+        
+        if (btnSave) btnSave.style.display = lock ? 'none' : 'inline-flex';
+        if (btnEdit) btnEdit.style.display = lock ? 'inline-flex' : 'none';
+        if (logoInputs) logoInputs.style.display = lock ? 'none' : 'block';
     }
 
     window.unlockProfile = () => lockProfile(false);
