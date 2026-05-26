@@ -17,6 +17,7 @@ body { background: var(--bg); color: var(--text); padding-bottom: 70px; /* Space
 /* Views */
 .view { display: none; padding: 15px; animation: fadeIn 0.3s ease; }
 .view.active { display: block; }
+.view.active.flex-box { display: flex; } /* 🛡️ FIX: Center කිරීමට අවශ්‍ය පිටු සඳහා පමණක් Flex දීම */
 @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
 /* Cards & Layouts */
@@ -55,7 +56,8 @@ input:focus, textarea:focus { border-color: var(--primary); }
 <div class="loader" id="loader"><div class="spinner"></div><div style="margin-top:10px; font-weight:600;">Please wait...</div></div>
 
 <!-- LOGIN VIEW -->
-<div id="view-login" class="view active" style="height: 100vh; display: flex; flex-direction: column; justify-content: center; padding: 20px; background: white; z-index:2000; position:relative;">
+<!-- 🛡️ FIX: 'display: flex;' ඉවත් කර 'flex-box' class එක එකතු කිරීම -->
+<div id="view-login" class="view flex-box active" style="height: 100vh; flex-direction: column; justify-content: center; padding: 20px; background: white; z-index:2000; position:relative;">
     <div style="text-align:center; margin-bottom:30px;">
         <div style="width:70px; height:70px; background:#e0e7ff; color:var(--primary); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:35px; margin:0 auto 15px auto;">
             <i class="ri-user-smile-line"></i>
@@ -75,7 +77,8 @@ input:focus, textarea:focus { border-color: var(--primary); }
 </div>
 
 <!-- RECLAIM IDENTITY VIEW (For Dummy Accounts) -->
-<div id="view-reclaim" class="view" style="height: 100vh; display: flex; flex-direction: column; justify-content: center; padding: 20px; background: white; z-index:1500; position:relative;">
+<!-- 🛡️ FIX: 'display: flex;' ඉවත් කර 'flex-box' class එක එකතු කිරීම -->
+<div id="view-reclaim" class="view flex-box" style="height: 100vh; flex-direction: column; justify-content: center; padding: 20px; background: white; z-index:1500; position:relative;">
     <div style="text-align:center; margin-bottom:20px;">
         <div style="width:70px; height:70px; background:#fef3c7; color:#d97706; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:35px; margin:0 auto 15px auto;">
             <i class="ri-sim-card-line"></i>
@@ -271,7 +274,8 @@ input:focus, textarea:focus { border-color: var(--primary); }
                 loggedInCustomer = validResult.customer;
                 activeShopId = validResult.shopId;
 
-                document.getElementById('view-login').style.display = 'none';
+                // 🛡️ FIX: Inline style වෙනුවට class එකෙන් ඉවත් කිරීම
+                document.getElementById('view-login').classList.remove('active'); 
 
                 // 🚀 IDENTITY RECLAMATION PROTOCOL: Check if user is stuck in a Dummy Account
                 if (loggedInCustomer.id.endsWith("000") || (loggedInCustomer.name && loggedInCustomer.name.includes("(LOST NUMBER)"))) {
@@ -336,9 +340,12 @@ input:focus, textarea:focus { border-color: var(--primary); }
         if(!confirm("Log out from your account?")) return;
         loggedInCustomer = null;
         activeShopId = null; // Clear branch lock
-        document.getElementById('view-login').style.display = 'flex';
-        document.getElementById('bottomNav').style.display = 'none';
+        
+        // 🛡️ FIX: සියලුම පිටු මකාදමා නැවත Login පිටුව පමණක් Active කිරීම
         document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+        document.getElementById('view-login').classList.add('active'); 
+        
+        document.getElementById('bottomNav').style.display = 'none';
         document.getElementById('loginPin').value = '';
     };
 
