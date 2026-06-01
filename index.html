@@ -622,6 +622,26 @@
                 }
             });
         })();
+        // 3. ADVANCED DEV-TOOLS KILLER (Debugger Loop & Console Clear)
+            // යමෙකු Three Dots මගින් DevTools විවෘත කළහොත් පද්ධතිය සම්පූර්ණයෙන්ම හිර කර දමයි.
+            setInterval(function() {
+                var before = new Date().getTime();
+                (function() { return false; }['constructor']('debugger')());
+                var after = new Date().getTime();
+                
+                // DevTools විවෘත කර ඇති බව පද්ධතිය හඳුනාගනී!
+                if (after - before > 100) {
+                    document.body.innerHTML = "<div style='text-align:center; margin-top:20vh; font-family:sans-serif;'><h2>Security Alert 🚨</h2><p>Developer Tools access is strictly prohibited. Your session has been terminated.</p></div>";
+                    window.location.replace("about:blank"); // පිටුවෙන් එළවා දමයි
+                }
+            }, 1000);
+
+            // 4. Console එකේ දත්ත බැලීම වැළැක්වීමට තත්පරයෙන් තත්පරය එය මකා දැමීම
+            setInterval(function() {
+                console.clear();
+                console.log("%cSTOP! 🚨", "color: red; font-size: 50px; font-weight: bold;");
+                console.log("%cThis is a restricted enterprise system. Any attempt to modify code will be logged.", "font-size: 16px;");
+            }, 1000);
     </script>
 </body>
 </html>
