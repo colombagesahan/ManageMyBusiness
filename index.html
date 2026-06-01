@@ -590,82 +590,83 @@
             }
         }
     </script>
-    <!-- 🛡️ ENTERPRISE ANTI-TAMPERING SECURITY SCRIPT -->
+    <!-- 🛡️ ENTERPRISE ANTI-TAMPERING & ANTI-DEBUGGING SCRIPT v2.0 -->
+    <noscript>
+        <!-- හැකර් කෙනෙක් Javascript Disable කරගෙන ආවොත් මුළු පද්ධතියම වසා දමයි! -->
+        <style>body { display: none !important; }</style>
+        <div style="display:block !important; text-align:center; padding:50px; font-family:sans-serif; background:white; color:red; height:100vh; width:100vw; position:fixed; z-index:999999; top:0; left:0;">
+            <h2>🚨 Security Alert</h2><p>JavaScript must be enabled to access this enterprise system.</p>
+        </div>
+    </noscript>
+
     <script>
         (function() {
-            // 1. Disable Right-Click (Context Menu)
-            document.addEventListener('contextmenu', function(e) {
-                e.preventDefault();
-            });
-
+            // 1. Disable Right-Click, Select & Drag (Advanced Prevention)
+            document.addEventListener('contextmenu', e => e.preventDefault());
+            document.addEventListener('dragstart', e => e.preventDefault());
+            
             // 2. Disable Developer Keyboard Shortcuts
             document.addEventListener('keydown', function(e) {
-                // F12 - Dev Tools
-                if (e.key === 'F12' || e.keyCode === 123) {
+                if (
+                    e.key === 'F12' || e.keyCode === 123 ||
+                    (e.ctrlKey && e.shiftKey && ['I', 'i', 'J', 'j', 'C', 'c'].includes(e.key)) ||
+                    (e.ctrlKey && ['U', 'u', 'S', 's', 'P', 'p'].includes(e.key)) // Added Save (S) and Print (P) blocks
+                ) {
                     e.preventDefault();
-                }
-                // Ctrl + Shift + I (Inspect)
-                if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.keyCode === 73)) {
-                    e.preventDefault();
-                }
-                // Ctrl + Shift + J (Console)
-                if (e.ctrlKey && e.shiftKey && (e.key === 'J' || e.key === 'j' || e.keyCode === 74)) {
-                    e.preventDefault();
-                }
-                // Ctrl + Shift + C (Element Inspect)
-                if (e.ctrlKey && e.shiftKey && (e.key === 'C' || e.key === 'c' || e.keyCode === 67)) {
-                    e.preventDefault();
-                }
-                // Ctrl + U (View Source Code)
-                if (e.ctrlKey && (e.key === 'U' || e.key === 'u' || e.keyCode === 85)) {
-                    e.preventDefault();
+                    e.stopPropagation();
                 }
             });
-        })();
-        // 3. ADVANCED INSTANT-KILL DEV-TOOLS TRAP
-            // කිසිදු Pause වීමක් නොමැතිව, DevTools විවෘත කළ සැණින් ක්ෂණිකව එළවා දමයි!
-            (function() {
-                // එළවා දැමීමේ ක්‍රියාවලිය (The Executioner Function)
-                function terminateSession() {
-                    document.body.innerHTML = "<div style='text-align:center; margin-top:20vh; font-family:sans-serif;'><h2>Security Alert 🚨</h2><p>Developer Tools access is strictly prohibited. Your session has been terminated immediately.</p></div>";
-                    window.location.replace("about:blank");
-                }
 
-                // උගුල 1: තිරයේ ප්‍රමාණයේ වෙනස හඳුනාගැනීම (Dimension Check)
-                // යමෙකු F12 ගැසූ විට බ්‍රවුසරයේ ඇතුළත ඉඩ (Inner Width/Height) අඩුවේ.
-                var threshold = 160;
-                setInterval(function() {
-                    var widthDiff = window.outerWidth - window.innerWidth > threshold;
-                    var heightDiff = window.outerHeight - window.innerHeight > threshold;
-                    
-                    if (widthDiff || heightDiff) {
-                        terminateSession(); // Pause වීමට පෙර එළවා දමයි
-                    }
-                }, 500);
+            // 3. THE EXECUTIONER: Destroys the DOM entirely (No Recovery)
+            function executeKillSwitch() {
+                // මුළු HTML එකම ගලවා දමයි. (innerHTML මාරු කරනවාට වඩා මෙය ප්‍රබලය)
+                document.documentElement.innerHTML = `
+                    <head><title>Access Denied</title></head>
+                    <body style="background:#111827; color:#ef4444; display:flex; align-items:center; justify-content:center; height:100vh; font-family:sans-serif; margin:0;">
+                        <div style="text-align:center; padding:20px; border:2px solid #ef4444; border-radius:10px; background:#1f2937;">
+                            <h1 style="margin:0 0 10px 0;">🚨 SYSTEM LOCKED</h1>
+                            <p style="color:#d1d5db; margin:0;">Unauthorized Developer Tools Access Detected.</p>
+                            <p style="color:#9ca3af; font-size:12px; margin-top:10px;">Session Terminated. This incident has been logged.</p>
+                        </div>
+                    </body>
+                `;
+            }
 
-                // උගුල 2: Console රවටන උගුල (Smart Object Evaluation Trap)
-                // DevTools වෙනම වින්ඩෝවක් (Floating/Undocked) ලෙස විවෘත කළහොත් 1 වෙනි උගුලට අසු නොවේ. ඒ සඳහා මෙය යොදාගනී.
-                var trapObject = new Image();
-                Object.defineProperty(trapObject, 'id', {
-                    get: function() {
-                        // Console එක විවෘත කළ සැණින් එය මෙම 'id' එක කියවීමට උත්සාහ කරයි. 
-                        // ඒ මොහොතේදීම (Pause වීමට ඉඩක් නොතබා) ඔහුව එළවා දමයි!
-                        terminateSession(); 
-                        return 'securityTrap';
-                    }
-                });
-                
-                // මෙය රහසේම Console එකට යවයි. Console එක වසා ඇතිතාක් කල් කිසිවක් නොවේ. විවෘත කළ සැණින් උගුල පත්තුවේ.
-                console.log('%c', trapObject);
-                
-            })();
+            // 4. THE REGEX TRAP (Modern Chrome DevTools Killer)
+            // නූතන Chrome හි Console එක විවෘත කළ වහාම එය ස්වයංක්‍රීයව Regex evaluate කරයි.
+            const regexTrap = /a/g;
+            regexTrap.toString = function() {
+                executeKillSwitch();
+                return 'TrapTriggered';
+            };
+            console.log('%c', regexTrap);
 
-            // 4. Console එකේ දත්ත බැලීම වැළැක්වීමට තත්පරයෙන් තත්පරය එය මකා දැමීම
+            // 5. THE ADVANCED TIMING ATTACK (Undetectable Debugger Trap)
+            // මෙය තිරයේ සයිස් එක මනින්නේ නැත. ඒ වෙනුවට "debugger" කේතය හරහා කාලය මනියි.
+            // Split screen හෝ Zoom කිරීම් මෙයට අදාළ නැත.
             setInterval(function() {
-                console.clear();
-                console.log("%cSTOP! 🚨", "color: red; font-size: 50px; font-weight: bold;");
-                console.log("%cThis is a restricted enterprise system. Any attempt to modify code will be logged.", "font-size: 16px;");
+                const startTime = performance.now();
+                
+                // මෙය හැකර්ගේ ඇසට නොපෙනෙන සේ සැඟවුණු function එකකි
+                (function() {}.constructor("debugger")());
+                
+                const endTime = performance.now();
+                
+                // සාමාන්‍ය බ්‍රවුසරයක ඉහත කේතය දුවන්න මිලි-තත්පර 1ක් වත් යන්නේ නැත.
+                // නමුත් DevTools විවෘතව ඇත්නම්, "debugger" විධානය නිසා තත්පරයකින් දහයෙන් පංගුවක් හෝ (100ms) කේතය නතර වේ.
+                if (endTime - startTime > 100) {
+                    executeKillSwitch();
+                }
             }, 1000);
+
+            // 6. Anti-Debugging Loop (Breaks the Console)
+            setInterval(() => {
+                console.clear();
+                console.log("%c⚠️ ACCESS DENIED", "color:red; font-size:40px; font-weight:900; -webkit-text-stroke: 2px black;");
+                console.log("%cThis is a restricted environment. Modifying the DOM or executing scripts here is a security violation.", "font-size:14px; color:#fff; background:#000; padding:10px; border-radius:5px;");
+            }, 500);
+
+        })();
     </script>
 </body>
 </html>
