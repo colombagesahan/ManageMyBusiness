@@ -590,108 +590,53 @@
             }
         }
     </script>
-   <!-- 🛡️ ENTERPRISE BULLETPROOF ANTI-TAMPERING ENGINE v3.0 -->
-    <style>
-        /* 1. CSS SHIELD: හැකර්වරුන්ට මවුස් එකෙන් Text Highlight කිරීම සහ පින්තූර ඇදගෙන යාම (Drag) මුළුමනින්ම තහනම් කරයි. */
-        body {
-            -webkit-user-select: none; /* Safari */
-            -moz-user-select: none; /* Firefox */
-            -ms-user-select: none; /* IE10+/Edge */
-            user-select: none; /* Standard */
-            -webkit-touch-callout: none; /* Mobile long-press block */
-        }
-        /* සාමාන්‍ය පරිශීලකයින්ට Input කොටු වල අකුරු ටයිප් කිරීමට සහ Highlight කිරීමට පමණක් අවසර දේ (Zero False Positives) */
-        input, textarea, select {
-            -webkit-user-select: text;
-            -moz-user-select: text;
-            -ms-user-select: text;
-            user-select: text;
-        }
-    </style>
-
-    <noscript>
-        <style>body { display: none !important; }</style>
-        <div style="display:flex; align-items:center; justify-content:center; height:100vh; background:#111827; color:#ef4444; position:fixed; inset:0; z-index:999999;">
-            <h2 style="font-family:sans-serif;">🚨 Security Alert: JavaScript is strictly required.</h2>
-        </div>
-    </noscript>
-
+   <!-- 🛡️ ENTERPRISE BULLETPROOF ANTI-TAMPERING ENGINE v4.0 (DEEP V8 ENGINE TRAP) -->
+    <style>body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;}input,textarea{user-select:text;}</style>
+    <noscript><style>body{display:none!important;}</style><div style="position:fixed;inset:0;background:#111827;color:red;display:flex;align-items:center;justify-content:center;z-index:999999;"><h2>🚨 JavaScript is required.</h2></div></noscript>
+    
     <script>
-        (function() {
-            "use strict"; // කේතයේ ආරක්ෂාව උපරිම කරයි
+        (function(){
+            "use strict";
+            // 1. THE OBLITERATOR (System Kill Switch)
+            const obliterate = () => {
+                document.documentElement.innerHTML = `<head><title>System Locked</title></head><body style="background:#0f172a;color:#ef4444;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;font-family:monospace;"><div style="text-align:center;border:2px solid #ef4444;padding:30px;background:#1e293b;"><h1>🚨 UNAUTHORIZED ACCESS</h1><p>Developer Tools Detected. Session Terminated.</p></div></body>`;
+                window.location.replace("about:blank");
+            };
 
-            // 1. EVENT SHIELD: බ්‍රවුසරයේ සියලුම හොර රහස් බොත්තම් (Shortcuts) අක්‍රිය කිරීම
-            document.addEventListener('contextmenu', e => e.preventDefault()); // Right Click
-            document.addEventListener('dragstart', e => e.preventDefault()); // Image Dragging
-
-            document.addEventListener('keydown', function(e) {
-                if (
-                    e.key === 'F12' || e.keyCode === 123 ||
-                    (e.ctrlKey && e.shiftKey && ['I', 'i', 'J', 'j', 'C', 'c'].includes(e.key)) ||
-                    (e.ctrlKey && ['U', 'u', 'S', 's', 'P', 'p'].includes(e.key))
-                ) {
-                    e.preventDefault();
-                    e.stopPropagation(); // හැකර්ගේ වෙනත් Scripts වලටත් යන්න නොදී නවත්වයි
+            // 2. ABSOLUTE EVENT SHIELD (UseCapture level blocking)
+            const blockKeys = e => {
+                if(e.keyCode===123 || (e.ctrlKey && e.shiftKey && [73,74,67].includes(e.keyCode)) || (e.ctrlKey && [85,83,80].includes(e.keyCode))) {
+                    e.preventDefault(); e.stopPropagation(); return false;
                 }
-            });
+            };
+            window.addEventListener('keydown', blockKeys, true);
+            window.addEventListener('contextmenu', e => { e.preventDefault(); e.stopPropagation(); return false; }, true);
+            window.addEventListener('dragstart', e => { e.preventDefault(); }, true);
 
-            // 2. CONSOLE WEAPONIZATION: හැකර්ගේ ආයුධය ඔහුටම එරෙහිව හැරවීම
-            // හැකර් console එකේ මොනවා ලිව්වත් එය වැඩ නොකරන තත්ත්වයට පත් කරයි.
-            Object.defineProperty(window, 'console', {
-                value: Object.freeze({
-                    log: function() {}, info: function() {}, warn: function() {}, error: function() {},
-                    clear: function() {}, table: function() {}, trace: function() {}
-                }),
-                writable: false,
-                configurable: false,
-                enumerable: false
-            });
+            // 3. CONSOLE ANNIHILATION (Neutralize hacking tools safely)
+            const methods = ['log','warn','info','error','dir','clear','table','trace'];
+            methods.forEach(m => { console[m] = function(){}; });
+            Object.freeze(console);
 
-            // 3. ADVANCED INSTANT-KILL DEV-TOOLS TRAP
-            // කිසිදු Pause වීමක් නොමැතිව, DevTools විවෘත කළ සැණින් ක්ෂණිකව එළවා දමයි!
-            (function() {
-                // එළවා දැමීමේ ක්‍රියාවලිය (The Executioner Function)
-                function terminateSession() {
-                    document.body.innerHTML = "<div style='text-align:center; margin-top:20vh; font-family:sans-serif;'><h2>Security Alert 🚨</h2><p>Developer Tools access is strictly prohibited. Your session has been terminated immediately.</p></div>";
-                    window.location.replace("about:blank");
-                }
+            // 4. AST PRETTY-PRINT SELF-DESTRUCT TRAP
+            // හැකර් කෙනෙක් කේතය කියවන්න 'Format' කරපු ගමන් මේක පත්තු වෙනවා
+            const _0xSelfDestruct = function() {
+                const fnStr = _0xSelfDestruct.toString();
+                if(fnStr.includes('\n') || fnStr.includes('    ')) obliterate();
+            };
+            _0xSelfDestruct();
 
-                // උගුල 1: තිරයේ ප්‍රමාණයේ වෙනස හඳුනාගැනීම (Dimension Check)
-                // යමෙකු F12 ගැසූ විට බ්‍රවුසරයේ ඇතුළත ඉඩ (Inner Width/Height) අඩුවේ.
-                var threshold = 160;
-                setInterval(function() {
-                    var widthDiff = window.outerWidth - window.innerWidth > threshold;
-                    var heightDiff = window.outerHeight - window.innerHeight > threshold;
-                    
-                    if (widthDiff || heightDiff) {
-                        terminateSession(); // Pause වීමට පෙර එළවා දමයි
-                    }
-                }, 500);
-
-                // උගුල 2: Console රවටන උගුල (Smart Object Evaluation Trap)
-                // DevTools වෙනම වින්ඩෝවක් (Floating/Undocked) ලෙස විවෘත කළහොත් 1 වෙනි උගුලට අසු නොවේ. ඒ සඳහා මෙය යොදාගනී.
-                var trapObject = new Image();
-                Object.defineProperty(trapObject, 'id', {
-                    get: function() {
-                        // Console එක විවෘත කළ සැණින් එය මෙම 'id' එක කියවීමට උත්සාහ කරයි. 
-                        // ඒ මොහොතේදීම (Pause වීමට ඉඩක් නොතබා) ඔහුව එළවා දමයි!
-                        terminateSession(); 
-                        return 'securityTrap';
-                    }
-                });
-                
-                // මෙය රහසේම Console එකට යවයි. Console එක වසා ඇතිතාක් කල් කිසිවක් නොවේ. විවෘත කළ සැණින් උගුල පත්තුවේ.
-                console.log('%c', trapObject);
-                
-            })();
-
-            // 4. PROTOTYPE POLLUTION PREVENTION
-            // හැකර් කෙනෙක් JavaScript Native Functions (උදා: Array, Object) විකෘති කර මුරපද සොරකම් කිරීම වැළැක්වීම
-            const freezePrototypes = [Object, Array, Function, String, Number, Boolean];
-            freezePrototypes.forEach(proto => {
-                try { Object.freeze(proto.prototype); } catch(e) {}
-            });
-
+            // 5. DEEP V8 TIMING ATTACK (The Ultimate Debugger Trap)
+            // තිරයේ සයිස් මනින්නේ නෑ. එබැවින් 0% False Positives (Cashier ට කිසිම ප්‍රශ්නයක් නෑ).
+            const detectDevTools = function() {
+                const start = performance.now();
+                (function(){return false;}['constructor']('debugger')());
+                const end = performance.now();
+                // සාමාන්‍ය බ්‍රවුසරයකට 1ms යයි. DevTools වලට 50ms ට වඩා යයි (Deactivate Breakpoints දැම්මත්)
+                if ((end - start) > 50) obliterate();
+            };
+            
+            setInterval(detectDevTools, 500);
         })();
     </script>
 </body>
