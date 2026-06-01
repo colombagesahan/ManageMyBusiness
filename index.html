@@ -590,5 +590,64 @@
             }
         }
     </script>
+    <!-- 🛡️ 2. JAVASCRIPT ANTI-TAMPERING ENGINE (100% Safe Version) -->
+    <script>
+        (function() {
+            "use strict";
+
+            // [A] Console එක අක්‍රිය කිරීම (හැකර්වරුන්ට Console එකේ කමාන්ඩ් ගැහීම වැළැක්වීම)
+            const methods = ['log', 'warn', 'info', 'error', 'dir', 'clear', 'table', 'trace'];
+            methods.forEach(m => { console[m] = function(){}; });
+            try { Object.freeze(console); } catch (e) {}
+
+            // පිටුව ලෝඩ් වූ පසු ක්‍රියාත්මක වන ආරක්ෂක ක්‍රම
+            document.addEventListener('DOMContentLoaded', function() {
+                
+                // [B] Right-Click (Context Menu) Disable කිරීම
+                document.addEventListener('contextmenu', function(e) {
+                    e.preventDefault();
+                });
+
+                // [C] Keyboard Shortcuts Disable කිරීම (F12, View Source, Save, Print)
+                document.addEventListener('keydown', function(e) {
+                    // F12 බොත්තම
+                    if (e.key === 'F12' || e.keyCode === 123) {
+                        e.preventDefault();
+                    }
+                    // Ctrl+U (View Source), Ctrl+S (Save), Ctrl+P (Print), Ctrl+C (Copy)
+                    if (e.ctrlKey && ['u', 'U', 's', 'S', 'p', 'P', 'c', 'C'].includes(e.key)) {
+                        e.preventDefault();
+                    }
+                    // Ctrl+Shift+I / J / C (Developer Tools Shortcuts)
+                    if (e.ctrlKey && e.shiftKey && ['i', 'I', 'j', 'J', 'c', 'C'].includes(e.key)) {
+                        e.preventDefault();
+                    }
+                });
+
+                // [D] බලහත්කාරයෙන් කොපි කිරීම (Copy) වැළැක්වීම
+                document.addEventListener('copy', function(e) {
+                    e.preventDefault();
+                });
+
+                // [E] පින්තූර Drag කරලා Desktop එකට ඇදීම වැළැක්වීම
+                document.addEventListener('dragstart', function(e) {
+                    if(e.target.nodeName === "IMG") {
+                        e.preventDefault();
+                    }
+                });
+
+            });
+
+            // [F] THE INFINITE DEBUGGER TRAP (මෙය ඉන්ටර්නෙට්/ෆෝන් slow වුණත් සාමාන්‍ය අයට කරදර කරන්නේ නැත)
+            // කවුරුහරි DevTools open කරොත් මිලි තත්පර 50න් 50ට බ්‍රවුසරය හිර කරවයි.
+            function devtoolsTrap() {
+                try {
+                    (function() { return false; }['constructor']('debugger')());
+                } catch (err) {}
+            }
+            setInterval(devtoolsTrap, 50);
+
+        })();
+    </script>
 </body>
 </html>
