@@ -647,19 +647,43 @@
                 enumerable: false
             });
 
-            // 3. THE POLYMORPHIC DEBUGGER TRAP (Bulletproof Loop)
-            // මෙය සාමාන්‍ය ලූප් එකක් නොවේ. හැකර් 'Deactivate Breakpoints' එබුවත් මෙය වෙනත් ක්‍රමයකින් ක්‍රියාත්මක වේ.
-            // මෙය අතිශය සැහැල්ලු (Lightweight) බැවින් පාරිභෝගිකයාගේ ෆෝන් එක රත් වන්නේ හෝ ලැග් වන්නේ නැත.
-            const antiDebug = function() {
-                try {
-                    // Function constructor එකක් මගින් හැකර්ට සොයාගත නොහැකි සේ අහඹු ලෙස debugger අමතයි
-                    (function() { return false; }['constructor']('debugger')());
-                } catch (err) {}
+            // 3. ADVANCED INSTANT-KILL DEV-TOOLS TRAP
+            // කිසිදු Pause වීමක් නොමැතිව, DevTools විවෘත කළ සැණින් ක්ෂණිකව එළවා දමයි!
+            (function() {
+                // එළවා දැමීමේ ක්‍රියාවලිය (The Executioner Function)
+                function terminateSession() {
+                    document.body.innerHTML = "<div style='text-align:center; margin-top:20vh; font-family:sans-serif;'><h2>Security Alert 🚨</h2><p>Developer Tools access is strictly prohibited. Your session has been terminated immediately.</p></div>";
+                    window.location.replace("about:blank");
+                }
+
+                // උගුල 1: තිරයේ ප්‍රමාණයේ වෙනස හඳුනාගැනීම (Dimension Check)
+                // යමෙකු F12 ගැසූ විට බ්‍රවුසරයේ ඇතුළත ඉඩ (Inner Width/Height) අඩුවේ.
+                var threshold = 160;
+                setInterval(function() {
+                    var widthDiff = window.outerWidth - window.innerWidth > threshold;
+                    var heightDiff = window.outerHeight - window.innerHeight > threshold;
+                    
+                    if (widthDiff || heightDiff) {
+                        terminateSession(); // Pause වීමට පෙර එළවා දමයි
+                    }
+                }, 500);
+
+                // උගුල 2: Console රවටන උගුල (Smart Object Evaluation Trap)
+                // DevTools වෙනම වින්ඩෝවක් (Floating/Undocked) ලෙස විවෘත කළහොත් 1 වෙනි උගුලට අසු නොවේ. ඒ සඳහා මෙය යොදාගනී.
+                var trapObject = new Image();
+                Object.defineProperty(trapObject, 'id', {
+                    get: function() {
+                        // Console එක විවෘත කළ සැණින් එය මෙම 'id' එක කියවීමට උත්සාහ කරයි. 
+                        // ඒ මොහොතේදීම (Pause වීමට ඉඩක් නොතබා) ඔහුව එළවා දමයි!
+                        terminateSession(); 
+                        return 'securityTrap';
+                    }
+                });
                 
-                // Recursion තාක්ෂණය භාවිතයෙන් ස්වයංක්‍රීයව ලූප් වේ (setInterval වලට වඩා ආරක්ෂිතයි)
-                setTimeout(antiDebug, 100); 
-            };
-            antiDebug();
+                // මෙය රහසේම Console එකට යවයි. Console එක වසා ඇතිතාක් කල් කිසිවක් නොවේ. විවෘත කළ සැණින් උගුල පත්තුවේ.
+                console.log('%c', trapObject);
+                
+            })();
 
             // 4. PROTOTYPE POLLUTION PREVENTION
             // හැකර් කෙනෙක් JavaScript Native Functions (උදා: Array, Object) විකෘති කර මුරපද සොරකම් කිරීම වැළැක්වීම
