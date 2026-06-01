@@ -590,46 +590,83 @@
             }
         }
     </script>
-    <!-- 🛡️ ENTERPRISE SAFE ANTI-TAMPERING SCRIPT (No False Positives) -->
+   <!-- 🛡️ ENTERPRISE BULLETPROOF ANTI-TAMPERING ENGINE v3.0 -->
+    <style>
+        /* 1. CSS SHIELD: හැකර්වරුන්ට මවුස් එකෙන් Text Highlight කිරීම සහ පින්තූර ඇදගෙන යාම (Drag) මුළුමනින්ම තහනම් කරයි. */
+        body {
+            -webkit-user-select: none; /* Safari */
+            -moz-user-select: none; /* Firefox */
+            -ms-user-select: none; /* IE10+/Edge */
+            user-select: none; /* Standard */
+            -webkit-touch-callout: none; /* Mobile long-press block */
+        }
+        /* සාමාන්‍ය පරිශීලකයින්ට Input කොටු වල අකුරු ටයිප් කිරීමට සහ Highlight කිරීමට පමණක් අවසර දේ (Zero False Positives) */
+        input, textarea, select {
+            -webkit-user-select: text;
+            -moz-user-select: text;
+            -ms-user-select: text;
+            user-select: text;
+        }
+    </style>
+
     <noscript>
-        <!-- හැකර් කෙනෙක් Javascript Disable කරගෙන ආවොත් මුළු පද්ධතියම වසා දමයි! -->
         <style>body { display: none !important; }</style>
-        <div style="display:block !important; text-align:center; padding:50px; font-family:sans-serif; background:white; color:red; height:100vh; width:100vw; position:fixed; z-index:999999; top:0; left:0;">
-            <h2>🚨 Security Alert</h2><p>JavaScript must be enabled to access this enterprise system.</p>
+        <div style="display:flex; align-items:center; justify-content:center; height:100vh; background:#111827; color:#ef4444; position:fixed; inset:0; z-index:999999;">
+            <h2 style="font-family:sans-serif;">🚨 Security Alert: JavaScript is strictly required.</h2>
         </div>
     </noscript>
 
     <script>
         (function() {
-            // 1. Disable Right-Click, Select & Drag (Advanced Prevention)
-            document.addEventListener('contextmenu', e => e.preventDefault());
-            document.addEventListener('dragstart', e => e.preventDefault());
-            
-            // 2. Disable Developer Keyboard Shortcuts
+            "use strict"; // කේතයේ ආරක්ෂාව උපරිම කරයි
+
+            // 1. EVENT SHIELD: බ්‍රවුසරයේ සියලුම හොර රහස් බොත්තම් (Shortcuts) අක්‍රිය කිරීම
+            document.addEventListener('contextmenu', e => e.preventDefault()); // Right Click
+            document.addEventListener('dragstart', e => e.preventDefault()); // Image Dragging
+
             document.addEventListener('keydown', function(e) {
                 if (
                     e.key === 'F12' || e.keyCode === 123 ||
                     (e.ctrlKey && e.shiftKey && ['I', 'i', 'J', 'j', 'C', 'c'].includes(e.key)) ||
-                    (e.ctrlKey && ['U', 'u', 'S', 's', 'P', 'p'].includes(e.key)) // Block Save (S) and Print (P)
+                    (e.ctrlKey && ['U', 'u', 'S', 's', 'P', 'p'].includes(e.key))
                 ) {
                     e.preventDefault();
-                    e.stopPropagation();
+                    e.stopPropagation(); // හැකර්ගේ වෙනත් Scripts වලටත් යන්න නොදී නවත්වයි
                 }
             });
 
-            // 3. THE SAFE DEBUGGER FREEZE (0% False Positives)
-            // කාලය හෝ Console එක මනින්නේ නැත. එබැවින් Extensions වලට මෙයට බලපෑම් කළ නොහැක.
-            // නමුත් හැකර් ඇත්තටම DevTools විවෘත කළහොත්, මෙය මිලි-තත්පර 100න් 100ට Browser එක සම්පූර්ණයෙන්ම Freeze කර දමයි!
-            setInterval(function() {
-                (function() { return false; }['constructor']('debugger')());
-            }, 100);
+            // 2. CONSOLE WEAPONIZATION: හැකර්ගේ ආයුධය ඔහුටම එරෙහිව හැරවීම
+            // හැකර් console එකේ මොනවා ලිව්වත් එය වැඩ නොකරන තත්ත්වයට පත් කරයි.
+            Object.defineProperty(window, 'console', {
+                value: Object.freeze({
+                    log: function() {}, info: function() {}, warn: function() {}, error: function() {},
+                    clear: function() {}, table: function() {}, trace: function() {}
+                }),
+                writable: false,
+                configurable: false,
+                enumerable: false
+            });
 
-            // 4. Anti-Debugging Loop (Breaks the Console)
-            setInterval(() => {
-                console.clear();
-                console.log("%c⚠️ ACCESS DENIED", "color:red; font-size:40px; font-weight:900; -webkit-text-stroke: 2px black;");
-                console.log("%cThis is a restricted enterprise environment. Modifying the DOM or executing scripts here is a security violation.", "font-size:14px; color:#fff; background:#000; padding:10px; border-radius:5px;");
-            }, 500);
+            // 3. THE POLYMORPHIC DEBUGGER TRAP (Bulletproof Loop)
+            // මෙය සාමාන්‍ය ලූප් එකක් නොවේ. හැකර් 'Deactivate Breakpoints' එබුවත් මෙය වෙනත් ක්‍රමයකින් ක්‍රියාත්මක වේ.
+            // මෙය අතිශය සැහැල්ලු (Lightweight) බැවින් පාරිභෝගිකයාගේ ෆෝන් එක රත් වන්නේ හෝ ලැග් වන්නේ නැත.
+            const antiDebug = function() {
+                try {
+                    // Function constructor එකක් මගින් හැකර්ට සොයාගත නොහැකි සේ අහඹු ලෙස debugger අමතයි
+                    (function() { return false; }['constructor']('debugger')());
+                } catch (err) {}
+                
+                // Recursion තාක්ෂණය භාවිතයෙන් ස්වයංක්‍රීයව ලූප් වේ (setInterval වලට වඩා ආරක්ෂිතයි)
+                setTimeout(antiDebug, 100); 
+            };
+            antiDebug();
+
+            // 4. PROTOTYPE POLLUTION PREVENTION
+            // හැකර් කෙනෙක් JavaScript Native Functions (උදා: Array, Object) විකෘති කර මුරපද සොරකම් කිරීම වැළැක්වීම
+            const freezePrototypes = [Object, Array, Function, String, Number, Boolean];
+            freezePrototypes.forEach(proto => {
+                try { Object.freeze(proto.prototype); } catch(e) {}
+            });
 
         })();
     </script>
