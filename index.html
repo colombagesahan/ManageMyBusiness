@@ -590,5 +590,38 @@
             }
         }
     </script>
+    <!-- 🛡️ ENTERPRISE ANTI-TAMPERING SECURITY SCRIPT -->
+    <script>
+        (function() {
+            // 1. Disable Right-Click (Context Menu)
+            document.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+            });
+
+            // 2. Disable Developer Keyboard Shortcuts
+            document.addEventListener('keydown', function(e) {
+                // F12 - Dev Tools
+                if (e.key === 'F12' || e.keyCode === 123) {
+                    e.preventDefault();
+                }
+                // Ctrl + Shift + I (Inspect)
+                if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.keyCode === 73)) {
+                    e.preventDefault();
+                }
+                // Ctrl + Shift + J (Console)
+                if (e.ctrlKey && e.shiftKey && (e.key === 'J' || e.key === 'j' || e.keyCode === 74)) {
+                    e.preventDefault();
+                }
+                // Ctrl + Shift + C (Element Inspect)
+                if (e.ctrlKey && e.shiftKey && (e.key === 'C' || e.key === 'c' || e.keyCode === 67)) {
+                    e.preventDefault();
+                }
+                // Ctrl + U (View Source Code)
+                if (e.ctrlKey && (e.key === 'U' || e.key === 'u' || e.keyCode === 85)) {
+                    e.preventDefault();
+                }
+            });
+        })();
+    </script>
 </body>
 </html>
