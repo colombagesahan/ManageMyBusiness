@@ -1021,10 +1021,14 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 
         <!-- 4. EMPLOYEES -->
         <div id="view-employees" class="view">
-            <div style="text-align:right; margin-bottom:15px;">
-                <button class="btn btn-primary" onclick="openModal('empModal')">+ Add Employee</button>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
+                <h3 style="margin:0;">Manage Employees</h3>
+                <div style="display:flex; gap:10px;">
+                    <!-- 🛡️ ENTERPRISE FIX: Manage Roles Button -->
+                    <button class="btn btn-ghost" onclick="openModal('empRoleModal')"><i class="ri-git-merge-line"></i> Job Roles</button>
+                    <button class="btn btn-primary" onclick="openEmployeeModal()">+ Add Employee</button>
+                </div>
             </div>
-            <!-- 🛡️ FIX: Removed 'grid-4' class. The grid will be generated dynamically inside categories. -->
             <div id="empGrid"></div>
         </div>
 
@@ -1705,8 +1709,11 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         <label style="font-size:12px;">Phone Number (Used as ID / Barcode) *</label>
         <input id="mePhone" type="number" placeholder="e.g. 0771234567">
         
-        <label style="font-size:12px;">Job Role</label>
-        <input id="meRole" placeholder="e.g. Cashier, Manager">
+        <label style="font-size:12px;">Job Role *</label>
+        <!-- 🛡️ ENTERPRISE FIX: Changed to Dropdown (Lookup Table) -->
+        <select id="meRole" style="font-weight:bold; border-color:var(--primary);">
+            <option value="">-- Select Job Role --</option>
+        </select>
         
         <div style="border-top:1px solid #eee; margin-top:10px; padding-top:10px;">
             <div style="font-size:12px; font-weight:bold; color:var(--primary); margin-bottom:10px;">Payroll Settings</div>
@@ -1729,6 +1736,27 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                 <button type="button" class="btn btn-primary" onclick="if(window.saveEmployee) window.saveEmployee(); else alert('System Error: Function not loaded. Please refresh.');">Save Employee</button>
                 <button type="button" class="btn btn-ghost" onclick="document.getElementById('empModal').style.display='none'">Cancel</button>
             </div>
+    </div>
+</div>
+
+<!-- 🚀 NEW: EMPLOYEE JOB ROLES MODAL -->
+<div id="empRoleModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:2500;">
+    <div class="card" style="width:400px; margin:0; border-top: 5px solid var(--primary);">
+        <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
+            <h3>Manage Job Roles</h3>
+            <i class="ri-close-line" style="cursor:pointer; font-size:24px;" onclick="closeModal('empRoleModal')"></i>
+        </div>
+        <p style="font-size:11px; color:#666; margin-bottom:15px;">Pre-define job roles (e.g. Cashier, Technician) to ensure perfectly organized employee categories.</p>
+        
+        <div style="display:flex; gap:10px; margin-bottom:20px;">
+            <input id="roleNameInput" placeholder="New Job Role (e.g. Sales Manager)" style="margin:0; font-weight:bold;">
+            <button class="btn btn-primary" onclick="saveEmpRole()">Add</button>
+        </div>
+        <div style="max-height:300px; overflow-y:auto; border:1px solid #e5e7eb; border-radius:8px;">
+            <table id="empRoleTable" style="margin:0;">
+                <tbody id="empRoleBody"></tbody>
+            </table>
+        </div>
     </div>
 </div>
 
@@ -2222,6 +2250,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
     let crmRequestsCache = [];
     let customersCache = [];
     let salesCache = [];
+    let empRolesCache = []; // 🛡️ NEW: Cache for Job Roles
     let refundsCache = [];
     let compressedImageBase64 = null; 
     let profileCache = null;
@@ -2752,9 +2781,8 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         
         try {
             // PERFORMANCE FIX: Parallel Loading (Promise.all) - Phase 1: Critical Path
-            // එකින් එක එනතුරු බලා නොසිට අත්‍යවශ්‍ය දත්ත පමණක් එකවර ඇදගැනීමෙන් Loading Time එක 80% කින් පමණ අඩුවේ!
             await Promise.all([
-                loadProfile(), loadCategories(), loadServiceCategories(), loadCatalog(), loadProducts(), loadServices()
+                loadProfile(), loadCategories(), loadServiceCategories(), loadCatalog(), loadProducts(), loadServices(), loadEmpRoles() // 🛡️ Added loadEmpRoles
             ]);
 
             // ENTERPRISE FIX: Set Default View to POS on Initial Boot
@@ -7641,8 +7669,13 @@ window.autoFillDocCustomer = (name) => {
         const groupedEmployees = {};
 
         employeesCache.forEach(e => {
-            // Data Cleaning: Remove extra spaces and convert to lowercase first
-            let rawRole = (e.role || '').trim().toLowerCase();
+            // 🚀 ADVANCED DATA SANITIZATION (Bulletproof i18n Normalization)
+            let rawRole = String(e.role || '')
+                .normalize('NFC')     // 🛡️ UNICODE FIX: සිංහල/දෙමළ අකුරු මොන Keyboard එකෙන් ගැසුවත් එකම ප්‍රමිතියකට ගෙනෙයි (Helakuru vs PC fix).
+                .replace(/\s+/g, ' ') // 🛡️ Fix: වචන මැද ඇති අනවශ්‍ය Spaces ඉවත් කරයි.
+                .trim()               // 🛡️ Fix: මුල සහ අග ඇති Spaces කපා දමයි.
+                .toLowerCase();       // 🛡️ Fix: ඉංග්‍රීසි අකුරු Simple බවට පත් කරයි.
+                
             if (!rawRole) rawRole = 'other staff'; // Catch empty roles
 
             // Format to Title Case (e.g. "sales man" -> "Sales Man")
@@ -7786,6 +7819,97 @@ window.autoFillDocCustomer = (name) => {
         openModal('empModal');
     }
 
+// ==========================================
+    // 🛡️ ENTERPRISE: JOB ROLES MANAGEMENT (LOOKUP TABLE)
+    // ==========================================
+    async function loadEmpRoles() {
+        const snap = await getDocs(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/employee_roles`));
+        empRolesCache = [];
+        snap.forEach(d => empRolesCache.push({ id: d.id, ...d.data() }));
+        
+        // අකාරාදී පිළිවෙලට (Alphabetical Order) සැකසීම
+        empRolesCache.sort((a,b) => a.name.localeCompare(b.name));
+        
+        // 1. Employee Modal එකේ Dropdown එක පිරවීම
+        const dropdown = document.getElementById('meRole');
+        if (dropdown) {
+            dropdown.innerHTML = '<option value="">-- Select Job Role --</option>' + 
+                empRolesCache.map(r => `<option value="${r.name.replace(/"/g, '&quot;')}">${r.name}</option>`).join('');
+        }
+
+        // 2. Manage Roles Modal එකේ Table එක පිරවීම
+        const tbody = document.getElementById('empRoleBody');
+        if (tbody) {
+            tbody.innerHTML = empRolesCache.map(r => `
+                <tr>
+                    <td style="padding:10px; font-weight:bold; color:var(--secondary);">${r.name}</td>
+                    <td style="padding:10px; text-align:right;">
+                        <button class="btn btn-danger" style="padding:4px 8px; font-size:11px;" onclick="deleteEmpRole('${r.id}')"><i class="ri-delete-bin-line"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+    }
+
+    window.saveEmpRole = async () => {
+        const rawName = document.getElementById('roleNameInput').value;
+        // Advanced Sanitization: අකුරු මැද ඇති අමතර හිස්තැන් කපා ලස්සන කිරීම
+        const cleanName = rawName.replace(/\s+/g, ' ').trim();
+        
+        if(!cleanName) return showToast("Role Name is required", "error");
+
+        // Duplicate Check (එකම නම දෙවරක් සෑදීම වැළැක්වීම)
+        const exists = empRolesCache.find(r => r.name.toLowerCase() === cleanName.toLowerCase());
+        if (exists) return showToast("This Job Role already exists!", "warning");
+
+        toggleLoader(true);
+        try {
+            await addDoc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/employee_roles`), { name: cleanName });
+            document.getElementById('roleNameInput').value = '';
+            await loadEmpRoles();
+            if(window.writeSystemLog) writeSystemLog("EMP_ROLE_CREATED", `Created new job role category: ${cleanName}`);
+            showToast("Job Role Added Successfully");
+        } catch (error) {
+            showToast("Failed to add role", "error");
+        } finally {
+            toggleLoader(false);
+        }
+    };
+
+    window.deleteEmpRole = async (id) => {
+        const roleObj = empRolesCache.find(r => r.id === id);
+        if(!roleObj) return;
+
+        toggleLoader(true);
+        // 🛡️ ENTERPRISE FIX: Referential Integrity Check!
+        // දැනට මෙම තනතුර (Role එක) දරන සේවකයින් සිටීදැයි පරීක්ෂා කිරීම. සිටී නම් මැකීමට ඉඩ නොදේ.
+        const qCheck = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/employees`), where("role", "==", roleObj.name), limit(1));
+        const snapCheck = await getDocs(qCheck);
+        
+        if(!snapCheck.empty) {
+            toggleLoader(false);
+            return showToast("Cannot delete: Active employees are currently assigned to this role! Reassign them first.", "error");
+        }
+        toggleLoader(false);
+
+        if(!confirm(`Delete the role '${roleObj.name}'?`)) return;
+        
+        toggleLoader(true);
+        try {
+            await deleteDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/employee_roles`, id));
+            await loadEmpRoles();
+            
+            // Delete කළ විට මුළු UI එකම (Grid එක) Refresh වීම සඳහා
+            if (typeof loadEmployees === 'function') await loadEmployees(); 
+            
+            if(window.writeSystemLog) writeSystemLog("EMP_ROLE_DELETED", `Deleted job role category: ${roleObj.name}`);
+            showToast("Role Deleted");
+        } catch (error) {
+            showToast("Failed to delete role", "error");
+        } finally {
+            toggleLoader(false);
+        }
+    };
     window.saveEmployee = async () => {
         if (window.isSavingEmployee) return; // ද්විත්ව ක්ලික් කිරීම් (Double-clicks) වැළැක්වීම
         window.isSavingEmployee = true;
