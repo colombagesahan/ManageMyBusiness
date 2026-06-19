@@ -615,9 +615,16 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                     </div>
                 </div>
 
-                <div class="card" style="height:fit-content; max-height:80vh; overflow-y:auto;">
-                    <h3>History</h3>
-                    <div id="docHistoryList"></div>
+                <div class="card" style="height:fit-content; max-height:80vh; overflow-y:auto; display:flex; flex-direction:column;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
+                        <h3 style="margin:0;">History</h3>
+                        <!-- 🛡️ ENTERPRISE FIX: Omni-Search for Documents -->
+                        <div style="display:flex; gap:5px; flex:1; min-width:200px;">
+                            <input type="text" id="docSearchInput" placeholder="Search by Doc ID..." style="margin:0; width:100%; border-color:var(--primary);" onkeypress="if(event.key === 'Enter') searchDocument()">
+                            <button class="btn btn-primary" style="padding:8px 12px;" onclick="searchDocument()"><i class="ri-search-line"></i></button>
+                        </div>
+                    </div>
+                    <div id="docHistoryList" style="flex:1;"></div>
                 </div>
             </div>
         </div>
@@ -1022,7 +1029,11 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         <!-- 4. EMPLOYEES -->
         <div id="view-employees" class="view">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
-                <h3 style="margin:0;">Manage Employees</h3>
+                <!-- 🛡️ ENTERPRISE FIX: Scalable Search Bar for Employees -->
+                <div style="display:flex; gap:10px; flex:1; min-width: 250px;">
+                    <input id="empSearch" placeholder="Search Employee by Name or ID (Phone)..." style="margin:0; width:100%; border-color:var(--primary); box-shadow:0 2px 5px rgba(0,0,0,0.05);" onkeyup="filterEmployees()">
+                </div>
+                
                 <div style="display:flex; gap:10px;">
                     <!-- 🛡️ ENTERPRISE FIX: Manage Roles Button -->
                     <button class="btn btn-ghost" onclick="openModal('empRoleModal')"><i class="ri-git-merge-line"></i> Job Roles</button>
@@ -1125,7 +1136,13 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 
 <!-- NEW: DEBT COLLECTION TAB -->
         <div id="view-debt" class="view">
-            <h3><i class="ri-money-dollar-box-line"></i> Customer Debt Collection</h3>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
+                <h3><i class="ri-money-dollar-box-line"></i> Customer Debt Collection</h3>
+                <!-- 🛡️ ENTERPRISE FIX: Search Bar for Debts -->
+                <div class="search-container" style="max-width: 400px;">
+                    <input id="debtSearchInput" placeholder="Search debtor by Phone or Name..." style="margin:0; border-color:var(--danger);" onkeyup="filterDebts()">
+                </div>
+            </div>
             <div class="note-box"><i class="ri-information-fill"></i> View all customers with pending balances. You can settle partial or full amounts here.</div>
             <div class="card" style="overflow-x:auto;">
                 <table id="debtTable">
@@ -3321,7 +3338,10 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             return;
         }
 
-        tbody.innerHTML = filtered.map(p => {
+        // 🛡️ ENTERPRISE FIX: DOM Overload Prevention (Cap to 100 rows)
+        const topResults = filtered.slice(0, 100);
+
+        let htmlStr = topResults.map(p => {
             const dateStr = p.created ? new Date(p.created).toLocaleDateString() : '-';
             const imgTag = p.image ? `<img src="${p.image}" class="prod-thumb" onclick="window.open(this.src)">` : '<i class="ri-image-line"></i>';
             const categoryName = categoriesCache.find(c => c.id === p.categoryId)?.name || 'Uncategorized';
@@ -3340,6 +3360,12 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                 </td>
             </tr>`;
         }).join('');
+
+        // 🛡️ Warning Banner if data exceeds DOM limits
+        if (filtered.length > 100) {
+            htmlStr += `<tr><td colspan="6" style="text-align:center; font-weight:bold; color:var(--primary); background:#e0e7ff;">+ ${filtered.length - 100} more products hidden to maintain system speed. Please use the search bar.</td></tr>`;
+        }
+        tbody.innerHTML = htmlStr;
     }
 
     window.filterCatalog = debounceSearch(async () => {
@@ -5770,28 +5796,75 @@ window.autoFillDocCustomer = (name) => {
         }
     }
 
-    async function loadDocumentsHistory() {
-        const q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/documents`), orderBy('createdAt', 'desc'), limit(50));
-        const snap = await getDocs(q);
+    // 🛡️ ENTERPRISE FIX: Database-Level Document Search Engine
+    window.searchDocument = async () => {
+        const term = document.getElementById('docSearchInput').value.trim();
+        if (!term) return loadDocumentsHistory(); // හිස් නම් සාමාන්‍ය විදිහට Load කරයි
+
+        toggleLoader(true);
         const list = document.getElementById('docHistoryList');
-        list.innerHTML = '';
-        snap.forEach(d => {
-            const doc = d.data();
-            list.innerHTML += `
-                <div class="card" style="padding:10px; margin-bottom:10px; border:1px solid #eee;">
-                    <div style="display:flex; justify-content:space-between;">
-                        <strong>${doc.docId}</strong>
-                        <span style="font-size:11px; padding:2px 6px; border-radius:4px; background:${doc.type==='invoice'?'#dcfce7':'#fef3c7'}">${doc.type.toUpperCase()}</span>
-                    </div>
-                    <div style="font-size:12px; color:#666;">${doc.customer.name} | ${doc.date}</div>
-                    <div style="font-weight:bold; margin-top:5px;">${formatMoney(doc.total)}</div>
-                    <div style="margin-top:10px; display:flex; gap:5px;">
-                        <button class="btn btn-ghost" style="padding:4px; font-size:11px;" onclick="window.triggerDocAction('pdf', '${doc.id}')"><i class="ri-printer-line"></i> PDF</button>
-                        ${doc.type === 'quotation' ? `<button class="btn btn-info" style="padding:4px; font-size:11px;" onclick="window.triggerDocAction('convert', '${doc.id}')">Convert</button>` : ''}
-                    </div>
+        list.innerHTML = '<div style="text-align:center; padding:20px; color:var(--primary); font-weight:bold;">Searching Database... <i class="ri-loader-4-line ri-spin"></i></div>';
+        
+        try {
+            // 🚀 Sanitize input & Deep query by Exact Doc ID
+            const safeTerm = term.replace(/[\/\\]/g, '-');
+            const exactRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/documents`, safeTerm);
+            const docSnap = await getDoc(exactRef);
+
+            if (docSnap.exists()) {
+                renderDocumentCard(list, { id: docSnap.id, ...docSnap.data() }, true);
+            } else {
+                list.innerHTML = '<div style="text-align:center; padding:20px; color:#ef4444;">No document found with this ID!</div>';
+            }
+        } catch (e) {
+            console.error("Doc Search Error:", e);
+            list.innerHTML = '<div style="text-align:center; color:red;">Search failed.</div>';
+        }
+        toggleLoader(false);
+    };
+
+    async function loadDocumentsHistory() {
+        const list = document.getElementById('docHistoryList');
+        list.innerHTML = '<div style="text-align:center; padding:20px; color:#666;">Loading recent documents...</div>';
+        
+        try {
+            const q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/documents`), orderBy('createdAt', 'desc'), limit(50));
+            const snap = await getDocs(q);
+            
+            list.innerHTML = '';
+            if (snap.empty) {
+                list.innerHTML = '<div style="text-align:center; padding:20px; color:#666;">No documents generated yet.</div>';
+                return;
+            }
+            snap.forEach(d => {
+                renderDocumentCard(list, { id: d.id, ...d.data() }, false);
+            });
+        } catch (e) {
+            console.error("Doc History Error:", e);
+        }
+    }
+
+    function renderDocumentCard(container, docData, clearFirst) {
+        if (clearFirst) container.innerHTML = '';
+        
+        container.innerHTML += `
+            <div class="card" style="padding:12px; margin-bottom:10px; border:1px solid #e5e7eb; border-left:4px solid ${docData.type==='invoice'?'var(--success)':'var(--warning)'}; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <strong style="font-size:15px; color:#111827;">${docData.docId}</strong>
+                    <span style="font-size:10px; font-weight:800; padding:2px 6px; border-radius:4px; background:${docData.type==='invoice'?'#dcfce7':'#fef3c7'}; color:${docData.type==='invoice'?'#15803d':'#d97706'};">${docData.type.toUpperCase()}</span>
                 </div>
-            `;
-        });
+                <div style="font-size:12px; color:#6b7280; margin-top:4px;">
+                    <i class="ri-user-3-line"></i> ${String(docData.customer.name).replace(/</g,"&lt;")} <br>
+                    <i class="ri-calendar-line"></i> ${docData.date}
+                </div>
+                <div style="font-weight:900; font-size:16px; margin-top:8px; color:var(--primary);">${formatMoney(docData.total)}</div>
+                
+                <div style="margin-top:10px; display:flex; gap:8px; border-top:1px dashed #e5e7eb; padding-top:10px;">
+                    <button class="btn btn-ghost" style="flex:1; padding:6px; font-size:11px; border-color:var(--primary); color:var(--primary);" onclick="window.triggerDocAction('pdf', '${docData.id}')"><i class="ri-printer-line"></i> View / PDF</button>
+                    ${docData.type === 'quotation' ? `<button class="btn btn-info" style="flex:1; padding:6px; font-size:11px;" onclick="window.triggerDocAction('convert', '${docData.id}')"><i class="ri-exchange-line"></i> Make Invoice</button>` : ''}
+                </div>
+            </div>
+        `;
     }
 
     window.convertQuoteToInvoice = (quote) => {
@@ -7649,74 +7722,67 @@ window.autoFillDocCustomer = (name) => {
     // ==========================================
     let employeesCache =[];
 
+    // 1. Data Fetching Engine (Loads quickly, prevents memory crash)
     async function loadEmployees() {
-        const snap = await getDocs(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/employees`));
-        const grid = document.getElementById('empGrid');
-        grid.innerHTML = '';
+        // 🛡️ SECURITY & PERFORMANCE: Load only recent/active 150 employees initially.
+        const q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/employees`), limit(150));
+        const snap = await getDocs(q);
+        
         employeesCache = [];
-        
-        if(snap.empty) {
-            grid.innerHTML = '<div style="text-align: center; padding: 20px; color: #6b7280; width: 100%;">No employees added.</div>';
-            return;
-        }
-        
-        // 1. Fetch & Store in Cache
         snap.forEach(d => {
             employeesCache.push({id: d.id, ...d.data()});
         });
+        
+        renderEmployees();
+    }
 
-        // 🛡️ 2. ENTERPRISE FIX: Smart Categorization & Normalization Engine
+    // 2. Virtual DOM Rendering Engine
+    function renderEmployees() {
+        const grid = document.getElementById('empGrid');
+        const term = document.getElementById('empSearch').value.trim().toLowerCase();
+        
+        // 🛡️ STEP A: Filter Cache
+        const filtered = employeesCache.filter(e => {
+            const safePhone = String(e.id || "").toLowerCase();
+            const safeName = String(e.name || "").toLowerCase();
+            return safePhone.includes(term) || safeName.includes(term);
+        });
+
+        if(filtered.length === 0) {
+            grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: #6b7280; font-size:16px;"><i class="ri-search-eye-line" style="font-size:40px; color:#d1d5db; display:block; margin-bottom:10px;"></i> No employees found matching your search.</div>';
+            return;
+        }
+
+        // 🛡️ STEP B: Categorize & Normalize (Only on Filtered Data to save CPU)
         const groupedEmployees = {};
-
-        employeesCache.forEach(e => {
-            // 🚀 ADVANCED DATA SANITIZATION (Bulletproof i18n Normalization)
-            let rawRole = String(e.role || '')
-                .normalize('NFC')     // 🛡️ UNICODE FIX: සිංහල/දෙමළ අකුරු මොන Keyboard එකෙන් ගැසුවත් එකම ප්‍රමිතියකට ගෙනෙයි (Helakuru vs PC fix).
-                .replace(/\s+/g, ' ') // 🛡️ Fix: වචන මැද ඇති අනවශ්‍ය Spaces ඉවත් කරයි.
-                .trim()               // 🛡️ Fix: මුල සහ අග ඇති Spaces කපා දමයි.
-                .toLowerCase();       // 🛡️ Fix: ඉංග්‍රීසි අකුරු Simple බවට පත් කරයි.
-                
-            if (!rawRole) rawRole = 'other staff'; // Catch empty roles
-
-            // Format to Title Case (e.g. "sales man" -> "Sales Man")
+        filtered.forEach(e => {
+            let rawRole = String(e.role || '').normalize('NFC').replace(/\s+/g, ' ').trim().toLowerCase();
+            if (!rawRole) rawRole = 'other staff';
             const categoryName = rawRole.replace(/\b\w/g, char => char.toUpperCase());
 
-            // Initialize Array if category doesn't exist
-            if (!groupedEmployees[categoryName]) {
-                groupedEmployees[categoryName] = [];
-            }
-            // Push employee to appropriate category
+            if (!groupedEmployees[categoryName]) groupedEmployees[categoryName] = [];
             groupedEmployees[categoryName].push(e);
         });
 
-        // 3. Render the Grouped UI
+        // 🛡️ STEP C: Generate HTML
         let finalHtml = '';
-        
-        // Sort keys alphabetically (Optional: can force "Manager" to be first if needed)
         const sortedCategories = Object.keys(groupedEmployees).sort();
 
         sortedCategories.forEach(cat => {
             const employeesInCat = groupedEmployees[cat];
-            
-            // Render Category Header
             finalHtml += `
             <div style="margin-bottom: 35px; width: 100%;">
                 <div style="display:flex; align-items:center; gap:10px; margin-bottom: 15px; border-bottom: 2px solid var(--primary); padding-bottom: 8px;">
                     <h4 style="margin:0; color:var(--secondary); font-size: 16px; text-transform:uppercase; letter-spacing:1px;"><i class="ri-team-fill" style="color:var(--primary); margin-right:5px;"></i> ${cat}</h4>
-                    <span style="background:#e0e7ff; color:var(--primary); padding:2px 8px; border-radius:12px; font-size:11px; font-weight:bold;">${employeesInCat.length} Members</span>
+                    <span style="background:#e0e7ff; color:var(--primary); padding:2px 8px; border-radius:12px; font-size:11px; font-weight:bold;">${employeesInCat.length} Found</span>
                 </div>
                 <div class="grid-4">
             `;
 
-            // Render Employee Cards inside the category grid
             employeesInCat.forEach(e => {
                 const eSal = e.baseSalary || 0;
                 const eHrs = e.standardHours || 8;
-
-                const photoTag = e.photo 
-                    ? `<img src="${e.photo}" style="width:45px; height:45px; border-radius:50%; object-fit:cover; border:2px solid var(--primary);">` 
-                    : `<div style="width:45px; height:45px; border-radius:50%; background:#e0e7ff; color:var(--primary); display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:18px;">${e.name.charAt(0).toUpperCase()}</div>`;
-
+                const photoTag = e.photo ? `<img src="${e.photo}" style="width:45px; height:45px; border-radius:50%; object-fit:cover; border:2px solid var(--primary);">` : `<div style="width:45px; height:45px; border-radius:50%; background:#e0e7ff; color:var(--primary); display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:18px;">${e.name.charAt(0).toUpperCase()}</div>`;
                 const safeName = (e.name || 'Unknown').replace(/'/g, "\\'").replace(/"/g, '&quot;');
                 const safeId = String(e.id).replace(/'/g, "\\'").replace(/"/g, '&quot;');
 
@@ -7731,12 +7797,10 @@ window.autoFillDocCustomer = (name) => {
                             </div>
                         </div>
                     </div>
-                    
                     <div style="font-size:11px; background:#f9fafb; padding:8px; border-radius:6px; display:grid; grid-template-columns: 1fr 1fr;">
                         <div><span style="color:#666;">Basic:</span> <strong style="color:var(--success)">${formatMoney(eSal)}</strong></div>
                         <div style="text-align:right;"><span style="color:#666;">Work:</span> <strong>${eHrs} Hrs/D</strong></div>
                     </div>
-
                     <div style="margin-top:auto; padding-top:10px; border-top:1px dashed #e5e7eb; display:flex; flex-wrap:wrap; gap:5px;">
                         <button class="btn btn-warning" onclick="openDailyLogModal('${safeId}', '${safeName}')" style="flex:1; padding:6px; font-size:11px; font-weight:bold;"><i class="ri-money-dollar-circle-line"></i> Advance</button>
                         <button class="btn btn-info" onclick="openEmployeeHistorySafe('${safeId}', '${safeName}')" title="Records" style="padding:6px; font-size:11px;"><i class="ri-history-line"></i></button>
@@ -7748,12 +7812,55 @@ window.autoFillDocCustomer = (name) => {
                     </div>
                 </div>`;
             });
-
-            finalHtml += `</div></div>`; // Close grid and category wrapper
+            finalHtml += `</div></div>`; 
         });
 
+        // 🛡️ STEP D: Missing Data Warning (If over 150)
+        if (filtered.length >= 150 && term === '') {
+            finalHtml += `<div style="width: 100%; text-align: center; padding: 15px; font-weight: bold; color: var(--primary); background: #e0e7ff; border-radius: 8px;">+ More employees hidden to maintain system speed. Please type in the search bar to find them.</div>`;
+        }
+        
         grid.innerHTML = finalHtml;
     }
+
+    // 3. Database Omni-Search Engine (Bypasses the 150 limit)
+    window.filterEmployees = debounceSearch(async () => {
+        const originalTerm = document.getElementById('empSearch').value.trim();
+        const term = originalTerm.toLowerCase();
+        
+        if (originalTerm.length >= 3) {
+            document.getElementById('empGrid').innerHTML = '<div style="width: 100%; text-align: center; padding:40px; font-weight:bold; color:var(--primary); font-size:16px;"><i class="ri-loader-4-line ri-spin" style="font-size:30px; display:block; margin-bottom:10px;"></i> Searching Database...</div>';
+            
+            try {
+                // Exact ID Match (Bulletproof)
+                const exactRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/employees`, originalTerm);
+                const exactSnap = await getDoc(exactRef);
+                if (exactSnap.exists() && !employeesCache.find(e => e.id === exactSnap.id)) {
+                    employeesCache.unshift({ id: exactSnap.id, ...exactSnap.data() });
+                }
+
+                // Omni-Case Firestore Search
+                const capTerm = term.charAt(0).toUpperCase() + term.slice(1);
+                const upperTerm = originalTerm.toUpperCase();
+                
+                const qPhone = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/employees`), where('phone', '>=', originalTerm), where('phone', '<=', originalTerm + '\uf8ff'), limit(10));
+                const qNameLow = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/employees`), where('name', '>=', term), where('name', '<=', term + '\uf8ff'), limit(10));
+                const qNameCap = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/employees`), where('name', '>=', capTerm), where('name', '<=', capTerm + '\uf8ff'), limit(10));
+                
+                const [snapPhone, snapNameLow, snapNameCap] = await Promise.all([getDocs(qPhone), getDocs(qNameLow), getDocs(qNameCap)]);
+                
+                const addToCache = (d) => { if(!employeesCache.find(e => e.id === d.id)) employeesCache.unshift({id: d.id, ...d.data()}); };
+                
+                snapPhone.forEach(addToCache);
+                snapNameLow.forEach(addToCache);
+                snapNameCap.forEach(addToCache);
+
+            } catch (err) {
+                console.error("Omni-Search Error:", err);
+            }
+        }
+        renderEmployees(); // Trigger re-render with newly found data
+    }, 400);
 
     let currentEmpPhotoBase64 = null; // Store compressed photo temporarily
 
@@ -9534,67 +9641,61 @@ window.setQuickCash = (amount) => {
         }
     };
 
+    // 🛡️ ENTERPRISE FIX: Deep Server-Side Querying for System Logs (Zero Data Blindspots)
     window.loadSystemLogs = async () => {
         const tbody = document.querySelector('#sysLogsTable tbody');
         if(!tbody) return;
         toggleLoader(true);
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Loading Audit Trail...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--primary); font-weight:bold;">Querying Secure Audit Trail... <i class="ri-loader-4-line ri-spin"></i></td></tr>';
         
-        // Populate Shop Filter if empty
         const shopFilterSelect = document.getElementById('logShopFilter');
         if (shopFilterSelect && shopFilterSelect.options.length <= 1) {
             shopFilterSelect.innerHTML = '<option value="ALL">All Branches</option>';
-            shopsCache.forEach(s => {
-                shopFilterSelect.innerHTML += `<option value="${s.name}">${s.name}</option>`;
-            });
+            shopsCache.forEach(s => { shopFilterSelect.innerHTML += `<option value="${s.name}">${s.name}</option>`; });
         }
 
         try {
-            // ENTERPRISE FIX 1: Fetch more logs to allow robust client-side filtering without triggering Firebase Index Errors!
-            const q = query(collection(db, `users/${dbOwnerId}/system_audit_logs`), orderBy('timestamp', 'desc'), limit(250));
-            const snap = await getDocs(q);
-            
-            let logs = [  ];
-            snap.forEach(d => logs.push(d.data()));
-
-            // ENTERPRISE FIX 2: Apply Advanced Filters Locally
             const shopFilter = document.getElementById('logShopFilter').value;
             const actionFilter = document.getElementById('logActionFilter').value;
-            const dateFilter = document.getElementById('logDateFilter').value; // Format: YYYY-MM-DD
+            const dateFilter = document.getElementById('logDateFilter').value; // YYYY-MM-DD
 
-            if (shopFilter !== 'ALL') {
-                logs = logs.filter(l => l.shopName === shopFilter);
-            }
-            if (actionFilter !== 'ALL') {
-                logs = logs.filter(l => l.action && l.action.includes(actionFilter));
-            }
+            let logsRef = collection(db, `users/${dbOwnerId}/system_audit_logs`);
+            let q;
+
+            // 🚀 SMART QUERY ENGINE: දිනයක් තෝරා ඇත්නම් කෙලින්ම Database එකෙන් ඒ දිනය පමණක් ගෙන එයි!
             if (dateFilter) {
-                // Timezone safe filtering
-                logs = logs.filter(l => {
-                    if(!l.timestamp) return false;
-                    const logLocal = new Date(l.timestamp);
-                    const logDateStr = new Date(logLocal.getTime() - (logLocal.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
-                    return logDateStr === dateFilter;
-                });
+                // සේවාදායකයේ (Server) වෙලාවට සාපේක්ෂව දිනයේ ආරම්භය සහ අවසානය සෙවීම
+                const startOfDay = new Date(dateFilter + "T00:00:00.000Z").toISOString();
+                const endOfDay = new Date(dateFilter + "T23:59:59.999Z").toISOString();
+                
+                // Firestore allows range filters and orderBy on the SAME field without complex indexing!
+                q = query(logsRef, where("timestamp", ">=", startOfDay), where("timestamp", "<=", endOfDay), orderBy("timestamp", "desc"), limit(500));
+            } else {
+                // දිනයක් නැතිනම් අලුත්ම ලොග් 150 පමණක් ගෙන එයි (Memory Optimization)
+                q = query(logsRef, orderBy('timestamp', 'desc'), limit(150));
             }
+
+            const snap = await getDocs(q);
+            let logs = [];
+            snap.forEach(d => logs.push(d.data()));
+
+            // ඉතිරි සෙවීම් (Shop & Action) RAM එක මත ඉතා වේගයෙන් සිදු කරයි
+            if (shopFilter !== 'ALL') logs = logs.filter(l => l.shopName === shopFilter);
+            if (actionFilter !== 'ALL') logs = logs.filter(l => l.action && l.action.includes(actionFilter));
 
             if(logs.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#6b7280; padding:20px;">No system logs match your selected filters.</td></tr>';
-                toggleLoader(false);
                 return;
             }
 
             let html = '';
             logs.forEach(l => {
-                // ENTERPRISE FIX 3: Inner Try-Catch & Strict Sanitization against Stored XSS Attacks
                 try {
                     const date = l.timestamp ? new Date(l.timestamp) : new Date();
-                    
-                    // XSS INJECTION PROTECTION: Replace raw tags with safe entities!
-                    const safeEmail = (l.userEmail || "Unknown").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-                    const safeShop = (l.shopName || "Unknown").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-                    const safeAction = (l.action || "UNKNOWN").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-                    const safeDesc = (l.description || "-").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                    const safeEmail = String(l.userEmail || "Unknown").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                    const safeShop = String(l.shopName || "Unknown").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                    const safeAction = String(l.action || "UNKNOWN").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                    const safeDesc = String(l.description || "-").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
                     const roleBadge = l.userRole === 'admin' 
                         ? `<span style="background:#fef3c7; color:#b45309; padding:2px 6px; border-radius:4px; font-size:11px;">ADMIN</span>`
@@ -9617,14 +9718,16 @@ window.setQuickCash = (amount) => {
                         <td style="font-weight:bold; font-size:12px; color:${actionColor};">${safeAction}</td>
                         <td style="font-size:13px; line-height:1.4;">${safeDesc}</td>
                     </tr>`;
-                } catch (rowErr) {
-                    console.error("Log rendering error:", rowErr);
-                }
+                } catch (rowErr) { console.error("Log rendering error:", rowErr); }
             });
+            
+            if (logs.length >= (dateFilter ? 500 : 150)) {
+                html += `<tr><td colspan="6" style="text-align:center; font-weight:bold; color:var(--primary); background:#e0e7ff;">+ More logs hidden. Please use the Date Filter to search deeper.</td></tr>`;
+            }
             tbody.innerHTML = html;
             
         } catch(e) {
-            console.error(e);
+            console.error("System Log Error:", e);
             tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:red;">Error loading logs. Check connection.</td></tr>';
         } finally {
             toggleLoader(false);
@@ -9701,20 +9804,20 @@ window.setQuickCash = (amount) => {
     // ==========================================
     // 2. DEBT COLLECTION LOGIC (ENTERPRISE GRADE)
     // ==========================================
-    // 🚀 DUAL-IDENTITY DEBT LOADER
+    // 🚀 DUAL-IDENTITY DEBT LOADER & MANAGER
+    let globalDebtorsCache = []; // 🛡️ Cache to hold debts for fast searching
+
     window.loadDebts = async () => {
         const tbody = document.querySelector('#debtTable tbody');
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Aggregating Debts across identities...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--primary);">Aggregating Debts across identities... <i class="ri-loader-4-line ri-spin"></i></td></tr>';
         
-        const q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`), where("creditBalance", ">", 0));
+        // 🛡️ ENTERPRISE FIX: Unbounded Query Prevention (Limit to 500 max unpaid bills to save RAM & Firebase Costs)
+        const q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`), where("creditBalance", ">", 0), limit(500));
         const snap = await getDocs(q);
         
-        // Build Identity Alias Map
         const aliasMap = {};
         customersCache.forEach(c => {
-            if (c.phone_history) {
-                c.phone_history.forEach(h => aliasMap[h.phone] = c); // Map old phone to current Customer object
-            }
+            if (c.phone_history) c.phone_history.forEach(h => aliasMap[h.phone] = c);
         });
 
         const debtors = {};
@@ -9722,8 +9825,6 @@ window.setQuickCash = (amount) => {
             const sale = {id: d.id, ...d.data()};
             if(sale.customer && sale.customer.phone && sale.customer.phone !== "N/A") {
                 const billedPhone = sale.customer.phone;
-                
-                // If this billed phone is old, redirect it to the CURRENT active profile!
                 const activeIdentity = aliasMap[billedPhone] || { name: sale.customer.name, phone: billedPhone };
                 const currentPhoneId = activeIdentity.phone || activeIdentity.id;
 
@@ -9731,13 +9832,28 @@ window.setQuickCash = (amount) => {
                     debtors[currentPhoneId] = { name: activeIdentity.name, phone: currentPhoneId, debt: 0, oldPhones: new Set() };
                 }
                 debtors[currentPhoneId].debt += sale.creditBalance;
-                
                 if(billedPhone !== currentPhoneId) debtors[currentPhoneId].oldPhones.add(billedPhone);
             }
         });
 
-        const arr = Object.values(debtors);
-        tbody.innerHTML = arr.length ? arr.map(d => {
+        globalDebtorsCache = Object.values(debtors);
+        globalDebtorsCache.sort((a,b) => b.debt - a.debt); // 🛡️ Sort by Highest Debt First!
+
+        renderDebts();
+    };
+
+    window.renderDebts = () => {
+        const tbody = document.querySelector('#debtTable tbody');
+        const term = (document.getElementById('debtSearchInput')?.value || '').toLowerCase();
+        
+        const filtered = globalDebtorsCache.filter(d => 
+            d.name.toLowerCase().includes(term) || d.phone.includes(term) || Array.from(d.oldPhones).some(op => op.includes(term))
+        );
+
+        // 🛡️ ENTERPRISE FIX: DOM Overload Prevention (Cap to 100 rows)
+        const topResults = filtered.slice(0, 100);
+
+        let htmlStr = topResults.map(d => {
             const oldInfo = d.oldPhones.size > 0 ? `<br><span style="font-size:10px; color:#d97706;">Includes debts from old No: ${Array.from(d.oldPhones).join(', ')}</span>` : '';
             return `
             <tr>
@@ -9748,8 +9864,58 @@ window.setQuickCash = (amount) => {
                     <button class="btn btn-success" onclick="openDebtSettlement('${d.phone}', '${d.name.replace(/'/g, "\\'")}', ${d.debt})">Receive Payment</button>
                 </td>
             </tr>`;
-        }).join('') : '<tr><td colspan="4" style="text-align:center;">No pending debts found!</td></tr>';
+        }).join('');
+
+        if (filtered.length > 100) {
+            htmlStr += `<tr><td colspan="4" style="text-align:center; font-weight:bold; color:var(--danger); background:#fee2e2;">+ ${filtered.length - 100} more debtors hidden to maintain speed. Use the search bar.</td></tr>`;
+        }
+
+        tbody.innerHTML = htmlStr || '<tr><td colspan="4" style="text-align:center; color:#666;">No pending debts found for your search!</td></tr>';
     };
+
+    // 🛡️ ENTERPRISE FIX: Database-Level Deep Search for Debts (Omni-Search)
+    window.filterDebts = debounceSearch(async () => {
+        const originalTerm = document.getElementById('debtSearchInput').value.trim();
+        const term = originalTerm.toLowerCase();
+        
+        // 1. Local Cache Filtering
+        renderDebts();
+
+        // 2. Deep Database Fetch (If searching by Phone Number, bypass the 500 limit!)
+        // කවුරුහරි දුරකථන අංකයකින් සෙව්වොත්, ඔහු අර 500 සීමාවෙන් එළියේ හිටියත් Database එක පීරලා අරන් එනවා.
+        if (originalTerm.length >= 9 && !isNaN(originalTerm)) {
+            document.querySelector('#debtTable tbody').innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--primary); font-weight:bold;">Searching Deep Database... <i class="ri-loader-4-line ri-spin"></i></td></tr>';
+            
+            try {
+                // දුරකථන අංකය පිරිසිදු කිරීම (Normalization)
+                let searchPhone = originalTerm.replace(/[^0-9]/g, '');
+                if (searchPhone.startsWith('94') && searchPhone.length === 11) searchPhone = '0' + searchPhone.substring(2);
+                
+                const q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`), where("customer.phone", "==", searchPhone), where("creditBalance", ">", 0));
+                const snap = await getDocs(q);
+
+                let totalDebt = 0;
+                let cName = "Unknown Customer";
+                
+                snap.forEach(d => {
+                    const s = d.data();
+                    totalDebt += s.creditBalance;
+                    if(s.customer && s.customer.name && s.customer.name !== "Walk-in Customer") cName = s.customer.name;
+                });
+
+                if (totalDebt > 0) {
+                    // Cache එකේ මේ කෙනා ඉන්නවද බලනවා. නැත්නම් අලුතින් එකතු කරනවා.
+                    const existingIdx = globalDebtorsCache.findIndex(d => d.phone === searchPhone);
+                    if (existingIdx >= 0) {
+                        globalDebtorsCache[existingIdx].debt = totalDebt;
+                    } else {
+                        globalDebtorsCache.unshift({ name: cName, phone: searchPhone, debt: totalDebt, oldPhones: new Set() });
+                    }
+                    renderDebts(); // අලුත් දත්තය සමග නැවත පෙන්වීම
+                }
+            } catch (e) { console.error("Deep Search Error:", e); }
+        }
+    }, 400);
 
     window.openDebtSettlement = (phone, name, debt) => {
         document.getElementById('dsCustomerPhone').value = phone;
@@ -11201,7 +11367,8 @@ document.getElementById('eodReportArea').style.display = 'block';
         // 2. Load Normal CRM Reminders...
         
         try {
-            const q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/alerts`), where("type", "==", "service_reminder"));
+            // 🛡️ ENTERPRISE FIX: Added limit(300) to prevent Database/RAM crash if shop has 5 years of future reminders
+            const q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/alerts`), where("type", "==", "service_reminder"), limit(300));
             const snap = await getDocs(q);
             
             let html = '';
