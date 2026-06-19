@@ -5041,18 +5041,34 @@ window.checkout = async () => {
         let feesTotal = currentOtherFees.reduce((sum, f) => sum + f.amount, 0);
         let total = roundToTwo(subtotal - discountAmt + feesTotal);
 
-        const givenText = document.getElementById('posCashGiven') ? document.getElementById('posCashGiven').value : '0';
+        // 🛡️ ENTERPRISE FIX: DYNAMIC PAYMENT VALIDATION ENGINE
+        const givenText = document.getElementById('posCashGiven') ? document.getElementById('posCashGiven').value.trim() : '';
         let cashGiven = 0;
-        if(givenText.trim() !== '' && !isNaN(givenText)) {
+
+        if (paymentMethod === 'Cash') {
+            // STRICT RULE: Cashier MUST enter the received cash!
+            if (givenText === '') {
+                document.getElementById('posCashGiven').focus();
+                return showToast("Cash Given amount is REQUIRED! (Click 'Exact' if no change is needed)", "error");
+            }
             cashGiven = roundToTwo(parseFloat(givenText));
+            if (isNaN(cashGiven)) return showToast("Invalid Cash Amount entered!", "error");
+
+        } else if (paymentMethod === 'Pay Later') {
+            // PAY LATER RULE: Empty means 0 advance.
+            cashGiven = (givenText === '') ? 0 : roundToTwo(parseFloat(givenText));
+
         } else {
-            cashGiven = (paymentMethod === 'Pay Later') ? 0 : total;
+            // CARD / ONLINE RULE: POS machines don't give change. System strictly assumes exact amount.
+            cashGiven = total;
+            if(document.getElementById('posCashGiven')) document.getElementById('posCashGiven').value = total;
         }
 
         const balance = roundToTwo(cashGiven - total);
 
         // Security Check BEFORE opening modal
-        if (paymentMethod !== 'Pay Later' && balance < 0 && givenText.trim() !== '') {
+        if (paymentMethod !== 'Pay Later' && balance < 0) {
+            document.getElementById('posCashGiven').focus();
             return showToast(`Insufficient Amount! Customer needs to pay ${formatMoney(Math.abs(balance))} more.`, "error");
         }
 
@@ -5109,15 +5125,28 @@ window.checkout = async () => {
         let feesTotal = currentOtherFees.reduce((sum, f) => sum + f.amount, 0);
         let total = roundToTwo(subtotal - discountAmt + feesTotal);
 
-        const givenText = document.getElementById('posCashGiven') ? document.getElementById('posCashGiven').value : '0';
+        // 🛡️ ENTERPRISE FIX: DYNAMIC PAYMENT VALIDATION ENGINE (FINAL COMMIT)
+        const givenText = document.getElementById('posCashGiven') ? document.getElementById('posCashGiven').value.trim() : '';
         let cashGiven = 0;
-        if(givenText.trim() !== '' && !isNaN(givenText)) {
+
+        if (paymentMethod === 'Cash') {
+            if (givenText === '') {
+                window.isCheckingOut = false; toggleLoader(false);
+                return showToast("Cash Given amount is REQUIRED for Cash payments!", "error");
+            }
             cashGiven = roundToTwo(parseFloat(givenText));
+        } else if (paymentMethod === 'Pay Later') {
+            cashGiven = (givenText === '') ? 0 : roundToTwo(parseFloat(givenText));
         } else {
-            cashGiven = (paymentMethod === 'Pay Later') ? 0 : total;
+            cashGiven = total; // Force exact amount for Cards/Online
         }
 
         const balance = roundToTwo(cashGiven - total);
+        if (paymentMethod !== 'Pay Later' && balance < 0) {
+            window.isCheckingOut = false; toggleLoader(false);
+            return showToast("Transaction Aborted: Insufficient Cash Given detected during finalization!", "error");
+        }
+
         let creditBalance = (paymentMethod === 'Pay Later') ? roundToTwo(total - cashGiven) : 0;
         let finalPaymentMethod = paymentMethod;
 
