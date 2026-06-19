@@ -4303,9 +4303,6 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         if(window.writeSystemLog) writeSystemLog("INVENTORY_REPORT_PRINTED", `Printed Inventory Log Report for ${type}: ${dateVal}`);
         
         const tableContent = document.getElementById('invReportTable').outerHTML;
-        const dateVal = type === 'date' ? document.getElementById('invDateInput').value : 
-                        type === 'month' ? document.getElementById('invMonthInput').value : 
-                        document.getElementById('invYearInput').value;
         
         const printWindow = window.open('', '', 'height=600,width=800');
         printWindow.document.write('<html><head><title>Inventory Report</title>');
