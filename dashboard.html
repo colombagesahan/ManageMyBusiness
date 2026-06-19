@@ -2496,7 +2496,10 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         await loadShops();
     });
 
-    window.logout = () => signOut(auth);
+    window.logout = async () => {
+        if(window.writeSystemLog) await writeSystemLog("SYSTEM_LOGOUT", `User manually logged out of the system.`);
+        signOut(auth);
+    };
 
     function populateCurrencyList() {
         const sel = document.getElementById('msCurrency');
@@ -2556,12 +2559,16 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         await loadShops();
         document.getElementById('shopSelector').value = ref.id;
         changeShop();
+        if(window.writeSystemLog) writeSystemLog("BRANCH_CREATED", `Created new business branch: ${name} (${currency})`);
         showToast("Branch created successfully!");
     };
 
     // --- NEW: MODIFIED DELETE LOGIC (SOFT DELETE) ---
     window.deleteCurrentShop = async () => {
-        if (userRole === 'cashier') return showToast("Security Alert: Access Denied!", "error");
+        if (userRole === 'cashier') {
+            if(window.writeSystemLog) writeSystemLog("SECURITY_BREACH_ATTEMPT", `CRITICAL: Cashier attempted to execute an Admin-only function (Delete Shop)!`);
+            return showToast("Security Alert: Access Denied!", "error");
+        }
         if(!confirm("Delete this branch and all its data? Cannot be undone.")) return;
         
         toggleLoader(true);
@@ -2572,6 +2579,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         
         await loadShops(); // Reload to pick up the new state
         toggleLoader(false);
+        if(window.writeSystemLog) writeSystemLog("BRANCH_DELETION_INITIATED", `WARNING: Branch deletion sequence initiated for this shop. Scheduled for 72 hrs.`);
         showToast("Branch scheduled for deletion in 72 hours.");
     };
 
@@ -2583,6 +2591,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         });
         await loadShops();
         toggleLoader(false);
+        if(window.writeSystemLog) writeSystemLog("BRANCH_DELETION_CANCELLED", `Branch deletion sequence was securely aborted/cancelled.`);
         showToast("Deletion cancelled.");
     };
 
@@ -2705,6 +2714,10 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         const sel = document.getElementById('shopSelector');
         currentShopId = sel.value;
         const currentShopData = shopsCache.find(s => s.id === currentShopId);
+        
+        if(window.writeSystemLog && currentShopData) {
+            writeSystemLog("BRANCH_SWITCHED", `User switched active dashboard view to branch: ${currentShopData.name}`);
+        }
 
         // Restore Bill Size preference for this shop securely
         const savedSize = localStorage.getItem('posBillSize_' + currentShopId);
@@ -3098,6 +3111,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         await setDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/settings`, 'profile'), data);
         await loadProfile();
         toggleLoader(false);
+        if(window.writeSystemLog) writeSystemLog("SYSTEM_PROFILE_UPDATED", `Business Profile / Invoice Terms / Scale Settings were modified and saved.`);
         showToast("Profile Saved Successfully");
     };
 
@@ -3221,6 +3235,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             await addDoc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/categories`), { name });
             document.getElementById('catNameInput').value = '';
             await loadCategories();
+            if(window.writeSystemLog) writeSystemLog("CATEGORY_ADDED", `Created new product category: ${name}`);
             showToast("Category Added");
         } catch (error) {
             console.error("Error saving category:", error);
@@ -3247,6 +3262,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         await deleteDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/categories`, id));
         await loadCategories();
         toggleLoader(false);
+        if(window.writeSystemLog) writeSystemLog("CATEGORY_DELETED", `Deleted product category ID: ${id}`);
         showToast("Category Deleted");
     };
 
@@ -3497,6 +3513,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 }
             closeModal('baseProductModal');
             await loadCatalog();
+            if(window.writeSystemLog) writeSystemLog(id ? "BASE_PRODUCT_UPDATED" : "BASE_PRODUCT_CREATED", `${id ? 'Updated' : 'Created'} Base Product: ${name} (SKU: ${manualSku || 'Auto'})`);
             showToast("Base Product Saved");
         } catch (e) {
             showToast("Error saving product", "error");
@@ -3531,6 +3548,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         try {
             await deleteDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/base_products`, id));
             await loadCatalog();
+            if(window.writeSystemLog) writeSystemLog("BASE_PRODUCT_DELETED", `Deleted Base Product ID: ${id}`);
             showToast("Base Product Deleted");
         } catch (e) {
             showToast("Error deleting product", "error");
@@ -3847,6 +3865,9 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             document.getElementById('priceWarningModal').style.display = 'flex';
             document.getElementById('btnConfirmSaveAny').onclick = async () => {
                  document.getElementById('priceWarningModal').style.display = 'none';
+                 
+                 if(window.writeSystemLog) writeSystemLog("NEGATIVE_PROFIT_OVERRIDE", `User knowingly authorized a NEGATIVE profit margin! Item: ${name}. Buy: ${formatMoney(buy)}, Sell: ${formatMoney(sell)}`);
+                 
                  await finalizeStockSave(id, stockData, keepOpen);
             };
             return;
@@ -3939,12 +3960,19 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 
         await loadProducts();
         toggleLoader(false);
+        
+        if(window.writeSystemLog) {
+            if(isEdit) writeSystemLog("STOCK_PRICE_UPDATED", `Updated selling price for ${data.name} to ${formatMoney(data.sell)}`);
+            else writeSystemLog("NEW_STOCK_ADDED", `Added ${data.qty} units of ${data.name}. Buy: ${formatMoney(data.buy)}, Sell: ${formatMoney(data.sell)}`);
+        }
+        
         showToast("Stock & Serial Barcodes saved successfully!");
         
         // 3. ස්වයංක්‍රීයව Print කිරීම අසන කොටස (අලුත් තොගයකදී පමණක්)
         if (!isEdit && generatedSerialsToPrint.length > 0) {
             setTimeout(() => {
                 if(confirm(`භාණ්ඩ ${data.qty} ක් තොගයට එකතු විය. කඩේ ඇලවීම සඳහා Barcode ස්ටිකර් ${data.qty} දැන් Print කරන්නද?`)) {
+                    if(window.writeSystemLog) writeSystemLog("NEW_BATCH_BARCODES_PRINTED", `Printed ${data.qty} physical barcode stickers for the newly added batch of ${data.name}`);
                     printBatchBarcodes(data.name, data.sell, data.expiryDate, generatedSerialsToPrint);
                 }
             }, 600);
@@ -4261,12 +4289,20 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         
         // Show buttons now that data is loaded and correct
         document.getElementById('invExportSection').style.display = 'block';
+        
+        if(window.writeSystemLog) writeSystemLog("INVENTORY_REPORT_VIEWED", `Generated and viewed Inventory Log Report on screen. (Filter Type: ${type}, Product: ${productFilter})`);
     };
 
     // --- EXPORT & SHARE FUNCTIONS ---
     window.printReport = () => {
-        const tableContent = document.getElementById('invReportTable').outerHTML;
         const type = document.getElementById('invReportType').value;
+        const dateVal = type === 'date' ? document.getElementById('invDateInput').value : 
+                        type === 'month' ? document.getElementById('invMonthInput').value : 
+                        document.getElementById('invYearInput').value;
+                        
+        if(window.writeSystemLog) writeSystemLog("INVENTORY_REPORT_PRINTED", `Printed Inventory Log Report for ${type}: ${dateVal}`);
+        
+        const tableContent = document.getElementById('invReportTable').outerHTML;
         const dateVal = type === 'date' ? document.getElementById('invDateInput').value : 
                         type === 'month' ? document.getElementById('invMonthInput').value : 
                         document.getElementById('invYearInput').value;
@@ -4299,6 +4335,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         document.body.appendChild(downloadLink);
         downloadLink.click();
         document.body.removeChild(downloadLink);
+        if(window.writeSystemLog) writeSystemLog("INVENTORY_EXPORT_CSV", `Downloaded Inventory Report as CSV data file.`);
     };
 
     window.sendWhatsApp = async () => {
@@ -4322,6 +4359,8 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             doc.autoTable({ html: '#invReportTable', startY: 30 });
             const pdfBlob = doc.output('blob');
             const file = new File([pdfBlob], "Inventory_Report.pdf", { type: "application/pdf" });
+            if(window.writeSystemLog) writeSystemLog("INVENTORY_SHARED", `Shared/Exported Inventory Report PDF via WhatsApp to: ${number}`);
+            
             if (navigator.canShare && navigator.canShare({ files: [file] })) {
                 await navigator.share({ files: [file], title: 'Inventory Report', text: 'Here is the inventory report PDF.' });
                 showToast("Shared successfully");
@@ -4601,6 +4640,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         if (isNaN(val) || val <= 0) return showToast("Enter a valid weight/qty", "error");
         
         if (window.pendingWeighableProduct) {
+            if(window.writeSystemLog) writeSystemLog("MANUAL_WEIGHT_ENTERED", `Cashier manually typed weight/qty: ${val} for product: ${window.pendingWeighableProduct.name}`);
             addQtyToCartAutoSplit(window.pendingWeighableProduct, val);
         }
         closeModal('posWeightInputModal');
@@ -4807,6 +4847,8 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         }
 
         // 4. සියල්ල හරි නම් Cart එකට දැමීම
+        if(window.writeSystemLog) writeSystemLog("MANUAL_SERIAL_ENTRY", `Cashier bypassed scanner and manually typed serial code: ${matchedSerial} for ${batch.name}`);
+        
         addSerialToCart(batch, matchedSerial);
         closeModal('posSerialInputModal');
         showToast("Item Verified and Added!", "success");
@@ -4992,6 +5034,7 @@ window.checkout = async () => {
             const requiredPin = (profileCache && profileCache.managerPin) ? profileCache.managerPin : "0000";
             
             if (adminPin !== requiredPin) { 
+                if(window.writeSystemLog) writeSystemLog("SECURITY_BREACH_ATTEMPT", `CRITICAL: Cashier attempted to bypass discount limit but entered an INVALID Manager PIN! (Tried to discount ${formatMoney(discountAmt)})`);
                 return showToast("Authorization Denied! Invalid Manager PIN.", "error");
             }
             if(window.writeSystemLog) writeSystemLog("MANAGER_OVERRIDE", `Approved ${(discountAmt/subtotal*100).toFixed(1)}% discount for Cart Value ${formatMoney(subtotal)}`);
@@ -5531,6 +5574,11 @@ window.autoFillDocCustomer = (name) => {
 
     window.confirmSaveDocument = async (deductStock) => {
         document.getElementById('docStockWarningModal').style.display = 'none';
+        
+        if (!deductStock && tempDocData && tempDocData.type === 'invoice') {
+            if(window.writeSystemLog) writeSystemLog("GHOST_INVOICE_GENERATED", `WARNING: Generated an INVOICE (#${tempDocData.docId}) but forcefully bypassed stock deduction!`);
+        }
+        
         await finalizeDocumentSave(deductStock);
     };
 
@@ -5641,6 +5689,8 @@ window.autoFillDocCustomer = (name) => {
 
             if(deductStock) await loadProducts(); // Refresh
 
+            if(window.writeSystemLog) writeSystemLog("DOCUMENT_GENERATED", `Generated ${tempDocData.type.toUpperCase()} #${tempDocData.docId} for ${tempDocData.customer.name}. Total: ${formatMoney(tempDocData.total)}`);
+
             generateDocumentPDF(tempDocData);
             showToast(`${tempDocData.type.toUpperCase()} Saved!`);
             
@@ -5728,6 +5778,8 @@ window.autoFillDocCustomer = (name) => {
         document.getElementById('docDiscount').value = quote.discount;
         document.getElementById('docTax').value = quote.tax;
         calcDocTotals();
+        
+        if(window.writeSystemLog) writeSystemLog("QUOTE_CONVERTED", `Converted Quotation into an Invoice for customer: ${quote.customer.name}`);
         
         if (priceChangedAlert) {
             showToast("Warning: Some market prices have changed since this quotation! Prices updated to LIVE rates.", "warning");
@@ -6176,7 +6228,11 @@ window.autoFillDocCustomer = (name) => {
 
         // Validations
         if(isNaN(price) || price < 0) { window.isRefundingProcessing = false; return showToast("Invalid Refund Price", "error"); }
-        if(price > originalSoldPrice) { window.isRefundingProcessing = false; return showToast(`Fraud Alert: Refund price cannot exceed original sold price`, "error"); }
+        if(price > originalSoldPrice) { 
+            window.isRefundingProcessing = false; 
+            if(window.writeSystemLog) writeSystemLog("FRAUD_ATTEMPT_DETECTED", `CRITICAL: Attempted to inflate refund price! Tried to refund at ${formatMoney(price)} but original sold price was ${formatMoney(originalSoldPrice)}`);
+            return showToast(`Fraud Alert: Refund price cannot exceed original sold price`, "error"); 
+        }
         if(isNaN(qty) || qty <= 0) { window.isRefundingProcessing = false; return showToast("Invalid Quantity", "error"); }
         if(qty > maxQty) { window.isRefundingProcessing = false; return showToast(`Cannot refund more than sold (${maxQty})`, "error"); }
         if(!reason) { window.isRefundingProcessing = false; return showToast("Please provide a reason", "error"); }
@@ -6249,6 +6305,12 @@ window.autoFillDocCustomer = (name) => {
                         const pData = pDoc.data();
                         const soldList = pData.soldSerials || [];
                         if(!soldList.includes(returnSerial)) {
+                            // 🛡️ ENTERPRISE FIX: Log this severe fraud attempt directly to the DB immediately before throwing the error!
+                            const auditRef = doc(collection(db, `users/${dbOwnerId}/system_audit_logs`));
+                            transaction.set(auditRef, {
+                                timestamp: new Date().toISOString(), userEmail: currentUser ? currentUser.email : "Unknown", userRole: userRole, shopId: currentShopId || "NONE", shopName: "Fraud Prevention System",
+                                action: "FRAUD_ATTEMPT_DETECTED", description: `CRITICAL: Attempted to refund a FAKE/UNSOLD Serial Barcode (${returnSerial}) for product ${prodName}!`
+                            });
                             throw new Error(`Fraud Alert: Barcode ${returnSerial} is NOT recorded as sold from this batch! Cannot refund.`);
                         }
 
@@ -6581,6 +6643,7 @@ window.autoFillDocCustomer = (name) => {
         
         document.getElementById('orderNoteModal').style.display = 'none';
         toggleLoader(false);
+        if(window.writeSystemLog) writeSystemLog("ORDER_NOTE_ADDED", `Added note to Order ID ${id}: "${note}"`);
         showToast("Note Added");
     }
     // --- CUSTOMERS LOGIC ---
@@ -6785,6 +6848,7 @@ window.autoFillDocCustomer = (name) => {
 
             // Note: 'loadCustomers()' is completely REMOVED here. 
             // The Real-time Listener (onSnapshot) will auto-refresh the UI instantly!
+            if(window.writeSystemLog) writeSystemLog(isEditMode ? "CUSTOMER_UPDATED" : "CUSTOMER_CREATED", `${isEditMode ? 'Updated' : 'Created'} customer profile for: ${name} (ID: ${phone})`);
             showToast("Customer Saved Successfully");
 
         } catch (error) {
@@ -7063,6 +7127,8 @@ window.autoFillDocCustomer = (name) => {
                 // 🚀 2. Delete from main active database safely
                 await deleteDoc(custRef);
                 
+                if(window.writeSystemLog) writeSystemLog("CUSTOMER_DELETED", `Deleted and archived customer profile. ID: ${id}, Name: ${custData.name}`);
+                
                 // Note: The Live Snapshot Listener will auto-update the UI instantly
                 showToast("Customer archived & deleted successfully!");
             }
@@ -7115,6 +7181,7 @@ window.autoFillDocCustomer = (name) => {
         document.getElementById('custNoteModal').style.display = 'none';
         await loadCustomers(); // Reload to update cache
         toggleLoader(false);
+        if(window.writeSystemLog) writeSystemLog("CUSTOMER_NOTE_ADDED", `Added a secret note to customer ID: ${id}. Note: "${text}"`);
         showToast("Note Added");
     };
 
@@ -7171,6 +7238,7 @@ window.autoFillDocCustomer = (name) => {
         }
         
         toggleLoader(false);
+        if(window.writeSystemLog) writeSystemLog("ALERT_CREATED", `Created ${freq} alert for ${cleanRefId}. Message: "${msg}"`);
         showToast("Alert Created Successfully!");
     }
 
@@ -7295,6 +7363,7 @@ window.autoFillDocCustomer = (name) => {
             showToast(`Alert acknowledged. Rescheduled for ${nextDate.toLocaleDateString()}`);
         }
         
+        if(window.writeSystemLog) writeSystemLog("ALERT_ACKNOWLEDGED", `Alert ${id} was marked as done/rescheduled.`);
         await renderAlertsTable();
         toggleLoader(false);
     }
@@ -7306,6 +7375,7 @@ window.autoFillDocCustomer = (name) => {
         await deleteDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/alerts`, id));
         await renderAlertsTable();
         toggleLoader(false);
+        if(window.writeSystemLog) writeSystemLog("ALERT_DELETED", `Permanently deleted an alert/reminder (ID: ${id})`);
         showToast("Alert permanently deleted.");
     }
 
@@ -7682,6 +7752,7 @@ window.autoFillDocCustomer = (name) => {
             
             document.getElementById('empModal').style.display = 'none'; // සෘජුවම Modal එක වැසීම
             await loadEmployees();
+            if(window.writeSystemLog) writeSystemLog(isEditMode ? "EMPLOYEE_UPDATED" : "EMPLOYEE_CREATED", `${isEditMode ? 'Updated' : 'Created'} employee profile for: ${name} (Role: ${role}, Basic: ${salary})`);
             showToast("Employee Saved Successfully");
         } catch (e) {
             console.error("Employee Save Error:", e);
@@ -7711,6 +7782,7 @@ window.autoFillDocCustomer = (name) => {
         
         await loadEmployees();
         toggleLoader(false);
+        if(window.writeSystemLog) writeSystemLog("EMPLOYEE_DELETED", `Permanently deleted employee ID: ${id}`);
         showToast("Employee Deleted");
     };
 
@@ -7781,6 +7853,8 @@ window.autoFillDocCustomer = (name) => {
                 });
                 showToast("Daily Log Saved");
             }
+            
+            if(window.writeSystemLog) writeSystemLog("EMPLOYEE_LOG_UPDATED", `Manager updated daily log for Emp ID: ${empId}. Status: ${newStatus}, OT: ${newOt} hrs, Advance Paid: Rs.${newAdv}`);
             
             // Optional: Clear fields after saving to prevent accidental double entry
             document.getElementById('payOT').value = 0;
@@ -7943,7 +8017,10 @@ window.triggerDocAction = async (action, docId) => {
         const d = await getDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/documents`, docId));
         toggleLoader(false);
         if(d.exists()) {
-            if(action === 'pdf') generateDocumentPDF(d.data());
+            if(action === 'pdf') {
+                if(window.writeSystemLog) writeSystemLog("DOCUMENT_DOWNLOADED", `Re-generated/Downloaded past document PDF. Doc ID: ${d.data().docId}`);
+                generateDocumentPDF(d.data());
+            }
             if(action === 'convert') convertQuoteToInvoice(d.data());
         }
     };
@@ -8198,6 +8275,9 @@ window.handlePosSearchEnter = async (e) => {
                     toggleLoader(false);
                     window.isScanningBarcode = false;
                     document.getElementById('posSearch').value = '';
+                    
+                    if(window.writeSystemLog) writeSystemLog("FRAUD_ATTEMPT_DETECTED", `CRITICAL: Someone attempted to scan a barcode that was ALREADY SOLD! (Serial: ${term})`);
+                    
                     alert("🚨 FRAUD ALERT! 🚨\n\nමෙම Barcode අංකය මීට පෙර විකුණා අවසන් වූවකි!");
                     return showToast("Fraud Alert! Barcode reused.", "error");
                 }
@@ -8449,6 +8529,7 @@ window.setQuickCash = (amount) => {
         toggleLoader(true);
         try {
             await sendPasswordResetEmail(auth, email);
+            if(window.writeSystemLog) writeSystemLog("CASHIER_PWD_RESET_SENT", `Sent password reset email to Cashier: ${email}`);
             showToast("Password Reset link sent securely to the email!", "success");
         } catch (e) {
             console.error("Password reset error:", e);
@@ -8477,6 +8558,7 @@ window.setQuickCash = (amount) => {
             if (uid) {
                 // EDIT MODE: Update Branch Only
                 await updateDoc(doc(db, 'users', uid), { allowedShop: shopId });
+                if(window.writeSystemLog) writeSystemLog("CASHIER_UPDATED", `Changed assigned branch for Cashier (${email}) to Shop ID: ${shopId}`);
                 showToast("Branch updated successfully!");
             } else {
                 // CREATE MODE: Needs secondary app
@@ -8519,7 +8601,10 @@ window.setQuickCash = (amount) => {
     };
 
     window.toggleCashierAccess = async (uid, newStatus) => {
-        if (userRole === 'cashier') return showToast("Security Alert: Access Denied!", "error");
+        if (userRole === 'cashier') {
+            if(window.writeSystemLog) writeSystemLog("SECURITY_BREACH_ATTEMPT", `CRITICAL: Cashier attempted to execute an Admin-only function (Toggle Cashier Access)!`);
+            return showToast("Security Alert: Access Denied!", "error");
+        }
         
         const msg = newStatus === 'suspended' ? "Suspend this cashier? They will be logged out instantly." : "Reactivate this cashier?";
         if(!confirm(msg)) return;
@@ -8570,6 +8655,7 @@ window.setQuickCash = (amount) => {
         document.getElementById('srvCatNameInput').value = '';
         await loadServiceCategories();
         toggleLoader(false);
+        if(window.writeSystemLog) writeSystemLog("SERVICE_CATEGORY_ADDED", `Created new service category: ${name}`);
         showToast("Service Category Added");
     };
 
@@ -8591,6 +8677,7 @@ window.setQuickCash = (amount) => {
         await deleteDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/service_categories`, id));
         await loadServiceCategories();
         toggleLoader(false);
+        if(window.writeSystemLog) writeSystemLog("SERVICE_CATEGORY_DELETED", `Deleted service category ID: ${id}`);
         showToast("Category Deleted");
     };
 
@@ -8661,10 +8748,12 @@ window.setQuickCash = (amount) => {
             const data = { name, price, categoryId, updatedAt: new Date().toISOString() };
             if(id) {
                 await updateDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/services`, id), data);
+                if(window.writeSystemLog) writeSystemLog("SERVICE_UPDATED", `Updated service: ${name} (Price: ${formatMoney(price)})`);
                 showToast("Service Updated");
             } else {
                 data.createdAt = new Date().toISOString();
                 await addDoc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/services`), data);
+                if(window.writeSystemLog) writeSystemLog("SERVICE_CREATED", `Created new service: ${name} (Price: ${formatMoney(price)})`);
                 showToast("Service Added");
             }
             closeModal('serviceModal');
@@ -8682,6 +8771,7 @@ window.setQuickCash = (amount) => {
         await deleteDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/services`, id));
         await loadServices();
         toggleLoader(false);
+        if(window.writeSystemLog) writeSystemLog("SERVICE_DELETED", `Deleted a service from the system. ID: ${id}`);
         showToast("Service Deleted");
     };
 // --- NEW ADVANCED POS LOGIC: Toggle Type & Hold Cart ---
@@ -8742,6 +8832,7 @@ window.setQuickCash = (amount) => {
         
         renderCart();
         renderFees();
+        if(window.writeSystemLog) writeSystemLog("CART_HELD", `Placed cart on hold for ${custName}. Items: ${holdData.totalItems}`);
         showToast(`Cart Held for ${custName}`);
     };
 
@@ -8863,6 +8954,7 @@ window.setQuickCash = (amount) => {
         renderFees();
         toggleLoader(false);
         
+        if(window.writeSystemLog) writeSystemLog("CART_RECALLED", `Resumed held cart for ${h.custName || 'Walk-in'}.`);
         if(stockErrors) {
             showToast("Some items were reduced, removed, or prices updated because they changed while on hold!", "warning");
         } else {
@@ -8872,6 +8964,9 @@ window.setQuickCash = (amount) => {
 
     window.deleteHeldCart = (index) => {
         if(confirm("Delete this held cart permanently?")) {
+            const h = heldCarts[index];
+            if(window.writeSystemLog) writeSystemLog("HELD_CART_DELETED", `Permanently deleted a held cart without completing the sale. (Customer: ${h.custName}, Items: ${h.totalItems})`);
+            
             heldCarts.splice(index, 1);
             localStorage.setItem("posHeldCarts_" + currentShopId, JSON.stringify(heldCarts)); // Shop ID එකට අදාළව සේව් කිරීම
             updateHeldBadge();
@@ -8931,6 +9026,8 @@ window.setQuickCash = (amount) => {
         }
 
         // අලුත් Print Window එකක් විවෘත කිරීම
+        if(window.writeSystemLog) writeSystemLog("SINGLE_BARCODE_PRINTED", `Printed a single barcode label for base product: ${name} (SKU: ${sku})`);
+        
         const printWindow = window.open('', '', 'height=600,width=400');
         printWindow.document.write(`
             <html><head><title>Print Barcode - ${name}</title>
@@ -9027,6 +9124,7 @@ window.setQuickCash = (amount) => {
                 </body></html>
             `);
             printWindow.document.close();
+            if(window.writeSystemLog) writeSystemLog("BARCODE_MASTER_LIST_PRINTED", `Printed the master barcode list of all base products.`);
             toggleLoader(false);
         }, 100);
     };
@@ -9149,6 +9247,7 @@ window.setQuickCash = (amount) => {
         
         // ENTERPRISE SECURITY: Block deletion of automated system records (Like Debt Settlements)
         if(exp && exp.description && exp.description.toLowerCase().includes('debt settled')) {
+            if(window.writeSystemLog) writeSystemLog("FRAUD_ATTEMPT_DETECTED", `CRITICAL: User attempted to manually DELETE an automated Debt Settlement record! (Amount: ${formatMoney(exp.amount)})`);
             return showToast("Security Alert: Cannot delete automated System records!", "error");
         }
         
@@ -9185,6 +9284,7 @@ window.setQuickCash = (amount) => {
         
         let order = salesCache.find(s => s.id === id);
         if(order) {
+            if(window.writeSystemLog) writeSystemLog("BILL_REPRINTED", `Reprinted past bill/receipt. Order ID: ${order.customOrderId || id}`);
             generateInvoicePDF(order, size); // Pass the dynamically selected size
         } else {
             // ENTERPRISE FIX: Fetch from DB if order is older and pushed out of the 50-item cache!
@@ -9194,6 +9294,7 @@ window.setQuickCash = (amount) => {
                 const snap = await getDoc(docRef);
                 if (snap.exists()) {
                     order = { id: snap.id, ...snap.data() };
+                    if(window.writeSystemLog) writeSystemLog("BILL_REPRINTED", `Reprinted past bill/receipt from DB. Order ID: ${order.customOrderId || id}`);
                     generateInvoicePDF(order, size); // Pass the dynamically selected size
                 } else {
                     showToast("Order data not found in database!", "error");
@@ -9369,6 +9470,7 @@ window.setQuickCash = (amount) => {
         try {
             await addDoc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/suppliers`), { name, contact, phone });
             closeModal('supplierModal');
+            if(window.writeSystemLog) writeSystemLog("SUPPLIER_ADDED", `Added new supplier: ${name} (Phone: ${phone})`);
             showToast("Supplier Added");
             refreshData(); // Reload all to update dropdowns
         } catch(e) { showToast("Error", "error"); }
@@ -9393,6 +9495,7 @@ window.setQuickCash = (amount) => {
         await deleteDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/suppliers`, id));
         refreshData();
         toggleLoader(false);
+        if(window.writeSystemLog) writeSystemLog("SUPPLIER_DELETED", `Deleted supplier ID: ${id}`);
         showToast("Supplier Deleted");
     };
 
@@ -9669,8 +9772,8 @@ window.setQuickCash = (amount) => {
         document.getElementById('eodAdvances').textContent = formatMoney(staffAdvances);
         
         window.recalculateEODTotal(); // Call the new dynamic calculator
-
-        document.getElementById('eodReportArea').style.display = 'block';
+document.getElementById('eodReportArea').style.display = 'block';
+        if(window.writeSystemLog) writeSystemLog("EOD_REPORT_VIEWED", `Generated and viewed EOD Shift Summary on screen for Date: ${dateInput}`);
         toggleLoader(false);
     };
 
@@ -9684,6 +9787,7 @@ window.setQuickCash = (amount) => {
     window.printEOD = () => {
         const area = document.getElementById('eodReportArea').innerHTML;
         const date = document.getElementById('eodDate').value;
+        if(window.writeSystemLog) writeSystemLog("EOD_REPORT_PRINTED", `Printed EOD Shift Summary for Date: ${date}`);
         const win = window.open('', '', 'height=600,width=400');
         win.document.write(`
             <html><head><title>EOD Report</title>
@@ -9907,6 +10011,7 @@ window.setQuickCash = (amount) => {
         doc.text("Authorized Signature: ....................................", 14, finalY);
 
         doc.save(`Purchase_Order_${new Date().getTime()}.pdf`);
+        if(window.writeSystemLog) writeSystemLog("AUTO_PO_GENERATED", `Generated automated Purchase Order PDF for low stock items.`);
         showToast("Purchase Order PDF Generated Successfully!", "success");
         
         } catch (error) {
@@ -10027,6 +10132,7 @@ window.setQuickCash = (amount) => {
                 </tr>`;
             }
             tbody.innerHTML = html;
+            if(window.writeSystemLog) writeSystemLog("PAYROLL_VIEWED", `Generated and viewed Master Payroll on screen for Month: ${month + 1}, Year: ${year}`);
         } catch(e) {
             console.error(e);
             tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; color:red;">Error calculating payroll.</td></tr>';
@@ -10088,13 +10194,16 @@ window.setQuickCash = (amount) => {
 
         document.getElementById('timesheetArea').style.display = 'block';
         document.getElementById('timesheetArea').scrollIntoView({behavior: "smooth"});
+        
+        if(window.writeSystemLog) writeSystemLog("TIMESHEET_VIEWED", `Viewed detailed timesheet and payslip breakdown on screen for: ${data.emp.name}`);
     };
 
     window.printMasterPayroll = () => {
-        const tableHtml = document.getElementById('masterPayrollTable').outerHTML;
         const monthSel = document.getElementById('payrollMonth');
         const monthName = monthSel.options[monthSel.selectedIndex].text;
         const year = document.getElementById('payrollYear').value;
+        if(window.writeSystemLog) writeSystemLog("PAYROLL_REPORT_PRINTED", `Printed Master Payroll Report for ${monthName} ${year}`);
+        const tableHtml = document.getElementById('masterPayrollTable').outerHTML;
         
         const win = window.open('', '', 'height=600,width=800');
         win.document.write(`
@@ -10108,6 +10217,7 @@ window.setQuickCash = (amount) => {
             </body></html>
         `);
         win.document.close();
+        if(window.writeSystemLog) writeSystemLog("PAYSLIP_PRINTED", `Printed Individual Payslip for employee: ${empName} (${monthName} ${year})`);
     };
 
     window.printIndividualPayslip = () => {
@@ -10158,6 +10268,8 @@ window.setQuickCash = (amount) => {
         const tl = document.getElementById('chTimeline');
         tl.innerHTML = '<div style="text-align:center; padding:20px;">Fetching comprehensive history (including past numbers)... <i class="ri-loader-4-line ri-spin"></i></div>';
         document.getElementById('customerHistoryModal').style.display = 'flex';
+        
+        if(window.writeSystemLog) writeSystemLog("CUSTOMER_HISTORY_VIEWED", `Viewed complete transaction & debt history for Customer: ${name} (${phone})`);
 
         try {
             // 🚀 SMART AGGREGATION: Get all historical phone numbers for this identity
@@ -10249,6 +10361,8 @@ window.setQuickCash = (amount) => {
     window.printEmployeeIDCard = (id) => {
         const e = employeesCache.find(x => x.id === id);
         if(!e) return showToast("Employee not found", "error");
+
+        if(window.writeSystemLog) writeSystemLog("EMPLOYEE_ID_PRINTED", `Printed Employee ID Card for: ${e.name} (ID: ${e.id})`);
 
         // Generate Barcode
         let barcodeSrc = "";
@@ -10440,6 +10554,7 @@ window.setQuickCash = (amount) => {
         history.scrollTop = history.scrollHeight;
 
         try {
+            if(window.writeSystemLog) writeSystemLog("AI_QUERY", `Asked System AI Assistant: "${text}"`);
             // 3. Firebase Backend Function එකට කතා කිරීම
             const askSystemAssistant = httpsCallable(functions, 'askSystemAssistant');
             const result = await askSystemAssistant({ question: text });
@@ -10482,6 +10597,8 @@ window.setQuickCash = (amount) => {
             const tl = document.getElementById('ehTimeline');
             tl.innerHTML = '<div style="text-align:center; padding:20px;">Fetching all attendance & payroll logs... <i class="ri-loader-4-line ri-spin"></i></div>';
             modal.style.display = 'flex';
+            
+            if(window.writeSystemLog) writeSystemLog("EMPLOYEE_HISTORY_VIEWED", `Viewed complete attendance & historical records for Employee: ${name} (ID: ${phone})`);
 
             const q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/employees/${phone}/logs`), orderBy('date', 'desc'), limit(100));
             const snap = await getDocs(q);
@@ -10563,6 +10680,7 @@ window.setQuickCash = (amount) => {
         document.getElementById('empNoteModal').style.display = 'none';
         await loadEmployees(); 
         toggleLoader(false);
+        if(window.writeSystemLog) writeSystemLog("EMPLOYEE_NOTE_ADDED", `Added a performance/warning note to employee ID: ${id}. Note: "${text}"`);
         showToast("Employee Note Added Successfully!");
     };
 
@@ -10722,6 +10840,7 @@ window.setQuickCash = (amount) => {
 
     // Generic Print Helper
     window.printElement = (elementId, title) => {
+        if(window.writeSystemLog) writeSystemLog("ANALYTICS_PRINTED", `Printed system analytics/report: ${title}`);
         const content = document.getElementById(elementId).outerHTML;
         const win = window.open('', '', 'height=600,width=800');
         win.document.write(`<html><head><title>${title}</title><style>body{font-family:sans-serif;} table{width:100%;border-collapse:collapse;font-size:12px;} th,td{border:1px solid #ddd;padding:8px;text-align:left;} th{background-color:#f2f2f2;}</style></head><body><h2>${title}</h2>${content}<script>window.onload=()=>{window.print();window.close();}<\/script></body></html>`);
@@ -11062,10 +11181,11 @@ window.openReplyModal = (id) => {
                 showToast("Ticket Closed and Resolved!");
             } else {
                 // Reply කළා නම් Modal එක අරගෙනම තියාගනී. ටයිප් කරපු කොටුව පමණක් හිස් කරයි.
-                // onSnapshot මගින් අලුත් මැසේජ් එක Auto-Load වේවි!
-                document.getElementById('replyReqText').value = '';
-                showToast("Reply sent to customer!");
-            }
+                // onSnapshot තාක්ෂණය මගින් පණිවිඩය ගිය සැණින් UI එක ස්වයංක්‍රීයව අලුත් වේ.
+            document.getElementById('replyReqText').value = '';
+            if(window.writeSystemLog) writeSystemLog("CRM_TICKET_REPLY", `Sent reply to customer ticket: ${r.customerName}. Action: ${actionType}. Message: "${text}"`);
+            showToast("Reply sent to customer!");
+        }
             
             // බලෙන් Load කිරීම (await loadCRM();) ඉවත් කර ඇත. onSnapshot බලාගනු ඇත!
             
