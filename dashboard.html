@@ -1024,7 +1024,8 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             <div style="text-align:right; margin-bottom:15px;">
                 <button class="btn btn-primary" onclick="openModal('empModal')">+ Add Employee</button>
             </div>
-            <div class="grid-4" id="empGrid"></div>
+            <!-- 🛡️ FIX: Removed 'grid-4' class. The grid will be generated dynamically inside categories. -->
+            <div id="empGrid"></div>
         </div>
 
         <!-- ADVANCED 5. PAYROLL & HR -->
@@ -7624,56 +7625,101 @@ window.autoFillDocCustomer = (name) => {
         const snap = await getDocs(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/employees`));
         const grid = document.getElementById('empGrid');
         grid.innerHTML = '';
-        employeesCache =[];
+        employeesCache = [];
         
         if(snap.empty) {
-            grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 20px; color: #6b7280;">No employees added.</div>';
+            grid.innerHTML = '<div style="text-align: center; padding: 20px; color: #6b7280; width: 100%;">No employees added.</div>';
             return;
         }
         
+        // 1. Fetch & Store in Cache
         snap.forEach(d => {
-            const e = {id: d.id, ...d.data()};
-            employeesCache.push(e);
+            employeesCache.push({id: d.id, ...d.data()});
+        });
+
+        // 🛡️ 2. ENTERPRISE FIX: Smart Categorization & Normalization Engine
+        const groupedEmployees = {};
+
+        employeesCache.forEach(e => {
+            // Data Cleaning: Remove extra spaces and convert to lowercase first
+            let rawRole = (e.role || '').trim().toLowerCase();
+            if (!rawRole) rawRole = 'other staff'; // Catch empty roles
+
+            // Format to Title Case (e.g. "sales man" -> "Sales Man")
+            const categoryName = rawRole.replace(/\b\w/g, char => char.toUpperCase());
+
+            // Initialize Array if category doesn't exist
+            if (!groupedEmployees[categoryName]) {
+                groupedEmployees[categoryName] = [];
+            }
+            // Push employee to appropriate category
+            groupedEmployees[categoryName].push(e);
+        });
+
+        // 3. Render the Grouped UI
+        let finalHtml = '';
+        
+        // Sort keys alphabetically (Optional: can force "Manager" to be first if needed)
+        const sortedCategories = Object.keys(groupedEmployees).sort();
+
+        sortedCategories.forEach(cat => {
+            const employeesInCat = groupedEmployees[cat];
             
-            const eSal = e.baseSalary || 0;
-            const eHrs = e.standardHours || 8;
-            const eOt = e.otRate || 0;
+            // Render Category Header
+            finalHtml += `
+            <div style="margin-bottom: 35px; width: 100%;">
+                <div style="display:flex; align-items:center; gap:10px; margin-bottom: 15px; border-bottom: 2px solid var(--primary); padding-bottom: 8px;">
+                    <h4 style="margin:0; color:var(--secondary); font-size: 16px; text-transform:uppercase; letter-spacing:1px;"><i class="ri-team-fill" style="color:var(--primary); margin-right:5px;"></i> ${cat}</h4>
+                    <span style="background:#e0e7ff; color:var(--primary); padding:2px 8px; border-radius:12px; font-size:11px; font-weight:bold;">${employeesInCat.length} Members</span>
+                </div>
+                <div class="grid-4">
+            `;
 
-            const photoTag = e.photo ? `<img src="${e.photo}" style="width:45px; height:45px; border-radius:50%; object-fit:cover; border:2px solid var(--primary);">` : `<div style="width:45px; height:45px; border-radius:50%; background:#e0e7ff; color:var(--primary); display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:18px;">${e.name.charAt(0).toUpperCase()}</div>`;
+            // Render Employee Cards inside the category grid
+            employeesInCat.forEach(e => {
+                const eSal = e.baseSalary || 0;
+                const eHrs = e.standardHours || 8;
 
-            // ENTERPRISE FIX: Extremely safe string encoding to prevent HTML injection crashes
-            const safeName = (e.name || 'Unknown').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-            const safeId = String(e.id).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                const photoTag = e.photo 
+                    ? `<img src="${e.photo}" style="width:45px; height:45px; border-radius:50%; object-fit:cover; border:2px solid var(--primary);">` 
+                    : `<div style="width:45px; height:45px; border-radius:50%; background:#e0e7ff; color:var(--primary); display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:18px;">${e.name.charAt(0).toUpperCase()}</div>`;
 
-            grid.innerHTML += `
-            <div class="card" style="margin:0; position:relative; display:flex; flex-direction:column; gap:10px;">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <div style="display:flex; align-items:center; gap:10px;">
-                        ${photoTag}
-                        <div>
-                            <div style="font-weight:700; font-size:16px; line-height:1.2;">${e.name}</div>
-                            <div style="color:#6b7280; font-size:12px;">${e.role || 'Staff Member'}</div>
+                const safeName = (e.name || 'Unknown').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                const safeId = String(e.id).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
+                finalHtml += `
+                <div class="card" style="margin:0; position:relative; display:flex; flex-direction:column; gap:10px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div style="display:flex; align-items:center; gap:10px; width:calc(100% - 30px);">
+                            ${photoTag}
+                            <div style="overflow:hidden;">
+                                <div style="font-weight:800; font-size:15px; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${e.name}</div>
+                                <div style="font-family:monospace; color:#6b7280; font-size:11px; margin-top:2px;">ID: ${e.id}</div>
+                            </div>
                         </div>
                     </div>
-                    <div style="font-family:monospace; background:#f3f4f6; color:#374151; padding:4px 8px; border-radius:6px; font-size:12px; font-weight:bold; border:1px solid #e5e7eb;">ID: ${e.id}</div>
-                </div>
-                
-                <div style="font-size:11px; background:#f9fafb; padding:8px; border-radius:6px; display:grid; grid-template-columns: 1fr 1fr;">
-                    <div><span style="color:#666;">Basic:</span> <strong style="color:var(--success)">${formatMoney(eSal)}</strong></div>
-                    <div style="text-align:right;"><span style="color:#666;">Work:</span> <strong>${eHrs} Hrs/Day</strong></div>
-                </div>
+                    
+                    <div style="font-size:11px; background:#f9fafb; padding:8px; border-radius:6px; display:grid; grid-template-columns: 1fr 1fr;">
+                        <div><span style="color:#666;">Basic:</span> <strong style="color:var(--success)">${formatMoney(eSal)}</strong></div>
+                        <div style="text-align:right;"><span style="color:#666;">Work:</span> <strong>${eHrs} Hrs/D</strong></div>
+                    </div>
 
-                <div style="margin-top:auto; padding-top:10px; border-top:1px dashed #e5e7eb; display:flex; flex-wrap:wrap; gap:5px;">
-                    <button class="btn btn-warning" onclick="openDailyLogModal('${safeId}', '${safeName}')" style="flex:1; padding:6px; font-size:11px; font-weight:bold;"><i class="ri-money-dollar-circle-line"></i> Advance / Leave</button>
-                    <button class="btn btn-info" onclick="openEmployeeHistorySafe('${safeId}', '${safeName}')" title="Records" style="padding:6px; font-size:11px;"><i class="ri-history-line"></i></button>
-                    <button class="btn btn-primary" onclick="printEmployeeIDCard('${safeId}')" title="Print ID Card" style="padding:6px; font-size:11px;"><i class="ri-profile-line"></i></button>
-                    <button class="btn btn-ghost" onclick="openEmployeeNoteModalSafe('${safeId}')" title="Notes" style="padding:6px;"><i class="ri-sticky-note-line"></i></button>
-                    <button class="btn btn-ghost" onclick="openAlertModal('EMP:${safeId}')" title="Alerts" style="padding:6px;"><i class="ri-alarm-line"></i></button>
-                    <button class="btn btn-ghost" onclick="editEmployee('${safeId}')" title="Edit" style="padding:6px;"><i class="ri-edit-line"></i></button>
-                    <button class="btn btn-danger" onclick="deleteEmployee('${safeId}')" title="Delete" style="padding:6px;"><i class="ri-delete-bin-line"></i></button>
-                </div>
-            </div>`;
+                    <div style="margin-top:auto; padding-top:10px; border-top:1px dashed #e5e7eb; display:flex; flex-wrap:wrap; gap:5px;">
+                        <button class="btn btn-warning" onclick="openDailyLogModal('${safeId}', '${safeName}')" style="flex:1; padding:6px; font-size:11px; font-weight:bold;"><i class="ri-money-dollar-circle-line"></i> Advance</button>
+                        <button class="btn btn-info" onclick="openEmployeeHistorySafe('${safeId}', '${safeName}')" title="Records" style="padding:6px; font-size:11px;"><i class="ri-history-line"></i></button>
+                        <button class="btn btn-primary" onclick="printEmployeeIDCard('${safeId}')" title="Print ID" style="padding:6px; font-size:11px;"><i class="ri-profile-line"></i></button>
+                        <button class="btn btn-ghost" onclick="openEmployeeNoteModalSafe('${safeId}')" title="Notes" style="padding:6px;"><i class="ri-sticky-note-line"></i></button>
+                        <button class="btn btn-ghost" onclick="openAlertModal('EMP:${safeId}')" title="Alerts" style="padding:6px;"><i class="ri-alarm-line"></i></button>
+                        <button class="btn btn-ghost" onclick="editEmployee('${safeId}')" title="Edit" style="padding:6px;"><i class="ri-edit-line"></i></button>
+                        <button class="btn btn-danger" onclick="deleteEmployee('${safeId}')" title="Delete" style="padding:6px;"><i class="ri-delete-bin-line"></i></button>
+                    </div>
+                </div>`;
+            });
+
+            finalHtml += `</div></div>`; // Close grid and category wrapper
         });
+
+        grid.innerHTML = finalHtml;
     }
 
     let currentEmpPhotoBase64 = null; // Store compressed photo temporarily
