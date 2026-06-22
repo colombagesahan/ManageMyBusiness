@@ -618,6 +618,13 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                 <div class="card" style="height:fit-content; max-height:80vh; overflow-y:auto; display:flex; flex-direction:column;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
                         <h3 style="margin:0;">History</h3>
+                        
+                        <!-- 🛡️ ENTERPRISE FIX: Month Filter for Historical Documents -->
+                        <div style="display:flex; gap:5px; align-items:center; background:#f9fafb; padding:4px 8px; border-radius:8px; border:1px solid #e5e7eb;">
+                            <input type="month" id="docMonthFilter" style="margin:0; width:auto; font-size:12px; padding:6px;" onchange="loadDocumentsHistory()">
+                            <button class="btn btn-ghost" style="padding:4px 8px; font-size:16px;" onclick="document.getElementById('docMonthFilter').value=''; loadDocumentsHistory();" title="Clear Filter"><i class="ri-close-circle-line"></i></button>
+                        </div>
+
                         <!-- 🛡️ ENTERPRISE FIX: Omni-Search for Documents -->
                         <div style="display:flex; gap:5px; flex:1; min-width:200px;">
                             <input type="text" id="docSearchInput" placeholder="Search by Doc ID..." style="margin:0; width:100%; border-color:var(--primary);" onkeypress="if(event.key === 'Enter') searchDocument()">
@@ -756,8 +763,14 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                     <label style="font-size:12px; font-weight:600;">Destination Branch</label>
                     <select id="transferTargetShop"></select>
 
-                    <label style="font-size:12px; font-weight:600; margin-top:10px;">Select Product (From this branch)</label>
-                    <select id="transferProduct"></select>
+                    <!-- 🛡️ ENTERPRISE FIX: Database Deep Search for Old Transfers -->
+                    <label style="font-size:12px; font-weight:600; margin-top:10px; color:var(--primary);">1. Search Product to Transfer (Name or SKU) *</label>
+                    <input type="text" id="transferSearchInput" placeholder="Type here to search database..." style="border-color:var(--primary); margin-bottom:5px;" onkeyup="searchTransferProducts(this.value)">
+                    
+                    <label style="font-size:12px; font-weight:600; margin-top:5px;">2. Select Batch to Transfer *</label>
+                    <select id="transferProduct">
+                        <option value="">-- Search above to load batches --</option>
+                    </select>
 
                     <label style="font-size:12px; font-weight:600; margin-top:10px;">Quantity to Transfer</label>
                     <input type="number" id="transferQty" placeholder="Enter quantity" style="margin-bottom:0;">
@@ -789,8 +802,11 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                 <div class="card" style="margin:0; border-top: 5px solid var(--primary);">
                     <h4 style="margin-bottom:15px; color:var(--primary);">New Inventory Audit</h4>
                     
-                    <label style="font-size:12px; font-weight:bold;">Select Product to Audit *</label>
-                    <select id="stProductSelect" onchange="selectProductForStockTake()" style="font-weight:bold; border-color:var(--primary);"></select>
+                    <!-- 🛡️ ENTERPRISE FIX: Datalist Input to allow searching ANY past product -->
+                    <label style="font-size:12px; font-weight:bold;">Search / Type Product Name to Audit *</label>
+                    <input type="text" id="stProductSelect" list="stProductList" placeholder="Type product name & press Enter..." style="font-weight:bold; border-color:var(--primary); margin-bottom:5px;" onchange="selectProductForStockTake()">
+                    <datalist id="stProductList"></datalist>
+                    <div style="font-size:10px; color:#6b7280; margin-bottom:15px;">Type the exact name to fetch all its batches from the database.</div>
                     
                     <div id="stBatchArea" style="display:none; margin-top:15px;">
                         <table id="stBatchTable" style="font-size:12px; margin-bottom:15px;">
@@ -976,15 +992,22 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         <!-- NEW: ORDERS TAB WITH SEARCH -->
         <div id="view-orders" class="view">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
-                 <h3>All Sales</h3>
+                 <h3>Sales History</h3>
+                 
+                 <!-- 🛡️ ENTERPRISE FIX: Date Filter to securely query past sales beyond the 50 limit -->
+                 <div style="display:flex; gap:5px; align-items:center; background:#f9fafb; padding:4px 8px; border-radius:8px; border:1px solid #e5e7eb;">
+                     <label style="font-size:11px; font-weight:bold; color:#6b7280;">Date:</label>
+                     <input type="date" id="orderDateFilter" style="margin:0; width:auto; font-size:12px; padding:6px;" onchange="loadOrders()">
+                     <button class="btn btn-ghost" style="padding:4px 8px; font-size:16px;" onclick="document.getElementById('orderDateFilter').value=''; loadOrders();" title="Clear Filter"><i class="ri-close-circle-line"></i></button>
+                 </div>
+
                  <div class="search-container">
-                    <input id="orderIdSearch" placeholder="Search by Sale ID / Receipt No..." style="margin:0;" onkeypress="if(event.key === 'Enter') searchOrderById()">
+                    <input id="orderIdSearch" placeholder="Exact Sale ID..." style="margin:0;" onkeypress="if(event.key === 'Enter') searchOrderById()">
                     <button class="btn btn-primary" onclick="searchOrderById()"><i class="ri-search-line"></i></button>
                  </div>
                  <div style="display:flex; gap:10px;">
-                     <!-- NEW: Analytics Button -->
-                     <button class="btn btn-info" onclick="openItemAnalytics()"><i class="ri-bar-chart-box-line"></i> Item Sales Analytics</button>
-                     <button class="btn btn-ghost" onclick="loadOrders()"><i class="ri-refresh-line"></i> Refresh</button>
+                     <button class="btn btn-info" onclick="openItemAnalytics()"><i class="ri-bar-chart-box-line"></i> Item Analytics</button>
+                     <button class="btn btn-ghost" onclick="loadOrders()"><i class="ri-refresh-line"></i></button>
                  </div>
             </div>
             <div class="card" style="overflow-x:auto;">
@@ -1105,7 +1128,11 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         <!-- NEW: SYSTEM ACTIVITY LOGS (AUDIT TRAIL) -->
         <div id="view-syslogs" class="view">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
-                 <h3><i class="ri-history-line"></i> System Activity Logs</h3>
+                 <div style="display:flex; align-items:center; gap:15px;">
+                     <h3 style="margin:0;"><i class="ri-history-line"></i> System Activity Logs</h3>
+                     <!-- 🛡️ ENTERPRISE FIX: DISASTER RECOVERY MASTER BACKUP -->
+                     <button class="btn btn-warning" onclick="downloadMasterBackup()" style="padding:6px 12px; font-size:12px; font-weight:800; border:2px solid #b45309; background:#fffbeb; color:#b45309;"><i class="ri-database-2-fill"></i> Download DB Backup</button>
+                 </div>
                  <!-- ENTERPRISE FIX: Powerful Filtering System for Audit Trails -->
                  <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; background:#f9fafb; padding:8px 12px; border-radius:8px; border:1px solid #e5e7eb;">
                      <select id="logShopFilter" style="margin:0; width:150px; font-size:12px;" onchange="loadSystemLogs()"></select>
@@ -1156,6 +1183,14 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         <div id="view-expenses" class="view">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
                  <h3><i class="ri-wallet-3-line"></i> Cash Flow (Income & Expenses)</h3>
+                 
+                 <!-- 🛡️ ENTERPRISE FIX: Month Filter for Historical Cash Flow -->
+                 <div style="display:flex; gap:5px; align-items:center; background:#f9fafb; padding:4px 8px; border-radius:8px; border:1px solid #e5e7eb;">
+                     <label style="font-size:11px; font-weight:bold; color:#6b7280;">Filter Month:</label>
+                     <input type="month" id="expenseMonthFilter" style="margin:0; width:auto; font-size:12px; padding:6px;" onchange="fetchHistoricalExpenses()">
+                     <button class="btn btn-ghost" style="padding:4px 8px; font-size:16px;" onclick="document.getElementById('expenseMonthFilter').value=''; fetchHistoricalExpenses();" title="Clear Filter"><i class="ri-close-circle-line"></i></button>
+                 </div>
+
                  <div style="display:flex; gap:10px;">
                      <button class="btn btn-success" onclick="openExpenseModal(true)">+ Add Income</button>
                      <button class="btn btn-danger" onclick="openExpenseModal(false)">- Add Expense</button>
@@ -1209,8 +1244,10 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 
         <!-- NEW: SUPPLIERS TAB -->
         <div id="view-suppliers" class="view">
-            <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
                 <h3><i class="ri-truck-fill"></i> Manage Suppliers</h3>
+                <!-- 🛡️ ENTERPRISE FIX: Deep Search for Suppliers -->
+                <input type="text" id="supplierSearchInput" placeholder="Search by Name or Phone..." style="margin:0; max-width:300px; border-color:var(--primary);" onkeyup="filterSuppliers()">
                 <div style="display:flex; gap:10px;">
                     <button class="btn btn-warning" onclick="generateAutoPO()"><i class="ri-file-list-3-line"></i> Auto Generate PO (Low Stock)</button>
                     <button class="btn btn-primary" onclick="openSupplierModal()">+ Add Supplier</button>
@@ -1223,11 +1260,12 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                 </table>
             </div>
         </div>
-
-        <!-- NEW: SERVICES TAB WITH CATEGORIES -->
+<!-- NEW: SERVICES TAB WITH CATEGORIES -->
         <div id="view-services" class="view">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
                  <h3>Manage Services</h3>
+                 <!-- 🛡️ ENTERPRISE FIX: Deep Search for Services -->
+                 <input type="text" id="serviceSearchInput" placeholder="Search Service Name..." style="margin:0; max-width:300px; border-color:var(--primary);" onkeyup="filterServices()">
                  <div style="display:flex; gap:10px;">
                      <button class="btn btn-ghost" onclick="openModal('serviceCategoryModal')"><i class="ri-folder-add-line"></i> Service Categories</button>
                      <button class="btn btn-primary" onclick="prepareAddService()">+ Add Service</button>
@@ -2186,7 +2224,8 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 <script type="module">
     import { initializeApp, deleteApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
     import { getAuth, signOut, onAuthStateChanged, createUserWithEmailAndPassword, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
-    import { getFirestore, collection, addDoc, getDocs, doc, deleteDoc, updateDoc, query, where, orderBy, setDoc, getDoc, runTransaction, limit, startAfter, writeBatch, enableIndexedDbPersistence, increment, onSnapshot, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+    // 🛡️ ENTERPRISE FIX: Added collectionGroup for Deep Serial Searching
+    import { getFirestore, collection, addDoc, getDocs, doc, deleteDoc, updateDoc, query, where, orderBy, setDoc, getDoc, runTransaction, limit, startAfter, writeBatch, enableIndexedDbPersistence, increment, onSnapshot, collectionGroup } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
     // ENTERPRISE FIX: Import Firebase Functions to securely call Gemini AI backend
     import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-functions.js";
 
@@ -2784,6 +2823,8 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         // ENTERPRISE FIX: Instantly destroy active cart and checkout variables to prevent Cross-Branch Data Contamination!
         cart = [  ];
         currentOtherFees = [  ];
+        window.cachedStockValue = undefined; // 🛡️ Force Dashboard to recalculate stock value for new branch
+        window.cachedLowCount = undefined;
         const discInput = document.getElementById('discountValue');
         if(discInput) discInput.value = '';
         if(typeof clearPosCustomer === 'function') clearPosCustomer();
@@ -2817,11 +2858,12 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                     const qRef = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/refunds`), orderBy('date', 'desc'), limit(50));
                     const qExp = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`), orderBy('date', 'desc'), limit(100));
 
-                    // 1. මේ පේළියට අන්තිමට snapSup සහ suppliers query එක එකතු කරන්න
+                   // 1. මේ පේළියට අන්තිමට snapSup සහ suppliers query එක එකතු කරන්න
                     const[ , , , snapSales, snapRef, snapExp, snapSup] = await Promise.all([
                         loadEmployees(), loadAlerts(), loadCustomers(),
                         getDocs(qSales), getDocs(qRef), getDocs(qExp),
-                        getDocs(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/suppliers`))
+                        // 🛡️ ENTERPRISE FIX: Unbounded Initial Load Prevention
+                        getDocs(query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/suppliers`), limit(200)))
                     ]);
 
                     // 2. පැරණි මේ කොටස් කිසිවක් මකන්න එපා
@@ -2885,18 +2927,22 @@ body.pos-fullscreen-mode #view-pos > div > .card {
     }
 
     function updateCustomerDatalist() {
+        // 🛡️ ENTERPRISE FIX: Datalist DOM Memory Leak Prevention
+        // Cap the dropdown options to 50 max to prevent Browser Freezing when Cache gets huge.
+        const safeCacheLimit = customersCache.slice(0, 50);
+
         // Document Tab
         const dlDoc = document.getElementById('custSuggestions');
         if(dlDoc) {
             dlDoc.innerHTML = '';
-            customersCache.forEach(c => dlDoc.innerHTML += `<option value="${c.name}">${c.id}</option>`);
+            safeCacheLimit.forEach(c => dlDoc.innerHTML += `<option value="${c.name.replace(/"/g, '&quot;')}">${c.id}</option>`);
         }
         
         // Smart POS Tab - Search by Phone (Now in Modal)
         const dlPos = document.getElementById('modalCustomerList');
         if(dlPos) {
             dlPos.innerHTML = '';
-            customersCache.forEach(c => dlPos.innerHTML += `<option value="${c.id}">${c.name}</option>`);
+            safeCacheLimit.forEach(c => dlPos.innerHTML += `<option value="${c.id}">${c.name.replace(/"/g, '&quot;')}</option>`);
         }
     }
 
@@ -3986,13 +4032,10 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                         generatedSerialsToPrint = [...availableSerials];
                     }
 
-                    // 2. Write to Database
+                    // 2. Write to Database (Without Arrays!)
                     const newProdRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`));
-                    transaction.set(newProdRef, {
-                        ...data,
-                        availableSerials: availableSerials, // Will be empty for standard/weighable items!
-                        soldSerials: []
-                    });
+                    // Arrays ඉවත් කර ඇත. දත්ත සමුදාය සැහැල්ලු වේ.
+                    transaction.set(newProdRef, data);
 
                     if (baseProdRef) {
                         transaction.update(baseProdRef, { latestBatchNumber: nextBatchNum });
@@ -4005,6 +4048,25 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                         finalQty: data.qty, initialQty: 0, batchNumber: nextBatchNum
                     });
                 });
+            // 🚀 3. ENTERPRISE FIX: Massive Sub-collection Batch Writer (Bypasses 1MB Array Limit)
+                if (data.itemType === 'serialized' && generatedSerialsToPrint.length > 0) {
+                    const serialsColRef = collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products/${newProdRef.id}/serials`);
+                    let chunkBatch = writeBatch(db);
+                    let count = 0;
+                    
+                    // Firebase allows max 500 writes per batch. We chunk them safely.
+                    for (let sCode of generatedSerialsToPrint) {
+                        chunkBatch.set(doc(serialsColRef, sCode), { code: sCode, status: 'available', addedAt: new Date().toISOString() });
+                        count++;
+                        if (count === 490) {
+                            await chunkBatch.commit();
+                            chunkBatch = writeBatch(db);
+                            count = 0;
+                        }
+                    }
+                    if (count > 0) await chunkBatch.commit(); // Final chunk
+                }
+
             } catch (e) {
                 console.error("Batch Transaction Failed", e);
                 showToast("Error saving stock. Please try again.", "error");
@@ -4014,6 +4076,12 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         }
 
         await loadProducts();
+        
+        // 🛡️ Force dashboard stats to refresh since new stock was added or modified
+        window.cachedStockValue = undefined; 
+        window.cachedLowCount = undefined;
+        if(document.getElementById('view-dashboard').classList.contains('active')) updateDashboard();
+
         toggleLoader(false);
         
         if(window.writeSystemLog) {
@@ -4067,27 +4135,55 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 
 // --- BRAND NEW: STOCK TRANSFER LOGIC ---
     window.loadTransfersUI = async () => {
-        // 1. Populate Destination Branches (excluding current branch)
         const targetSel = document.getElementById('transferTargetShop');
         targetSel.innerHTML = '<option value="">-- Select Destination Branch --</option>';
         shopsCache.forEach(s => {
-            if (s.id !== currentShopId) {
-                targetSel.innerHTML += `<option value="${s.id}">${s.name}</option>`;
-            }
+            if (s.id !== currentShopId) targetSel.innerHTML += `<option value="${s.id}">${s.name}</option>`;
         });
 
-        // 2. Populate Products (only show items with stock > 0)
-        const prodSel = document.getElementById('transferProduct');
-        prodSel.innerHTML = '<option value="">-- Select Product to Send --</option>';
-        productsCache.forEach(p => {
-            if (p.qty > 0) {
-                const batchNum = p.batchNumber ? formatBatch(p.batchNumber) : '0000';
-                prodSel.innerHTML += `<option value="${p.id}">${p.name} (Batch: ${batchNum} | Available: ${p.qty})</option>`;
-            }
-        });
+        document.getElementById('transferSearchInput').value = '';
+        document.getElementById('transferProduct').innerHTML = '<option value="">-- Search above to load batches --</option>';
 
         await loadTransfersHistory();
     };
+
+    // 🛡️ ENTERPRISE FIX: Deep Database Query to bypass 150 Cache limit for Transfers
+    window.searchTransferProducts = debounceSearch(async (term) => {
+        if (term.length < 2) return;
+        
+        const prodSel = document.getElementById('transferProduct');
+        prodSel.innerHTML = '<option value="">Searching Database... Wait...</option>';
+        
+        try {
+            const capTerm = term.charAt(0).toUpperCase() + term.slice(1);
+            // Search by SKU or Name in the DB directly
+            const qSku = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`), where('sku', '==', term), where('qty', '>', 0), limit(10));
+            const qName = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`), where('name', '>=', capTerm), where('name', '<=', capTerm + '\uf8ff'), where('qty', '>', 0), limit(20));
+
+            const [snapSku, snapName] = await Promise.all([getDocs(qSku), getDocs(qName)]);
+            
+            let foundMap = new Map();
+            snapSku.forEach(d => foundMap.set(d.id, d.data()));
+            snapName.forEach(d => foundMap.set(d.id, d.data()));
+
+            if(foundMap.size === 0) {
+                prodSel.innerHTML = '<option value="">No stock available for this search.</option>';
+                return;
+            }
+
+            prodSel.innerHTML = '<option value="">-- Select Batch --</option>';
+            foundMap.forEach((p, id) => {
+                // Ensure it's inside productsCache for checkout validation
+                if(!productsCache.find(x => x.id === id)) productsCache.unshift({id, ...p});
+                
+                const batchNum = p.batchNumber ? formatBatch(p.batchNumber) : '0000';
+                prodSel.innerHTML += `<option value="${id}">${p.name} (Batch: ${batchNum} | Available: ${p.qty})</option>`;
+            });
+        } catch (e) {
+            console.error("Transfer Search Error:", e);
+            prodSel.innerHTML = '<option value="">Search Failed.</option>';
+        }
+    }, 400);
 
     window.loadTransfersHistory = async () => {
         const tbody = document.querySelector('#transfersTable tbody');
@@ -4323,7 +4419,11 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             return;
         }
 
-        tbody.innerHTML = logs.map(l => {
+        // 🛡️ ENTERPRISE FIX: DOM vs RAM Separation
+        // Keep all logs in RAM for CSV export, but strictly limit DOM rendering to 300 to prevent browser freeze!
+        const displayLogs = logs.slice(0, 300);
+
+        let htmlStr = displayLogs.map(l => {
             const bNum = formatBatch(l.batchNumber || 0);
             const initQ = l.initialQty !== undefined ? l.initialQty : '-';
             
@@ -4341,6 +4441,11 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                 <td style="font-weight:700;">${l.finalQty}</td>
             </tr>
         `}).join('');
+        
+        if (logs.length > 300) {
+            htmlStr += `<tr><td colspan="7" style="text-align:center; font-weight:bold; color:var(--danger); background:#fee2e2;">⚠️ System detected ${logs.length} logs! Only the latest 300 are displayed. Click 'CSV' to download the full report safely.</td></tr>`;
+        }
+        tbody.innerHTML = htmlStr;
         
         // Show buttons now that data is loaded and correct
         document.getElementById('invExportSection').style.display = 'block';
@@ -5310,13 +5415,15 @@ window.checkout = async () => {
                     const { ref, snapData, cartItem } = pObj;
 
                     let updatePayload = { qty: increment(-cartItem.qty) };
-
-                    if (cartItem.serials && cartItem.serials.length > 0) {
-                        updatePayload.availableSerials = arrayRemove(...cartItem.serials);
-                        updatePayload.soldSerials = arrayUnion(...cartItem.serials);
-                    }
-
                     transaction.update(ref, updatePayload);
+
+                    // 🛡️ ENTERPRISE FIX: Update Individual Serial Docs safely
+                    if (cartItem.serials && cartItem.serials.length > 0) {
+                        for (let serialCode of cartItem.serials) {
+                            const sRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/products/${ref.id}/serials`, serialCode);
+                            transaction.update(sRef, { status: 'sold', orderId: customOrderId });
+                        }
+                    }
 
                     const logRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/inventory_logs`));
                     transaction.set(logRef, {
@@ -5825,10 +5932,24 @@ window.autoFillDocCustomer = (name) => {
 
     async function loadDocumentsHistory() {
         const list = document.getElementById('docHistoryList');
-        list.innerHTML = '<div style="text-align:center; padding:20px; color:#666;">Loading recent documents...</div>';
+        list.innerHTML = '<div style="text-align:center; padding:20px; color:var(--primary); font-weight:bold;">Querying Database... <i class="ri-loader-4-line ri-spin"></i></div>';
         
         try {
-            const q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/documents`), orderBy('createdAt', 'desc'), limit(50));
+            const monthFilter = document.getElementById('docMonthFilter')?.value;
+            let q;
+
+            // 🛡️ ENTERPRISE FIX: Access hidden historical data via Month Filter
+            if (monthFilter) {
+                const startIso = new Date(monthFilter + "-01T00:00:00.000Z").toISOString();
+                const y = parseInt(monthFilter.split('-')[0]), m = parseInt(monthFilter.split('-')[1]);
+                const endIso = new Date(y, m, 0, 23, 59, 59, 999).toISOString();
+                
+                // Fetch ALL docs for that month (Bypassing the 50 limit)
+                q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/documents`), where("createdAt", ">=", startIso), where("createdAt", "<=", endIso), orderBy('createdAt', 'desc'), limit(300));
+            } else {
+                q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/documents`), orderBy('createdAt', 'desc'), limit(50));
+            }
+
             const snap = await getDocs(q);
             
             list.innerHTML = '';
@@ -6493,10 +6614,23 @@ window.autoFillDocCustomer = (name) => {
         if(!tbody) return;
         
         toggleLoader(true);
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:var(--primary); font-weight:bold;">Querying Sales Records... <i class="ri-loader-4-line ri-spin"></i></td></tr>';
         
         try {
-            // PRODUCTION: Pagination applied
-            const q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`), orderBy('date', 'desc'), limit(50));
+            // 🛡️ ENTERPRISE FIX: Dynamic Date Querying to access historical data
+            const dateFilter = document.getElementById('orderDateFilter')?.value;
+            let q;
+
+            if (dateFilter) {
+                // දිනයක් තේරුවහොත්, එම දිනයේ මුල සිට අග දක්වා සියලුම බිල්පත් ගෙන එයි (Bypasses the 50 limit completely!)
+                const startOfDay = new Date(dateFilter + "T00:00:00.000Z").toISOString();
+                const endOfDay = new Date(dateFilter + "T23:59:59.999Z").toISOString();
+                q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`), where("date", ">=", startOfDay), where("date", "<=", endOfDay), orderBy("date", "desc"), limit(300));
+            } else {
+                // Default: නිකන්ම Load වෙනකොට අලුත්ම බිල් 50 පමණක් පෙන්වයි
+                q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`), orderBy('date', 'desc'), limit(50));
+            }
+
             const snap = await getDocs(q);
             
             tbody.innerHTML = '';
@@ -7373,7 +7507,8 @@ window.autoFillDocCustomer = (name) => {
     let alertsCache = [  ];
     
     async function loadAlerts() {
-        const q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/alerts`), where('status', 'in', ['active', 'triggered']));
+        // 🛡️ ENTERPRISE FIX: Prevent Array Bomb (Limit to upcoming 300 to save RAM & Read Costs)
+        const q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/alerts`), where('status', 'in', ['active', 'triggered']), limit(300));
         const snap = await getDocs(q);
         alertsCache = [  ];
         snap.forEach(d => alertsCache.push({id: d.id, ...d.data()}));
@@ -7425,7 +7560,11 @@ window.autoFillDocCustomer = (name) => {
             return;
         }
         
-        alertsCache.forEach(a => {
+        // 🛡️ ENTERPRISE FIX: DOM Overload Prevention for Alerts Tab
+        const topAlerts = alertsCache.slice(0, 100);
+        let htmlStr = '';
+
+        topAlerts.forEach(a => {
             let statusBadge = '';
             let rowStyle = '';
             if (a.status === 'triggered') {
@@ -7458,6 +7597,11 @@ window.autoFillDocCustomer = (name) => {
                 </td>
             </tr>`;
         });
+        
+        if (alertsCache.length > 100) {
+            htmlStr += `<tr><td colspan="6" style="text-align:center; font-weight:bold; color:var(--primary); background:#e0e7ff;">+ ${alertsCache.length - 100} more alerts hidden to maintain speed.</td></tr>`;
+        }
+        tbody.innerHTML = htmlStr;
     }
 
     // ENTERPRISE FIX: Reschedule recurring alerts properly instead of closing them permanently!
@@ -8183,24 +8327,36 @@ window.autoFillDocCustomer = (name) => {
     window.updateDashboard = async () => {
         document.getElementById('dashEmp').textContent = document.querySelectorAll('#empGrid .card').length;
         
-        (async () => {
-            try {
-                const snap = await getDocs(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`));
-                let lowCount = 0;
-                let stockVal = 0;
-                snap.forEach(d => {
-                    const p = d.data();
-                    if(p.qty > 0) {
+        // 🛡️ ENTERPRISE FIX: FIREBASE BILLING & MEMORY TRAP PREVENTION
+        // Date Filter එක වෙනස් කරන සෑම විටම 10,000+ Products ඇදීම නතර කරයි! 
+        // මෙය ගණනය කරන්නේ Shop එක Load වෙද්දී එකම එක වතාවක් පමණි (Window Caching).
+        if (window.cachedStockValue === undefined || window.cachedLowCount === undefined) {
+            (async () => {
+                try {
+                    // Optimized: Only fetch items that actually have stock to calculate value
+                    const qStock = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`), where("qty", ">", 0));
+                    const snap = await getDocs(qStock);
+                    let lowCount = 0; let stockVal = 0;
+                    snap.forEach(d => {
+                        const p = d.data();
                         const itemVal = (parseFloat(p.buy) || 0) * (parseFloat(p.qty) || 0);
-                        stockVal = Math.round((stockVal + itemVal) * 100) / 100;
+                        stockVal += itemVal;
                         if(p.qty < 5) lowCount++;
-                    }
-                });
-                document.getElementById('dashLow').textContent = lowCount;
-                const stockEl = document.getElementById('dashStockValue');
-                if(stockEl) stockEl.textContent = formatMoney(stockVal);
-            } catch(e) { console.error("Dashboard metrics error", e); }
-        })();
+                    });
+                    window.cachedStockValue = Math.round(stockVal * 100) / 100;
+                    window.cachedLowCount = lowCount;
+                    
+                    document.getElementById('dashLow').textContent = window.cachedLowCount;
+                    const stockEl = document.getElementById('dashStockValue');
+                    if(stockEl) stockEl.textContent = formatMoney(window.cachedStockValue);
+                } catch(e) { console.error("Dashboard metrics error", e); }
+            })();
+        } else {
+            // Use cached values immediately without hitting Firebase! (Lightning Fast & Free)
+            document.getElementById('dashLow').textContent = window.cachedLowCount;
+            const stockEl = document.getElementById('dashStockValue');
+            if(stockEl) stockEl.textContent = formatMoney(window.cachedStockValue);
+        }
         
         const filterType = document.getElementById('dashFilterType').value;
         // 🛡️ ENTERPRISE FIX: Moved totalCOGS to global scope to prevent ReferenceError crash
@@ -8570,46 +8726,48 @@ window.handlePosSearchEnter = async (e) => {
                     return;
                 }
 
-                // 🚀 2. FRAUD CHECK (SOLD SERIALS)
-                const qSold = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`), where('soldSerials', 'array-contains', term), limit(1));
-                const snapSold = await getDocs(qSold);
-                
-                if (!snapSold.empty) {
-                    toggleLoader(false);
-                    window.isScanningBarcode = false;
-                    document.getElementById('posSearch').value = '';
-                    
-                    if(window.writeSystemLog) writeSystemLog("FRAUD_ATTEMPT_DETECTED", `CRITICAL: Someone attempted to scan a barcode that was ALREADY SOLD! (Serial: ${term})`);
-                    
-                    alert("🚨 FRAUD ALERT! 🚨\n\nමෙම Barcode අංකය මීට පෙර විකුණා අවසන් වූවකි!");
-                    return showToast("Fraud Alert! Barcode reused.", "error");
-                }
+                // 🚀 2 & 3. ENTERPRISE OMNI-SERIAL SEARCH (Deep CollectionGroup Query)
+                // Array-contains ඉවත් කර, ලෝකයේ කොහේ තිබුණත් මේ කඩේ ඇතුළේ තියෙන Serial එක තත්පරයෙන් හොයාගනී!
+                const qSerial = query(collectionGroup(db, 'serials'), where('code', '==', term), limit(1));
+                const snapSerial = await getDocs(qSerial);
 
-                // 🚀 3. AVAILABLE SERIAL CHECK
-                const qAvail = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`), where('availableSerials', 'array-contains', term), limit(1));
-                const snapAvail = await getDocs(qAvail);
-
-                if (!snapAvail.empty) {
-                    if (currentCartSerials.includes(term)) {
-                        toggleLoader(false);
-                        window.isScanningBarcode = false;
-                        document.getElementById('posSearch').value = '';
-                        return showToast("This specific packet is already in the cart!", "warning");
+                if (!snapSerial.empty) {
+                    const sDoc = snapSerial.docs[0];
+                    const sData = sDoc.data();
+                    
+                    // Shop Validation (Security Check)
+                    if (!sDoc.ref.path.includes(currentShopId)) {
+                        toggleLoader(false); window.isScanningBarcode = false;
+                        return showToast("Invalid Barcode: Belongs to another branch!", "error");
                     }
 
-                    const batchDoc = snapAvail.docs[0];
-                    const selectedBatch = { id: batchDoc.id, ...batchDoc.data() };
+                    if (sData.status === 'sold') {
+                        toggleLoader(false); window.isScanningBarcode = false; document.getElementById('posSearch').value = '';
+                        if(window.writeSystemLog) writeSystemLog("FRAUD_ATTEMPT_DETECTED", `CRITICAL: Attempted to scan ALREADY SOLD barcode! (Serial: ${term})`);
+                        alert("🚨 FRAUD ALERT! 🚨\n\nමෙම Barcode අංකය මීට පෙර විකුණා අවසන් වූවකි!");
+                        return showToast("Fraud Alert! Barcode reused.", "error");
+                    }
 
-                    if(!productsCache.find(p => p.id === selectedBatch.id)) productsCache.push(selectedBatch);
-                    addSerialToCart(selectedBatch, term);
+                    if (sData.status === 'available') {
+                        if (currentCartSerials.includes(term)) {
+                            toggleLoader(false); window.isScanningBarcode = false; document.getElementById('posSearch').value = '';
+                            return showToast("This specific packet is already in the cart!", "warning");
+                        }
 
-                    document.getElementById('posSearch').value = ''; 
-                    filterPos(); 
-                    setTimeout(() => { document.getElementById('posSearch').focus(); }, 50);
-                    toggleLoader(false);
-                    window.isScanningBarcode = false;
-                    return;
-                } 
+                        // Get Parent Product Details!
+                        const prodRef = sDoc.ref.parent.parent;
+                        const pSnap = await getDoc(prodRef);
+                        const selectedBatch = { id: pSnap.id, ...pSnap.data() };
+
+                        if(!productsCache.find(p => p.id === selectedBatch.id)) productsCache.push(selectedBatch);
+                        addSerialToCart(selectedBatch, term);
+
+                        document.getElementById('posSearch').value = ''; 
+                        filterPos(); setTimeout(() => { document.getElementById('posSearch').focus(); }, 50);
+                        toggleLoader(false); window.isScanningBarcode = false;
+                        return;
+                    }
+                }
                 
                 // 🚀 4. GLOBAL SKU (COMPANY BARCODE) FALLBACK
                 const qSku = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`), where('sku', '==', term), limit(1));
@@ -8986,7 +9144,8 @@ window.setQuickCash = (amount) => {
 
 // --- SERVICES LOGIC ---
     window.loadServices = async () => {
-        const q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/services`));
+        // 🛡️ ENTERPRISE FIX: Bounded Query to prevent Firebase Bill Spikes
+        const q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/services`), limit(300));
         const snap = await getDocs(q);
         
         servicesCache =[]; 
@@ -9002,7 +9161,28 @@ window.setQuickCash = (amount) => {
             return;
         }
         
-        tbody.innerHTML = servicesCache.map(s => {
+        // 🛡️ Prevent DOM Crash
+        const topResults = servicesCache.slice(0, 100);
+        
+        let htmlStr = topResults.map(s => {
+            const catName = serviceCategoriesCache.find(c => c.id === s.categoryId)?.name || 'Uncategorized';
+            return `
+            <tr>
+                <td style="font-weight:600;">${s.name}</td>
+                <td style="font-size:12px; color:#6b7280;">${catName}</td>
+                <td style="color:var(--primary); font-weight:700;">${formatMoney(s.price)}</td>
+                <td>
+                    <button class="btn btn-warning" style="padding:4px 8px; font-size:11px;" onclick="editService('${s.id}')">Edit</button>
+                    <button class="btn btn-danger" style="padding:4px 8px; font-size:11px;" onclick="deleteService('${s.id}')"><i class="ri-delete-bin-line"></i></button>
+                </td>
+            </tr>`;
+        }).join('');
+
+        if (servicesCache.length > 100) {
+            htmlStr += `<tr><td colspan="4" style="text-align:center; color:var(--primary); font-weight:bold;">+ More services hidden to maintain speed.</td></tr>`;
+        }
+        tbody.innerHTML = htmlStr;
+    };
             const catName = serviceCategoriesCache.find(c => c.id === s.categoryId)?.name || 'Uncategorized';
             return `
             <tr>
@@ -9435,6 +9615,42 @@ window.setQuickCash = (amount) => {
     // ENTERPRISE CASH FLOW (INCOME & EXPENSE) LOGIC
     // ==========================================
     
+    // 🛡️ ENTERPRISE FIX: Fetch Historical Expenses directly from DB
+    window.fetchHistoricalExpenses = async () => {
+        const monthFilter = document.getElementById('expenseMonthFilter').value;
+        const tbody = document.querySelector('#expensesTable tbody');
+        if(!tbody) return;
+
+        if (!monthFilter) {
+            // No filter? Use default cache
+            return window.loadExpensesUI();
+        }
+
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--primary); font-weight:bold;">Querying Cash Flow... <i class="ri-loader-4-line ri-spin"></i></td></tr>';
+        
+        try {
+            const startIso = new Date(monthFilter + "-01T00:00:00.000Z").toISOString();
+            const y = parseInt(monthFilter.split('-')[0]), m = parseInt(monthFilter.split('-')[1]);
+            const endIso = new Date(y, m, 0, 23, 59, 59, 999).toISOString();
+
+            const q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`), where("date", ">=", startIso), where("date", "<=", endIso), orderBy("date", "desc"));
+            const snap = await getDocs(q);
+            
+            let tempExpCache = [];
+            snap.forEach(d => tempExpCache.push({id: d.id, ...d.data()}));
+
+            // Temporary overwrite cache for UI render
+            const originalCache = [...expensesCache];
+            expensesCache = tempExpCache;
+            window.loadExpensesUI();
+            expensesCache = originalCache; // Restore original cache
+
+        } catch (e) {
+            console.error("Expense Fetch Error", e);
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:red;">Failed to fetch historical expenses.</td></tr>';
+        }
+    };
+
     window.loadExpensesUI = () => {
         const tbody = document.querySelector('#expensesTable tbody');
         if(!tbody) return;
@@ -9736,9 +9952,14 @@ window.setQuickCash = (amount) => {
 // ==========================================
     // 1. SUPPLIER MANAGEMENT LOGIC
     // ==========================================
+    // 🛡️ ENTERPRISE FIX: Added limit and UI rendering separation
     window.loadSuppliers = () => {
         const tbody = document.querySelector('#suppliersTable tbody');
-        tbody.innerHTML = suppliersCache.length ? suppliersCache.map(s => `
+        
+        // Limit rendering to 100 to prevent DOM crash if suppliers > 500
+        const topResults = suppliersCache.slice(0, 100);
+        
+        let htmlStr = topResults.map(s => `
             <tr>
                 <td style="font-weight:600;">${s.name}</td>
                 <td>${s.contact || '-'}</td>
@@ -9747,7 +9968,13 @@ window.setQuickCash = (amount) => {
                     <button class="btn btn-danger" style="padding:4px 8px; font-size:11px;" onclick="deleteSupplier('${s.id}')">Delete</button>
                 </td>
             </tr>
-        `).join('') : '<tr><td colspan="4" style="text-align:center;">No Suppliers.</td></tr>';
+        `).join('');
+
+        if (suppliersCache.length > 100) {
+            htmlStr += `<tr><td colspan="4" style="text-align:center; color:var(--primary); font-weight:bold;">+ More suppliers hidden to maintain speed.</td></tr>`;
+        }
+        
+        tbody.innerHTML = htmlStr || '<tr><td colspan="4" style="text-align:center;">No Suppliers found.</td></tr>';
     };
 
     window.openSupplierModal = () => {
@@ -9800,6 +10027,76 @@ window.setQuickCash = (amount) => {
 
     // Note: To save Supplier with Stock, update saveStock() logic slightly if needed, but since we are modifying the DOM directly, we just need to read it.
     // In saveStock(), we just read document.getElementById('mpSupplier').value. Since this is advanced, I am assuming you add it to the 'stockData' object.
+
+// 🛡️ ENTERPRISE FIX: Deep Omni-Search for Suppliers (Bypasses UI Limits)
+    window.filterSuppliers = debounceSearch(async () => {
+        const originalTerm = document.getElementById('supplierSearchInput').value.trim();
+        const term = originalTerm.toLowerCase();
+        
+        if (originalTerm.length >= 3) {
+            document.querySelector('#suppliersTable tbody').innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--primary); font-weight:bold;">Searching Database... <i class="ri-loader-4-line ri-spin"></i></td></tr>';
+            
+            try {
+                const capTerm = term.charAt(0).toUpperCase() + term.slice(1);
+                // Search by Phone or Name
+                const qPhone = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/suppliers`), where('phone', '>=', originalTerm), where('phone', '<=', originalTerm + '\uf8ff'), limit(15));
+                const qName = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/suppliers`), where('name', '>=', capTerm), where('name', '<=', capTerm + '\uf8ff'), limit(20));
+
+                const [snapPhone, snapName] = await Promise.all([getDocs(qPhone), getDocs(qName)]);
+                
+                const addToCache = (d) => { if(!suppliersCache.find(x => x.id === d.id)) suppliersCache.unshift({id: d.id, ...d.data()}); };
+                snapPhone.forEach(addToCache);
+                snapName.forEach(addToCache);
+            } catch (e) { console.error("Supplier Search Error:", e); }
+        }
+        
+        // Render from filtered cache
+        const tbody = document.querySelector('#suppliersTable tbody');
+        const filtered = suppliersCache.filter(s => s.name.toLowerCase().includes(term) || (s.phone && s.phone.includes(originalTerm)));
+        
+        tbody.innerHTML = filtered.slice(0, 100).map(s => `
+            <tr>
+                <td style="font-weight:600;">${s.name}</td><td>${s.contact || '-'}</td><td>${s.phone}</td>
+                <td><button class="btn btn-danger" style="padding:4px 8px; font-size:11px;" onclick="deleteSupplier('${s.id}')">Delete</button></td>
+            </tr>
+        `).join('') || '<tr><td colspan="4" style="text-align:center; color:#666;">No suppliers found.</td></tr>';
+    }, 400);
+
+    // 🛡️ ENTERPRISE FIX: Deep Omni-Search for Services (Bypasses UI Limits)
+    window.filterServices = debounceSearch(async () => {
+        const term = document.getElementById('serviceSearchInput').value.trim().toLowerCase();
+        
+        if (term.length >= 3) {
+            document.querySelector('#servicesTable tbody').innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--primary); font-weight:bold;">Searching Database... <i class="ri-loader-4-line ri-spin"></i></td></tr>';
+            try {
+                const capTerm = term.charAt(0).toUpperCase() + term.slice(1);
+                const qNameLow = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/services`), where('name', '>=', term), where('name', '<=', term + '\uf8ff'), limit(20));
+                const qNameCap = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/services`), where('name', '>=', capTerm), where('name', '<=', capTerm + '\uf8ff'), limit(20));
+
+                const [snapLow, snapCap] = await Promise.all([getDocs(qNameLow), getDocs(qNameCap)]);
+                
+                const addToCache = (d) => { if(!servicesCache.find(x => x.id === d.id)) servicesCache.unshift({id: d.id, ...d.data()}); };
+                snapLow.forEach(addToCache);
+                snapCap.forEach(addToCache);
+            } catch (e) { console.error("Service Search Error:", e); }
+        }
+        
+        // Render from filtered cache
+        const tbody = document.querySelector('#servicesTable tbody');
+        const filtered = servicesCache.filter(s => s.name.toLowerCase().includes(term));
+        
+        tbody.innerHTML = filtered.slice(0, 100).map(s => {
+            const catName = serviceCategoriesCache.find(c => c.id === s.categoryId)?.name || 'Uncategorized';
+            return `<tr>
+                <td style="font-weight:600;">${s.name}</td><td style="font-size:12px; color:#6b7280;">${catName}</td>
+                <td style="color:var(--primary); font-weight:700;">${formatMoney(s.price)}</td>
+                <td>
+                    <button class="btn btn-warning" style="padding:4px 8px; font-size:11px;" onclick="editService('${s.id}')">Edit</button>
+                    <button class="btn btn-danger" style="padding:4px 8px; font-size:11px;" onclick="deleteService('${s.id}')"><i class="ri-delete-bin-line"></i></button>
+                </td>
+            </tr>`;
+        }).join('') || '<tr><td colspan="4" style="text-align:center; color:#666;">No services found.</td></tr>';
+    }, 400);
 
     // ==========================================
     // 2. DEBT COLLECTION LOGIC (ENTERPRISE GRADE)
@@ -10319,8 +10616,9 @@ document.getElementById('eodReportArea').style.display = 'block';
         toggleLoader(true);
         try {
             const stockMap = {};
-            // Fetch ALL products directly from DB
-            const snap = await getDocs(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`));
+            // 🛡️ ENTERPRISE FIX: Stop Full DB Scan! Fetch ONLY active items (qty > 0) to prevent massive billing spikes.
+            const q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`), where("qty", ">", 0), limit(1500));
+            const snap = await getDocs(q);
             
             snap.forEach(d => {
                 const p = d.data();
@@ -10393,19 +10691,27 @@ document.getElementById('eodReportArea').style.display = 'block';
         const year = parseInt(document.getElementById('payrollYear').value);
         const tbody = document.querySelector('#masterPayrollTable tbody');
         
-        if(!employeesCache || employeesCache.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;">No employees found.</td></tr>';
-            return;
-        }
-
-        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;">Calculating Master Payroll...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; color:var(--primary); font-weight:bold;">Fetching Database & Calculating Master Payroll... <i class="ri-loader-4-line ri-spin"></i></td></tr>';
         toggleLoader(true);
         currentPayrollData =[];
 
         try {
+            // 🛡️ ENTERPRISE FIX REVERT: PAYROLL MUST FETCH EVERYONE! 
+            // පඩි හැදීමේදී සේවකයින් මඟහැරීම නීතිමය ප්‍රශ්නයක් බැවින්, මෙතැනින් 'limit' සම්පූර්ණයෙන්ම ඉවත් කර ඇත. සියලුම දෙනාගේ පඩි අනිවාර්යයෙන් හැදේ.
+            const empQ = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/employees`));
+            const empSnap = await getDocs(empQ);
+            let allEmployees = [];
+            empSnap.forEach(d => allEmployees.push({id: d.id, ...d.data()}));
+            
+            if(allEmployees.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; color:#6b7280;">No employees found in the database.</td></tr>';
+                toggleLoader(false);
+                return;
+            }
+
             let html = '';
-            // Process each employee
-            for(let emp of employeesCache) {
+            // Process each employee securely
+            for(let emp of allEmployees) {
                 const logsRef = collection(db, `users/${dbOwnerId}/shops/${currentShopId}/employees/${emp.id}/logs`);
                 const lastDay = new Date(year, month + 1, 0).getDate();
                 const startOfMonth = `${year}-${String(month + 1).padStart(2, '0')}-01`;
@@ -10493,6 +10799,7 @@ document.getElementById('eodReportArea').style.display = 'block';
                     </td>
                 </tr>`;
             }
+            
             tbody.innerHTML = html;
             if(window.writeSystemLog) writeSystemLog("PAYROLL_VIEWED", `Generated and viewed Master Payroll on screen for Month: ${month + 1}, Year: ${year}`);
         } catch(e) {
@@ -11172,7 +11479,11 @@ document.getElementById('eodReportArea').style.display = 'block';
             // Find max for the progress bar calculation
             const maxQty = sortedItems[0].qty;
 
-            tbody.innerHTML = sortedItems.map(item => {
+            // 🛡️ ENTERPRISE FIX: DOM Overload Prevention
+            // Limit rendering to Top 150 Best Sellers. Rendering 5000 progress bars will crash the browser.
+            const topItems = sortedItems.slice(0, 150);
+
+            let htmlStr = topItems.map(item => {
                 const perc = Math.round((item.qty / maxQty) * 100);
                 let badge = `<span class="analytics-badge b-low">Slow Mover</span>`;
                 if(perc > 70) badge = `<span class="analytics-badge b-high">Best Seller</span>`;
@@ -11193,6 +11504,11 @@ document.getElementById('eodReportArea').style.display = 'block';
                     </td>
                 </tr>`;
             }).join('');
+            
+            if (sortedItems.length > 150) {
+                htmlStr += `<tr><td colspan="4" style="text-align:center; font-weight:bold; color:var(--primary); background:#e0e7ff;">+ ${sortedItems.length - 150} slow-moving items hidden to maintain system speed.</td></tr>`;
+            }
+            tbody.innerHTML = htmlStr;
 
         } catch(e) {
             console.error(e);
@@ -11390,6 +11706,10 @@ document.getElementById('eodReportArea').style.display = 'block';
                 tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:#6b7280;">No service reminders found for this period.</td></tr>';
                 return;
             }
+            
+            // 🛡️ ENTERPRISE FIX: DOM Overload Prevention
+            const topServices = services.slice(0, 100);
+
 // 🚀 ENTERPRISE FIX: Build Alias Map for CRM to prevent Amnesia Bug
             const aliasMap = {};
             customersCache.forEach(c => {
@@ -11398,7 +11718,7 @@ document.getElementById('eodReportArea').style.display = 'block';
                 }
             });
 
-            for (let s of services) {
+            for (let s of topServices) {
                 let custName = "Unknown Customer";
                 let custPhone = s.refId || "N/A";
                 let migratedBadge = "";
@@ -11478,6 +11798,9 @@ document.getElementById('eodReportArea').style.display = 'block';
                 </tr>`;
             }
 
+            if (services.length > 100) {
+                html += `<tr><td colspan="6" style="text-align:center; font-weight:bold; color:var(--primary); background:#e0e7ff;">+ ${services.length - 100} more reminders hidden to maintain speed. Filter by month to see them.</td></tr>`;
+            }
             tbody.innerHTML = html;
 
         } catch(e) {
@@ -11808,37 +12131,50 @@ let currentBatchForSerials = null;
     let currentAuditBatches = [];
 
     window.loadStockTakeUI = async () => {
-        const sel = document.getElementById('stProductSelect');
-        sel.innerHTML = '<option value="">-- Select Product --</option>';
+        const dl = document.getElementById('stProductList');
+        dl.innerHTML = '';
         
-        // Populate only unique base products that have active stock batches
-        const uniqueNames = [...new Set(productsCache.map(p => p.name))].sort();
+        // Populate quick suggestions from Catalog Cache (Catalog has recent 150)
+        // Even if not in suggestions, user can type any name to trigger Deep Search!
+        const uniqueNames = [...new Set(catalogCache.map(p => p.name))].sort();
         uniqueNames.forEach(n => {
-            sel.innerHTML += `<option value="${n.replace(/"/g, '&quot;')}">${n}</option>`;
+            dl.innerHTML += `<option value="${n.replace(/"/g, '&quot;')}">`;
         });
 
+        document.getElementById('stProductSelect').value = '';
         document.getElementById('stBatchArea').style.display = 'none';
         document.getElementById('stNoteInput').value = '';
         await loadStockTakeHistory();
     };
 
-    window.selectProductForStockTake = () => {
+    // 🛡️ ENTERPRISE FIX: Async Server-Side Query for Audits (Bypasses 150-Cache Limit)
+    window.selectProductForStockTake = async () => {
         const pName = document.getElementById('stProductSelect').value;
         if (!pName) {
             document.getElementById('stBatchArea').style.display = 'none';
             return;
         }
 
-        // 1. Get all batches for this product (Including 0 qty, because they might physically exist!)
-        currentAuditBatches = productsCache.filter(p => p.name === pName).sort((a,b) => (a.batchNumber||0) - (b.batchNumber||0));
-        
-        if(currentAuditBatches.length === 0) {
-            showToast("No history of this product in stock batches.", "error");
-            document.getElementById('stBatchArea').style.display = 'none';
-            return;
-        }
+        toggleLoader(true);
+        try {
+            // 1. Fetch ALL historical batches for this specific product directly from DB
+            const q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`), where("name", "==", pName));
+            const snap = await getDocs(q);
+            
+            currentAuditBatches = [];
+            snap.forEach(d => currentAuditBatches.push({id: d.id, ...d.data()}));
+            
+            // Sort chronologically
+            currentAuditBatches.sort((a,b) => (a.batchNumber||0) - (b.batchNumber||0));
+            
+            if(currentAuditBatches.length === 0) {
+                toggleLoader(false);
+                showToast("No history of this product in stock batches.", "error");
+                document.getElementById('stBatchArea').style.display = 'none';
+                return;
+            }
 
-        const tbody = document.getElementById('stBatchBody');
+            const tbody = document.getElementById('stBatchBody');
         tbody.innerHTML = currentAuditBatches.map((b, idx) => {
             return `
             <tr>
@@ -11853,6 +12189,12 @@ let currentBatchForSerials = null;
 
         document.getElementById('stBatchArea').style.display = 'block';
         calculateStockVariance(); // Initial Calculation
+        
+        } catch(e) {
+            console.error("Audit Fetch Error:", e);
+            showToast("Failed to fetch product batches from database.", "error");
+        }
+        toggleLoader(false);
     };
 
     window.calculateStockVariance = () => {
@@ -12007,6 +12349,52 @@ let currentBatchForSerials = null;
         } catch(e) {
             console.error(e);
             tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:red;">Failed to load history.</td></tr>';
+        }
+    };
+// ==========================================
+    // 🛡️ ENTERPRISE DISASTER RECOVERY (JSON MASTER BACKUP)
+    // ==========================================
+    window.downloadMasterBackup = async () => {
+        if(userRole !== 'admin') return showToast("Security Alert: Only Admin can export database!", "error");
+        if(!confirm("⚠️ Generate Full Database Backup?\n\nThis will download ALL sales, customers, employees, and inventory records as a JSON file to your computer. Please keep this file extremely secure!")) return;
+        
+        toggleLoader(true);
+        try {
+            const backupData = {
+                metadata: { shopName: shopsCache.find(s => s.id === currentShopId)?.name, exportDate: new Date().toISOString(), exportedBy: currentUser.email, appVersion: "v4.0 Enterprise" },
+                data: {}
+            };
+            
+            // All critical collections to backup
+            const collectionsToBackup = ['products', 'sales', 'customers', 'customer_archives', 'employees', 'documents', 'categories', 'base_products', 'refunds', 'alerts', 'inventory_logs', 'settings', 'expenses', 'suppliers', 'services', 'service_categories', 'stock_take_reports', 'employee_roles'];
+            
+            for (let colName of collectionsToBackup) {
+                const snap = await getDocs(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/${colName}`));
+                backupData.data[colName] = [];
+                snap.forEach(d => backupData.data[colName].push({ id: d.id, ...d.data() }));
+            }
+            
+            // Generate Downloadable JSON
+            const jsonStr = JSON.stringify(backupData, null, 2);
+            const blob = new Blob([jsonStr], { type: "application/json" });
+            const url = window.URL.createObjectURL(blob);
+            
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `Nawarathna_Cool_Eng_Backup_${new Date().getTime()}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            
+            if(window.writeSystemLog) writeSystemLog("DATABASE_BACKUP_EXPORTED", `Admin securely exported the entire database as a JSON backup file.`);
+            showToast("Master Backup Downloaded Successfully!", "success");
+            
+        } catch(e) {
+            console.error("Backup Failed:", e);
+            showToast("Error generating backup. Check console.", "error");
+        } finally {
+            toggleLoader(false);
         }
     };
 </script>
