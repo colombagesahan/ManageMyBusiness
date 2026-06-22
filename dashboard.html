@@ -478,6 +478,15 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                                 <input type="checkbox" id="showEmail" checked> Show on Docs
                             </label>
                         </div>
+
+                        <!-- 🛡️ ENTERPRISE FIX: Shop Default Bill Size -->
+                        <label style="font-size:12px; margin-top:10px; font-weight:bold; color:var(--primary);">Default POS Bill Size (Global)</label>
+                        <select id="profDefaultBillSize" style="margin-bottom:0; border-color:var(--primary); font-weight:bold;">
+                            <option value="80mm">80mm Thermal Receipt (Standard)</option>
+                            <option value="58mm">58mm Thermal Receipt (Small)</option>
+                            <option value="A4">A4 Formal Document</option>
+                        </select>
+                        <div style="font-size:10px; color:#6b7280; margin-top:5px; margin-bottom:10px;">This will be the default print size for all computers in this branch.</div>
                         
                         <!-- 🛡️ ENTERPRISE FIX: SECURITY PIN FOR MANAGER OVERRIDE -->
                         <div style="margin-top: 15px; padding: 10px; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px;">
@@ -2219,6 +2228,36 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         </div>
     </div>
 </div>
+<!-- 🚀 NEW: TIME-BOUND PROMOTION MODAL -->
+<div id="promoModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.7); display:none; align-items:center; justify-content:center; z-index:4000; backdrop-filter: blur(2px);">
+    <div class="card" style="width:400px; margin:0; border-top: 5px solid var(--primary);">
+        <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+            <h3 style="color:var(--primary);"><i class="ri-discount-percent-fill"></i> Setup Promotion</h3>
+            <i class="ri-close-line" style="cursor:pointer; font-size:24px;" onclick="closeModal('promoModal')"></i>
+        </div>
+        <p style="font-size:12px; color:#666; margin-bottom:15px;">Set a temporary discount for this specific batch. It will automatically expire at the set time.</p>
+        
+        <input type="hidden" id="promoBatchId">
+        <div id="promoItemName" style="font-weight:900; margin-bottom:10px; color:#1f2937;"></div>
+
+        <label style="font-size:12px; font-weight:bold;">Discount Type</label>
+        <select id="promoType" style="margin-bottom:10px;">
+            <option value="percent">Percentage (%)</option>
+            <option value="amount">Fixed Amount (Rs)</option>
+        </select>
+
+        <label style="font-size:12px; font-weight:bold;">Discount Value</label>
+        <input type="number" id="promoValue" placeholder="e.g. 10 or 500" style="margin-bottom:10px;">
+
+        <label style="font-size:12px; font-weight:bold; color:var(--danger);">Promotion End Date & Time *</label>
+        <input type="datetime-local" id="promoEnd" style="border-color:var(--danger); font-weight:bold; margin-bottom:15px;">
+
+        <div style="display:flex; gap:10px;">
+            <button class="btn btn-primary" style="flex:1;" onclick="savePromotion()"><i class="ri-save-line"></i> Save Promo</button>
+            <button class="btn btn-danger" style="flex:1;" onclick="clearPromotion()"><i class="ri-delete-bin-line"></i> Remove Promo</button>
+        </div>
+    </div>
+</div>
 <!-- LOGIC -->
 
 <script type="module">
@@ -2805,12 +2844,15 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             writeSystemLog("BRANCH_SWITCHED", `User switched active dashboard view to branch: ${currentShopData.name}`);
         }
 
-        // Restore Bill Size preference for this shop securely
-        const savedSize = localStorage.getItem('posBillSize_' + currentShopId);
-        if(savedSize) {
-            const billSizeDropdown = document.getElementById('posBillSize');
-            if(billSizeDropdown) billSizeDropdown.value = savedSize;
-        }
+        // 🛡️ ENTERPRISE FIX: Load Default Bill Size from DB, Fallback to LocalStorage
+        let targetBillSize = '80mm';
+        if (profileCache && profileCache.defaultBillSize) targetBillSize = profileCache.defaultBillSize; // 1st Priority: DB Profile
+        
+        const savedLocalSize = localStorage.getItem('posBillSize_' + currentShopId);
+        if (savedLocalSize) targetBillSize = savedLocalSize; // 2nd Priority: Cashier temporary override
+        
+        const billSizeDropdown = document.getElementById('posBillSize');
+        if(billSizeDropdown) billSizeDropdown.value = targetBillSize;
         
         if (currentShopData) {
             currentCurrency = currentShopData.currency || "$";
@@ -3097,9 +3139,10 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         document.getElementById('profWhatsapp').value = p.whatsapp || '';
         document.getElementById('profFax').value = p.fax || '';
         document.getElementById('profEmail').value = p.email || '';
+        document.getElementById('profDefaultBillSize').value = p.defaultBillSize || '80mm'; // 🛡️ Load Default Bill Size
         
         // Load the Manager PIN. If not set previously, default to 0000
-        document.getElementById('profManagerPin').value = p.managerPin || '0000'; 
+        document.getElementById('profManagerPin').value = p.managerPin || '0000';
         
         document.getElementById('profLogoFont').value = p.logoFont || "'Plus Jakarta Sans'";
         document.getElementById('profLogoColor').value = p.logoColor || '#4F46E5';
@@ -3165,6 +3208,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             whatsapp: document.getElementById('profWhatsapp').value.trim(),
             fax: document.getElementById('profFax').value.trim(),
             email: document.getElementById('profEmail').value.trim(),
+            defaultBillSize: document.getElementById('profDefaultBillSize').value, // 🛡️ Save Default Bill Size
             
             // Save the Manager PIN (Fallback to 0000 if left empty)
             managerPin: document.getElementById('profManagerPin').value.trim() || '0000',
@@ -3792,6 +3836,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                         <td>
         <button class="btn btn-info" style="padding:4px 8px; margin-bottom:4px;" onclick="openBatchSerials('${p.id}')"><i class="ri-barcode-box-line"></i> Serials</button><br>
         <button class="btn btn-ghost" style="padding:4px 8px; border-color:var(--warning); color:var(--warning);" onclick="openWriteOff('${p.id}')" title="Adjust Stock / Owner Drawings"><i class="ri-equalizer-line"></i></button>
+        <button class="btn btn-info" style="padding:4px 8px; background:#4f46e5;" onclick="openPromoModal('${p.id}')" title="Time-bound Promotion"><i class="ri-discount-percent-line"></i></button>
         <button class="btn btn-warning" style="padding:4px 8px;" onclick="editStock('${p.id}')">Edit</button>
         <button class="btn btn-danger" style="padding:4px 8px;" onclick="deleteProduct('${p.id}', this.dataset.name)" data-name="${p.name.replace(/"/g, '&quot;').replace(/'/g, "&#39;")}"><i class="ri-delete-bin-line"></i></button>
     </td>
@@ -4609,8 +4654,17 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             }
 
             const imgTag = p.image ? `<img src="${p.image}" style="width:100%; height:80px; object-fit:contain; margin-bottom:5px;">` : '';
+            
+            // 🛡️ Apply Promo Logic to POS Grid
+            const priceInfo = window.getEffectivePrice(p.batches[0]);
+            const displayPriceHtml = priceInfo.isPromo 
+                ? `<div style="color:#9ca3af; text-decoration:line-through; font-size:11px;">${formatMoney(p.batches[0].sell)}</div>
+                   <div style="color:var(--danger); font-weight:900; font-size:18px;">${formatMoney(priceInfo.price)} <i class="ri-fire-fill" style="font-size:14px;"></i></div>` 
+                : `<div style="color:var(--primary); font-weight:800; font-size:16px;">${formatMoney(p.batches[0].sell)}</div>`;
+
             return `
-            <div onclick="addToCart('${p.oldestBatchId}')" style="background:white; padding:10px; border-radius:8px; cursor:pointer; text-align:center; border:1px solid #e5e7eb; box-shadow:0 1px 2px rgba(0,0,0,0.05); position:relative; overflow:hidden; display:flex; flex-direction:column; justify-content:space-between;">
+            <div onclick="addToCart('${p.oldestBatchId}')" style="background:${priceInfo.isPromo ? '#fff1f2' : 'white'}; border-color:${priceInfo.isPromo ? '#fecaca' : '#e5e7eb'}; padding:10px; border-radius:8px; cursor:pointer; text-align:center; border:1px solid; box-shadow:0 1px 2px rgba(0,0,0,0.05); position:relative; overflow:hidden; display:flex; flex-direction:column; justify-content:space-between;">
+                ${priceInfo.isPromo ? `<div style="position:absolute; top:5px; right:5px; background:var(--danger); color:white; padding:2px 4px; border-radius:4px; font-size:9px; font-weight:bold; animation: blink-success 2s infinite;">PROMO</div>` : ''}
                 ${p.batches.length > 1 ? `<div style="position:absolute; top:5px; left:5px; background:#fef3c7; color:#d97706; padding:2px 4px; border-radius:4px; font-size:9px; font-weight:bold; border:1px solid #fde68a;">${p.batches.length} BATCHES</div>` : ''}
                 ${p.isRefund ? `<div style="position:absolute; top:5px; right:5px; background:#dbeafe; color:#1e40af; padding:2px 4px; border-radius:4px; font-size:9px; font-weight:bold; border:1px solid #bfdbfe;">RETURNED</div>` : ''}
                 
@@ -5019,20 +5073,37 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         // UX FIX: දැනට ඇති Scroll ස්ථානය සටහන් කර ගැනීම
         const currentScrollPos = con.scrollTop; 
         
+        // 🚀 ENTERPRISE POS ITEM NOTES LOGIC
+        window.addPosItemNote = (idx) => {
+            const currentNote = cart[idx].description || '';
+            const note = prompt(`Enter warranty or specific note for '${cart[idx].name}':`, currentNote);
+            if (note !== null) { cart[idx].description = note.trim(); renderCart(); }
+        };
+
         con.innerHTML = cart.map((i, idx) => {
-            subtotal += i.sell * i.qty;
-            return `<div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:13px; align-items:center;">
-                <div style="flex:1;">
-                   <div style="font-weight:500;">${i.name}</div>
+            // Apply Live Promo Pricing directly in the cart
+            const priceInfo = window.getEffectivePrice(i);
+            i.effectiveSell = priceInfo.price; // Save for checkout
+            
+            subtotal += i.effectiveSell * i.qty;
+            
+            return `<div style="display:flex; justify-content:space-between; margin-bottom:12px; font-size:13px; align-items:flex-start; border-bottom:1px dashed #e5e7eb; padding-bottom:8px;">
+                <div style="flex:1; padding-right:10px;">
+                   <div style="font-weight:600; display:flex; align-items:center; gap:5px;">
+                        ${i.name} 
+                        ${priceInfo.isPromo ? `<span style="background:var(--danger); color:white; padding:1px 4px; border-radius:3px; font-size:8px;">PROMO</span>` : ''}
+                   </div>
                    
-                   <!-- NEW: Serial අංකය Cart එකේ පෙන්වීම -->
+                   <!-- POS Item Notes Indicator -->
+                   ${i.description ? `<div style="font-size:10px; color:#059669; font-weight:600; margin-top:2px;"><i class="ri-check-line"></i> Note: ${i.description.substring(0,25)}...</div>` : ''}
+                   
                    ${i.serials && i.serials.length > 0 ? 
                      `<div style="font-family:monospace; font-size:11px; color:var(--primary); font-weight:900; background:#e0e7ff; padding:2px 6px; border-radius:4px; display:inline-block; margin-top:2px; border:1px solid #c7d2fe;">
                          S/N: ${i.serials.map(s => s.split('-').pop()).join(', ')}
                      </div>` 
                    : ''}
                    <div style="color:#666; font-size:11px; display:flex; align-items:center; gap:5px; margin-top:4px;">
-                       ${formatMoney(i.sell)} x 
+                       ${formatMoney(i.effectiveSell)} x 
                        <div style="display:flex; border:1px solid #d1d5db; border-radius:4px; overflow:hidden;">
                            <button onclick="updateCartQty(${idx}, ${i.qty - 1}, '${i.id}')" style="background:#f3f4f6; border:none; padding:2px 8px; cursor:pointer; font-weight:bold;">-</button>
                            <input type="number" step="any" value="${i.qty}" 
@@ -5042,9 +5113,13 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                        </div>
                    </div>
                 </div>
-                <div>
-                    <strong>${formatMoney(i.sell * i.qty)}</strong>
-                    <button class="btn btn-danger" style="padding:2px 6px; font-size:10px; margin-left:5px;" onclick="removeFromCart(${idx})">X</button>
+                <div style="text-align:right;">
+                    <div style="font-weight:900;">${formatMoney(i.effectiveSell * i.qty)}</div>
+                    <div style="margin-top:5px; display:flex; justify-content:flex-end; gap:5px;">
+                        <!-- 🛡️ Add Note Button -->
+                        <button class="btn btn-ghost" style="padding:2px 6px; font-size:10px; color:#15803d; border-color:#bbf7d0; background:#f0fdf4;" onclick="addPosItemNote(${idx})" title="Add Warranty/Note"><i class="ri-edit-2-line"></i></button>
+                        <button class="btn btn-danger" style="padding:2px 6px; font-size:10px;" onclick="removeFromCart(${idx})">X</button>
+                    </div>
                 </div>
             </div>`;
         }).join('');
@@ -5381,11 +5456,16 @@ window.checkout = async () => {
                         throw new Error(`Insufficient stock for '${item.name}'! Available: ${pData.qty}`);
                     }
                     
-                    // 🛡️ ENTERPRISE ZERO-TRUST SECURITY: Re-verify price at database level
-                    // Prevents hackers from modifying cartItem.sell via browser console
-                    if (Math.abs(pData.sell - item.sell) > 0.01) {
-                        throw new Error(`SECURITY ALERT: Price mismatch detected for '${item.name}'. DB Price: ${pData.sell}, Cart Price: ${item.sell}`);
+                    // 🛡️ ENTERPRISE ZERO-TRUST SECURITY & TEMPORAL VALIDATION
+                    // Re-verify Live Promo Price. If promo expired 1 second ago, this blocks the sale!
+                    const livePriceInfo = window.getEffectivePrice(pData);
+                    if (Math.abs(livePriceInfo.price - item.effectiveSell) > 0.01) {
+                        if(window.writeSystemLog) writeSystemLog("TIME_SHIFT_FRAUD_PREVENTED", `CRITICAL: Blocked checkout. Promo expired while items were in cart for ${item.name}!`);
+                        throw new Error(`SECURITY ALERT: Price mismatch or Promo EXPIRED for '${item.name}'! Live Price: ${formatMoney(livePriceInfo.price)}, Cart: ${formatMoney(item.effectiveSell)}`);
                     }
+                    
+                    // Assign the final validated price for saving
+                    item.sell = livePriceInfo.price;
 
                     // Strict Serial Collision Check (Concurrecy Fraud Prevention)
                     if (item.serials && item.serials.length > 0) {
@@ -5599,12 +5679,16 @@ window.checkout = async () => {
     window.addDocRow = () => {
         const tbody = document.getElementById('docItemsBody');
         const tr = document.createElement('tr');
+        // 🛡️ ENTERPRISE FIX: Added Optional Description Textarea for Warranties/Sub-items
         tr.innerHTML = `
-            <td><input class="doc-item-name" placeholder="Item Name" list="docProductList" onchange="fillDocPrice(this)"></td>
-            <td><input class="doc-item-qty" type="number" value="1" style="width:60px;" onchange="calcDocTotals()"></td>
-            <td><input class="doc-item-price" type="number" placeholder="0.00" onchange="calcDocTotals()"></td>
-            <td class="doc-item-total" style="font-weight:bold;">0.00</td>
-            <td><button class="btn btn-danger" style="padding:2px 6px;" onclick="this.closest('tr').remove(); calcDocTotals()">x</button></td>
+            <td>
+                <input class="doc-item-name" placeholder="Item Name" list="docProductList" onchange="fillDocPrice(this)" style="margin-bottom:5px;">
+                <textarea class="doc-item-desc" rows="1" placeholder="Warranty / Extra Details (Optional)..." style="margin-bottom:0; font-size:11px; padding:6px; background:#f9fafb; resize:vertical;"></textarea>
+            </td>
+            <td style="vertical-align:top;"><input class="doc-item-qty" type="number" value="1" style="width:60px;" onchange="calcDocTotals()"></td>
+            <td style="vertical-align:top;"><input class="doc-item-price" type="number" placeholder="0.00" onchange="calcDocTotals()"></td>
+            <td class="doc-item-total" style="font-weight:bold; vertical-align:top; padding-top:15px;">0.00</td>
+            <td style="vertical-align:top;"><button class="btn btn-danger" style="padding:2px 6px; margin-top:8px;" onclick="this.closest('tr').remove(); calcDocTotals()">x</button></td>
         `;
         tbody.appendChild(tr);
         
@@ -5710,13 +5794,14 @@ window.checkout = async () => {
         const items = [];
         document.querySelectorAll('#docItemsBody tr').forEach(tr => {
             const iName = tr.querySelector('.doc-item-name').value.trim();
+            const iDesc = tr.querySelector('.doc-item-desc').value.trim(); // 🛡️ Capture Description
             const iQty = parseFloat(tr.querySelector('.doc-item-qty').value) || 0;
             const iPrice = parseFloat(tr.querySelector('.doc-item-price').value) || 0;
             const iTotal = parseFloat(tr.querySelector('.doc-item-total').textContent) || 0;
             
             // Only push valid rows
             if(iName && iQty > 0) {
-                items.push({ name: iName, qty: iQty, price: iPrice, total: iTotal });
+                items.push({ name: iName, description: iDesc, qty: iQty, price: iPrice, total: iTotal });
             }
         });
 
@@ -6012,11 +6097,15 @@ window.autoFillDocCustomer = (name) => {
             else if (liveSrv && liveSrv.price !== i.price) { livePrice = liveSrv.price; priceChangedAlert = true; }
 
             const newTotal = livePrice * i.qty;
+            const safeDesc = i.description ? i.description.replace(/</g, "&lt;").replace(/>/g, "&gt;") : '';
 
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td><input class="doc-item-name" value="${i.name.replace(/"/g, '&quot;')}" list="docProductList" onchange="fillDocPrice(this)"></td>
-                <td><input class="doc-item-qty" type="number" value="${i.qty}" style="width:60px;" onchange="calcDocTotals()"></td>
+                <td>
+                    <input class="doc-item-name" value="${i.name.replace(/"/g, '&quot;')}" list="docProductList" onchange="fillDocPrice(this)" style="margin-bottom:5px;">
+                    <textarea class="doc-item-desc" rows="1" style="margin-bottom:0; font-size:11px; padding:6px; background:#f9fafb; resize:vertical;">${safeDesc}</textarea>
+                </td>
+                <td style="vertical-align:top;"><input class="doc-item-qty" type="number" value="${i.qty}" style="width:60px;" onchange="calcDocTotals()"></td>
                 <!-- Use LIVE price and highlight in orange if changed -->
                 <td><input class="doc-item-price" type="number" value="${livePrice}" style="${livePrice !== i.price ? 'border: 2px solid orange;' : ''}" onchange="calcDocTotals()"></td>
                 <td class="doc-item-total" style="font-weight:bold;">${newTotal.toFixed(2)}</td>
@@ -6190,13 +6279,22 @@ window.autoFillDocCustomer = (name) => {
         doc.text(printTime, margin + (sectionW * 2) + 2, stripY + 9);
 
         // --- 3. ITEM TABLE ---
-        const tableBody = docData.items.map(item =>[
-            item.sku || "-",
-            item.name + (item.batchNumber ? ` (Batch: ${formatBatch(item.batchNumber)})` : ""),
-            item.qty,
-            formatMoney(item.price || item.sell), 
-            formatMoney(item.total || (item.qty * (item.price || item.sell)))
-        ]);
+        const tableBody = docData.items.map(item => {
+            let displayName = item.name + (item.batchNumber ? ` (Batch: ${formatBatch(item.batchNumber)})` : "");
+            
+            // 🛡️ ENTERPRISE FIX: Append the description nicely under the product name in the PDF
+            if (item.description) {
+                displayName += `\n${item.description}`; // \n creates a new line inside the PDF table cell!
+            }
+
+            return [
+                item.sku || "-",
+                displayName,
+                item.qty,
+                formatMoney(item.price || item.sell), 
+                formatMoney(item.total || (item.qty * (item.price || item.sell)))
+            ];
+        });
 
         doc.autoTable({
             startY: stripY + stripHeight + 5,
@@ -7707,10 +7805,13 @@ window.autoFillDocCustomer = (name) => {
         let itemsHtml = '';
         order.items.forEach(i => {
             const itemTotal = i.qty * i.sell;
+            const noteHtml = i.description ? `<tr><td colspan="3" style="text-align:left; font-size:10px; color:#444; padding-bottom:3px; padding-left:5px;">* ${i.description}</td></tr>` : '';
+            
             itemsHtml += `
                 <tr>
                     <td colspan="3" style="text-align: left; font-weight: bold; padding-top: 5px;">${i.name}</td>
                 </tr>
+                ${noteHtml}
                 <tr>
                     <td style="text-align: left; border-bottom: 1px dashed #000; padding-bottom: 5px;">${i.qty} x ${formatMoney(i.sell)}</td>
                     <td style="border-bottom: 1px dashed #000; padding-bottom: 5px;"></td>
@@ -12396,6 +12497,72 @@ let currentBatchForSerials = null;
         } finally {
             toggleLoader(false);
         }
+    };
+// 🛡️ ENTERPRISE FIX: TIME-BOUND PROMOTION ENGINE
+    window.openPromoModal = (id) => {
+        const p = productsCache.find(x => x.id === id);
+        if(!p) return;
+        document.getElementById('promoBatchId').value = id;
+        document.getElementById('promoItemName').innerHTML = `${p.name} <br><span style="font-size:12px; color:#666;">Current Price: ${formatMoney(p.sell)}</span>`;
+        
+        document.getElementById('promoType').value = p.promoType || 'percent';
+        document.getElementById('promoValue').value = p.promoValue || '';
+        document.getElementById('promoEnd').value = p.promoEnd || '';
+        
+        openModal('promoModal');
+    };
+
+    window.savePromotion = async () => {
+        const id = document.getElementById('promoBatchId').value;
+        const type = document.getElementById('promoType').value;
+        const val = parseFloat(document.getElementById('promoValue').value);
+        const end = document.getElementById('promoEnd').value;
+
+        if (isNaN(val) || val <= 0) return showToast("Enter a valid discount value!", "error");
+        if (!end) return showToast("Expiry Date & Time is required!", "error");
+        if (new Date(end) <= window.getSecureTime()) return showToast("Expiry time must be in the future!", "error");
+
+        toggleLoader(true);
+        try {
+            await updateDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/products`, id), {
+                promoType: type, promoValue: val, promoEnd: end
+            });
+            closeModal('promoModal');
+            await loadProducts();
+            if(window.writeSystemLog) writeSystemLog("PROMO_CREATED", `Started a promotion for Batch ${id}. Discount: ${val} ${type}, Ends: ${end}`);
+            showToast("Promotion Started Successfully!");
+        } catch(e) { showToast("Error saving promo", "error"); }
+        toggleLoader(false);
+    };
+
+    window.clearPromotion = async () => {
+        const id = document.getElementById('promoBatchId').value;
+        toggleLoader(true);
+        try {
+            await updateDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/products`, id), {
+                promoType: null, promoValue: null, promoEnd: null
+            });
+            closeModal('promoModal');
+            await loadProducts();
+            if(window.writeSystemLog) writeSystemLog("PROMO_REMOVED", `Manually removed promotion for Batch ${id}`);
+            showToast("Promotion Removed!");
+        } catch(e) { showToast("Error removing promo", "error"); }
+        toggleLoader(false);
+    };
+
+    // 🚀 Core Calculator: Get Effective Price checking the Exact Current Time
+    window.getEffectivePrice = (batch) => {
+        if (batch.promoEnd && batch.promoValue > 0) {
+            const now = window.getSecureTime();
+            const endDate = new Date(batch.promoEnd);
+            if (endDate > now) { // 🛡️ STRICT TIME VALIDATION
+                let newPrice = batch.sell;
+                if (batch.promoType === 'percent') newPrice = batch.sell - (batch.sell * batch.promoValue / 100);
+                if (batch.promoType === 'amount') newPrice = Math.max(0, batch.sell - batch.promoValue);
+                return { isPromo: true, price: Math.round(newPrice * 100) / 100 };
+            }
+        }
+        return { isPromo: false, price: batch.sell };
     };
 </script>
 
