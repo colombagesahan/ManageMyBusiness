@@ -2258,6 +2258,22 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         </div>
     </div>
 </div>
+
+<!-- 🚀 NEW: ELEGANT POS ITEM NOTE MODAL -->
+<div id="posNoteModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.7); display:none; align-items:center; justify-content:center; z-index:4500; backdrop-filter: blur(2px);">
+    <div class="card" style="width:100%; max-width:350px; margin:0; border-top: 5px solid #10b981;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+            <h3 style="color:#047857;"><i class="ri-edit-2-fill"></i> Add Note</h3>
+            <i class="ri-close-line" style="cursor:pointer; font-size:24px;" onclick="closeModal('posNoteModal')"></i>
+        </div>
+        <p id="posNoteItemName" style="font-size:14px; font-weight:700; color:#1f2937; margin-bottom:10px;"></p>
+        
+        <label style="font-size:12px; font-weight:600; margin-bottom:5px;">Warranty / Specific Details (Optional)</label>
+        <textarea id="posNoteInput" rows="3" placeholder="e.g. 5 Year Warranty for Compressor, Free 3m pipe..." style="resize:vertical;"></textarea>
+
+        <button class="btn btn-success" onclick="savePosItemNote()"><i class="ri-save-line"></i> Save Note to Bill</button>
+    </div>
+</div>
 <!-- LOGIC -->
 
 <script type="module">
@@ -4034,7 +4050,9 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             });
             await logInventory(data.name, 'EDIT', `Price updated: ${formatMoney(oldP.sell)} -> ${formatMoney(data.sell)}`, 0, data.qty, oldP.batchNumber || 1, data.qty);
         } else {
-            // NEW STOCK MODE (Barcodes 50 ජනනය කිරීම)
+            // NEW STOCK MODE (Barcodes ජනනය කිරීම)
+            let newlyCreatedProductId = null; // 🛡️ ENTERPRISE FIX: Scope Bridging Variable
+
             try {
                 let nextBatchNum = 1;
                 data.dateAdded = new Date().toISOString();
@@ -4062,9 +4080,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                     nextBatchNum = currentMaxBatch + 1;
                     data.batchNumber = nextBatchNum;
 
-                    // 🚀 1. BARCODE GENERATION ENGINE (Only if Serialized)
                     let availableSerials = [];
-                    
                     if (data.itemType === 'serialized') {
                         const safeSku = (data.sku && data.sku.trim() !== "") ? data.sku.trim() : "ITM";
                         const barcodePrefix = `${safeSku}-B${nextBatchNum}`; 
@@ -4077,10 +4093,10 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                         generatedSerialsToPrint = [...availableSerials];
                     }
 
-                    // 2. Write to Database (Without Arrays!)
                     const newProdRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`));
-                    // Arrays ඉවත් කර ඇත. දත්ත සමුදාය සැහැල්ලු වේ.
-                    transaction.set(newProdRef, data);
+                    transaction.set(newProdRef, data); 
+                    
+                    newlyCreatedProductId = newProdRef.id; // 🛡️ Export ID to outside scope!
 
                     if (baseProdRef) {
                         transaction.update(baseProdRef, { latestBatchNumber: nextBatchNum });
@@ -4093,13 +4109,13 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                         finalQty: data.qty, initialQty: 0, batchNumber: nextBatchNum
                     });
                 });
-            // 🚀 3. ENTERPRISE FIX: Massive Sub-collection Batch Writer (Bypasses 1MB Array Limit)
-                if (data.itemType === 'serialized' && generatedSerialsToPrint.length > 0) {
-                    const serialsColRef = collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products/${newProdRef.id}/serials`);
+                
+                // 🚀 3. ENTERPRISE FIX: Massive Sub-collection Batch Writer (Now safely accessing the ID)
+                if (data.itemType === 'serialized' && generatedSerialsToPrint.length > 0 && newlyCreatedProductId) {
+                    const serialsColRef = collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products/${newlyCreatedProductId}/serials`);
                     let chunkBatch = writeBatch(db);
                     let count = 0;
                     
-                    // Firebase allows max 500 writes per batch. We chunk them safely.
                     for (let sCode of generatedSerialsToPrint) {
                         chunkBatch.set(doc(serialsColRef, sCode), { code: sCode, status: 'available', addedAt: new Date().toISOString() });
                         count++;
@@ -5073,11 +5089,25 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         // UX FIX: දැනට ඇති Scroll ස්ථානය සටහන් කර ගැනීම
         const currentScrollPos = con.scrollTop; 
         
-        // 🚀 ENTERPRISE POS ITEM NOTES LOGIC
+        // 🚀 ENTERPRISE POS ITEM NOTES LOGIC (Elegant Modal)
+        let noteIndexToUpdate = -1; // To remember which item we are editing
+        
         window.addPosItemNote = (idx) => {
-            const currentNote = cart[idx].description || '';
-            const note = prompt(`Enter warranty or specific note for '${cart[idx].name}':`, currentNote);
-            if (note !== null) { cart[idx].description = note.trim(); renderCart(); }
+            noteIndexToUpdate = idx;
+            const item = cart[idx];
+            document.getElementById('posNoteItemName').textContent = item.name;
+            document.getElementById('posNoteInput').value = item.description || '';
+            openModal('posNoteModal');
+        };
+
+        window.savePosItemNote = () => {
+            if (noteIndexToUpdate > -1) {
+                const noteText = document.getElementById('posNoteInput').value.trim();
+                cart[noteIndexToUpdate].description = noteText;
+                noteIndexToUpdate = -1; // Reset
+                closeModal('posNoteModal');
+                renderCart();
+            }
         };
 
         con.innerHTML = cart.map((i, idx) => {
@@ -5497,10 +5527,14 @@ window.checkout = async () => {
                     let updatePayload = { qty: increment(-cartItem.qty) };
                     transaction.update(ref, updatePayload);
 
-                    // 🛡️ ENTERPRISE FIX: Update Individual Serial Docs safely
+                    // 🛡️ ENTERPRISE FIX: STRICT SERIAL ENFORCEMENT (Zero-Trust Validation)
                     if (cartItem.serials && cartItem.serials.length > 0) {
                         for (let serialCode of cartItem.serials) {
                             const sRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/products/${ref.id}/serials`, serialCode);
+                            
+                            // අතිශය දැඩි නීතිය: Barcode එක Database එකේ නැත්නම්, 
+                            // update විධානය හිතාමතාම CRASH වී මුළු බිලම (Transaction) Cancel කර දමයි!
+                            // හොර බාර්කෝඩ් බිල් කිරීමට කිසිදු ඉඩක් නැත.
                             transaction.update(sRef, { status: 'sold', orderId: customOrderId });
                         }
                     }
