@@ -9284,19 +9284,6 @@ window.setQuickCash = (amount) => {
         }
         tbody.innerHTML = htmlStr;
     };
-            const catName = serviceCategoriesCache.find(c => c.id === s.categoryId)?.name || 'Uncategorized';
-            return `
-            <tr>
-                <td style="font-weight:600;">${s.name}</td>
-                <td style="font-size:12px; color:#6b7280;">${catName}</td>
-                <td style="color:var(--primary); font-weight:700;">${formatMoney(s.price)}</td>
-                <td>
-                    <button class="btn btn-warning" style="padding:4px 8px; font-size:11px;" onclick="editService('${s.id}')">Edit</button>
-                    <button class="btn btn-danger" style="padding:4px 8px; font-size:11px;" onclick="deleteService('${s.id}')"><i class="ri-delete-bin-line"></i></button>
-                </td>
-            </tr>`;
-        }).join('');
-    };
 
     window.prepareAddService = () => {
         document.getElementById('srvId').value = '';
