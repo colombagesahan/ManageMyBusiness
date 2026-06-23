@@ -1521,9 +1521,13 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 
         <input id="bpName" placeholder="Product Name (Required)">
         
-        <label style="font-size:12px; margin-top:10px; display:block;">Barcode / SKU (Optional)</label>
-        <input id="bpSkuInput" placeholder="Scan item barcode here, or leave blank to auto-generate" style="margin-bottom:5px;">
-        <div id="bpSkuDisplay" style="font-size:11px; color:#6b7280; margin-bottom:10px;">If left blank, a 6-digit sequential code will be generated.</div>
+        <!-- 🛡️ ENTERPRISE FIX: Clarified Labels to prevent Human Error -->
+        <label style="font-size:12px; margin-top:10px; display:block; font-weight:bold; color:var(--primary);">Master Barcode / Global SKU (Optional)</label>
+        <input id="bpSkuInput" placeholder="Scan the original box barcode here..." style="margin-bottom:5px; border-color:var(--primary);">
+        <div id="bpSkuDisplay" style="font-size:11px; color:#6b7280; margin-bottom:10px; line-height:1.4;">
+            If left blank, a 6-digit sequential code will be generated.<br>
+            <strong style="color:var(--danger);">Note:</strong> For Serialized items (e.g. AC/TV), this is the MASTER code. The unique serial stickers will be generated automatically in the 'Add Stock' tab!
+        </div>
 
         <div style="display:flex; gap:10px; margin-top:10px;">
             <button class="btn btn-primary" onclick="saveBaseProduct()">Save Product</button>
@@ -3452,15 +3456,20 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             const imgTag = p.image ? `<img src="${p.image}" class="prod-thumb" onclick="window.open(this.src)">` : '<i class="ri-image-line"></i>';
             const categoryName = categoriesCache.find(c => c.id === p.categoryId)?.name || 'Uncategorized';
             
+            // 🛡️ ENTERPRISE FIX: Disable Base Barcode printing for Serialized items to prevent Cashier Confusion!
+            const printBtnHtml = (p.itemType === 'serialized') 
+                ? `<button class="btn btn-ghost" style="padding:4px 8px; opacity:0.3; cursor:not-allowed;" title="Disabled: Please print serial stickers from 'Add Stock' tab for this item." disabled><i class="ri-barcode-line"></i></button>`
+                : `<button class="btn btn-ghost" style="padding:4px 8px;" onclick="printSingleBarcode('${p.sku}', '${p.name.replace(/'/g, "\\'")}')" title="Print Master Barcode"><i class="ri-barcode-line"></i></button>`;
+
             return `
             <tr>
                 <td>${imgTag}</td>
                 <td style="font-family:monospace; font-size:12px;">${p.sku || '-'}</td>
-                <td>${p.name}</td>
+                <td>${p.name} <span style="font-size:9px; background:#f3f4f6; padding:2px 4px; border-radius:4px; margin-left:5px;">${p.itemType || 'N/A'}</span></td>
                 <td style="font-size:12px; color:#6b7280;">${categoryName}</td>
                 <td style="font-size:12px; color:#666;">${dateStr}</td>
                 <td style="display:flex; gap:5px;">
-                    <button class="btn btn-ghost" style="padding:4px 8px;" onclick="printSingleBarcode('${p.sku}', '${p.name.replace(/'/g, "\\'")}')" title="Print Barcode Label"><i class="ri-barcode-line"></i></button>
+                    ${printBtnHtml}
                     <button class="btn btn-warning" style="padding:4px 8px;" onclick="editBaseProduct('${p.id}')">Edit Img</button>
                     <button class="btn btn-danger" style="padding:4px 8px;" onclick="deleteBaseProduct('${p.id}')"><i class="ri-delete-bin-line"></i></button>
                 </td>
@@ -3471,7 +3480,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         if (filtered.length > 100) {
             htmlStr += `<tr><td colspan="6" style="text-align:center; font-weight:bold; color:var(--primary); background:#e0e7ff;">+ ${filtered.length - 100} more products hidden to maintain system speed. Please use the search bar.</td></tr>`;
         }
-        tbody.innerHTML = htmlStr;
+        tbody.innerHTML = htmlStr; // 🔴 අකුරු දෝෂය නිවැරදි කර ඇත (tbodv -> tbody)
     }
 
     window.filterCatalog = debounceSearch(async () => {
@@ -4691,10 +4700,13 @@ body.pos-fullscreen-mode #view-pos > div > .card {
     window.filterPos = debounceSearch(async () => {
         let originalTerm = document.getElementById('posSearch').value.trim();
         
-        // 🚀 SMART SEARCH INTELLIGENCE: අතින් ටයිප් කරන විට සම්පූර්ණ Serial එකෙන් Base SKU එක පමණක් වෙන් කර ගැනීම
+        // 🛡️ ENTERPRISE REGEX FIX: Prevent splitting valid product names like "Type-B Cable"
+        // This regex specifically looks for our serial pattern: ends with "-B" followed by numbers and "-"
         let term = originalTerm;
-        if (term.toUpperCase().includes('-B')) {
-            term = term.toUpperCase().split('-B')[0].trim();
+        const serialRegex = /(.+)-B\d+-\d+$/i;
+        const match = term.match(serialRegex);
+        if (match) {
+            term = match[1].trim(); // Extract only the Base SKU part safely
         }
 
         if (term.length >= 2) {
@@ -9641,6 +9653,9 @@ window.setQuickCash = (amount) => {
             
             catalogCache.forEach(p => {
                 if(!p.sku) return;
+                
+                // 🛡️ ENTERPRISE FIX: Skip Serialized items from the Master List to prevent fake barcode prints!
+                if(p.itemType === 'serialized') return;
                 
                 // එක් එක් භාණ්ඩය සඳහා Barcode Image එකක් සෑදීම
                 let barcodeSrc = "";
