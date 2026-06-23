@@ -2287,8 +2287,9 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 <script type="module">
     import { initializeApp, deleteApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
     import { getAuth, signOut, onAuthStateChanged, createUserWithEmailAndPassword, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
-    // 🛡️ ENTERPRISE FIX: Added collectionGroup for Deep Serial Searching
-    import { getFirestore, collection, addDoc, getDocs, doc, deleteDoc, updateDoc, query, where, orderBy, setDoc, getDoc, runTransaction, limit, startAfter, writeBatch, enableIndexedDbPersistence, increment, onSnapshot, collectionGroup } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+    
+    // 🛡️ ENTERPRISE FIX: Imported arrayUnion and arrayRemove for lightning-fast Serial operations
+    import { getFirestore, collection, addDoc, getDocs, doc, deleteDoc, updateDoc, query, where, orderBy, setDoc, getDoc, runTransaction, limit, startAfter, writeBatch, enableIndexedDbPersistence, increment, onSnapshot, collectionGroup, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
     // ENTERPRISE FIX: Import Firebase Functions to securely call Gemini AI backend
     import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-functions.js";
 
