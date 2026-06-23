@@ -8661,9 +8661,24 @@ window.updateCartQty = (cartIndex, newQtyVal, productId) => {
             return;
         }
 
-        // Serialized items CANNOT be updated via qty buttons! Must scan new barcode.
-        if (itemInCart.itemType === 'serialized' && newQty > itemInCart.qty) {
-            return showToast("Scan or Select from grid to add another Serialized Item!", "error");
+        // 🚀 ENTERPRISE UX & SECURITY FIX: Smart Handling for Serialized Items
+        if (itemInCart.itemType === 'serialized') {
+            if (newQty > itemInCart.qty) {
+                // 1. User clicked '+' -> Seamlessly open the Batch Selection / Serial Scanner Modal
+                renderCart(); // Re-render to reset the input box value visually until modal is completed
+                addToCart(itemInCart.id); // Re-trigger the main flow elegantly
+                return;
+            } else if (newQty < itemInCart.qty) {
+                // 🚨 2. CRITICAL BUG FIX: User clicked '-' -> Must safely remove the LAST scanned serial from memory!
+                if (itemInCart.serials && itemInCart.serials.length > 0) {
+                    const removedSerial = itemInCart.serials.pop(); // Remove the last barcode from item array
+                    // Remove from global memory so it can be scanned again if needed
+                    currentCartSerials = currentCartSerials.filter(s => s !== removedSerial); 
+                }
+                itemInCart.qty = newQty;
+                renderCart();
+                return;
+            }
         }
 
         const realProduct = productsCache.find(x => x.id === productId);
@@ -10374,13 +10389,19 @@ window.setQuickCash = (amount) => {
             const cust = customersCache.find(x => x.id === currentActivePhone);
             if (cust && cust.phone_history) cust.phone_history.forEach(h => phonesToQuery.push(h.phone));
 
-            // Fetch unpaid sales concurrently
-            const unpaidPromises = phonesToQuery.map(p => getDocs(query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`), where("customer.phone", "==", p), where("creditBalance", ">", 0))));
+            // 🚀 ENTERPRISE BUG FIX: Fetch by phone only and filter in JS to bypass Firebase Composite Index crashes!
+            const unpaidPromises = phonesToQuery.map(p => getDocs(query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`), where("customer.phone", "==", p))));
             const unpaidSnaps = await Promise.all(unpaidPromises);
 
             let unpaidSales = [];
             unpaidSnaps.forEach(snap => {
-                snap.forEach(d => unpaidSales.push({id: d.id, ...d.data()}));
+                snap.forEach(d => {
+                    const saleData = d.data();
+                    // JS Level Filtering (Prevents DB Index Errors causing the payment crash)
+                    if (saleData.creditBalance && saleData.creditBalance > 0) {
+                        unpaidSales.push({id: d.id, ...saleData});
+                    }
+                });
             });
             unpaidSales.sort((a, b) => new Date(a.date) - new Date(b.date)); // Oldest first
             
