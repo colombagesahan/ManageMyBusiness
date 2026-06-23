@@ -6205,9 +6205,7 @@ window.autoFillDocCustomer = (name) => {
         }
 };
 
-   // --- UPDATED PDF GENERATOR (MATCHING IMAGE STYLE) ---
-   // --- NEW PDF GENERATOR (TARGET STYLE MATCH) ---
-    // ==========================================
+   // ==========================================
     // 🚀 ENTERPRISE HYBRID PDF GENERATOR (FOR BOTH POS RECEIPTS & FORMAL QUOTATIONS)
     // ==========================================
     window.generateDocumentPDF = (docData) => {
@@ -6219,6 +6217,9 @@ window.autoFillDocCustomer = (name) => {
         const pageHeight = doc.internal.pageSize.height; 
         const margin = 15;
         let currentY = 20;
+        
+        // 🚀 BUG FIX: Define Global Theme Color for Document (Prevents System Crash)
+        const themeColor = [79, 70, 229]; // RGB for #4F46E5 (Primary Color)
 
         // --- 1. HEADER (Dynamic Profile Syncing) ---
         if (shop.logoImage) {
@@ -6469,7 +6470,9 @@ window.autoFillDocCustomer = (name) => {
         // Download or Print
         if (docData.type === 'RECEIPT') {
             doc.autoPrint({variant: 'non-conform'}); 
-            window.silentPrint(doc.output('bloburl'), true);
+            // 🚀 BUG FIX: Bypassing Modern Browser iFrame Security Blocks for PDFs
+            const blobUrl = doc.output('bloburl');
+            window.open(blobUrl, '_blank'); // Safely opens in new tab and auto-prints
         } else {
             doc.save(`${docData.type}_${docData.docId}.pdf`);
         }
@@ -7848,12 +7851,15 @@ window.autoFillDocCustomer = (name) => {
         order.items.forEach(i => {
             const itemTotal = i.qty * i.sell;
             const noteHtml = i.description ? `<tr><td colspan="3" style="text-align:left; font-size:10px; color:#444; padding-bottom:3px; padding-left:5px;">* ${i.description}</td></tr>` : '';
+            // 🚀 BUG FIX: Display Serial/Barcode Numbers on Thermal Receipts for Warranty Tracking
+            const serialsHtml = (i.serials && i.serials.length > 0) ? `<tr><td colspan="3" style="text-align:left; font-size:10px; color:#4F46E5; font-weight:bold; padding-bottom:3px; padding-left:5px;">S/N: ${i.serials.map(s => s.split('-').pop()).join(', ')}</td></tr>` : '';
             
             itemsHtml += `
                 <tr>
                     <td colspan="3" style="text-align: left; font-weight: bold; padding-top: 5px;">${i.name}</td>
                 </tr>
                 ${noteHtml}
+                ${serialsHtml}
                 <tr>
                     <td style="text-align: left; border-bottom: 1px dashed #000; padding-bottom: 5px;">${i.qty} x ${formatMoney(i.sell)}</td>
                     <td style="border-bottom: 1px dashed #000; padding-bottom: 5px;"></td>
