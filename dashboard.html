@@ -604,22 +604,26 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                         </div>
                     </div>
 
-                    <table id="docItemsTable">
-                        <thead><tr><th>Item / Description</th><th>Qty</th><th>Price</th><th>Total</th><th></th></tr></thead>
-                        <tbody id="docItemsBody"></tbody>
-                    </table>
-                    <button class="btn btn-ghost" onclick="addDocRow()" style="margin-top:10px;">+ Add Item</button>
+                    <!-- 🚀 ENTERPRISE DOCUMENT BUILDER (Options & Extra Charges) -->
+                    <div id="documentBuilderArea">
+                        <div id="docOptionsContainer"></div>
+                        <button class="btn btn-primary" onclick="addDocOptionBlock()" style="margin-top:10px; width:100%; border:2px dashed var(--primary); background:#e0e7ff; color:var(--primary); box-shadow:none;"><i class="ri-add-box-line"></i> Add New Option Group (e.g. Option 01)</button>
 
-                    <div style="display:flex; justify-content:flex-end; margin-top:20px;">
-                        <div style="width:250px; text-align:right;">
-                            <div style="margin-bottom:5px;">Subtotal: <span id="docSubtotal">0.00</span></div>
+                        <h4 style="margin-top:30px; margin-bottom:10px; color:#d97706;"><i class="ri-tools-line"></i> Extra Charges - If Required</h4>
+                        <div id="docExtrasContainer"></div>
+                        <button class="btn btn-warning" onclick="addDocExtraRow()" style="margin-top:10px; width:100%; border:2px dashed #d97706; background:#fef3c7; color:#d97706; box-shadow:none;"><i class="ri-add-box-line"></i> Add Extra Charge (Piping, Labor, etc.)</button>
+                    </div>
+
+                    <div style="display:flex; justify-content:flex-end; margin-top:30px; border-top:2px solid #e5e7eb; padding-top:20px;">
+                        <div style="width:300px; text-align:right;">
+                            <div style="margin-bottom:5px;">Overall Subtotal: <span id="docSubtotal" style="font-weight:bold;">0.00</span></div>
                             <div style="margin-bottom:5px; display:flex; align-items:center; justify-content:flex-end; gap:5px;">
-                                Discount: <input id="docDiscount" type="number" placeholder="0" style="width:60px; margin:0;" onkeyup="calcDocTotals()">
+                                Global Discount: <input id="docDiscount" type="number" placeholder="0" style="width:80px; margin:0;" onkeyup="calcDocTotals()">
                             </div>
                             <div style="margin-bottom:5px; display:flex; align-items:center; justify-content:flex-end; gap:5px;">
-                                Tax/VAT (%): <input id="docTax" type="number" placeholder="0" style="width:60px; margin:0;" onkeyup="calcDocTotals()">
+                                Tax/VAT (%): <input id="docTax" type="number" placeholder="0" style="width:80px; margin:0;" onkeyup="calcDocTotals()">
                             </div>
-                            <div style="font-weight:700; font-size:18px; border-top:1px solid #e5e7eb; padding-top:5px;">Total: <span id="docTotal">0.00</span></div>
+                            <div style="font-weight:900; font-size:22px; color:var(--primary); border-top:1px solid #e5e7eb; padding-top:5px; margin-top:5px;">Net Total: <span id="docTotal">0.00</span></div>
                         </div>
                     </div>
                 </div>
@@ -5700,111 +5704,147 @@ window.checkout = async () => {
         btn.textContent = type === 'invoice' ? "Save & Generate PDF" : "Save Quotation";
     }
 
-    window.addDocRow = () => {
-        const tbody = document.getElementById('docItemsBody');
-        const tr = document.createElement('tr');
-        // 🛡️ ENTERPRISE FIX: Added Optional Description Textarea for Warranties/Sub-items
-        tr.innerHTML = `
-            <td>
-                <input class="doc-item-name" placeholder="Item Name" list="docProductList" onchange="fillDocPrice(this)" style="margin-bottom:5px;">
-                <textarea class="doc-item-desc" rows="1" placeholder="Warranty / Extra Details (Optional)..." style="margin-bottom:0; font-size:11px; padding:6px; background:#f9fafb; resize:vertical;"></textarea>
-            </td>
-            <td style="vertical-align:top;"><input class="doc-item-qty" type="number" value="1" style="width:60px;" onchange="calcDocTotals()"></td>
-            <td style="vertical-align:top;"><input class="doc-item-price" type="number" placeholder="0.00" onchange="calcDocTotals()"></td>
-            <td class="doc-item-total" style="font-weight:bold; vertical-align:top; padding-top:15px;">0.00</td>
-            <td style="vertical-align:top;"><button class="btn btn-danger" style="padding:2px 6px; margin-top:8px;" onclick="this.closest('tr').remove(); calcDocTotals()">x</button></td>
+    // ==========================================
+    // 🚀 ENTERPRISE DOCUMENT BUILDER ENGINE
+    // ==========================================
+    
+    let optionBlockCount = 0;
+    
+    // 1. Add Option Block
+    window.addDocOptionBlock = () => {
+        optionBlockCount++;
+        const container = document.getElementById('docOptionsContainer');
+        const blockId = `optBlock_${Date.now()}`;
+        
+        const html = `
+            <div id="${blockId}" class="doc-option-block" style="background:#f9fafb; border:1px solid #d1d5db; border-radius:8px; padding:15px; margin-bottom:15px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <div style="display:flex; gap:10px; flex:1;">
+                        <input class="opt-title" placeholder="Option Name (e.g. Option 01)" style="font-weight:bold; color:var(--primary); width:30%; margin:0;" value="Option ${String(optionBlockCount).padStart(2,'0')}">
+                        <input class="opt-desc" placeholder="Option Description (e.g. Wall Mounted Split Type Inverter R32...)" style="font-weight:bold; flex:1; margin:0;">
+                    </div>
+                    <button class="btn btn-danger" style="padding:6px 10px; margin-left:10px;" onclick="document.getElementById('${blockId}').remove(); calcDocTotals();"><i class="ri-delete-bin-line"></i></button>
+                </div>
+                <table style="width:100%; background:white;">
+                    <thead style="font-size:11px; background:#e5e7eb;">
+                        <tr><th style="padding:5px;">Brand</th><th style="padding:5px;">Item/Capacity</th><th style="padding:5px;">Unit Price</th><th style="padding:5px;">Disc. Price</th><th style="padding:5px;">Qty</th><th style="padding:5px;">Total</th><th style="padding:5px;"></th></tr>
+                    </thead>
+                    <tbody class="opt-tbody"></tbody>
+                </table>
+                <div style="text-align:right; padding-top:10px; font-weight:bold; font-size:14px;">Option Grand Total: <span class="opt-total-display" style="color:var(--primary);">0.00</span></div>
+                <button class="btn btn-ghost" style="margin-top:10px; font-size:11px; padding:4px 8px;" onclick="addDocItemRow(this)"><i class="ri-add-line"></i> Add Item to Option</button>
+            </div>
         `;
-        tbody.appendChild(tr);
+        container.insertAdjacentHTML('beforeend', html);
         
-        if(document.getElementById('docProductList')) {
-            document.getElementById('docProductList').remove(); // Refresh list to include new services/products
-        }
-        
-        const dl = document.createElement('datalist');
-        dl.id = 'docProductList';
-        catalogCache.forEach(p => {
-            dl.innerHTML += `<option value="${p.name.replace(/"/g, '&quot;')}">`;
-        });
-        servicesCache.forEach(s => {
-            dl.innerHTML += `<option value="${s.name.replace(/"/g, '&quot;')}">`;
-        });
-        document.body.appendChild(dl);
+        // Add one empty row automatically
+        addDocItemRow(container.lastElementChild.querySelector('.btn-ghost'));
     };
 
+    // 2. Add Item Row inside an Option
+    window.addDocItemRow = (btn) => {
+        const tbody = btn.previousElementSibling.previousElementSibling.querySelector('tbody');
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td style="padding:4px;"><input class="item-brand" placeholder="Brand" style="margin:0; padding:6px; font-size:12px;"></td>
+            <td style="padding:4px;"><input class="item-name" placeholder="Item Name / Capacity" list="docProductList" onchange="fillDocPrice(this)" style="margin:0; padding:6px; font-size:12px;"></td>
+            <td style="padding:4px;"><input class="item-uprice" type="number" placeholder="0.00" onkeyup="calcDocTotals()" style="margin:0; padding:6px; font-size:12px;"></td>
+            <td style="padding:4px;"><input class="item-dprice" type="number" placeholder="0.00" onkeyup="calcDocTotals()" style="margin:0; padding:6px; font-size:12px;"></td>
+            <td style="padding:4px;"><input class="item-qty" type="number" value="1" onkeyup="calcDocTotals()" onchange="calcDocTotals()" style="margin:0; padding:6px; font-size:12px; width:50px;"></td>
+            <td class="item-total" style="padding:4px; font-weight:bold; font-size:12px; text-align:right;">0.00</td>
+            <td style="padding:4px;"><i class="ri-close-circle-fill" style="color:red; cursor:pointer; font-size:18px;" onclick="this.closest('tr').remove(); calcDocTotals();"></i></td>
+        `;
+        tbody.appendChild(tr);
+        updateDocDatalist();
+    };
+
+    // 3. Add Extra Charges Row
+    window.addDocExtraRow = () => {
+        const container = document.getElementById('docExtrasContainer');
+        const tr = document.createElement('div');
+        tr.className = "extra-charge-row";
+        tr.style = "display:flex; gap:10px; margin-bottom:10px; align-items:center;";
+        tr.innerHTML = `
+            <input class="ext-cap" placeholder="Btu Capacity / Size" style="margin:0; width:20%; padding:8px; font-size:12px;">
+            <input class="ext-type" placeholder="Extra Charge Type (e.g. Extra Piping...)" style="margin:0; flex:1; padding:8px; font-size:12px;">
+            <input class="ext-rate" type="number" placeholder="Per M Rate" onkeyup="calcDocTotals()" style="margin:0; width:20%; padding:8px; font-size:12px;">
+            <i class="ri-close-circle-fill" style="color:red; cursor:pointer; font-size:20px;" onclick="this.parentElement.remove(); calcDocTotals();"></i>
+        `;
+        container.appendChild(tr);
+    };
+
+    // Helper: Auto-fill price
     window.fillDocPrice = async (input) => {
         const name = input.value.trim();
         if(!name) return;
         const row = input.closest('tr');
         
-        // 1. Check Products Cache
-        let stockP = productsCache.find(p => p.name === name);
-        
-        // 2. Check Services Cache (LOGIC FIX: Documents must support Services)
-        if(!stockP) {
-            const srv = servicesCache.find(s => s.name === name);
-            if(srv) stockP = { sell: srv.price };
-        }
-        
-        // 3. Fallback to Server
+        let stockP = productsCache.find(p => p.name === name) || servicesCache.find(s => s.name === name);
         if(!stockP) {
             const q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`), where('name', '==', name), limit(1));
             const snap = await getDocs(q);
-            if(!snap.empty) {
-                stockP = snap.docs[0].data();
-            }
+            if(!snap.empty) stockP = snap.docs[0].data();
         }
 
         if(stockP) {
-            row.querySelector('.doc-item-price').value = stockP.sell;
+            const price = stockP.sell || stockP.price || 0;
+            row.querySelector('.item-uprice').value = price;
+            row.querySelector('.item-dprice').value = price; // Default discounted price to unit price
         } 
         calcDocTotals();
+    };
+
+    function updateDocDatalist() {
+        if(document.getElementById('docProductList')) document.getElementById('docProductList').remove();
+        const dl = document.createElement('datalist');
+        dl.id = 'docProductList';
+        catalogCache.forEach(p => dl.innerHTML += `<option value="${p.name.replace(/"/g, '&quot;')}">`);
+        servicesCache.forEach(s => dl.innerHTML += `<option value="${s.name.replace(/"/g, '&quot;')}">`);
+        document.body.appendChild(dl);
     }
 
+    // 4. Calculate Totals Master Function
     window.calcDocTotals = () => {
-        let subtotal = 0;
-        document.querySelectorAll('#docItemsBody tr').forEach(tr => {
-            const qty = parseFloat(tr.querySelector('.doc-item-qty').value) || 0;
-            const price = parseFloat(tr.querySelector('.doc-item-price').value) || 0;
-            const total = (qty && price) ? (qty * price) : 0;
-            tr.querySelector('.doc-item-total').textContent = total.toFixed(2);
-            subtotal += total;
+        let globalSubtotal = 0;
+
+        // Calculate Option Blocks
+        document.querySelectorAll('.doc-option-block').forEach(block => {
+            let blockTotal = 0;
+            block.querySelectorAll('.opt-tbody tr').forEach(tr => {
+                const qty = parseFloat(tr.querySelector('.item-qty').value) || 0;
+                // Prefer discounted price if typed, else unit price
+                const dPriceStr = tr.querySelector('.item-dprice').value;
+                const uPriceStr = tr.querySelector('.item-uprice').value;
+                const activePrice = dPriceStr ? parseFloat(dPriceStr) : (parseFloat(uPriceStr) || 0);
+                
+                const lineTotal = qty * activePrice;
+                tr.querySelector('.item-total').textContent = lineTotal.toLocaleString('en-US', {minimumFractionDigits: 2});
+                blockTotal += lineTotal;
+            });
+            block.querySelector('.opt-total-display').textContent = blockTotal.toLocaleString('en-US', {minimumFractionDigits: 2});
+            globalSubtotal += blockTotal; // Add to global (You can change this logic if options are mutually exclusive)
         });
 
-        let discountInput = document.getElementById('docDiscount');
-        let discount = parseFloat(discountInput.value) || 0;
-        
-        // ADVANCED LOGIC FIX: Prevent Negative Value Exploits securely
-        if(discount < 0) {
-            discount = Math.abs(discount); // Auto convert negative to positive
-            showToast("Discount converted to a positive value", "info");
-        }
-        
-        // Logical Fix: Prevent discount exceeding subtotal in documents
-        if(discount > subtotal) {
-            discount = subtotal; 
-        }
-        
-        // Force the input to show the correctly formatted value
-        if(discountInput.value !== "" && parseFloat(discountInput.value) !== discount) {
-            discountInput.value = discount;
-        }
+        // Add Extra Charges to Subtotal (If they apply globally. Usually they are just a price list, but we'll calculate them if user wants)
+        document.querySelectorAll('.extra-charge-row').forEach(row => {
+            // Note: In your PDF, extra charges don't seem to sum up into the grand total, they are just a rate card. 
+            // So we won't add them to globalSubtotal.
+        });
 
+        let discount = parseFloat(document.getElementById('docDiscount').value) || 0;
+        if(discount < 0) discount = Math.abs(discount);
+        if(discount > globalSubtotal) discount = globalSubtotal;
+        
         let taxPercent = parseFloat(document.getElementById('docTax').value) || 0;
-        
-        // ENTERPRISE SECURITY: Prevent Negative Taxes or Tax overflows
         if (taxPercent < 0) taxPercent = Math.abs(taxPercent);
-        if (taxPercent > 100) taxPercent = 100;
         
-        document.getElementById('docTax').value = taxPercent; // Force correct display
-        
-        // Prevent Tax calculating on negative values just in case
-        const taxableAmount = Math.max(0, subtotal - discount);
+        const taxableAmount = Math.max(0, globalSubtotal - discount);
         const taxAmt = taxableAmount * (taxPercent / 100);
-        const final = (subtotal - discount) + taxAmt;
+        const finalTotal = taxableAmount + taxAmt;
 
-        document.getElementById('docSubtotal').textContent = subtotal.toFixed(2);
-        document.getElementById('docTotal').textContent = formatMoney(final);
-    }
+        document.getElementById('docSubtotal').textContent = globalSubtotal.toLocaleString('en-US', {minimumFractionDigits: 2});
+        document.getElementById('docTotal').textContent = formatMoney(finalTotal);
+    };
 
     let tempDocData = null; // Store data for warning modal
 
@@ -5815,39 +5855,53 @@ window.checkout = async () => {
         
         if(!custName || !docId) return showToast("Customer Name & Doc ID Required", "error");
 
-        const items = [];
-        document.querySelectorAll('#docItemsBody tr').forEach(tr => {
-            const iName = tr.querySelector('.doc-item-name').value.trim();
-            const iDesc = tr.querySelector('.doc-item-desc').value.trim(); // 🛡️ Capture Description
-            const iQty = parseFloat(tr.querySelector('.doc-item-qty').value) || 0;
-            const iPrice = parseFloat(tr.querySelector('.doc-item-price').value) || 0;
-            const iTotal = parseFloat(tr.querySelector('.doc-item-total').textContent) || 0;
+        // 🚀 ENTERPRISE DOCUMENT DATA EXTRACTOR
+        const optionsData = [];
+        document.querySelectorAll('.doc-option-block').forEach(block => {
+            const optTitle = block.querySelector('.opt-title').value.trim();
+            const optDesc = block.querySelector('.opt-desc').value.trim();
+            const optItems = [];
+            let optTotal = 0;
             
-            // Only push valid rows
-            if(iName && iQty > 0) {
-                items.push({ name: iName, description: iDesc, qty: iQty, price: iPrice, total: iTotal });
-            }
+            block.querySelectorAll('.opt-tbody tr').forEach(tr => {
+                const brand = tr.querySelector('.item-brand').value.trim();
+                const name = tr.querySelector('.item-name').value.trim();
+                const uPrice = parseFloat(tr.querySelector('.item-uprice').value) || 0;
+                const dPrice = parseFloat(tr.querySelector('.item-dprice').value) || 0;
+                const qty = parseFloat(tr.querySelector('.item-qty').value) || 0;
+                const lineTot = qty * (dPrice > 0 ? dPrice : uPrice);
+                
+                if(name && qty > 0) {
+                    optItems.push({ brand, name, uPrice, dPrice, qty, total: lineTot });
+                    optTotal += lineTot;
+                }
+            });
+            if(optItems.length > 0) optionsData.push({ title: optTitle, description: optDesc, items: optItems, total: optTotal });
         });
 
-        if(items.length === 0) return showToast("Please add at least one valid item with Name and Qty", "error");
+        const extrasData = [];
+        document.querySelectorAll('.extra-charge-row').forEach(row => {
+            const cap = row.querySelector('.ext-cap').value.trim();
+            const type = row.querySelector('.ext-type').value.trim();
+            const rate = parseFloat(row.querySelector('.ext-rate').value) || 0;
+            if(type) extrasData.push({ cap, type, rate });
+        });
 
-        // ADVANCED LOGIC FIX: Check database directly instead of just UI to prevent pagination overwrites
-        const qDoc = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/documents`), where("docId", "==", docId));
-        const snapDoc = await getDocs(qDoc);
-        if(!snapDoc.empty) {
-            return showToast(`Document No '${docId}' already exists in the Database! Please use a unique number.`, "error");
-        }
+        if(optionsData.length === 0) return showToast("Please add at least one Option block with valid items", "error");
 
-        const subtotal = parseFloat(document.getElementById('docSubtotal').textContent);
+        const subtotal = parseFloat(document.getElementById('docSubtotal').textContent.replace(/,/g, ''));
         const discount = parseFloat(document.getElementById('docDiscount').value) || 0;
         const tax = parseFloat(document.getElementById('docTax').value) || 0;
-        const total = parseFloat(document.getElementById('docTotal').textContent.replace(/[^0-9.-]+/g,"")); // Remove currency symbol
+        const total = parseFloat(document.getElementById('docTotal').textContent.replace(/[^0-9.-]+/g,"")); 
 
         tempDocData = {
             type, docId, date: document.getElementById('docDate').value,
             dueDate: document.getElementById('docDueDate').value,
             customer: { name: custName, address: document.getElementById('docCustAddr').value },
-            items, subtotal, discount, tax, total,
+            options: optionsData,      // 🛡️ Advanced nested structure
+            extras: extrasData,        // 🛡️ Extra charges array
+            items: [],                 // Kept for backward compatibility if needed
+            subtotal, discount, tax, total,
             createdAt: new Date().toISOString()
         };
 
@@ -6152,307 +6206,250 @@ window.autoFillDocCustomer = (name) => {
 
    // --- UPDATED PDF GENERATOR (MATCHING IMAGE STYLE) ---
    // --- NEW PDF GENERATOR (TARGET STYLE MATCH) ---
+    // ==========================================
+    // 🚀 ENTERPRISE PDF GENERATOR (DYNAMIC TOGGLES & PROFESSIONAL LAYOUT)
+    // ==========================================
     window.generateDocumentPDF = (docData) => {
         const { jsPDF } = window.jspdf;
-        const doc = new jsPDF(); // Default A4 Portrait
-
-        // --- STYLING CONSTANTS ---
+        const doc = new jsPDF('p', 'mm', 'a4'); // A4 Standard
         const shop = profileCache || {};
-        const primaryColorHex = shop.logoColor || '#4F46E5'; 
-        
-        // Convert Hex to RGB for jsPDF
-        const hexToRgb = (hex) => {
-            let result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-            return result ? [parseInt(result[1], 16), parseInt(result[2], 16), parseInt(result[3], 16)] :[79, 70, 229];
-        };
-        const themeColor = hexToRgb(primaryColorHex);
         
         const pageWidth = doc.internal.pageSize.width; 
         const pageHeight = doc.internal.pageSize.height; 
-        const margin = 14;
-        const contentWidth = pageWidth - (margin * 2);
+        const margin = 15;
+        let currentY = 20;
 
-        // --- 1. HEADER SECTION ---
-        let topY = 15;
-
-        // Document Title (Top Right) - MASSIVE FONT
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(24);
-        doc.setTextColor(themeColor[0], themeColor[1], themeColor[2]);
-        let docTitle = docData.type === 'invoice' ? 'INVOICE' : (docData.type === 'quotation' ? 'QUOTATION' : 'CASH RECEIPT');
-        doc.text(docTitle, pageWidth - margin, topY + 6, { align: "right" });
-
-        // Logo Rendering (Top Left)
-        let leftY = topY;
+        // --- 1. HEADER (Dynamic Profile Syncing) ---
+        
+        // Logo Rendering (Top Right Corner - Exactly like your PDF)
         if (shop.logoImage) {
-            try {
-                // Render Beautiful Logo
-                doc.addImage(shop.logoImage, 'JPEG', margin, topY, 35, 35);
-                leftY += 40;
-            } catch(e) { console.error("Logo print error", e); }
-        } else {
-            // Text Fallback if no Logo
-            doc.setFontSize(20);
-            doc.text((shop.bizName || "My Business").toUpperCase(), margin, topY + 6);
-            leftY += 15;
+            try { doc.addImage(shop.logoImage, 'JPEG', pageWidth - margin - 45, 10, 45, 25); } catch(e){ console.error(e); }
         }
 
-        // RIGHT SIDE: Company Details (Under Document Title)
-        let rightY = topY + 16;
-        doc.setFontSize(10);
-        doc.setTextColor(0);
+        // Center Company Text
         doc.setFont("helvetica", "bold");
-
-        // Profile Toggles applied strictly!
-        if (shop.showBizName !== false && shop.bizName && shop.logoImage) {
-            doc.text(shop.bizName.toUpperCase(), pageWidth - margin, rightY, { align: "right" });
-            rightY += 5;
+        doc.setFontSize(14);
+        doc.setTextColor(0);
+        
+        // "Show Biz Name" Check
+        if (shop.showBizName !== false && shop.bizName) {
+            doc.text(shop.bizName.toUpperCase(), pageWidth / 2, currentY, { align: "center" });
+            currentY += 6;
         }
 
         doc.setFontSize(9);
         doc.setFont("helvetica", "normal");
-        const addRightText = (txt) => {
-            if(txt) {
-                doc.text(txt, pageWidth - margin, rightY, { align: "right" });
-                rightY += 4.5;
-            }
-        };
-
-        if (shop.showReg !== false && shop.regNo) addRightText(`Reg No: ${shop.regNo}`);
+        
+        // "Show Address" Check
         if (shop.showAddress !== false && shop.address) {
-            const addrLines = doc.splitTextToSize(shop.address, 70);
-            addrLines.forEach(line => addRightText(line));
-        }
-        
-        let contacts =[];
-        if (shop.showPhone1 !== false && shop.phone1) contacts.push(shop.phone1);
-        if (shop.showPhone2 !== false && shop.phone2) contacts.push(shop.phone2);
-        if (contacts.length) addRightText(`Tel: ${contacts.join(', ')}`);
-        
-        if (shop.showWhatsapp !== false && shop.whatsapp) addRightText(`WhatsApp: ${shop.whatsapp}`);
-        if (shop.showFax !== false && shop.fax) addRightText(`Fax: ${shop.fax}`);
-        if (shop.showEmail !== false && shop.email) addRightText(`Email: ${shop.email}`);
-
-        // LEFT SIDE: Customer Details (Under Logo)
-        let custY = Math.max(leftY, 35); 
-        
-        doc.setFontSize(9);
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(255);
-        doc.setFillColor(themeColor[0], themeColor[1], themeColor[2]);
-        doc.rect(margin, custY, 80, 6, 'F');
-        doc.text("BILL TO / CUSTOMER :", margin + 2, custY + 4.5);
-
-        custY += 10;
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(0);
-        doc.text(docData.customer.name || "Cash Customer", margin, custY);
-        custY += 5;
-
-        doc.setFont("helvetica", "normal");
-        if(docData.customer && docData.customer.address) {
-            const custAddrLines = doc.splitTextToSize(String(docData.customer.address), 80);
-            doc.text(custAddrLines, margin, custY);
-            custY += (custAddrLines.length * 4.5);
-        }
-        if(docData.customer && docData.customer.phone && docData.customer.phone !== "N/A") {
-            // 🛡️ ENTERPRISE FIX: Mask phone number for security in A4 prints
-            const cp = String(docData.customer.phone);
-            const maskedPhone = cp.length >= 9 ? cp.slice(0, 3) + ' **** ' + cp.slice(-3) : cp;
-            doc.text(`Tel: ${maskedPhone}`, margin, custY);
+            const addrParts = shop.address.replace(/\n/g, ', '); // Format nicely into 1 or 2 lines
+            doc.text(addrParts, pageWidth / 2, currentY, { align: "center" });
+            currentY += 5;
         }
 
-        // --- 2. META DATA STRIP ---
-        const stripY = Math.max(rightY, custY) + 8;
-        const stripHeight = 12;
+        // Combine Phones, Whatsapp, and Email safely checking Toggles!
+        let contactStr = [];
+        if (shop.showPhone1 !== false && shop.phone1) contactStr.push(shop.phone1);
+        if (shop.showPhone2 !== false && shop.phone2) contactStr.push(shop.phone2);
+        if (shop.showWhatsapp !== false && shop.whatsapp) contactStr.push(`WA: ${shop.whatsapp}`);
+        if (shop.showEmail !== false && shop.email) contactStr.push(shop.email);
         
-        doc.setDrawColor(200, 200, 200);
-        doc.setLineWidth(0.5);
-        doc.rect(margin, stripY, contentWidth, stripHeight);
-        
-        const sectionW = contentWidth / 3;
-        doc.line(margin + sectionW, stripY, margin + sectionW, stripY + stripHeight);
-        doc.line(margin + (sectionW * 2), stripY, margin + (sectionW * 2), stripY + stripHeight);
-        
-        doc.setFontSize(8);
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(100); 
-        
-        let docLabel = docData.type === 'invoice' ? 'INVOICE NO.' : (docData.type === 'quotation' ? 'QUOTATION NO.' : 'RECEIPT NO.');
-        doc.text(docLabel, margin + 2, stripY + 4);
-        doc.text("DATE", margin + sectionW + 2, stripY + 4);
-        doc.text(docData.type === 'RECEIPT' ? "TIME" : "DUE DATE", margin + (sectionW * 2) + 2, stripY + 4);
-        
-        let printDate = docData.date;
-        let printTime = docData.dueDate || "-";
-        
-        if (docData.type === 'RECEIPT') {
-            try {
-                const dObj = new Date(docData.date);
-                if(!isNaN(dObj)) {
-                    printDate = dObj.toLocaleDateString();
-                    printTime = dObj.toLocaleTimeString();
-                }
-            } catch(e) {}
+        if (contactStr.length > 0) {
+            doc.text(contactStr.join(' | '), pageWidth / 2, currentY, { align: "center" });
+            currentY += 5;
         }
 
-        doc.setFontSize(10);
-        doc.setTextColor(0);
-        doc.text(String(docData.docId), margin + 2, stripY + 9);
-        doc.text(printDate, margin + sectionW + 2, stripY + 9);
-        doc.text(printTime, margin + (sectionW * 2) + 2, stripY + 9);
-
-        // --- 3. ITEM TABLE ---
-        const tableBody = docData.items.map(item => {
-            let displayName = item.name + (item.batchNumber ? ` (Batch: ${formatBatch(item.batchNumber)})` : "");
-            
-            // 🛡️ ENTERPRISE FIX: Append the description nicely under the product name in the PDF
-            if (item.description) {
-                displayName += `\n${item.description}`; // \n creates a new line inside the PDF table cell!
-            }
-
-            return [
-                item.sku || "-",
-                displayName,
-                item.qty,
-                formatMoney(item.price || item.sell), 
-                formatMoney(item.total || (item.qty * (item.price || item.sell)))
-            ];
-        });
-
-        doc.autoTable({
-            startY: stripY + stripHeight + 5,
-            head: [['ITEM CODE', 'DESCRIPTION', 'QTY', 'UNIT PRICE', 'AMOUNT']],
-            body: tableBody,
-            theme: 'grid',
-            headStyles: { fillColor: themeColor, textColor: 255, fontStyle: 'bold', halign: 'center', fontSize: 9 },
-            bodyStyles: { textColor: 0, fontSize: 9 },
-            columnStyles: {
-                0: { halign: 'left', cellWidth: 30 },
-                1: { halign: 'left' },
-                2: { halign: 'center', cellWidth: 20 },
-                3: { halign: 'right', cellWidth: 35 },
-                4: { halign: 'right', cellWidth: 35 }
-            },
-            styles: { lineColor: [200, 200, 200], lineWidth: 0.1, cellPadding: 4 }
-        });
-
-        // --- 4. FOOTER & TOTALS ---
-        let finalY = doc.lastAutoTable.finalY + 5;
-        if (finalY > 230) {
-            doc.addPage();
-            finalY = 20; 
-        }
-        
-        const totalBoxWidth = 85;
-        const totalBoxX = pageWidth - margin - totalBoxWidth;
-        let currentTotalY = finalY;
-
-        const drawTotalLine = (label, value, isBold = false) => {
-            doc.setFont("helvetica", isBold ? "bold" : "normal");
-            doc.setFontSize(10);
-            doc.text(label, totalBoxX, currentTotalY + 4);
-            doc.text(value, pageWidth - margin, currentTotalY + 4, { align: "right" });
-            currentTotalY += 6;
-        };
-
-        drawTotalLine("SUB TOTAL", formatMoney(docData.subtotal));
-        
-        if(docData.discount > 0) drawTotalLine("DISCOUNT", "-" + formatMoney(docData.discount));
-        if(docData.fees && docData.fees.length > 0) {
-            docData.fees.forEach(f => drawTotalLine(f.name, "+" + formatMoney(f.amount)));
-        }
-        
-        if(docData.tax > 0) {
-            const safeDiscount = docData.discount || 0;
-            const taxableAmount = Math.max(0, docData.subtotal - safeDiscount);
-            const taxVal = taxableAmount * (docData.tax / 100);
-            drawTotalLine(`TAX (${docData.tax}%)`, "+" + formatMoney(taxVal));
+        if (shop.showReg !== false && shop.regNo) {
+            doc.text(`Reg No: ${shop.regNo}`, pageWidth / 2, currentY, { align: "center" });
+            currentY += 5;
         }
 
-        currentTotalY += 2;
-        doc.setFillColor(themeColor[0], themeColor[1], themeColor[2]);
-        doc.rect(totalBoxX - 2, currentTotalY, totalBoxWidth + 4, 10, 'F');
-        doc.setTextColor(255);
+        // --- 2. DOCUMENT TITLE & META ---
+        currentY += 10; 
         doc.setFont("helvetica", "bold");
         doc.setFontSize(12);
-        doc.text("NET TOTAL", totalBoxX, currentTotalY + 7);
-        doc.text(formatMoney(docData.total), pageWidth - margin, currentTotalY + 7, { align: "right" });
-
-        // Payment Details specifically for POS Receipts
-        if(docData.paymentMethod) {
-            currentTotalY += 15;
-            doc.setTextColor(0);
-            drawTotalLine("PAYMENT MODE", docData.paymentMethod.toUpperCase(), true);
-            
-            if(docData.paymentMethod === 'Pay Later') {
-                drawTotalLine("ADVANCE PAID", formatMoney(docData.cashGiven || 0));
-                drawTotalLine("CREDIT BALANCE", formatMoney(docData.creditBalance || (docData.total - (docData.cashGiven||0))), true);
-            } else if(docData.paymentMethod.includes('Cash')) {
-                drawTotalLine("CASH GIVEN", formatMoney(docData.cashGiven || docData.total));
-                drawTotalLine("BALANCE", formatMoney(docData.balance || 0), true);
-            }
-        }
-
-        // LEFT FOOTER CONTENT
-        doc.setTextColor(0);
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(8);
-        let footerLeftY = finalY + 10;
+        doc.text(docData.type.toUpperCase(), pageWidth / 2, currentY, { align: 'center' });
         
-        // Fetch customized terms from Profile, or use fallbacks
-        let termsText = "";
-        if (!docData.paymentMethod) {
-            // Standard Invoice or Quotation
-            if (docData.type === 'quotation') {
-                termsText = shop.termsQuote !== undefined ? shop.termsQuote : "TERMS & CONDITIONS:\nThis is a quotation. Prices and stock are subject to change. Valid for 30 days.";
-            } else {
-                termsText = shop.termsInvoice !== undefined ? shop.termsInvoice : "REMARKS / PAYMENT INSTRUCTIONS:\nCheques should be drawn in favour of our company.";
-            }
-            
-            // Print the terms (split to handle long lines securely)
-            const splitTerms = doc.splitTextToSize(termsText, 100);
-            doc.text(splitTerms, margin, footerLeftY);
-            
-            // Signatures block for Invoices and Quotations
-            const sigY = pageHeight - 30;
-            doc.setDrawColor(0);
-            doc.setLineWidth(0.1);
-            doc.line(margin, sigY, margin + 40, sigY);
-            doc.text("Prepared By", margin + 5, sigY + 5);
-            doc.line(margin + 60, sigY, margin + 100, sigY);
-            doc.text("Received By", margin + 65, sigY + 5);
-            doc.line(pageWidth - margin - 50, sigY, pageWidth - margin, sigY);
-            doc.text("Authorized Signature", pageWidth - margin - 45, sigY + 5);
+        currentY += 10;
+        doc.setFontSize(10);
+        doc.text(`${docData.type === 'invoice' ? 'Invoice Number' : 'Quotation Number'}`, margin, currentY);
+        doc.text(`: ${docData.docId}`, margin + 40, currentY);
+        
+        currentY += 6;
+        doc.text(`${docData.type === 'invoice' ? 'Invoice Date' : 'Quotation Date'}`, margin, currentY);
+        doc.text(`: ${docData.date}`, margin + 40, currentY);
 
-        } else {
-            // POS Receipt (A4)
-            termsText = shop.termsA4 !== undefined ? shop.termsA4 : "THANK YOU FOR YOUR BUSINESS!\nItems can be returned or exchanged within 7 days with this original receipt.\nConditions apply.";
-            
-            // Print the terms (split to handle long lines securely)
-            const splitTerms = doc.splitTextToSize(termsText, 100);
-            doc.text(splitTerms, margin, footerLeftY);
+        // --- 3. CUSTOMER INFO ---
+        currentY += 12;
+        doc.setFont("helvetica", "bold");
+        doc.text(docData.customer.name ? docData.customer.name : "CASH CUSTOMER", margin, currentY);
+        
+        currentY += 6;
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+        if(docData.customer.address) {
+            const custAddrLines = doc.splitTextToSize(docData.customer.address, 100);
+            doc.text(custAddrLines, margin, currentY);
+            currentY += (custAddrLines.length * 5);
+        }
+        
+        currentY += 6;
+        doc.setFont("helvetica", "bold");
+        doc.text("Dear Sir/Madam,", margin, currentY);
+        currentY += 7;
+        doc.text(`SUBJECT: ${docData.type.toUpperCase()} FOR SUPPLY & INSTALLATION`, margin, currentY);
+        doc.setLineWidth(0.3);
+        doc.line(margin, currentY+1, margin + 95, currentY+1);
+
+        // --- 4. OPTIONS TABLES (The Magic Part) ---
+        currentY += 8;
+
+        if (docData.options && docData.options.length > 0) {
+            docData.options.forEach((opt, idx) => {
+                const tableBody = [];
+                
+                // Add Items
+                opt.items.forEach((item, i) => {
+                    let displayName = item.name + (item.batchNumber ? ` (Batch: ${formatBatch(item.batchNumber)})` : "");
+                    if (item.description) displayName += `\n${item.description}`;
+
+                    tableBody.push([
+                        i + 1,
+                        item.brand || "-",
+                        displayName,
+                        item.uPrice > 0 ? item.uPrice.toLocaleString('en-US', {minimumFractionDigits: 2}) : "-",
+                        item.dPrice > 0 ? item.dPrice.toLocaleString('en-US', {minimumFractionDigits: 2}) : "-",
+                        item.qty,
+                        item.total.toLocaleString('en-US', {minimumFractionDigits: 2})
+                    ]);
+                });
+
+                // Add Grand Total Row for this option
+                tableBody.push([
+                    { content: 'Grand Total', colSpan: 5, styles: { halign: 'center', fontStyle: 'bold', fillColor: [240, 255, 240] } },
+                    { content: opt.items.reduce((sum,i)=>sum+i.qty,0), styles: { fontStyle: 'bold', halign: 'center', fillColor: [240, 255, 240] } },
+                    { content: opt.total.toLocaleString('en-US', {minimumFractionDigits: 2}), styles: { fontStyle: 'bold', halign: 'right', fillColor: [240, 255, 240] } }
+                ]);
+
+                // Draw Table
+                doc.autoTable({
+                    startY: currentY,
+                    head: [
+                        // Main Option Title Header (Span across)
+                        [{ content: `${opt.title || 'Option'} ${opt.description ? '- ' + opt.description : ''}`, colSpan: 7, styles: { fillColor: [134, 239, 172], textColor: 0, fontStyle: 'bold' } }],
+                        // Column Headers
+                        ['No', 'Brand', 'Item / Description', 'Unit Price', 'Discounted Price', 'Qty', 'Total']
+                    ],
+                    body: tableBody,
+                    theme: 'grid',
+                    headStyles: { fillColor: [229, 231, 235], textColor: 0, fontSize: 9, fontStyle: 'bold' },
+                    bodyStyles: { fontSize: 9, textColor: 0 },
+                    columnStyles: {
+                        0: { halign: 'center', cellWidth: 10 },
+                        1: { halign: 'center', cellWidth: 20 },
+                        2: { halign: 'left' },
+                        3: { halign: 'right', cellWidth: 25 },
+                        4: { halign: 'right', cellWidth: 30 },
+                        5: { halign: 'center', cellWidth: 12 },
+                        6: { halign: 'right', cellWidth: 25 }
+                    },
+                    styles: { lineColor: [0, 0, 0], lineWidth: 0.1 }, // Black borders matching PDF
+                    margin: { left: margin, right: margin }
+                });
+                
+                currentY = doc.lastAutoTable.finalY + 5;
+            });
         }
 
-        // 🛡️ ENTERPRISE FIX: Print initial PIN securely at the bottom of the A4 document (One-Time Print)
-        if (docData.initialPin) {
-            let pinY = pageHeight - 15; // Set it near the bottom margin
-            doc.setFont("helvetica", "bold");
+        // --- 5. EXTRA CHARGES TABLE ---
+        if (docData.extras && docData.extras.length > 0) {
+            currentY += 5;
             doc.setFontSize(10);
-            doc.text(`Customer Portal PIN: ${docData.initialPin}`, margin, pinY);
-            doc.setFont("helvetica", "normal");
-            doc.setFontSize(8);
-            doc.text(`(For security, please change this PIN after your first login)`, margin, pinY + 4);
+            doc.setFont("helvetica", "bold");
+            doc.text("Extra Charges - If Required", margin, currentY);
+            
+            const extraBody = docData.extras.map((ext, i) => [
+                i + 1,
+                ext.cap || "-",
+                ext.type,
+                ext.rate > 0 ? ext.rate.toLocaleString('en-US', {minimumFractionDigits: 2}) : "-"
+            ]);
+
+            doc.autoTable({
+                startY: currentY + 3,
+                head: [['No', 'Btu Capacity', 'Type', 'Per M Rate']],
+                body: extraBody,
+                theme: 'grid',
+                headStyles: { fillColor: [255, 255, 255], textColor: 0, fontStyle: 'bold' },
+                bodyStyles: { fontSize: 9, textColor: 0 },
+                columnStyles: {
+                    0: { halign: 'center', cellWidth: 10 },
+                    1: { halign: 'center', cellWidth: 30 },
+                    2: { halign: 'left' },
+                    3: { halign: 'right', cellWidth: 30, fontStyle: 'bold' }
+                },
+                styles: { lineColor: [0, 0, 0], lineWidth: 0.1 },
+                margin: { left: margin, right: margin }
+            });
+            currentY = doc.lastAutoTable.finalY + 10;
         }
 
-        // ENTERPRISE FIX: Pop-up Blocker Bypass for A4 POS Receipts & Documents
-        if (docData.type === 'RECEIPT') {
-            // PDF එක Iframe එක ඇතුළතින්ම ඔටෝමැටික් Print වීමට සකසයි
-            doc.autoPrint({variant: 'non-conform'}); 
-            const pdfBlobUrl = doc.output('bloburl');
-            window.silentPrint(pdfBlobUrl, true);
+        // --- 6. TERMS & CONDITIONS ---
+        currentY += 5;
+        if (currentY > pageHeight - 60) { doc.addPage(); currentY = 20; } // Page break logic
+
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "bold");
+        doc.text("Terms & Conditions", margin, currentY);
+        
+        currentY += 5;
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "normal");
+        
+        let termsText = docData.type === 'quotation' ? shop.termsQuote : shop.termsInvoice;
+        if(!termsText) termsText = "Validity: 14 Days\nPayment: Full payment upon confirmation\nWarranty: 1 Year Comprehensive\nDelivery: Free delivery within city limits";
+        
+        // Print Terms line by line to support bold keys like "Validity :"
+        const termLines = termsText.split('\n');
+        termLines.forEach(line => {
+            if(line.includes(':')) {
+                const parts = line.split(':');
+                doc.setFont("helvetica", "bold");
+                doc.text(parts[0].trim(), margin, currentY);
+                doc.setFont("helvetica", "normal");
+                doc.text(" : " + parts.slice(1).join(':').trim(), margin + 30, currentY);
+            } else {
+                doc.text(line, margin, currentY);
+            }
+            currentY += 5;
+        });
+
+        // --- 7. SIGNATURE BLOCK ---
+        currentY += 20;
+        if (currentY > pageHeight - 30) { doc.addPage(); currentY = 30; }
+        
+        doc.setFont("helvetica", "bold");
+        doc.text("Regards,", margin, currentY);
+        doc.setLineWidth(0.3);
+        doc.line(margin, currentY + 10, margin + 40, currentY + 10); // Sig line
+        
+        // 🛡️ Ensure Owner Name toggle is respected!
+        doc.setFontSize(9);
+        if (shop.showOwner !== false && shop.ownerName) {
+            doc.text(shop.ownerName, margin, currentY + 15);
         } else {
-            // Documents Tab (Invoice/Quotation): Download Directly. Download කිසිවිටෙක Pop-up Blocker වලින් බ්ලොක් නොවේ.
+            doc.text("Authorized Manager", margin, currentY + 15);
+        }
+        
+        doc.setFont("helvetica", "normal");
+        if (shop.showBizName !== false && shop.bizName) doc.text(shop.bizName, margin, currentY + 20);
+        if (shop.showPhone1 !== false && shop.phone1) doc.text(shop.phone1, margin, currentY + 25);
+
+        // Download or Print
+        if (docData.type === 'RECEIPT') {
+            doc.autoPrint({variant: 'non-conform'}); 
+            window.silentPrint(doc.output('bloburl'), true);
+        } else {
             doc.save(`${docData.type}_${docData.docId}.pdf`);
         }
     };
