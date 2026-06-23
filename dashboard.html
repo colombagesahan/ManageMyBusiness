@@ -4796,7 +4796,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             return false;
         }
 
-        // 4. දියඇල්ලක මෙන් පරණ තොගයෙන් පිරී අලුත් තොගයට ගැලීම (එකම මිලැති තොග අතර පමණි)
+        // 4. දියඇල්ලක මෙන් පරණ තොගයෙන් පිරී අලුත් තොගයට ගැලීම 
         for (let batch of activeBatches) {
             if (remainingQty <= 0) break;
 
@@ -4808,14 +4808,13 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 
             const qtyToTake = Math.min(batchUsableQty, remainingQty);
             
-            // 🛡️ ENTERPRISE FIFO FIX: Separate cart items if prices differ!
-            // Instead of just checking ID, check if a cart item exists WITH THE SAME PRICE.
-            const existInCartWithSamePrice = cart.find(x => (x.id === batch.id || x.name === batch.name) && x.sell === batch.sell);
-            
-            if (existInCartWithSamePrice) {
-                existInCartWithSamePrice.qty += qtyToTake;
+            // 🛡️ ENTERPRISE DB-SYNC FIX: STRICT BATCH ISOLATION
+            // කිසිවිටෙකත් වෙනස් Batches 2 ක් Cart එක ඇතුළේ Merge නොකරයි!
+            // Database එකේ Document ID එකට 100% ක් අනුකූල වන සේ Cart එකේ පේළි වෙන් කර තබයි.
+            if (existInCart) {
+                existInCart.qty += qtyToTake;
             } else {
-                cart.push({ ...batch, qty: qtyToTake, id: batch.id }); // Push specific batch ID
+                cart.push({ ...batch, qty: qtyToTake, id: batch.id }); 
             }
             
             remainingQty -= qtyToTake;
