@@ -6208,11 +6208,11 @@ window.autoFillDocCustomer = (name) => {
    // --- UPDATED PDF GENERATOR (MATCHING IMAGE STYLE) ---
    // --- NEW PDF GENERATOR (TARGET STYLE MATCH) ---
     // ==========================================
-    // 🚀 ENTERPRISE PDF GENERATOR (DYNAMIC TOGGLES & PROFESSIONAL LAYOUT)
+    // 🚀 ENTERPRISE HYBRID PDF GENERATOR (FOR BOTH POS RECEIPTS & FORMAL QUOTATIONS)
     // ==========================================
     window.generateDocumentPDF = (docData) => {
         const { jsPDF } = window.jspdf;
-        const doc = new jsPDF('p', 'mm', 'a4'); // A4 Standard
+        const doc = new jsPDF('p', 'mm', 'a4'); 
         const shop = profileCache || {};
         
         const pageWidth = doc.internal.pageSize.width; 
@@ -6221,18 +6221,14 @@ window.autoFillDocCustomer = (name) => {
         let currentY = 20;
 
         // --- 1. HEADER (Dynamic Profile Syncing) ---
-        
-        // Logo Rendering (Top Right Corner - Exactly like your PDF)
         if (shop.logoImage) {
             try { doc.addImage(shop.logoImage, 'JPEG', pageWidth - margin - 45, 10, 45, 25); } catch(e){ console.error(e); }
         }
 
-        // Center Company Text
         doc.setFont("helvetica", "bold");
         doc.setFontSize(14);
         doc.setTextColor(0);
         
-        // "Show Biz Name" Check
         if (shop.showBizName !== false && shop.bizName) {
             doc.text(shop.bizName.toUpperCase(), pageWidth / 2, currentY, { align: "center" });
             currentY += 6;
@@ -6241,14 +6237,12 @@ window.autoFillDocCustomer = (name) => {
         doc.setFontSize(9);
         doc.setFont("helvetica", "normal");
         
-        // "Show Address" Check
         if (shop.showAddress !== false && shop.address) {
-            const addrParts = shop.address.replace(/\n/g, ', '); // Format nicely into 1 or 2 lines
+            const addrParts = shop.address.replace(/\n/g, ', '); 
             doc.text(addrParts, pageWidth / 2, currentY, { align: "center" });
             currentY += 5;
         }
 
-        // Combine Phones, Whatsapp, and Email safely checking Toggles!
         let contactStr = [];
         if (shop.showPhone1 !== false && shop.phone1) contactStr.push(shop.phone1);
         if (shop.showPhone2 !== false && shop.phone2) contactStr.push(shop.phone2);
@@ -6268,17 +6262,19 @@ window.autoFillDocCustomer = (name) => {
         // --- 2. DOCUMENT TITLE & META ---
         currentY += 10; 
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(12);
+        doc.setFontSize(11);
         doc.text(docData.type.toUpperCase(), pageWidth / 2, currentY, { align: 'center' });
         
         currentY += 10;
         doc.setFontSize(10);
-        doc.text(`${docData.type === 'invoice' ? 'Invoice Number' : 'Quotation Number'}`, margin, currentY);
+        let docLabel = docData.type === 'invoice' ? 'Invoice Number' : (docData.type === 'quotation' ? 'Quotation Number' : 'Receipt Number');
+        doc.text(docLabel, margin, currentY);
         doc.text(`: ${docData.docId}`, margin + 40, currentY);
         
         currentY += 6;
-        doc.text(`${docData.type === 'invoice' ? 'Invoice Date' : 'Quotation Date'}`, margin, currentY);
-        doc.text(`: ${docData.date}`, margin + 40, currentY);
+        let dateLabel = docData.type === 'RECEIPT' ? 'Date & Time' : (docData.type === 'invoice' ? 'Invoice Date' : 'Quotation Date');
+        doc.text(dateLabel, margin, currentY);
+        doc.text(`: ${docData.date} ${docData.type === 'RECEIPT' ? docData.dueDate||'' : ''}`, margin + 40, currentY);
 
         // --- 3. CUSTOMER INFO ---
         currentY += 12;
@@ -6293,8 +6289,13 @@ window.autoFillDocCustomer = (name) => {
             doc.text(custAddrLines, margin, currentY);
             currentY += (custAddrLines.length * 5);
         }
+        if(docData.customer.phone && docData.customer.phone !== "N/A") {
+            const cp = String(docData.customer.phone);
+            const maskedPhone = (docData.type === 'RECEIPT' && cp.length >= 9) ? cp.slice(0, 3) + ' **** ' + cp.slice(-3) : cp;
+            doc.text(`Tel: ${maskedPhone}`, margin, currentY);
+            currentY += 6;
+        }
         
-        currentY += 6;
         doc.setFont("helvetica", "bold");
         doc.text("Dear Sir/Madam,", margin, currentY);
         currentY += 7;
@@ -6302,123 +6303,138 @@ window.autoFillDocCustomer = (name) => {
         doc.setLineWidth(0.3);
         doc.line(margin, currentY+1, margin + 95, currentY+1);
 
-        // --- 4. OPTIONS TABLES (The Magic Part) ---
+        // --- 4. POLYMORPHIC DATA TABLES (The Magic Fix) ---
         currentY += 8;
 
+        // SCENARIO A: Document Builder (Options Grouping)
         if (docData.options && docData.options.length > 0) {
             docData.options.forEach((opt, idx) => {
                 const tableBody = [];
-                
-                // Add Items
                 opt.items.forEach((item, i) => {
                     let displayName = item.name + (item.batchNumber ? ` (Batch: ${formatBatch(item.batchNumber)})` : "");
                     if (item.description) displayName += `\n${item.description}`;
 
                     tableBody.push([
-                        i + 1,
-                        item.brand || "-",
-                        displayName,
+                        i + 1, item.brand || "-", displayName,
                         item.uPrice > 0 ? item.uPrice.toLocaleString('en-US', {minimumFractionDigits: 2}) : "-",
                         item.dPrice > 0 ? item.dPrice.toLocaleString('en-US', {minimumFractionDigits: 2}) : "-",
-                        item.qty,
-                        item.total.toLocaleString('en-US', {minimumFractionDigits: 2})
+                        item.qty, item.total.toLocaleString('en-US', {minimumFractionDigits: 2})
                     ]);
                 });
-
-                // Add Grand Total Row for this option
                 tableBody.push([
                     { content: 'Grand Total', colSpan: 5, styles: { halign: 'center', fontStyle: 'bold', fillColor: [240, 255, 240] } },
                     { content: opt.items.reduce((sum,i)=>sum+i.qty,0), styles: { fontStyle: 'bold', halign: 'center', fillColor: [240, 255, 240] } },
                     { content: opt.total.toLocaleString('en-US', {minimumFractionDigits: 2}), styles: { fontStyle: 'bold', halign: 'right', fillColor: [240, 255, 240] } }
                 ]);
-
-                // Draw Table
                 doc.autoTable({
                     startY: currentY,
                     head: [
-                        // Main Option Title Header (Span across)
                         [{ content: `${opt.title || 'Option'} ${opt.description ? '- ' + opt.description : ''}`, colSpan: 7, styles: { fillColor: [134, 239, 172], textColor: 0, fontStyle: 'bold' } }],
-                        // Column Headers
                         ['No', 'Brand', 'Item / Description', 'Unit Price', 'Discounted Price', 'Qty', 'Total']
                     ],
-                    body: tableBody,
-                    theme: 'grid',
-                    headStyles: { fillColor: [229, 231, 235], textColor: 0, fontSize: 9, fontStyle: 'bold' },
-                    bodyStyles: { fontSize: 9, textColor: 0 },
-                    columnStyles: {
-                        0: { halign: 'center', cellWidth: 10 },
-                        1: { halign: 'center', cellWidth: 20 },
-                        2: { halign: 'left' },
-                        3: { halign: 'right', cellWidth: 25 },
-                        4: { halign: 'right', cellWidth: 30 },
-                        5: { halign: 'center', cellWidth: 12 },
-                        6: { halign: 'right', cellWidth: 25 }
-                    },
-                    styles: { lineColor: [0, 0, 0], lineWidth: 0.1 }, // Black borders matching PDF
-                    margin: { left: margin, right: margin }
+                    body: tableBody, theme: 'grid',
+                    headStyles: { fillColor: [229, 231, 235], textColor: 0, fontSize: 9, fontStyle: 'bold' }, bodyStyles: { fontSize: 9, textColor: 0 },
+                    columnStyles: { 0: { cellWidth: 10, halign:'center' }, 1: { cellWidth: 20, halign:'center' }, 3: { cellWidth: 25, halign:'right' }, 4: { cellWidth: 30, halign:'right' }, 5: { cellWidth: 12, halign:'center' }, 6: { cellWidth: 25, halign:'right' } },
+                    styles: { lineColor: [0, 0, 0], lineWidth: 0.1 }, margin: { left: margin, right: margin }
                 });
-                
                 currentY = doc.lastAutoTable.finalY + 5;
             });
-        }
-
-        // --- 5. EXTRA CHARGES TABLE ---
-        if (docData.extras && docData.extras.length > 0) {
-            currentY += 5;
-            doc.setFontSize(10);
-            doc.setFont("helvetica", "bold");
-            doc.text("Extra Charges - If Required", margin, currentY);
-            
-            const extraBody = docData.extras.map((ext, i) => [
-                i + 1,
-                ext.cap || "-",
-                ext.type,
-                ext.rate > 0 ? ext.rate.toLocaleString('en-US', {minimumFractionDigits: 2}) : "-"
-            ]);
+        } 
+        // 🛡️ SCENARIO B: Smart POS A4 Receipt (Flat Items)
+        else if (docData.items && docData.items.length > 0) {
+            const tableBody = docData.items.map((item, i) => {
+                let displayName = item.name + (item.batchNumber ? ` (Batch: ${formatBatch(item.batchNumber)})` : "");
+                if (item.description) displayName += `\n${item.description}`;
+                if (item.serials && item.serials.length > 0) displayName += `\nS/N: ${item.serials.map(s => s.split('-').pop()).join(', ')}`;
+                
+                return [
+                    i + 1, item.sku || "-", displayName,
+                    formatMoney(item.sell || item.price).replace(currentCurrency,''),
+                    item.qty,
+                    formatMoney((item.sell || item.price) * item.qty).replace(currentCurrency,'')
+                ];
+            });
 
             doc.autoTable({
-                startY: currentY + 3,
-                head: [['No', 'Btu Capacity', 'Type', 'Per M Rate']],
-                body: extraBody,
-                theme: 'grid',
-                headStyles: { fillColor: [255, 255, 255], textColor: 0, fontStyle: 'bold' },
-                bodyStyles: { fontSize: 9, textColor: 0 },
-                columnStyles: {
-                    0: { halign: 'center', cellWidth: 10 },
-                    1: { halign: 'center', cellWidth: 30 },
-                    2: { halign: 'left' },
-                    3: { halign: 'right', cellWidth: 30, fontStyle: 'bold' }
-                },
-                styles: { lineColor: [0, 0, 0], lineWidth: 0.1 },
-                margin: { left: margin, right: margin }
+                startY: currentY,
+                head: [['No', 'Item Code', 'Item / Description', 'Unit Price', 'Qty', 'Amount']],
+                body: tableBody, theme: 'grid',
+                headStyles: { fillColor: themeColor, textColor: 255, fontSize: 9, fontStyle: 'bold', halign:'center' }, bodyStyles: { fontSize: 9, textColor: 0 },
+                columnStyles: { 0: { cellWidth: 10, halign:'center' }, 1: { cellWidth: 30 }, 3: { cellWidth: 30, halign:'right' }, 4: { cellWidth: 15, halign:'center' }, 5: { cellWidth: 35, halign:'right' } },
+                styles: { lineColor: [200, 200, 200], lineWidth: 0.1, cellPadding: 4 }, margin: { left: margin, right: margin }
+            });
+            currentY = doc.lastAutoTable.finalY + 5;
+            
+            // 🛡️ POS TOTALS BLOCK RESTORED
+            const totalBoxWidth = 85;
+            const totalBoxX = pageWidth - margin - totalBoxWidth;
+            
+            const drawTotalLine = (label, value, isBold = false) => {
+                doc.setFont("helvetica", isBold ? "bold" : "normal"); doc.setFontSize(10);
+                doc.text(label, totalBoxX, currentY + 4);
+                doc.text(value, pageWidth - margin, currentY + 4, { align: "right" });
+                currentY += 6;
+            };
+
+            drawTotalLine("SUB TOTAL", formatMoney(docData.subtotal));
+            if(docData.discount > 0) drawTotalLine("DISCOUNT", "-" + formatMoney(docData.discount));
+            if(docData.fees && docData.fees.length > 0) docData.fees.forEach(f => drawTotalLine(f.name, "+" + formatMoney(f.amount)));
+            
+            currentY += 2;
+            doc.setFillColor(themeColor[0], themeColor[1], themeColor[2]);
+            doc.rect(totalBoxX - 2, currentY, totalBoxWidth + 4, 10, 'F');
+            doc.setTextColor(255); doc.setFont("helvetica", "bold"); doc.setFontSize(12);
+            doc.text("NET TOTAL", totalBoxX, currentY + 7);
+            doc.text(formatMoney(docData.total), pageWidth - margin, currentY + 7, { align: "right" });
+
+            // PAYMENT DETAILS
+            if (docData.paymentMethod) {
+                currentY += 15; doc.setTextColor(0);
+                drawTotalLine("PAYMENT MODE", docData.paymentMethod.toUpperCase(), true);
+                if(docData.paymentMethod === 'Pay Later') {
+                    drawTotalLine("ADVANCE PAID", formatMoney(docData.cashGiven || 0));
+                    drawTotalLine("CREDIT BALANCE", formatMoney(docData.creditBalance || (docData.total - (docData.cashGiven||0))), true);
+                } else if(docData.paymentMethod.includes('Cash')) {
+                    drawTotalLine("CASH GIVEN", formatMoney(docData.cashGiven || docData.total));
+                    drawTotalLine("BALANCE", formatMoney(docData.balance || 0), true);
+                }
+            }
+        }
+
+        // --- 5. EXTRA CHARGES TABLE (Only for Quotations/Docs) ---
+        if (docData.extras && docData.extras.length > 0) {
+            currentY += 5;
+            doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.setTextColor(0);
+            doc.text("Extra Charges - If Required", margin, currentY);
+            
+            const extraBody = docData.extras.map((ext, i) => [ i + 1, ext.cap || "-", ext.type, ext.rate > 0 ? ext.rate.toLocaleString('en-US', {minimumFractionDigits: 2}) : "-" ]);
+            doc.autoTable({
+                startY: currentY + 3, head: [['No', 'Btu Capacity', 'Type', 'Per M Rate']], body: extraBody, theme: 'grid',
+                headStyles: { fillColor: [255, 255, 255], textColor: 0, fontStyle: 'bold' }, bodyStyles: { fontSize: 9, textColor: 0 },
+                columnStyles: { 0: { cellWidth: 10, halign:'center' }, 1: { cellWidth: 30, halign:'center' }, 3: { cellWidth: 30, halign:'right', fontStyle: 'bold' } },
+                styles: { lineColor: [0, 0, 0], lineWidth: 0.1 }, margin: { left: margin, right: margin }
             });
             currentY = doc.lastAutoTable.finalY + 10;
         }
 
         // --- 6. TERMS & CONDITIONS ---
         currentY += 5;
-        if (currentY > pageHeight - 60) { doc.addPage(); currentY = 20; } // Page break logic
+        if (currentY > pageHeight - 60) { doc.addPage(); currentY = 20; } 
 
-        doc.setFontSize(10);
-        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.setTextColor(0);
         doc.text("Terms & Conditions", margin, currentY);
         
-        currentY += 5;
-        doc.setFontSize(9);
-        doc.setFont("helvetica", "normal");
+        currentY += 5; doc.setFontSize(9); doc.setFont("helvetica", "normal");
         
-        let termsText = docData.type === 'quotation' ? shop.termsQuote : shop.termsInvoice;
-        if(!termsText) termsText = "Validity: 14 Days\nPayment: Full payment upon confirmation\nWarranty: 1 Year Comprehensive\nDelivery: Free delivery within city limits";
+        let termsText = docData.type === 'quotation' ? shop.termsQuote : (docData.type === 'invoice' ? shop.termsInvoice : shop.termsA4);
+        if(!termsText) termsText = "Thank You for your business!";
         
-        // Print Terms line by line to support bold keys like "Validity :"
         const termLines = termsText.split('\n');
         termLines.forEach(line => {
             if(line.includes(':')) {
                 const parts = line.split(':');
-                doc.setFont("helvetica", "bold");
-                doc.text(parts[0].trim(), margin, currentY);
-                doc.setFont("helvetica", "normal");
-                doc.text(" : " + parts.slice(1).join(':').trim(), margin + 30, currentY);
+                doc.setFont("helvetica", "bold"); doc.text(parts[0].trim(), margin, currentY);
+                doc.setFont("helvetica", "normal"); doc.text(" : " + parts.slice(1).join(':').trim(), margin + 30, currentY);
             } else {
                 doc.text(line, margin, currentY);
             }
@@ -6426,25 +6442,29 @@ window.autoFillDocCustomer = (name) => {
         });
 
         // --- 7. SIGNATURE BLOCK ---
-        currentY += 20;
+        currentY += 15;
         if (currentY > pageHeight - 30) { doc.addPage(); currentY = 30; }
         
-        doc.setFont("helvetica", "bold");
-        doc.text("Regards,", margin, currentY);
-        doc.setLineWidth(0.3);
-        doc.line(margin, currentY + 10, margin + 40, currentY + 10); // Sig line
-        
-        // 🛡️ Ensure Owner Name toggle is respected!
-        doc.setFontSize(9);
-        if (shop.showOwner !== false && shop.ownerName) {
-            doc.text(shop.ownerName, margin, currentY + 15);
-        } else {
-            doc.text("Authorized Manager", margin, currentY + 15);
+        if (docData.type !== 'RECEIPT') {
+            doc.setFont("helvetica", "bold"); doc.text("Regards,", margin, currentY);
+            doc.setLineWidth(0.3); doc.line(margin, currentY + 10, margin + 40, currentY + 10);
+            doc.setFontSize(9);
+            if (shop.showOwner !== false && shop.ownerName) doc.text(shop.ownerName, margin, currentY + 15);
+            else doc.text("Authorized Manager", margin, currentY + 15);
+            
+            doc.setFont("helvetica", "normal");
+            if (shop.showBizName !== false && shop.bizName) doc.text(shop.bizName, margin, currentY + 20);
+            if (shop.showPhone1 !== false && shop.phone1) doc.text(shop.phone1, margin, currentY + 25);
         }
-        
-        doc.setFont("helvetica", "normal");
-        if (shop.showBizName !== false && shop.bizName) doc.text(shop.bizName, margin, currentY + 20);
-        if (shop.showPhone1 !== false && shop.phone1) doc.text(shop.phone1, margin, currentY + 25);
+
+        // 🛡️ PIN RENDER RESTORED (Bottom of POS Receipt)
+        if (docData.initialPin) {
+            let pinY = pageHeight - 15; 
+            doc.setFont("helvetica", "bold"); doc.setFontSize(10);
+            doc.text(`Customer Portal PIN: ${docData.initialPin}`, margin, pinY);
+            doc.setFont("helvetica", "normal"); doc.setFontSize(8);
+            doc.text(`(For security, please change this PIN after your first login)`, margin, pinY + 4);
+        }
 
         // Download or Print
         if (docData.type === 'RECEIPT') {
