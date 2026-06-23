@@ -3657,7 +3657,9 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                     }
                 }
             } else {
-                // ENTERPRISE FIX: Deep Database check for Duplicate Manual SKU (Bypassing Cache Limits)
+                let finalSku = manualSku;
+
+                // 🛡️ ENTERPRISE FIX: Deep Database check for Duplicate Manual SKU
                 if(manualSku) {
                     const qCheck = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/base_products`), where("sku", "==", manualSku));
                     const checkSnap = await getDocs(qCheck);
@@ -3668,23 +3670,23 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                     });
 
                     if(isDuplicate) {
-                        toggleLoader(false);
                         return showToast("This Barcode/SKU already exists in the Database! Please use a unique one.", "error");
                     }
                 } else {
-                // ... (SKU Generation logic remains unchanged) ...
-                const sku = manualSku || await generateNextSku();
-                
+                    // අතින් ලබා දී නැතිනම් පද්ධතිය මගින් අලුත් SKU අංකයක් ආරක්ෂිතව ජනනය කිරීම
+                    finalSku = await generateNextSku();
+                }
+
+                // 🚀 CRITICAL BUG FIX: Ensure Saving Happens For BOTH Manual & Auto SKUs!
                 await addDoc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/base_products`), {
                     name, 
                     image: compressedImageBase64,
-                    sku,
+                    sku: finalSku, // 👈 භාවිත කරන්නේ අවසන් තහවුරු කළ අංකයයි
                     categoryId,
-                    itemType: document.getElementById('bpItemType').value, // 🚀 NEW
-                    scalePlu: document.getElementById('bpScalePlu').value.trim(), // 🚀 NEW
+                    itemType: document.getElementById('bpItemType').value, 
+                    scalePlu: document.getElementById('bpScalePlu').value.trim(),
                     created: new Date().toISOString()
                 });
-            }
 }
             closeModal('baseProductModal');
             await loadCatalog();
@@ -3992,6 +3994,11 @@ body.pos-fullscreen-mode #view-pos > div > .card {
     };
 
     window.saveStock = async (keepOpen = false) => {
+        // 🛡️ ENTERPRISE SECURITY: Block Developer Console Hacks
+        if (userRole !== 'admin') {
+            if(window.writeSystemLog) writeSystemLog("HACK_ATTEMPT", "CRITICAL: Cashier attempted to execute saveStock via Developer Console!");
+            return showToast("Security Alert: Access Denied!", "error");
+        }
         const id = document.getElementById('mpId').value;
         const buy = parseFloat(document.getElementById('mpBuy').value);
         const sell = parseFloat(document.getElementById('mpSell').value);
@@ -8311,6 +8318,11 @@ window.autoFillDocCustomer = (name) => {
         }
     };
     window.saveEmployee = async () => {
+        // 🛡️ ENTERPRISE SECURITY: Block Developer Console Hacks
+        if (userRole !== 'admin') {
+            if(window.writeSystemLog) writeSystemLog("HACK_ATTEMPT", "CRITICAL: Cashier attempted to execute saveEmployee via Developer Console!");
+            return showToast("Security Alert: Access Denied!", "error");
+        }
         if (window.isSavingEmployee) return; // ද්විත්ව ක්ලික් කිරීම් (Double-clicks) වැළැක්වීම
         window.isSavingEmployee = true;
 
@@ -9424,9 +9436,8 @@ window.setQuickCash = (amount) => {
     window.holdCart = () => {
         if(cart.length === 0) return showToast("Cart is empty!", "error");
         
-        // BUG FIX: Modal එක වැසී ඇති නිසා, Cashier ගෙන් නමක් ඉල්ලා සිටීමට Prompt එකක් යෙදීම
         let inputName = prompt("Enter a reference name for this cart (e.g. Customer Name):", "");
-        if(inputName === null) return; // Cancel එබුවහොත් Hold වීම නවතී
+        if(inputName === null) return; 
         
         const custName = inputName.trim() || "Walk-in";
         const holdData = {
@@ -9436,23 +9447,26 @@ window.setQuickCash = (amount) => {
             fees:[ ...currentOtherFees ],
             discountVal: document.getElementById('discountValue').value,
             discountType: document.getElementById('discountType').value,
-            custName: document.getElementById('modalCustName').value,
-            custPhone: document.getElementById('modalCustPhone').value,
-            custAddr: document.getElementById('modalCustAddr').value,
+            // 🛡️ ENTERPRISE BUG FIX: Use the prompted 'custName' variable correctly!
+            custName: custName, 
+            custPhone: document.getElementById('modalCustPhone') ? document.getElementById('modalCustPhone').value : '',
+            custAddr: document.getElementById('modalCustAddr') ? document.getElementById('modalCustAddr').value : '',
             totalItems: cart.reduce((sum, item) => sum + item.qty, 0)
         };
         
         heldCarts.push(holdData);
-        localStorage.setItem("posHeldCarts_" + currentShopId, JSON.stringify(heldCarts)); // Shop ID එකට අදාළව සේව් කිරීම
+        localStorage.setItem("posHeldCarts_" + currentShopId, JSON.stringify(heldCarts)); 
         updateHeldBadge();
         
-        // Clear Current Cart
-        cart =[];
-        currentOtherFees =[];
+        // 🛡️ ENTERPRISE CLEANUP: Clear everything properly including Serials Memory
+        cart = [];
+        currentCartSerials = []; 
+        currentOtherFees = [];
         document.getElementById('discountValue').value = '';
-        document.getElementById('posCustName').value = '';
-        document.getElementById('posCustPhone').value = '';
-        document.getElementById('posCustAddr').value = '';
+        
+        // Use the centralized clearing function instead of old hardcoded IDs
+        if(typeof clearPosCustomer === 'function') clearPosCustomer();
+        
         if(document.getElementById('posCashGiven')) document.getElementById('posCashGiven').value = '';
         
         renderCart();
@@ -10900,10 +10914,19 @@ document.getElementById('eodReportArea').style.display = 'block';
                     if(l.status === 'P') {
                         pDays++;
                         const worked = Number(l.workedHours) || 0;
-                        // Deduct for short hours strictly on present days
-                        if(worked > 0 && worked < stdHours) {
+                        
+                        // 🛡️ ENTERPRISE FIX: Smart Penalty Engine (Prevents Free Salary Loopholes)
+                        const isScannerLog = l.clockInTime ? true : false;
+                        const isMissingOutPunch = isScannerLog && !l.clockOutTime;
+
+                        if (isMissingOutPunch) {
+                            // 1. Forgot to Clock-out! (Deduct full day's pay to prevent free salary. Manager must verify and override manually.)
+                            deficitDeduction += (stdHours * hourlyRate);
+                        } else if (isScannerLog && l.clockOutTime && worked < stdHours) {
+                            // 2. Properly clocked out, but worked less than standard hours
                             deficitDeduction += ((stdHours - worked) * hourlyRate);
                         }
+                        // 3. If NOT a scanner log (i.e., Manager manually marked 'P' via Daily Log), we trust the manager and deduct nothing!
                     }
                     else if(l.status === 'PL') plDays++;
                     else if(l.status === 'H') halfDays++;
@@ -11690,6 +11713,11 @@ document.getElementById('eodReportArea').style.display = 'block';
     };
 
     window.submitWriteOff = async () => {
+        // 🛡️ ENTERPRISE SECURITY: Block Developer Console Hacks
+        if (userRole !== 'admin') {
+            if(window.writeSystemLog) writeSystemLog("HACK_ATTEMPT", "CRITICAL: Cashier attempted to execute submitWriteOff via Developer Console!");
+            return showToast("Security Alert: Access Denied!", "error");
+        }
         const id = document.getElementById('woProdId').value;
         const qty = parseFloat(document.getElementById('woQty').value);
         const reason = document.getElementById('woReason').value;
@@ -12327,14 +12355,22 @@ let currentBatchForSerials = null;
 
             const tbody = document.getElementById('stBatchBody');
         tbody.innerHTML = currentAuditBatches.map((b, idx) => {
+            // 🛡️ ENTERPRISE FIX: Identify Serialized items safely
+            const isSerialized = b.itemType === 'serialized' || (b.availableSerials && b.availableSerials.length > 0);
+            
+            const inputHtml = isSerialized 
+                ? `<input type="number" id="phyQty_${idx}" value="${b.qty}" disabled style="width:70px; text-align:center; font-weight:bold; margin:0; background:#f3f4f6; color:#9ca3af; cursor:not-allowed; border:1px solid #d1d5db;">
+                   <div style="font-size:9px; color:var(--danger); margin-top:4px; line-height:1.1; font-weight:bold;">Strict Item:<br>Use Serials Manager</div>`
+                : `<input type="number" step="any" id="phyQty_${idx}" value="${b.qty}" style="width:70px; text-align:center; font-weight:bold; margin:0; border:2px solid var(--primary);" oninput="calculateStockVariance()">`;
+
             return `
             <tr>
                 <td style="font-weight:600;">Batch: ${formatBatch(b.batchNumber)} <br><span style="font-size:10px; color:#666;">${formatMoney(b.sell)} / Exp: ${b.expiryDate||'N/A'}</span></td>
                 <td style="text-align:center; font-family:monospace; font-size:14px;" id="sysQty_${idx}">${b.qty}</td>
-                <td style="text-align:center;">
-                    <input type="number" step="any" id="phyQty_${idx}" value="${b.qty}" style="width:70px; text-align:center; font-weight:bold; margin:0;" oninput="calculateStockVariance()">
+                <td style="text-align:center; vertical-align:top;">
+                    ${inputHtml}
                 </td>
-                <td style="text-align:right; font-weight:900;" id="varQty_${idx}">0</td>
+                <td style="text-align:right; font-weight:900; vertical-align:middle;" id="varQty_${idx}">0</td>
             </tr>`;
         }).join('');
 
@@ -12390,6 +12426,11 @@ let currentBatchForSerials = null;
     };
 
     window.submitStockTake = async () => {
+        // 🛡️ ENTERPRISE SECURITY: Block Developer Console Hacks
+        if (userRole !== 'admin') {
+            if(window.writeSystemLog) writeSystemLog("HACK_ATTEMPT", "CRITICAL: Cashier attempted to execute submitStockTake via Developer Console!");
+            return showToast("Security Alert: Access Denied!", "error");
+        }
         if (window.isAuditing) return;
         
         const pName = document.getElementById('stProductSelect').value;
@@ -12419,10 +12460,17 @@ let currentBatchForSerials = null;
                     
                     if (!snap.exists()) continue; // Skip if deleted externally
 
-                    const liveSys = snap.data().qty;
+                    const pData = snap.data();
+                    const liveSys = pData.qty;
                     const variance = Math.round((phy - liveSys) * 1000) / 1000;
 
                     if (variance !== 0) {
+                        // 🛡️ ENTERPRISE FIX: Database-Level Strict Block
+                        const isSerialized = pData.itemType === 'serialized' || (pData.availableSerials && pData.availableSerials.length > 0);
+                        if (isSerialized) {
+                            throw new Error(`CRITICAL: Cannot manually adjust Serialized Item quantities (Batch ${b.batchNumber || 1}). You MUST delete the specific missing barcodes via the 'Serials Manager'.`);
+                        }
+
                         t.update(ref, { qty: phy }); // Force update to actual physical count
 
                         // Write to unified Inventory Logs
