@@ -3243,7 +3243,8 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 
     window.lockProfile = (lock) => {
         // 🛡️ ENTERPRISE FIX: Make sure ALL fields (including Manager PIN and Document Terms) are correctly locked/unlocked
-        document.querySelectorAll('#profFields input:not([type="checkbox"]), #profFields textarea, #profLogoFont, #profLogoColor, #profLogoFile, #profScaleMode, #profScalePrefix, #profManagerPin, #profTermsThermal, #profTermsA4, #profTermsInvoice, #profTermsQuote').forEach(i => {
+        // අලුතින් එකතු කළ Bill Size Dropdown එකද අගුලු දැමීමේ ලැයිස්තුවට එකතු කර ඇත.
+        document.querySelectorAll('#profFields input:not([type="checkbox"]), #profFields textarea, #profDefaultBillSize, #profLogoFont, #profLogoColor, #profLogoFile, #profScaleMode, #profScalePrefix, #profManagerPin, #profTermsThermal, #profTermsA4, #profTermsInvoice, #profTermsQuote').forEach(i => {
             if (i) i.disabled = lock;
         });
         document.querySelectorAll('#profFields input[type="checkbox"]').forEach(i => {
