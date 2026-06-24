@@ -595,6 +595,8 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                         <div>
                             <label style="font-size:12px;">Document Details</label>
                             <div style="display:flex; gap:5px;">
+                                <!-- 🛡️ ENTERPRISE FIX: Link Quotes to Invoices -->
+                                <input type="hidden" id="convertedFromQuoteId"> 
                                 <input id="docId" placeholder="Doc No.">
                                 <input type="date" id="docDate">
                             </div>
@@ -2409,12 +2411,18 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 
         let printFrame = document.createElement('iframe');
         printFrame.id = 'silent-print-frame';
-        printFrame.style.position = 'fixed';
-        printFrame.style.right = '0';
-        printFrame.style.bottom = '0';
-        printFrame.style.width = '0';
-        printFrame.style.height = '0';
+        
+        // 🛡️ ENTERPRISE RENDERING FIX: Prevent Browser Lazy-Load (Blank Bill Bug)
+        // Iframe එක 0x0 කළහොත් Modern Browsers එය Render කිරීම ප්‍රතික්ෂේප කරයි.
+        // එබැවින් එය 1px කර තිරයෙන් පිටතට (Off-screen) විසි කරමු.
+        printFrame.style.position = 'absolute';
+        printFrame.style.top = '-10000px'; // තිරයෙන් ගොඩක් ඉහළට
+        printFrame.style.left = '-10000px'; // තිරයෙන් ගොඩක් වමට
+        printFrame.style.width = '1px'; // භෞතික ප්‍රමාණයක් ලබා දීම
+        printFrame.style.height = '1px'; // භෞතික ප්‍රමාණයක් ලබා දීම
         printFrame.style.border = '0';
+        printFrame.style.visibility = 'hidden'; // සම්පූර්ණයෙන්ම සැඟවීම
+        
         document.body.appendChild(printFrame);
 
         if (isPdf) {
@@ -2610,7 +2618,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                 // Default to admin ONLY for the absolute first user (the real owner)
                 userRole = 'admin'; 
                 dbOwnerId = user.uid;
-                await setDoc(doc(db, `users`, user.uid), { role: 'admin', createdAt: new Date().toISOString() }, { merge: true });
+                await setDoc(doc(db, `users`, user.uid), { role: 'admin', createdAt: window.getSecureTime().toISOString() }, { merge: true });
             }
         } catch (firebaseError) {
             console.warn("Firebase rules blocked user data fetch. Forcing Admin mode to prevent UI crash.", firebaseError);
@@ -2665,13 +2673,27 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         select.innerHTML = '';
         shopsCache = []; // Reset local cache
         snap.forEach(d => {
+            const sData = d.data();
             // Cashier කෙනෙක් නම් ඔහුට අදාළ ශාඛාව පමණක් පෙන්වයි
             if(userRole === 'cashier' && d.id !== assignedShopId) return; 
-            shopsCache.push({id: d.id, ...d.data()});
+            
+            // 🛡️ ENTERPRISE FIX: Ghost Branch Protection
+            // මකාදැමීමට නියමිත (Scheduled for deletion) කඩවලට Cashier ලාට ඇතුළුවීම සම්පූර්ණයෙන්ම තහනම් කිරීම!
+            if(userRole === 'cashier' && sData.deleteScheduledAt) return;
+
+            shopsCache.push({id: d.id, ...sData});
         });
 
         if(shopsCache.length === 0) {
             toggleLoader(false);
+            
+            // 🛡️ ENTERPRISE FIX: Cashier ගේ කඩේ වසා දමා ඇත්නම්, ව්‍යාජ බිල් ගැසීම වැළැක්වීමට ඔහුව පද්ධතියෙන් එළවා දැමීම
+            if (userRole === 'cashier') {
+                alert("Security Alert: Your assigned branch has been closed or is scheduled for deletion.\nPlease contact the Administrator.");
+                logout();
+                return;
+            }
+
             document.getElementById('shopModal').style.display = 'flex';
             // User MUST create a shop if none exist, hide the Cancel button
             const cancelBtn = document.querySelector('#shopModal .btn-ghost');
@@ -2724,7 +2746,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         toggleLoader(true);
         // Instead of deleting immediately, set a scheduled timestamp
         await updateDoc(doc(db, `users/${dbOwnerId}/shops`, currentShopId), {
-            deleteScheduledAt: new Date().toISOString()
+            deleteScheduledAt: window.getSecureTime().toISOString()
         });
         
         await loadShops(); // Reload to pick up the new state
@@ -3650,9 +3672,22 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                     
                     const snapStock = await getDocs(qStock);
                     if(!snapStock.empty) {
-                        const stockBatch = writeBatch(db);
-                        snapStock.forEach(d => stockBatch.update(d.ref, { name: name, image: compressedImageBase64, categoryId: categoryId }));
-                        await stockBatch.commit();
+                        // 🛡️ ENTERPRISE FIX: Batch Chunking to bypass Firebase 500-Write Limit
+                        // වාර්තා දහස් ගණනක් තිබුණද, ඒවා 450 බැගින් වූ කුඩා ගොඩවල් (Chunks) වලට කඩා Update කිරීම.
+                        const docsArray = snapStock.docs;
+                        const CHUNK_SIZE = 450; // Safety margin below 500
+                        
+                        for (let i = 0; i < docsArray.length; i += CHUNK_SIZE) {
+                            const chunk = docsArray.slice(i, i + CHUNK_SIZE);
+                            const chunkBatch = writeBatch(db);
+                            
+                            chunk.forEach(d => {
+                                chunkBatch.update(d.ref, { name: name, image: compressedImageBase64, categoryId: categoryId });
+                            });
+                            
+                            await chunkBatch.commit(); // කෑලි වශයෙන් සුරක්ෂිතව සේව් කිරීම
+                        }
+                        
                         await loadProducts(); // POS එකද Update කිරීම
                     }
                 }
@@ -3685,7 +3720,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                     categoryId,
                     itemType: document.getElementById('bpItemType').value, 
                     scalePlu: document.getElementById('bpScalePlu').value.trim(),
-                    created: new Date().toISOString()
+                    created: window.getSecureTime().toISOString()
                 });
 }
             closeModal('baseProductModal');
@@ -4074,7 +4109,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             // NEW STOCK MODE (Barcodes ජනනය කිරීම)
             try {
                 let nextBatchNum = 1;
-                data.dateAdded = new Date().toISOString();
+                data.dateAdded = window.getSecureTime().toISOString();
 
                 await runTransaction(db, async (transaction) => {
                     let baseProdRef = null;
@@ -4127,7 +4162,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 
                     const logRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/inventory_logs`));
                     transaction.set(logRef, {
-                        date: new Date().toISOString(), productName: data.name, action: 'ADD',
+                        date: window.getSecureTime().toISOString(), productName: data.name, action: 'ADD',
                         description: `New Stock Batch (Exp: ${data.expiryDate})`, quantityChange: data.qty,
                         finalQty: data.qty, initialQty: 0, batchNumber: nextBatchNum
                     });
@@ -4255,15 +4290,35 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         const tbody = document.querySelector('#transfersTable tbody');
         tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">Loading history...</td></tr>';
         
-        // Fetch global transfers for this user
-        const q = query(collection(db, `users/${dbOwnerId}/transfers`), orderBy('date', 'desc'), limit(50));
-        const snap = await getDocs(q);
-        
-        let html = '';
-        snap.forEach(d => {
-            const t = d.data();
-            // Show only if the current branch is either the sender or receiver
-            if (t.sourceShopId === currentShopId || t.targetShopId === currentShopId) {
+        try {
+            // 🛡️ ENTERPRISE FIX: Parallel Composite Querying (Eliminates the Blindspot Bug)
+            // මුළු ආයතන ජාලයේම Transfers ගෙනවිත් ෆිල්ටර් කරනවා වෙනුවට, මේ කඩේට අදාළ Outgoing සහ Incoming පමණක් සෘජුවම DB එකෙන් ඇදීම.
+            const qOut = query(collection(db, `users/${dbOwnerId}/transfers`), where("sourceShopId", "==", currentShopId), orderBy('date', 'desc'), limit(50));
+            const qIn = query(collection(db, `users/${dbOwnerId}/transfers`), where("targetShopId", "==", currentShopId), orderBy('date', 'desc'), limit(50));
+
+            // Run both queries concurrently for maximum speed
+            const [snapOut, snapIn] = await Promise.all([getDocs(qOut), getDocs(qIn)]);
+            
+            let transfers = [];
+            
+            // Helper function to deduplicate (just in case)
+            const addTransfer = (d) => {
+                if (!transfers.find(x => x.id === d.id)) {
+                    transfers.push({ id: d.id, ...d.data() });
+                }
+            };
+            
+            snapOut.forEach(addTransfer);
+            snapIn.forEach(addTransfer);
+
+            // Sort the combined list chronologically (Newest first)
+            transfers.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            // 🛡️ Ensure UI is not overloaded (Slice top 50 relevant strictly to this branch)
+            const topTransfers = transfers.slice(0, 50);
+
+            let html = '';
+            topTransfers.forEach(t => {
                 const isIncoming = t.targetShopId === currentShopId;
                 const badge = isIncoming 
                     ? `<span style="background:#dcfce7; color:#15803d; padding:2px 6px; border-radius:4px; font-size:11px; font-weight:bold;">INCOMING</span>` 
@@ -4278,11 +4333,15 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                     <td style="font-size:13px;">${t.targetShopName}</td>
                     <td>${badge}</td>
                 </tr>`;
-            }
-        });
-        
-        if (!html) html = '<tr><td colspan="6" style="text-align:center; padding:20px; color:#9ca3af;">No transfer history found for this branch.</td></tr>';
-        tbody.innerHTML = html;
+            });
+            
+            if (!html) html = '<tr><td colspan="6" style="text-align:center; padding:20px; color:#9ca3af;">No transfer history found for this branch.</td></tr>';
+            tbody.innerHTML = html;
+
+        } catch (e) {
+            console.error("Transfer History Error:", e);
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:red;">Failed to load transfers securely.</td></tr>';
+        }
     };
 
     window.submitTransfer = async () => {
@@ -4344,7 +4403,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                 // Log Source Inventory
                 const sLogRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/inventory_logs`));
                 transaction.set(sLogRef, {
-                    date: new Date().toISOString(), productName: sourceProd.name, action: 'TRANSFER_OUT',
+                    date: window.getSecureTime().toISOString(), productName: sourceProd.name, action: 'TRANSFER_OUT',
                     description: `Sent to ${targetShop.name}`, quantityChange: -qty, finalQty: sData.qty - qty,
                     batchNumber: sourceProd.batchNumber || 1, initialQty: sData.qty
                 });
@@ -4352,7 +4411,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                 // 2. Add Base Product to Target if missing
                 if(needsNewBaseProd) {
                     const newBpRef = doc(collection(db, `users/${dbOwnerId}/shops/${targetShopId}/base_products`));
-                    transaction.set(newBpRef, { name: sourceProd.name, image: sourceProd.image || null, sku: sourceProd.sku || "", categoryId: "", created: new Date().toISOString() });
+                    transaction.set(newBpRef, { name: sourceProd.name, image: sourceProd.image || null, sku: sourceProd.sku || "", categoryId: "", created: window.getSecureTime().toISOString() });
                 }
 
                 // 3. Add to Target Branch with the transferred Serials!
@@ -4360,16 +4419,16 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                 transaction.set(targetProdRef, {
                     name: sourceProd.name, sku: sourceProd.sku || "", image: sourceProd.image || null, categoryId: "",
                     qty: qty, buy: sourceProd.buy, sell: sourceProd.sell, unit: sourceProd.unit || '',
-                    dateAdded: new Date().toISOString(), batchNumber: newTargetBatch, isTransfer: true,
+                    dateAdded: window.getSecureTime().toISOString(), batchNumber: newTargetBatch, isTransfer: true,
                     availableSerials: transferredSerials, // SECURE: Sent exact barcodes!
                     soldSerials: []
                 });
 
                 const tLogRef = doc(collection(db, `users/${dbOwnerId}/shops/${targetShopId}/inventory_logs`));
-                transaction.set(tLogRef, { date: new Date().toISOString(), productName: sourceProd.name, action: 'TRANSFER_IN', description: `Received from ${sourceShop.name}`, quantityChange: qty, finalQty: qty, batchNumber: newTargetBatch, initialQty: 0 });
+                transaction.set(tLogRef, { date: window.getSecureTime().toISOString(), productName: sourceProd.name, action: 'TRANSFER_IN', description: `Received from ${sourceShop.name}`, quantityChange: qty, finalQty: qty, batchNumber: newTargetBatch, initialQty: 0 });
 
                 const transferRef = doc(collection(db, `users/${dbOwnerId}/transfers`));
-                transaction.set(transferRef, { date: new Date().toISOString(), sourceShopId: currentShopId, sourceShopName: sourceShop.name, targetShopId: targetShopId, targetShopName: targetShop.name, productName: sourceProd.name, sku: sourceProd.sku || "", qty: qty, status: 'COMPLETED' });
+                transaction.set(transferRef, { date: window.getSecureTime().toISOString(), sourceShopId: currentShopId, sourceShopName: sourceShop.name, targetShopId: targetShopId, targetShopName: targetShop.name, productName: sourceProd.name, sku: sourceProd.sku || "", qty: qty, status: 'COMPLETED' });
             }); // End of Transaction
             
             // TRACK LOG
@@ -4396,7 +4455,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
     // --- INVENTORY LOGGING ---
    async function logInventory(name, action, desc, change, finalQty, batchNum = 0, initialQty = 0) {
         const log = {
-            date: new Date().toISOString(),
+            date: window.getSecureTime().toISOString(),
             productName: name,
             action, 
             description: desc,
@@ -4874,9 +4933,16 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         if (isNaN(val) || val <= 0) return showToast("Enter a valid weight/qty", "error");
         
         if (window.pendingWeighableProduct) {
+            // 🛡️ ENTERPRISE BUG FIX: Safely remove the old line ONLY AFTER confirmation!
+            if (window.weighableUpdateIndex !== undefined && window.weighableUpdateIndex !== null) {
+                removeFromCart(window.weighableUpdateIndex);
+            }
+
             if(window.writeSystemLog) writeSystemLog("MANUAL_WEIGHT_ENTERED", `Cashier manually typed weight/qty: ${val} for product: ${window.pendingWeighableProduct.name}`);
             addQtyToCartAutoSplit(window.pendingWeighableProduct, val);
         }
+        
+        window.weighableUpdateIndex = null; // Reset memory
         closeModal('posWeightInputModal');
         setTimeout(() => document.getElementById('posSearch').focus(), 100);
     };
@@ -4903,11 +4969,12 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         else if (itemType === 'weighable') {
             // කිරන භාණ්ඩ (අල, පරිප්පු): බර අහනවා
             window.pendingWeighableProduct = p;
+            window.weighableUpdateIndex = null; // 🛡️ CLEAR INDEX FOR NEW ITEMS
             document.getElementById('posWeightItemName').textContent = p.name;
             document.getElementById('manualWeightInput').value = '';
             openModal('posWeightInputModal');
             setTimeout(() => document.getElementById('manualWeightInput').focus(), 100);
-        } 
+        }
         else {
             // අනුක්‍රමික භාණ්ඩ (TV, Phone): පරණ Strict Modal එකට යයි
             const allBatches = productsCache.filter(x => {
@@ -5142,11 +5209,12 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                    <div style="color:#666; font-size:11px; display:flex; align-items:center; gap:5px; margin-top:4px;">
                        ${formatMoney(i.effectiveSell)} x 
                        <div style="display:flex; border:1px solid #d1d5db; border-radius:4px; overflow:hidden;">
-                           <button onclick="updateCartQty(${idx}, ${i.qty - 1}, '${i.id}')" style="background:#f3f4f6; border:none; padding:2px 8px; cursor:pointer; font-weight:bold;">-</button>
-                           <input type="number" step="any" value="${i.qty}" 
+                           <!-- 🛡️ ENTERPRISE UI FIX: Format Display Qty to 3 decimals without destroying internal precision -->
+                           <button onclick="updateCartQty(${idx}, ${Number.isInteger(i.qty) ? i.qty - 1 : parseFloat((i.qty - 1).toFixed(3))}, '${i.id}')" style="background:#f3f4f6; border:none; padding:2px 8px; cursor:pointer; font-weight:bold;">-</button>
+                           <input type="number" step="any" value="${Number.isInteger(i.qty) ? i.qty : parseFloat(Number(i.qty).toFixed(3))}" 
                                   style="width:40px; height:24px; padding:2px; font-size:11px; margin:0; text-align:center; border:none; border-left:1px solid #d1d5db; border-right:1px solid #d1d5db;" 
                                   onchange="updateCartQty(${idx}, this.value, '${i.id}')">
-                           <button onclick="updateCartQty(${idx}, ${i.qty + 1}, '${i.id}')" style="background:#f3f4f6; border:none; padding:2px 8px; cursor:pointer; font-weight:bold;">+</button>
+                           <button onclick="updateCartQty(${idx}, ${Number.isInteger(i.qty) ? i.qty + 1 : parseFloat((i.qty + 1).toFixed(3))}, '${i.id}')" style="background:#f3f4f6; border:none; padding:2px 8px; cursor:pointer; font-weight:bold;">+</button>
                        </div>
                    </div>
                 </div>
@@ -5446,8 +5514,10 @@ window.checkout = async () => {
 
         const saleData = {
             customOrderId: customOrderId,
-            date: new Date().toISOString(),
-            subtotal: roundToTwo(subtotal), 
+            // 🛡️ ENTERPRISE SECURE CLOCK FIX: Do not trust OS time! Use your Secure Engine.
+            // පරිගණකයේ වෙලාව ඊයේට හැදුවත්, පද්ධතිය කිසිදිනෙක නොරැවටේ!
+            date: window.getSecureTime().toISOString(),
+            subtotal: roundToTwo(subtotal),
             discountType: discountType, 
             discountValue: roundToTwo(discountVal), 
             discountAmt: roundToTwo(discountAmt), 
@@ -5543,7 +5613,7 @@ window.checkout = async () => {
 
                     const logRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/inventory_logs`));
                     transaction.set(logRef, {
-                        date: new Date().toISOString(),
+                        date: window.getSecureTime().toISOString(),
                         productName: cartItem.name,
                         action: 'SALE',
                         description: `Sold to ${finalCustName} (Ref: ${customOrderId})`,
@@ -5559,7 +5629,7 @@ window.checkout = async () => {
                     if (item.isService) {
                         const logRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/inventory_logs`));
                         transaction.set(logRef, {
-                            date: new Date().toISOString(),
+                            date: window.getSecureTime().toISOString(),
                             productName: item.name,
                             action: 'SERVICE_SALE',
                             description: `Service provided to ${finalCustName} (Ref: ${customOrderId})`,
@@ -5578,13 +5648,13 @@ window.checkout = async () => {
                             phone: finalCustPhone,
                             address: custAddr || "",
                             pin: generatedPinForBill,
-                            lastUpdated: new Date().toISOString()
+                            lastUpdated: window.getSecureTime().toISOString()
                         });
                     } else if (custAddr && custAddr !== customerSnap.data().address) {
                         // Keep old history, only update address
                         transaction.update(customerRef, {
                             address: custAddr,
-                            lastUpdated: new Date().toISOString()
+                            lastUpdated: window.getSecureTime().toISOString()
                         });
                     }
                 }
@@ -5602,7 +5672,7 @@ window.checkout = async () => {
                     transaction.set(alertRef, {
                         refId: finalCustPhone, type: 'service_reminder', orderId: customOrderId,
                         message: serviceNote || `Service Due for Inv #${customOrderId}`,
-                        targetDate: serviceDate, frequency: 'once', status: 'active', createdAt: new Date().toISOString()
+                        targetDate: serviceDate, frequency: 'once', status: 'active', createdAt: window.getSecureTime().toISOString()
                     });
                 }
 
@@ -5615,12 +5685,14 @@ window.checkout = async () => {
                 if (overpaidAmount > 0) {
                     const expRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`));
                     transaction.set(expRef, {
-                        description: `Customer Advance / Store Credit (Overpayment on Inv #${customOrderId})`,
+                        // "Liability:" යන වචනය අගට හෝ මුලට දමා Dashboard එකට හඳුනාගැනීම පහසු කිරීම
+                        description: `Liability: Customer Advance / Store Credit (Overpayment on Inv #${customOrderId})`,
                         amount: overpaidAmount,
-                        isIncome: true, // Cash came IN
+                        isIncome: true, // Cash Flow එකට (EOD) එකතු වීමට
+                        isLiability: true, // 🛡️ ලාභයෙන් (Profit) අයින් කිරීමට
                         payMethod: 'Cash',
                         customerPhone: finalCustPhone,
-                        date: new Date().toISOString()
+                        date: window.getSecureTime().toISOString() // 🛡️ Secure Clock Fix එක මෙතැනටද යොදා ඇත
                     });
                 }
 
@@ -5647,6 +5719,19 @@ window.checkout = async () => {
 
             // Generate Bill
             generateInvoicePDF({...saleData, id: saleData.customOrderId}); 
+
+            // 🛡️ ENTERPRISE FIX: Smart RAM-Level Cache Invalidation (Zero Firebase Read Cost)
+            // Database එකට බරක් නොදී, බිලට අදාළ භාණ්ඩවල පිරිවැය (Cost) පමණක් ගණනය කර Dashboard අගයෙන් අඩු කිරීම.
+            if (window.cachedStockValue !== undefined) {
+                let costOfSoldItems = 0;
+                cart.forEach(item => {
+                    if (!item.isService) { // සේවා (Services) වලට තොගයක් නොමැති නිසා ඒවා මඟහැරීම
+                        costOfSoldItems += (parseFloat(item.buy) || 0) * item.qty;
+                    }
+                });
+                window.cachedStockValue -= costOfSoldItems;
+                if (window.cachedStockValue < 0) window.cachedStockValue = 0; // සෘණ අගයන් වැළැක්වීම
+            }
 
             // UPDATE CACHE FOR DASHBOARD
             salesCache.unshift(saleData);
@@ -5902,15 +5987,18 @@ window.checkout = async () => {
         const tax = parseFloat(document.getElementById('docTax').value) || 0;
         const total = parseFloat(document.getElementById('docTotal').textContent.replace(/[^0-9.-]+/g,"")); 
 
+        const convertedQuoteId = document.getElementById('convertedFromQuoteId') ? document.getElementById('convertedFromQuoteId').value : null;
+
         tempDocData = {
             type, docId, date: document.getElementById('docDate').value,
             dueDate: document.getElementById('docDueDate').value,
             customer: { name: custName, address: document.getElementById('docCustAddr').value },
-            options: optionsData,      // 🛡️ Advanced nested structure
-            extras: extrasData,        // 🛡️ Extra charges array
-            items: [],                 // Kept for backward compatibility if needed
+            options: optionsData,      
+            extras: extrasData,        
+            items: [],                 
             subtotal, discount, tax, total,
-            createdAt: new Date().toISOString()
+            createdAt: window.getSecureTime().toISOString(),
+            linkedQuoteId: convertedQuoteId // 🛡️ ENTERPRISE FIX: Link back to quote
         };
 
         if(type === 'invoice') {
@@ -5998,7 +6086,7 @@ window.autoFillDocCustomer = (name) => {
                         
                         const logRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/inventory_logs`));
                         transaction.set(logRef, {
-                            date: new Date().toISOString(),
+                            date: window.getSecureTime().toISOString(),
                             productName: data.item.name,
                             action: 'INVOICE',
                             description: `Inv #${tempDocData.docId}`,
@@ -6044,6 +6132,20 @@ window.autoFillDocCustomer = (name) => {
                         stockDeducted: false
                     });
                 });
+            }
+
+            // 🛡️ ENTERPRISE FIX: Mark original quotation as Converted in Database
+            if (tempDocData.linkedQuoteId && tempDocData.type === 'invoice') {
+                const oldQuoteRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/documents`, tempDocData.linkedQuoteId);
+                await updateDoc(oldQuoteRef, { 
+                    status: 'converted', 
+                    convertedTo: tempDocData.docId 
+                });
+                
+                // Clear the hidden field
+                if(document.getElementById('convertedFromQuoteId')) document.getElementById('convertedFromQuoteId').value = '';
+                
+                if(window.writeSystemLog) writeSystemLog("QUOTE_CONVERTED_SUCCESS", `Quotation ${tempDocData.linkedQuoteId} was officially converted to Invoice ${tempDocData.docId}.`);
             }
 
             if(deductStock) await loadProducts(); // Refresh
@@ -6153,7 +6255,8 @@ window.autoFillDocCustomer = (name) => {
                 
                 <div style="margin-top:10px; display:flex; gap:8px; border-top:1px dashed #e5e7eb; padding-top:10px;">
                     <button class="btn btn-ghost" style="flex:1; padding:6px; font-size:11px; border-color:var(--primary); color:var(--primary);" onclick="window.triggerDocAction('pdf', '${docData.id}')"><i class="ri-printer-line"></i> View / PDF</button>
-                    ${docData.type === 'quotation' ? `<button class="btn btn-info" style="flex:1; padding:6px; font-size:11px;" onclick="window.triggerDocAction('convert', '${docData.id}')"><i class="ri-exchange-line"></i> Make Invoice</button>` : ''}
+                    ${docData.type === 'quotation' && docData.status !== 'converted' ? `<button class="btn btn-info" style="flex:1; padding:6px; font-size:11px;" onclick="window.triggerDocAction('convert', '${docData.id}')"><i class="ri-exchange-line"></i> Make Invoice</button>` : ''}
+                    ${docData.type === 'quotation' && docData.status === 'converted' ? `<button class="btn btn-ghost" style="flex:1; padding:6px; font-size:11px; color:#10b981; border-color:#bbf7d0; background:#f0fdf4;" disabled><i class="ri-check-double-line"></i> Invoiced (${docData.convertedTo || ''})</button>` : ''}
                 </div>
             </div>
         `;
@@ -6166,8 +6269,12 @@ window.autoFillDocCustomer = (name) => {
         document.getElementById('docCustName').value = quote.customer.name;
         document.getElementById('docCustAddr').value = quote.customer.address;
         document.getElementById('docDate').valueAsDate = new Date();
-        // Clear ID so user generates new one
-        document.getElementById('docId').value = ''; 
+            // Clear ID so user generates new one
+            document.getElementById('docId').value = ''; 
+            
+            // 🛡️ ENTERPRISE FIX: Remember the original Quotation ID in the hidden field
+            const hiddenQuoteIdInput = document.getElementById('convertedFromQuoteId');
+            if(hiddenQuoteIdInput) hiddenQuoteIdInput.value = quote.id;
         
         const tbody = document.getElementById('docItemsBody');
         tbody.innerHTML = '';
@@ -6358,7 +6465,7 @@ window.autoFillDocCustomer = (name) => {
                 return [
                     i + 1, item.sku || "-", displayName,
                     formatMoney(item.sell || item.price).replace(currentCurrency,''),
-                    item.qty,
+                    Number.isInteger(item.qty) ? item.qty : Number(item.qty).toFixed(3), // 🛡️ Fix A4 quantity display
                     formatMoney((item.sell || item.price) * item.qty).replace(currentCurrency,'')
                 ];
             });
@@ -6692,7 +6799,7 @@ window.autoFillDocCustomer = (name) => {
                 transaction.set(refundDocRef, {
                     productName: prodName, orderId: orderId, reason: `${reason} (Ref: ${orderId})`,
                     qty: qty, amount: refundTotal, cashOutToCustomer: cashOutToCustomer, profitReversal: profitReversal,
-                    restock: restock, originalBatch: batchNum, date: new Date().toISOString()
+                    restock: restock, originalBatch: batchNum, date: window.getSecureTime().toISOString()
                 });
 
                 // 3. Read Product & Restore Stock Safely
@@ -6707,7 +6814,7 @@ window.autoFillDocCustomer = (name) => {
                             // 🛡️ ENTERPRISE FIX: Log this severe fraud attempt directly to the DB immediately before throwing the error!
                             const auditRef = doc(collection(db, `users/${dbOwnerId}/system_audit_logs`));
                             transaction.set(auditRef, {
-                                timestamp: new Date().toISOString(), userEmail: currentUser ? currentUser.email : "Unknown", userRole: userRole, shopId: currentShopId || "NONE", shopName: "Fraud Prevention System",
+                                timestamp: window.getSecureTime().toISOString(), userEmail: currentUser ? currentUser.email : "Unknown", userRole: userRole, shopId: currentShopId || "NONE", shopName: "Fraud Prevention System",
                                 action: "FRAUD_ATTEMPT_DETECTED", description: `CRITICAL: Attempted to refund a FAKE/UNSOLD Serial Barcode (${returnSerial}) for product ${prodName}!`
                             });
                             throw new Error(`Fraud Alert: Barcode ${returnSerial} is NOT recorded as sold from this batch! Cannot refund.`);
@@ -6720,19 +6827,19 @@ window.autoFillDocCustomer = (name) => {
                         });
 
                         const logRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/inventory_logs`));
-                        transaction.set(logRef, { date: new Date().toISOString(), productName: prodName, action: 'REFUND', description: `Restocked Serial ${returnSerial} to Batch ${batchNum}`, quantityChange: qty, finalQty: pData.qty + qty, batchNumber: batchNum, initialQty: pData.qty });
+                        transaction.set(logRef, { date: window.getSecureTime().toISOString(), productName: prodName, action: 'REFUND', description: `Restocked Serial ${returnSerial} to Batch ${batchNum}`, quantityChange: qty, finalQty: pData.qty + qty, batchNumber: batchNum, initialQty: pData.qty });
                     } else if (needsRecreation) {
                         const existing = productsCache.find(p => p.name === prodName) || {}; 
                         const newProdRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`));
                         transaction.set(newProdRef, {
                             name: prodName, sku: existing.sku || "", image: existing.image || null, categoryId: existing.categoryId || null,
                             qty: qty, buy: buyPrice, sell: price, unit: existing.unit || '',
-                            dateAdded: new Date().toISOString(), batchNumber: batchNum, isRefund: true,
+                            dateAdded: window.getSecureTime().toISOString(), batchNumber: batchNum, isRefund: true,
                             availableSerials: [returnSerial], soldSerials: []
                         });
 
                         const logRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/inventory_logs`));
-                        transaction.set(logRef, { date: new Date().toISOString(), productName: prodName, action: 'REFUND', description: `Recreated Batch ${batchNum} from return (${returnSerial})`, quantityChange: qty, finalQty: qty, batchNumber: batchNum, initialQty: 0 });
+                        transaction.set(logRef, { date: window.getSecureTime().toISOString(), productName: prodName, action: 'REFUND', description: `Recreated Batch ${batchNum} from return (${returnSerial})`, quantityChange: qty, finalQty: qty, batchNumber: batchNum, initialQty: 0 });
                     }
                 }
             });
@@ -7043,7 +7150,7 @@ window.autoFillDocCustomer = (name) => {
         toggleLoader(true);
         
         const ref = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`, id);
-        const noteObj = { text: note, date: new Date().toISOString() };
+        const noteObj = { text: note, date: window.getSecureTime().toISOString() };
         
         // ENTERPRISE FIX: Use Transactions to prevent Concurrent Overwrites (Data Loss) in Order Notes!
         await runTransaction(db, async (t) => {
@@ -7241,7 +7348,7 @@ window.autoFillDocCustomer = (name) => {
 
             const custPayload = {
                 name, phone, whatsapp, email, address,
-                lastUpdated: new Date().toISOString()
+                lastUpdated: window.getSecureTime().toISOString()
             };
             if (autoPin) custPayload.pin = autoPin;
 
@@ -7358,32 +7465,32 @@ window.autoFillDocCustomer = (name) => {
                 const oldData = oldSnap.data();
                 
                 let pHistory = oldData.phone_history || [];
-                pHistory.push({ phone: oldPhone, migratedAt: new Date().toISOString() });
+                pHistory.push({ phone: oldPhone, migratedAt: window.getSecureTime().toISOString() });
 
                 // Create New Profile
                 const newProfileData = {
                     ...oldData,
                     phone: newPhone,
                     phone_history: pHistory,
-                    lastUpdated: new Date().toISOString()
+                    lastUpdated: window.getSecureTime().toISOString()
                 };
                 t.set(newRef, newProfileData);
 
                 // Create Forwarding Archive (Absolute Truth for POS Ghost Prevention)
-                const timestampKey = new Date().toISOString().replace(/[:.-]/g, '');
+                const timestampKey = window.getSecureTime().toISOString().replace(/[:.-]/g, '');
                 const archiveId = `${oldPhone}_v${timestampKey}`;
                 const archiveRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/customer_archives`, archiveId);
                 
                 t.set(archiveRef, {
                     originalId: oldPhone,
                     forwardedTo: newPhone,
-                    archivedAt: new Date().toISOString(),
+                    archivedAt: window.getSecureTime().toISOString(),
                     reason: "Identity Migrated"
                 });
 
                 // 🚀 STEP 2: CASCADING UPDATE - Update all future Service Reminders to new phone!
                 alertsToUpdate.forEach(alertRef => {
-                    t.update(alertRef, { refId: newPhone, lastUpdatedViaMigration: new Date().toISOString() });
+                    t.update(alertRef, { refId: newPhone, lastUpdatedViaMigration: window.getSecureTime().toISOString() });
                 });
 
                 // Delete Old Profile
@@ -7448,7 +7555,7 @@ window.autoFillDocCustomer = (name) => {
                 const oldData = oldSnap.data();
                 
                 let pHistory = oldData.phone_history || [];
-                pHistory.push({ phone: oldPhone, migratedAt: new Date().toISOString(), reason: "SIM Recycled" });
+                pHistory.push({ phone: oldPhone, migratedAt: window.getSecureTime().toISOString(), reason: "SIM Recycled" });
 
                 // නමට අගින් (LOST NUMBER) කියා එකතු කිරීම, එවිට Cashier ට එය පැහැදිලිව පෙනේ
                 let updatedName = oldData.name;
@@ -7461,25 +7568,25 @@ window.autoFillDocCustomer = (name) => {
                     name: updatedName,
                     phone: newPhone,
                     phone_history: pHistory,
-                    lastUpdated: new Date().toISOString()
+                    lastUpdated: window.getSecureTime().toISOString()
                 };
                 t.set(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/customers`, newPhone), newProfileData);
 
                 // Archive Pointer (POS එක හිරවීම වැළැක්වීමට)
-                const timestampKey = new Date().toISOString().replace(/[:.-]/g, '');
+                const timestampKey = window.getSecureTime().toISOString().replace(/[:.-]/g, '');
                 const archiveId = `${oldPhone}_v${timestampKey}`;
                 const archiveRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/customer_archives`, archiveId);
                 
                 t.set(archiveRef, {
                     originalId: oldPhone,
                     forwardedTo: newPhone,
-                    archivedAt: new Date().toISOString(),
+                    archivedAt: window.getSecureTime().toISOString(),
                     reason: "Telecom Recycled"
                 });
 
                 // Cascade alerts
                 alertsToUpdate.forEach(alertRef => {
-                    t.update(alertRef, { refId: newPhone, lastUpdatedViaMigration: new Date().toISOString() });
+                    t.update(alertRef, { refId: newPhone, lastUpdatedViaMigration: window.getSecureTime().toISOString() });
                 });
 
                 t.delete(oldRef);
@@ -7526,14 +7633,14 @@ window.autoFillDocCustomer = (name) => {
                 const custData = custSnap.data();
                 
                 // 🚀 1. Archive the customer data with a versioned Timestamp ID
-                const timestampKey = new Date().toISOString().replace(/[:.-]/g, '');
+                const timestampKey = window.getSecureTime().toISOString().replace(/[:.-]/g, '');
                 const archiveId = `${id}_v${timestampKey}`;
                 const archiveRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/customer_archives`, archiveId);
                 
                 await setDoc(archiveRef, {
                     ...custData,
                     originalId: id,
-                    archivedAt: new Date().toISOString()
+                    archivedAt: window.getSecureTime().toISOString()
                 });
 
                 // 🚀 2. Delete from main active database safely
@@ -7586,7 +7693,7 @@ window.autoFillDocCustomer = (name) => {
         await runTransaction(db, async (t) => {
             const snap = await t.get(ref);
             let currentNotes = snap.exists() && snap.data().notes ? snap.data().notes : [  ];
-            currentNotes.unshift({ text, date: new Date().toISOString() });
+            currentNotes.unshift({ text, date: window.getSecureTime().toISOString() });
             t.update(ref, { notes: currentNotes });
         });
 
@@ -7641,7 +7748,7 @@ window.autoFillDocCustomer = (name) => {
             targetDate: date, // Original starting date
             frequency: freq,
             status: 'active',
-            createdAt: new Date().toISOString()
+            createdAt: window.getSecureTime().toISOString()
         });
         document.getElementById('createAlertModal').style.display = 'none';
         
@@ -7780,7 +7887,7 @@ window.autoFillDocCustomer = (name) => {
             await updateDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/alerts`, id), { 
                 targetDate: nextDate.toISOString(), 
                 status: 'active', 
-                lastTriggered: new Date().toISOString() 
+                lastTriggered: window.getSecureTime().toISOString() 
             });
             showToast(`Alert acknowledged. Rescheduled for ${nextDate.toLocaleDateString()}`);
         }
@@ -7868,7 +7975,7 @@ window.autoFillDocCustomer = (name) => {
                 ${noteHtml}
                 ${serialsHtml}
                 <tr>
-                    <td style="text-align: left; border-bottom: 1px dashed #000; padding-bottom: 5px;">${i.qty} x ${formatMoney(i.sell)}</td>
+                    <td style="text-align: left; border-bottom: 1px dashed #000; padding-bottom: 5px;">${Number.isInteger(i.qty) ? i.qty : Number(i.qty).toFixed(3)} x ${formatMoney(i.sell)}</td>
                     <td style="border-bottom: 1px dashed #000; padding-bottom: 5px;"></td>
                     <td style="text-align: right; border-bottom: 1px dashed #000; padding-bottom: 5px;">${formatMoney(itemTotal)}</td>
                 </tr>
@@ -8448,7 +8555,7 @@ window.autoFillDocCustomer = (name) => {
                 // ENTERPRISE FIX: Manager form is the absolute truth. Allow overriding values back to 0 if mistakes were made.
                 const updateData = { 
                     status: newStatus, 
-                    timestamp: new Date().toISOString(),
+                    timestamp: window.getSecureTime().toISOString(),
                     ot: newOt, // Trust exact input
                     advance: newAdv // Trust exact input
                 };
@@ -8457,7 +8564,7 @@ window.autoFillDocCustomer = (name) => {
                 showToast("Daily Log Updated Safely");
             } else {
                 await addDoc(logsRef, {
-                    date: dateVal, status: newStatus, ot: newOt, advance: newAdv, timestamp: new Date().toISOString()
+                    date: dateVal, status: newStatus, ot: newOt, advance: newAdv, timestamp: window.getSecureTime().toISOString()
                 });
                 showToast("Daily Log Saved");
             }
@@ -8590,8 +8697,10 @@ window.autoFillDocCustomer = (name) => {
                 const record = d.data();
                 if(record.isIncome) {
                     const desc = record.description ? record.description.toLowerCase() : "";
-                    if (!desc.includes('debt')) {
-                        otherIncomes += record.amount; // Add only non-debt incomes
+                    // 🛡️ ENTERPRISE ACCOUNTING FIX: Prevent Profit Inflation!
+                    // ණය ගෙවීම් (debt) සහ පාරිභෝගික අත්තිකාරම්/වගකීම් (liability/advance) ලාභයට එකතු නොකරයි.
+                    if (!desc.includes('debt') && !desc.includes('liability') && !desc.includes('advance') && !record.isLiability) {
+                        otherIncomes += record.amount; // ඇත්තම අමතර ලාභ පමණක් (උදා: ටින් විකිණීම)
                     }
                 } else {
                     totalExpenses += record.amount; // Track expenses
@@ -8662,11 +8771,12 @@ window.updateCartQty = (cartIndex, newQtyVal, productId) => {
         // 🚀 ENTERPRISE FIX: Weighable items cannot be +1 or -1 incrementally via buttons!
         if (itemInCart.itemType === 'weighable') {
             window.pendingWeighableProduct = productsCache.find(x => x.id === productId);
-            document.getElementById('posWeightItemName').textContent = itemInCart.name + " (Update Weight)";
-            document.getElementById('manualWeightInput').value = newQty; // Show current
             
-            // Remove old line entirely before opening modal (Auto-Split engine will recreate it)
-            removeFromCart(cartIndex); 
+            // 🛡️ ENTERPRISE BUG FIX: DO NOT remove from cart yet! Just remember the index.
+            window.weighableUpdateIndex = cartIndex; 
+            
+            document.getElementById('posWeightItemName').textContent = itemInCart.name + " (Update Weight)";
+            document.getElementById('manualWeightInput').value = itemInCart.qty; // Show exact current weight
             
             openModal('posWeightInputModal');
             setTimeout(() => document.getElementById('manualWeightInput').focus(), 100);
@@ -8885,9 +8995,11 @@ window.handlePosSearchEnter = async (e) => {
                         // මිලෙන් බර සෙවීම (Price -> Weight Math)
                         const activeBatches = productsCache.filter(p => (p.sku === matchedBaseProd.sku || p.name === matchedBaseProd.name) && p.qty > 0).sort((a,b)=>(a.batchNumber||0)-(b.batchNumber||0));
                         if(activeBatches.length === 0) throw new Error(`${matchedBaseProd.name} is Out of Stock!`);
-                        
+
                         const currentUnitPrice = activeBatches[0].sell;
-                        finalWeight = Math.round((valueData / currentUnitPrice) * 1000) / 1000;
+                        // 🛡️ ENTERPRISE MATH FIX: Absolute Precision!
+                        // ශත ගණන් වල බිල් ගැටුම වළක්වා ගැනීමට මෙතැනදී කිසිවිටෙකත් Round නොකරන්න. පූර්ණ දශම සංඛ්‍යාවම මතකයේ තබාගන්න.
+                        finalWeight = valueData / currentUnitPrice; 
                     }
 
                     // දියඇල්ලේ න්‍යායෙන් බිලට දැමීම
@@ -8950,6 +9062,7 @@ window.handlePosSearchEnter = async (e) => {
                         filterPos();
                     } else if (iType === 'weighable') {
                         window.pendingWeighableProduct = matchedProd;
+                        window.weighableUpdateIndex = null; // 🛡️ CLEAR INDEX FOR NEW ITEMS
                         document.getElementById('posWeightItemName').textContent = matchedProd.name;
                         document.getElementById('manualWeightInput').value = '';
                         document.getElementById('posSearch').value = ''; 
@@ -9205,7 +9318,7 @@ window.setQuickCash = (amount) => {
                     allowedShop: shopId,
                     email: email,
                     status: 'active', // Set active flag
-                    createdAt: new Date().toISOString()
+                    createdAt: window.getSecureTime().toISOString()
                 });
 
                 await signOut(secondaryAuth);
@@ -9382,13 +9495,13 @@ window.setQuickCash = (amount) => {
 
         toggleLoader(true);
         try {
-            const data = { name, price, categoryId, updatedAt: new Date().toISOString() };
+            const data = { name, price, categoryId, updatedAt: window.getSecureTime().toISOString() };
             if(id) {
                 await updateDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/services`, id), data);
                 if(window.writeSystemLog) writeSystemLog("SERVICE_UPDATED", `Updated service: ${name} (Price: ${formatMoney(price)})`);
                 showToast("Service Updated");
             } else {
-                data.createdAt = new Date().toISOString();
+                data.createdAt = window.getSecureTime().toISOString();
                 await addDoc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/services`), data);
                 if(window.writeSystemLog) writeSystemLog("SERVICE_CREATED", `Created new service: ${name} (Price: ${formatMoney(price)})`);
                 showToast("Service Added");
@@ -9892,7 +10005,7 @@ window.setQuickCash = (amount) => {
                 description: desc,
                 amount: amount,
                 isIncome: isIncome, // Determines if it's adding to or removing from profit
-                date: new Date().toISOString()
+                date: window.getSecureTime().toISOString()
             };
             
             const docRef = await addDoc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`), expData);
@@ -10000,7 +10113,7 @@ window.setQuickCash = (amount) => {
             }
 
             const logData = {
-                timestamp: new Date().toISOString(),
+                timestamp: window.getSecureTime().toISOString(),
                 userEmail: currentUser.email,
                 userRole: userRole, // 'admin' or 'cashier'
                 shopId: currentShopId || "NONE",
@@ -10494,95 +10607,67 @@ window.setQuickCash = (amount) => {
         toggleLoader(true);
         let cashSales = 0, cardSales = 0, newCredit = 0, refunds = 0, expenses = 0, debtCollections = 0, otherSales = 0, staffAdvances = 0;
 
-        // ENTERPRISE FIX: Fetch Full Day's Data from DB, ignoring the 50-limit Cache
-        const startDate = new Date(dateInput + "T00:00:00").toISOString();
-        const endDate = new Date(dateInput + "T23:59:59").toISOString();
+        // 🛡️ ENTERPRISE FIX: Absolute Timezone-Immune UTC Boundaries (Sri Lanka +05:30)
+        // OS එකේ Timezone එක වෙනස් කළත්, EOD එක රැවටෙන්නේ නැත. මධ්‍යම රාත්‍රී දත්ත අතුරුදහන් වීම 100% ක් නවතී!
+        const utcMid = new Date(dateInput + "T00:00:00.000Z");
+        const startMs = utcMid.getTime() - (5.5 * 60 * 60 * 1000); // 00:00:00 SL Time in exact UTC
+        const endMs = startMs + (24 * 60 * 60 * 1000) - 1;         // 23:59:59 SL Time in exact UTC
 
+        const startDate = new Date(startMs).toISOString();
+        const endDate = new Date(endMs).toISOString();
+
+        // 1. Process Sales from Server
         const qSales = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`), where("date", ">=", startDate), where("date", "<=", endDate));
         const snapSales = await getDocs(qSales);
 
-        // 1. Process Sales from Server
         snapSales.forEach(docSnap => {
             const s = docSnap.data();
-            let saleDate = "";
-            try {
-                const dObj = new Date(s.date);
-                if(isNaN(dObj.getTime())) return; // Invalid Date නම් Skip කරයි
-                saleDate = new Date(dObj.getTime() - (dObj.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
-            } catch(e) { return; }
-            
-            if(saleDate === dateInput) {
-                if(s.paymentMethod.includes('Cash') && s.paymentMethod !== 'Cash (Settled)') {
-                    cashSales += s.total;
-                } else if(s.paymentMethod.includes('Card')) {
-                    cardSales += s.total;
-                } else if(s.paymentMethod === 'Pay Later') {
-                    cashSales += (s.cashGiven || 0);
-                    newCredit += s.creditBalance;
-                } else {
-                    otherSales += s.total; // Bank Transfer, Cheque, Online
-                }
+            // Database Query එක 100% ක් නිවැරදි බැවින් අමතර OS-Dependent Date Check කිරීම් අවශ්‍ය නැත!
+            if(s.paymentMethod.includes('Cash') && s.paymentMethod !== 'Cash (Settled)') {
+                cashSales += s.total;
+            } else if(s.paymentMethod.includes('Card')) {
+                cardSales += s.total;
+            } else if(s.paymentMethod === 'Pay Later') {
+                cashSales += (s.cashGiven || 0);
+                newCredit += s.creditBalance;
+            } else {
+                otherSales += s.total; 
             }
         });
 
-        // ENTERPRISE FIX: Apply proper Local Timezone Offset for accounting consistency
-                // 2. Process Expenses & Incomes (Debt Settlements)
-        // ENTERPRISE FIX: Fetch Expenses & Refunds securely from DB to bypass local cache limits (Absolute EOD Accuracy)
+        // 2. Process Expenses & Incomes
         const qExp = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`), where("date", ">=", startDate), where("date", "<=", endDate));
         const snapExp = await getDocs(qExp);
         snapExp.forEach(docSnap => {
             const e = docSnap.data();
-            let eDate = "";
-            try {
-                const dObj = new Date(e.date);
-                if(isNaN(dObj.getTime())) return;
-                eDate = new Date(dObj.getTime() - (dObj.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
-            } catch(err) { return; }
-            
-            if(eDate === dateInput) {
-                if(e.isIncome) {
-                    // ENTERPRISE FIX: Only add to CASH drawer if it was actually paid in Cash!
-                    if(!e.payMethod || e.payMethod === 'Cash') {
-                        debtCollections += e.amount;
-                    } else {
-                        otherSales += e.amount; // Add to Non-Cash Transactions
-                    }
-                }
-                else expenses += e.amount;
+            if(e.isIncome) {
+                if(!e.payMethod || e.payMethod === 'Cash') debtCollections += e.amount;
+                else otherSales += e.amount;
+            } else {
+                expenses += e.amount;
             }
         });
 
-        // 3. Process Refunds (🛡️ ENTERPRISE FIX: Strict Cash Logic)
+        // 3. Process Refunds
         const qRef = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/refunds`), where("date", ">=", startDate), where("date", "<=", endDate));
         const snapRef = await getDocs(qRef);
         snapRef.forEach(docSnap => {
             const r = docSnap.data();
-            let rDate = "";
-            try {
-                const dObj = new Date(r.date);
-                if(isNaN(dObj.getTime())) return;
-                rDate = new Date(dObj.getTime() - (dObj.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
-            } catch(err) { return; }
-            
-            // 🛡️ ENTERPRISE EOD FIX: Only deduct if the refund was actually given in CASH!
-            if(rDate === dateInput && (!r.refundMethod || r.refundMethod === 'Cash')) {
+            if(!r.refundMethod || r.refundMethod === 'Cash') {
                 refunds += (r.cashOutToCustomer !== undefined ? r.cashOutToCustomer : r.amount);
             }
         });
 
-        // ENTERPRISE FIX: Fetch Staff Advances given out today (Crucial for Cash Drawer accuracy!)
-        // Loop through current employees to fetch their logs for today
+        // 4. Process Staff Advances
         for (let emp of employeesCache) {
             try {
+                // Daily logs use strict date strings (YYYY-MM-DD), unaffected by Timezones
                 const qAdv = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/employees/${emp.id}/logs`), where("date", "==", dateInput));
                 const snapAdv = await getDocs(qAdv);
-                snapAdv.forEach(d => {
-                    staffAdvances += (Number(d.data().advance) || 0);
-                });
+                snapAdv.forEach(d => { staffAdvances += (Number(d.data().advance) || 0); });
             } catch (e) { console.error("EOD Advance fetch error", e); }
         }
 
-        // ENTERPRISE FIX: Store base calculations globally for dynamic recalculation
         window.currentEodBaseCash = cashSales + debtCollections - refunds - expenses - staffAdvances;
 
         // Update UI
@@ -10595,8 +10680,8 @@ window.setQuickCash = (amount) => {
         document.getElementById('eodExpenses').textContent = formatMoney(expenses);
         document.getElementById('eodAdvances').textContent = formatMoney(staffAdvances);
         
-        window.recalculateEODTotal(); // Call the new dynamic calculator
-document.getElementById('eodReportArea').style.display = 'block';
+        window.recalculateEODTotal(); 
+        document.getElementById('eodReportArea').style.display = 'block';
         if(window.writeSystemLog) writeSystemLog("EOD_REPORT_VIEWED", `Generated and viewed EOD Shift Summary on screen for Date: ${dateInput}`);
         toggleLoader(false);
     };
@@ -11516,7 +11601,7 @@ document.getElementById('eodReportArea').style.display = 'block';
         await runTransaction(db, async (t) => {
             const snap = await t.get(ref);
             let currentNotes = snap.exists() && snap.data().notes ? snap.data().notes : [];
-            currentNotes.unshift({ text, date: new Date().toISOString() });
+            currentNotes.unshift({ text, date: window.getSecureTime().toISOString() });
             t.update(ref, { notes: currentNotes });
         });
 
@@ -11748,7 +11833,7 @@ document.getElementById('eodReportArea').style.display = 'block';
 
                 const logRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/inventory_logs`));
                 t.set(logRef, {
-                    date: new Date().toISOString(), productName: pData.name,
+                    date: window.getSecureTime().toISOString(), productName: pData.name,
                     action: 'WRITE_OFF', description: `[${reason}] ${note} (Serials Removed: ${removedSerials.length})`,
                     quantityChange: -qty, finalQty: pData.qty - qty,
                     batchNumber: pData.batchNumber || 1, initialQty: pData.qty
@@ -11762,7 +11847,7 @@ document.getElementById('eodReportArea').style.display = 'block';
                         description: `Inventory Write-Off Loss [${reason}]: ${pData.name} x${qty}`,
                         amount: costLoss,
                         isIncome: false,
-                        date: new Date().toISOString()
+                        date: window.getSecureTime().toISOString()
                     });
                 }
             });
@@ -12030,10 +12115,10 @@ window.openReplyModal = (id) => {
             const updateData = { status: actionType };
             if(text) {
                 const currentReplies = r.replies || [];
-                currentReplies.push({ sender: 'admin', text: text, date: new Date().toISOString() });
+                currentReplies.push({ sender: 'admin', text: text, date: window.getSecureTime().toISOString() });
                 
                 updateData.replies = currentReplies;
-                updateData.lastUpdatedAt = new Date().toISOString();
+                updateData.lastUpdatedAt = window.getSecureTime().toISOString();
             }
             
             // Database එක Update කිරීම
@@ -12069,7 +12154,7 @@ window.openReplyModal = (id) => {
         try {
             await updateDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/alerts`, id), { 
                 status: newStatus,
-                lastUpdated: new Date().toISOString()
+                lastUpdated: window.getSecureTime().toISOString()
             });
             await loadCRM();
             showToast(`Service marked as ${newStatus === 'closed' ? 'Done' : 'Active'}!`);
@@ -12098,7 +12183,7 @@ window.openReplyModal = (id) => {
             await updateDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/alerts`, id), { 
                 targetDate: newDate + "T10:00:00.000Z", // Set to morning time safely
                 status: 'active', // If it was missed, rescheduling makes it active again
-                lastUpdated: new Date().toISOString()
+                lastUpdated: window.getSecureTime().toISOString()
             });
             await loadCRM();
             showToast("Service successfully rescheduled!");
@@ -12476,7 +12561,7 @@ let currentBatchForSerials = null;
                         // Write to unified Inventory Logs
                         const logRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/inventory_logs`));
                         t.set(logRef, {
-                            date: new Date().toISOString(), productName: pName,
+                            date: window.getSecureTime().toISOString(), productName: pName,
                             action: 'RECONCILIATION', description: `Audit Adj: ${variance>0?'+':''}${variance}. Note: ${note || 'Perfect Match Validation'}`,
                             quantityChange: variance, finalQty: phy, batchNumber: b.batchNumber || 1, initialQty: liveSys
                         });
@@ -12489,7 +12574,7 @@ let currentBatchForSerials = null;
                 // Create Immutable Audit Report
                 const auditRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/stock_take_reports`));
                 t.set(auditRef, {
-                    date: new Date().toISOString(),
+                    date: window.getSecureTime().toISOString(),
                     productName: pName,
                     auditorEmail: currentUser ? currentUser.email : 'Unknown',
                     netVariance: Math.round(netVarianceTotal * 1000) / 1000,
@@ -12550,32 +12635,76 @@ let currentBatchForSerials = null;
             tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:red;">Failed to load history.</td></tr>';
         }
     };
-// ==========================================
-    // 🛡️ ENTERPRISE DISASTER RECOVERY (JSON MASTER BACKUP)
+// 🛡️ ENTERPRISE DISASTER RECOVERY (JSON MASTER BACKUP)
     // ==========================================
     window.downloadMasterBackup = async () => {
         if(userRole !== 'admin') return showToast("Security Alert: Only Admin can export database!", "error");
-        if(!confirm("⚠️ Generate Full Database Backup?\n\nThis will download ALL sales, customers, employees, and inventory records as a JSON file to your computer. Please keep this file extremely secure!")) return;
+        if(!confirm("⚠️ Generate Full Database Backup?\n\nThis will download ALL data. For large databases, this may take a few moments. Do not close the window!")) return;
         
+        // Update Loader text for large databases
+        const loaderText = document.querySelector('#globalLoader div:nth-child(2)');
+        if(loaderText) loaderText.textContent = "Compiling Enterprise Backup. Please wait...";
         toggleLoader(true);
+        
         try {
-            const backupData = {
-                metadata: { shopName: shopsCache.find(s => s.id === currentShopId)?.name, exportDate: new Date().toISOString(), exportedBy: currentUser.email, appVersion: "v4.0 Enterprise" },
-                data: {}
-            };
+            // 🛡️ ENTERPRISE FIX: Blob Parts Streaming (Prevents V8 Engine RAM Crash)
+            // දැවැන්ත Object එකක් RAM එකේ හදනවා වෙනුවට, කෙලින්ම File එකකට ලියන්න කෑලි (Chunks) වලට කඩමු.
+            const blobParts = [];
+            const exportDate = window.getSecureTime ? window.getSecureTime().toISOString() : new Date().toISOString();
             
-            // All critical collections to backup
+            // 1. JSON Header & Metadata
+            const metaObj = { 
+                shopName: shopsCache.find(s => s.id === currentShopId)?.name, 
+                exportDate: exportDate, 
+                exportedBy: currentUser.email, 
+                appVersion: "v5.0 Enterprise Secure" 
+            };
+            blobParts.push(`{\n  "metadata": ${JSON.stringify(metaObj)},\n  "data": {\n`);
+
             const collectionsToBackup = ['products', 'sales', 'customers', 'customer_archives', 'employees', 'documents', 'categories', 'base_products', 'refunds', 'alerts', 'inventory_logs', 'settings', 'expenses', 'suppliers', 'services', 'service_categories', 'stock_take_reports', 'employee_roles'];
             
-            for (let colName of collectionsToBackup) {
-                const snap = await getDocs(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/${colName}`));
-                backupData.data[colName] = [];
-                snap.forEach(d => backupData.data[colName].push({ id: d.id, ...d.data() }));
+            for (let i = 0; i < collectionsToBackup.length; i++) {
+                const colName = collectionsToBackup[i];
+                blobParts.push(`    "${colName}": [\n`);
+                
+                let lastDoc = null;
+                let hasMore = true;
+                let isFirstDoc = true;
+
+                // 2. Cursor Pagination: Fetch 1000 at a time to prevent Network & RAM bottleneck
+                while (hasMore) {
+                    let q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/${colName}`), limit(1000));
+                    if (lastDoc) {
+                        q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/${colName}`), startAfter(lastDoc), limit(1000));
+                    }
+
+                    const snap = await getDocs(q);
+
+                    if (snap.empty) {
+                        hasMore = false;
+                        break;
+                    }
+
+                    snap.forEach(d => {
+                        if (!isFirstDoc) blobParts.push(",\n");
+                        blobParts.push(`      ${JSON.stringify({ id: d.id, ...d.data() })}`);
+                        isFirstDoc = false;
+                    });
+
+                    lastDoc = snap.docs[snap.docs.length - 1];
+
+                    // 🛡️ BROWSER BREATHER: Allow Garbage Collector to run to clear RAM
+                    await new Promise(res => setTimeout(res, 10));
+                }
+
+                blobParts.push(`\n    ]${i < collectionsToBackup.length - 1 ? ',' : ''}\n`);
             }
             
-            // Generate Downloadable JSON
-            const jsonStr = JSON.stringify(backupData, null, 2);
-            const blob = new Blob([jsonStr], { type: "application/json" });
+            // 3. JSON Footer
+            blobParts.push(`  }\n}`);
+
+            // 4. Create Blob directly from streamed parts
+            const blob = new Blob(blobParts, { type: "application/json" });
             const url = window.URL.createObjectURL(blob);
             
             const a = document.createElement("a");
@@ -12586,13 +12715,14 @@ let currentBatchForSerials = null;
             document.body.removeChild(a);
             window.URL.revokeObjectURL(url);
             
-            if(window.writeSystemLog) writeSystemLog("DATABASE_BACKUP_EXPORTED", `Admin securely exported the entire database as a JSON backup file.`);
+            if(window.writeSystemLog) writeSystemLog("DATABASE_BACKUP_EXPORTED", `Admin securely exported the ENTIRE database (Streamed Output).`);
             showToast("Master Backup Downloaded Successfully!", "success");
             
         } catch(e) {
             console.error("Backup Failed:", e);
             showToast("Error generating backup. Check console.", "error");
         } finally {
+            if(loaderText) loaderText.textContent = "Processing..."; // Reset loader text
             toggleLoader(false);
         }
     };
