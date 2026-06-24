@@ -3195,7 +3195,15 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         document.getElementById('profWhatsapp').value = p.whatsapp || '';
         document.getElementById('profFax').value = p.fax || '';
         document.getElementById('profEmail').value = p.email || '';
-        document.getElementById('profDefaultBillSize').value = p.defaultBillSize || '80mm'; // 🛡️ Load Default Bill Size
+        
+        // 🛡️ ENTERPRISE FIX: Global State Synchronization for Bill Size
+        const savedSize = p.defaultBillSize || '80mm';
+        document.getElementById('profDefaultBillSize').value = savedSize; 
+        
+        // බලහත්කාරයෙන් POS Dropdown එක සහ Print Memory එක යාවත්කාලීන කිරීම!
+        const posBillDropdown = document.getElementById('posBillSize');
+        if(posBillDropdown) posBillDropdown.value = savedSize;
+        localStorage.setItem('posBillSize_' + currentShopId, savedSize);
         
         // Load the Manager PIN. If not set previously, default to 0000
         document.getElementById('profManagerPin').value = p.managerPin || '0000';
@@ -5335,6 +5343,23 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 window.checkout = async () => {
         if(window.isCheckingOut) return;
         if(!cart.length) return showToast("Cart is empty!", "error");
+
+        // 🛡️ ENTERPRISE UX FIX: Auto-Capture Forgotten Fees (Anti-Revenue Leakage)
+        // Cashier ට '+' බොත්තම ඔබන්න අමතක වෙලා තිබ්බත්, කොටුවල අකුරු තියෙනවා නම් System එක ස්වයංක්‍රීයව ඒක බිලට එකතු කරනවා!
+        const pendingFeeName = document.getElementById('newFeeName').value.trim();
+        const pendingFeeAmt = parseFloat(document.getElementById('newFeeAmount').value);
+        
+        if (pendingFeeName !== '' || !isNaN(pendingFeeAmt)) {
+            if (!pendingFeeName || isNaN(pendingFeeAmt) || pendingFeeAmt < 0) {
+                document.getElementById('newFeeAmount').focus();
+                return showToast("Please complete or clear the 'Other Fees' section before checking out!", "error");
+            }
+            // ස්වයංක්‍රීයව Array එකට එකතු කිරීම
+            currentOtherFees.push({ name: pendingFeeName, amount: pendingFeeAmt });
+            document.getElementById('newFeeName').value = '';
+            document.getElementById('newFeeAmount').value = '';
+            renderFees(); // UI එක Update කිරීම
+        }
 
         const paymentMethod = document.getElementById('posPaymentMethod').value;
         const discountType = document.getElementById('discountType').value;
