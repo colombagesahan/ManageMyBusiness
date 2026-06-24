@@ -2919,6 +2919,12 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         if(typeof clearPosCustomer === 'function') clearPosCustomer();
         if(typeof renderCart === 'function') renderCart();
         
+        // 🛡️ ENTERPRISE SECURITY FIX: Kill all active live listeners from the previous branch!
+        // මෙය සිදු නොකළහොත් පරණ කඩේ දත්ත අලුත් කඩේ තිරයට රිංගා පැමිණේ (Memory Leak & Ghost Data).
+        if (window.unsubCRMReqs) { window.unsubCRMReqs(); window.unsubCRMReqs = null; }
+        if (window.unsubCustomers) { window.unsubCustomers(); window.unsubCustomers = null; }
+        crmRequestsCache = [];
+        
         refreshData();
     };
 
@@ -2992,10 +2998,13 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                     toggleDashInputs(); // Set visibility
                     updateDashboard(); // Calculate for 'Today'
 
-                    // Refresh Orders/Alerts/Documents/Transfers View if active
+                    // Refresh Orders/Alerts/Documents/Transfers/CRM View if active
                     if(document.getElementById('view-orders').classList.contains('active')) loadOrders();
                     if(document.getElementById('view-documents').classList.contains('active')) loadDocumentsHistory();
                     if(document.getElementById('view-transfers').classList.contains('active')) loadTransfersUI();
+                    
+                    // 🛡️ ENTERPRISE FIX: Auto-refresh CRM tab on branch switch to prevent Stale State
+                    if(document.getElementById('view-crm').classList.contains('active')) loadCRM(); 
                     
                     // Populate Customer Datalists for Docs
                     updateCustomerDatalist();
