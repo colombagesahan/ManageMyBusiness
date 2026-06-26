@@ -274,29 +274,29 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 
 <!-- MAIN CONTENT -->
 <main class="main">
-    <header class="header">
-        <div style="display:flex; align-items:center; gap: 20px;">
+    <header class="header" style="padding:0 20px;">
+        <div style="display:flex; align-items:center; gap: 15px;">
             <i class="ri-menu-2-line mobile-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')"></i>
-            <h3 id="pageTitle">Overview</h3>
+            <h3 id="pageTitle" style="font-weight:800; color:var(--secondary); min-width:120px;">Overview</h3>
             
-            <!-- 🛡️ ENTERPRISE FIX: SECURE LIVE CLOCK -->
-            <div style="background: #1e293b; color: #10b981; padding: 6px 15px; border-radius: 50px; font-family: monospace; font-weight: 800; font-size: 13px; letter-spacing: 1px; display: flex; align-items: center; gap: 8px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5); border: 1px solid #0f172a;">
+            <!-- 🛡️ ENTERPRISE FIX: SECURE LIVE CLOCK (Perfectly aligned) -->
+            <div style="background: #1e293b; color: #10b981; padding: 0 15px; border-radius: 8px; font-family: monospace; font-weight: 800; font-size: 12px; letter-spacing: 1px; display: flex; align-items: center; gap: 8px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5); border: 1px solid #0f172a; height: 36px; box-sizing: border-box; white-space:nowrap;">
                 <i class="ri-time-line"></i> 
                 <span id="secureLiveClockText">Loading SL Time...</span>
             </div>
         </div>
-        <div style="display: flex; gap: 10px; align-items: center;">
-            <!-- NEW: STAFF ATTENDANCE SCANNER -->
-            <div style="background:#e0e7ff; padding:5px 10px; border-radius:8px; display:flex; align-items:center; gap:5px; border:1px solid #c7d2fe;">
-                <i class="ri-fingerprint-line" style="color:var(--primary); font-size:18px;"></i>
-                <input id="staffAttendanceScanner" placeholder="Scan Staff ID..." style="margin:0; width:130px; height:28px; font-size:12px; border:none; background:transparent;" onkeypress="handleStaffAttendance(event)">
+        <div style="display: flex; gap: 8px; align-items: center;">
+            <!-- STAFF ATTENDANCE SCANNER -->
+            <div style="background:#f1f5f9; padding:0 10px; border-radius:8px; display:flex; align-items:center; gap:5px; border:1px solid #cbd5e1; height: 36px; box-sizing: border-box;">
+                <i class="ri-fingerprint-line" style="color:var(--primary); font-size:16px;"></i>
+                <input id="staffAttendanceScanner" placeholder="Scan Staff ID..." style="margin:0; width:120px; height:100%; font-size:12px; border:none; background:transparent; outline:none; font-weight:bold;" onkeypress="handleStaffAttendance(event)">
             </div>
             
-            <select class="shop-select" id="shopSelector" onchange="changeShop()">
+            <select class="shop-select" id="shopSelector" onchange="changeShop()" style="height: 36px; box-sizing: border-box; margin:0; padding: 0 10px; font-weight:bold; border-color:#cbd5e1;">
                 <option value="">Loading Branches...</option>
             </select>
-            <button class="btn btn-primary" onclick="openModal('shopModal')">+ Branch</button>
-            <button class="btn btn-danger" onclick="deleteCurrentShop()" title="Delete Branch"><i class="ri-delete-bin-line"></i></button>
+            <button class="btn btn-primary" onclick="openModal('shopModal')" style="height: 36px; padding: 0 12px; box-sizing: border-box; font-size:12px; border-radius:8px;"><i class="ri-add-line"></i> Branch</button>
+            <button class="btn btn-danger" onclick="deleteCurrentShop()" title="Delete Branch" style="height: 36px; width: 36px; padding: 0; box-sizing: border-box; display:flex; align-items:center; justify-content:center; border-radius:8px;"><i class="ri-delete-bin-line"></i></button>
         </div>
     </header>
 
@@ -361,8 +361,19 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                     <div style="font-size:11px; color:#0369a1; margin-top:5px;">Current Inventory Investment</div>
                 </div>
             </div>
-            <div class="card" style="height: 300px;">
-                <canvas id="salesChart"></canvas>
+            <!-- 🛡️ ENTERPRISE DASHBOARD: Chart & Live Personnel Status -->
+            <div style="display:grid; grid-template-columns: 2.5fr 1fr; gap:24px; margin-top:24px;">
+                <div class="card" style="margin:0;">
+                    <h4 style="margin-bottom:15px; color:var(--secondary); font-size:15px;"><i class="ri-bar-chart-grouped-line" style="color:var(--primary);"></i> ආදායම් ප්‍රස්ථාරය (Revenue Trends)</h4>
+                    <div style="height: 300px; position:relative;"><canvas id="salesChart"></canvas></div>
+                </div>
+                
+                <div class="card" style="margin:0; display:flex; flex-direction:column; border-top:4px solid var(--primary);">
+                    <h4 style="margin-bottom:15px; color:var(--secondary); font-size:14px; border-bottom:1px solid #e2e8f0; padding-bottom:10px;"><i class="ri-user-follow-line" style="color:var(--success);"></i> Branch Personnel Status</h4>
+                    <div id="dashCashierStatus" style="flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:8px; padding-right:5px;">
+                        <div style="text-align:center; color:#64748b; font-size:12px; margin-top:40px;"><i class="ri-loader-4-line ri-spin" style="font-size:24px; display:block; margin-bottom:10px;"></i> සේවක තත්ත්වය පරීක්ෂා කරමින්...</div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -391,13 +402,18 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                             <input type="file" id="profLogoFile" accept="image/*" style="font-size:11px;">
                             <div style="margin-top:10px; border-top:1px solid #eee; padding-top:10px;">
                                 <label style="font-size:11px;">Or use Business Name as Logo:</label>
-                                <select id="profLogoFont">
+                                <select id="profLogoFont" style="margin-bottom:10px;">
                                     <option value="'Plus Jakarta Sans'">Sans Serif</option>
                                     <option value="serif">Serif</option>
                                     <option value="monospace">Monospace</option>
                                     <option value="cursive">Cursive</option>
                                 </select>
-                                <input type="color" id="profLogoColor" value="#4F46E5" style="height:40px;">
+                                <label style="font-size:11px; font-weight:bold;">බිල්පතේ වර්ණය (Theme Color)</label>
+                                <input type="color" id="profLogoColor" value="#4F46E5" style="height:40px; margin-bottom:5px; border-radius:8px; cursor:pointer;">
+                                <div style="font-size:10px; color:#64748b; line-height:1.4; background:#f8fafc; padding:8px; border-radius:6px; border:1px solid #e2e8f0;">
+                                    මෙම වර්ණය A4 බිල්පත්, Invoices සහ Quotations සඳහා යෙදේ.<br>
+                                    <strong style="color:var(--danger);">සටහන:</strong> Thermal බිල්පත් (58/80mm) යන්ත්‍රවල තාක්ෂණය අනුව සැමවිටම කළු/සුදු (Black & White) ලෙස පමණක් මුද්‍රණය වේ.
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -2637,7 +2653,11 @@ body.pos-fullscreen-mode #view-pos > div > .card {
     ];
 
     onAuthStateChanged(auth, async (user) => {
-        if (!user) window.location.href = "index.html";
+        // 🛡️ ENTERPRISE FIX: Added 'return;' to stop script execution instantly during redirect
+        if (!user) {
+            window.location.href = "index.html";
+            return; 
+        }
         
         // 🛡️ Secure Clock Engine is now running. OS Clock manipulation is physically impossible.
         initSecureClock(); // Re-sync to be 100% sure on login
@@ -3328,12 +3348,13 @@ body.pos-fullscreen-mode #view-pos > div > .card {
     }
 
     window.lockProfile = (lock) => {
-        // 🛡️ ENTERPRISE FIX: Make sure ALL fields (including Manager PIN and Document Terms) are correctly locked/unlocked
-        // අලුතින් එකතු කළ Bill Size Dropdown එකද අගුලු දැමීමේ ලැයිස්තුවට එකතු කර ඇත.
+        // 🛡️ ENTERPRISE FIX: Strict State Locking for all UI elements
         document.querySelectorAll('#profFields input:not([type="checkbox"]), #profFields textarea, #profDefaultBillSize, #profLogoFont, #profLogoColor, #profLogoFile, #profScaleMode, #profScalePrefix, #profManagerPin, #profTermsThermal, #profTermsA4, #profTermsInvoice, #profTermsQuote').forEach(i => {
             if (i) i.disabled = lock;
         });
-        document.querySelectorAll('#profFields input[type="checkbox"]').forEach(i => {
+        
+        // අලුතින් එකතු කළ Logo Print Checkboxes ඇතුළු සියලුම Checkboxes අගුලු දැමීම
+        document.querySelectorAll('#profFields input[type="checkbox"], #showLogoInvoice, #showLogoQuote, #showLogoA4, #showLogoThermal').forEach(i => {
             if (i) i.disabled = lock;
         });
 
@@ -8991,7 +9012,78 @@ window.autoFillDocCustomer = (name) => {
             },
             options: { responsive: true, maintainAspectRatio: false }
         });
+
+        // 🛡️ ENTERPRISE FIX: Check Active Cashiers via Audit Logs (Zero Database Overhead)
+        updatePersonnelStatus(startIso, endIso);
     };
+
+    // අලුතින් එක් කළ Function එක
+    async function updatePersonnelStatus(startIso, endIso) {
+        const statusContainer = document.getElementById('dashCashierStatus');
+        if(!statusContainer) return;
+        
+        try {
+            // Get all cashiers for this shop
+            const qCashiers = query(collection(db, 'users'), where('ownerId', '==', dbOwnerId), where('allowedShop', '==', currentShopId));
+            const snapCashiers = await getDocs(qCashiers);
+            let shopUsers = [];
+            
+            // Add Admin globally
+            shopUsers.push({ email: currentUser ? currentUser.email : 'Admin', role: 'admin', status: 'active' });
+            
+            snapCashiers.forEach(d => {
+                shopUsers.push({ email: d.data().email, role: 'cashier', status: d.data().status });
+            });
+
+            // Get today's logs to see who was active
+            const qLogs = query(collection(db, `users/${dbOwnerId}/system_audit_logs`), where("timestamp", ">=", startIso), where("timestamp", "<=", endIso));
+            const snapLogs = await getDocs(qLogs);
+            
+            const activeEmails = new Set();
+            snapLogs.forEach(d => {
+                if(d.data().shopId === currentShopId || d.data().userRole === 'admin') {
+                    activeEmails.add(d.data().userEmail);
+                }
+            });
+
+            let html = '';
+            shopUsers.forEach(u => {
+                const safeEmail = u.email.split('@')[0].toUpperCase();
+                const isActive = activeEmails.has(u.email);
+                const dotColor = isActive ? '#10b981' : '#9ca3af'; // Green if active, Grey if not
+                const bgStyle = isActive ? 'background:#f0fdf4; border:1px solid #bbf7d0;' : 'background:#f8fafc; border:1px solid #e2e8f0; opacity:0.8;';
+                const statusText = isActive ? 'Online Today' : 'Offline';
+                const roleBadge = u.role === 'admin' 
+                    ? '<span style="background:#fef3c7; color:#d97706; padding:2px 4px; border-radius:4px; font-size:9px; font-weight:800; border:1px solid #fde68a;">ADMIN</span>' 
+                    : '<span style="background:#e0e7ff; color:#4f46e5; padding:2px 4px; border-radius:4px; font-size:9px; font-weight:800; border:1px solid #c7d2fe;">CASHIER</span>';
+                
+                if (u.status === 'suspended') {
+                    html += `
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 10px; background:#fef2f2; border:1px solid #fecaca; border-radius:8px; opacity:0.6;">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <div style="width:8px; height:8px; background:#ef4444; border-radius:50%;"></div>
+                            <div><div style="font-weight:800; font-size:12px; color:#b91c1c;">${safeEmail}</div>${roleBadge}</div>
+                        </div>
+                        <div style="font-size:10px; font-weight:bold; color:#ef4444;">SUSPENDED</div>
+                    </div>`;
+                } else {
+                    html += `
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 10px; ${bgStyle} border-radius:8px; transition:0.2s;">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <div style="width:10px; height:10px; background:${dotColor}; border-radius:50%; box-shadow: 0 0 6px ${dotColor};"></div>
+                            <div><div style="font-weight:800; font-size:12px; color:var(--secondary);">${safeEmail}</div>${roleBadge}</div>
+                        </div>
+                        <div style="font-size:10px; font-weight:bold; color:${dotColor};"><i class="${isActive ? 'ri-record-circle-line' : 'ri-moon-line'}"></i> ${statusText}</div>
+                    </div>`;
+                }
+            });
+            
+            statusContainer.innerHTML = html;
+        } catch(e) {
+            console.error("Status fetch error", e);
+            statusContainer.innerHTML = '<div style="color:red; font-size:11px; text-align:center;">Error loading status</div>';
+        }
+    }
 
 window.triggerDocAction = async (action, docId) => {
         toggleLoader(true);
