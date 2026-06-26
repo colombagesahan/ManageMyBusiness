@@ -533,7 +533,9 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                     <div style="background:#f8fafc; padding:15px; border-radius:8px; border:1px solid #e2e8f0; margin-bottom:20px;">
                         <label style="font-size:12px; font-weight:bold; color:var(--secondary); display:block; margin-bottom:10px;"><i class="ri-image-line"></i> ලාංඡනය (Logo) මුද්‍රණය විය යුතු බිල්පත් වර්ග තෝරන්න:</label>
                         <div style="display:flex; gap:20px; flex-wrap:wrap;">
-                            <label class="visibility-toggle" style="font-size:12px; font-weight:bold;"><input type="checkbox" id="showLogoFormal" checked> Formal Invoices / Quotations</label>
+                            <!-- 🛡️ ENTERPRISE FIX: Separated Invoice and Quotation logo toggles -->
+                            <label class="visibility-toggle" style="font-size:12px; font-weight:bold;"><input type="checkbox" id="showLogoInvoice" checked> Formal Invoices</label>
+                            <label class="visibility-toggle" style="font-size:12px; font-weight:bold;"><input type="checkbox" id="showLogoQuote" checked> Quotations</label>
                             <label class="visibility-toggle" style="font-size:12px; font-weight:bold;"><input type="checkbox" id="showLogoA4" checked> Smart POS A4 Bills</label>
                             <label class="visibility-toggle" style="font-size:12px; font-weight:bold;"><input type="checkbox" id="showLogoThermal" checked> Thermal POS Receipts (58/80mm)</label>
                         </div>
@@ -1387,7 +1389,10 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                         <th style="padding:10px; color:var(--danger);">ආයතනය වසා ඇත (Closed)</th>
                         <th style="padding:10px;">ආරම්භක වෙලාව (In)</th>
                         <th style="padding:10px;">අවසන් වන වෙලාව (Out)</th>
-                        <th style="padding:10px; color:var(--success);">නිවාඩු දින OT (Double Pay)</th>
+                        <th style="padding:10px; color:var(--success); line-height:1.3;">
+                            නිවාඩු දින OT <br>
+                            <span style="font-size:9px; color:#64748b; font-weight:normal;">(පෝය, රජයේ නිවාඩු හෝ විශේෂ දිනවලට වැඩ කළොත් මුළු කාලයම OT ලෙස සැලකීමට මෙය Tick කරන්න)</span>
+                        </th>
                     </tr>
                 </thead>
                 <tbody id="rosterBody">
@@ -3297,8 +3302,9 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         document.getElementById('showFax').checked = p.showFax !== false;
         document.getElementById('showEmail').checked = p.showEmail !== false;
         
-        // 🛡️ Logo Print Preferences
-        document.getElementById('showLogoFormal').checked = p.showLogoFormal !== false;
+        // 🛡️ Logo Print Preferences (Separated)
+        document.getElementById('showLogoInvoice').checked = p.showLogoInvoice !== false;
+        document.getElementById('showLogoQuote').checked = p.showLogoQuote !== false;
         document.getElementById('showLogoA4').checked = p.showLogoA4 !== false;
         document.getElementById('showLogoThermal').checked = p.showLogoThermal !== false;
         
@@ -3377,8 +3383,9 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             showFax: document.getElementById('showFax').checked,
             showEmail: document.getElementById('showEmail').checked,
             
-            // 🛡️ Logo Print Preferences
-            showLogoFormal: document.getElementById('showLogoFormal').checked,
+            // 🛡️ Logo Print Preferences (Separated)
+            showLogoInvoice: document.getElementById('showLogoInvoice').checked,
+            showLogoQuote: document.getElementById('showLogoQuote').checked,
             showLogoA4: document.getElementById('showLogoA4').checked,
             showLogoThermal: document.getElementById('showLogoThermal').checked,
 
@@ -6456,12 +6463,16 @@ window.autoFillDocCustomer = (name) => {
         const margin = 15;
         let currentY = 20;
 
-        // 🛡️ 2. DYNAMIC LOGO VISIBILITY
+        // 🛡️ 2. DYNAMIC LOGO VISIBILITY (Now precisely separated per doc type)
         let showLogoHere = false;
-        if (docData.type === 'RECEIPT') showLogoHere = shop.showLogoA4 !== false;
-        else showLogoHere = shop.showLogoFormal !== false;
+        if (docData.type === 'RECEIPT') {
+            showLogoHere = shop.showLogoA4 !== false;
+        } else if (docData.type === 'invoice') {
+            showLogoHere = shop.showLogoInvoice !== false;
+        } else if (docData.type === 'quotation') {
+            showLogoHere = shop.showLogoQuote !== false;
+        }
 
-        // 🛡️ ENTERPRISE FIX: Smart Aspect Ratio Scaling (Prevent Logo Stretching)
         if (showLogoHere && shop.logoImage) {
             try { 
                 const imgProps = doc.getImageProperties(shop.logoImage);
@@ -13192,8 +13203,8 @@ let currentBatchForSerials = null;
                 <td><input type="time" class="inp-start" data-date="${dateStr}" value="${startT}" style="margin:0; width:120px;" ${isClosed ? 'disabled' : ''}></td>
                 <td><input type="time" class="inp-end" data-date="${dateStr}" value="${endT}" style="margin:0; width:120px;" ${isClosed ? 'disabled' : ''}></td>
                 <td>
-                    <label style="display:flex; align-items:center; justify-content:center; gap:5px; font-size:11px; font-weight:bold; color:var(--success); cursor:pointer;">
-                        <input type="checkbox" class="chk-holidayOT" data-date="${dateStr}" ${isHolidayOT ? 'checked' : ''} style="width:16px; height:16px; margin:0; accent-color:var(--success);"> අද දින වැඩ කළොත් OT ද?
+                    <label style="display:flex; align-items:center; justify-content:center; gap:5px; font-size:11px; font-weight:bold; color:var(--success); cursor:pointer;" title="මෙම දිනයේ වැඩ කරන සියලුම පැය ගණන් OT ලෙස ගෙවීමට මෙය තෝරන්න">
+                        <input type="checkbox" class="chk-holidayOT" data-date="${dateStr}" ${isHolidayOT ? 'checked' : ''} style="width:16px; height:16px; margin:0; accent-color:var(--success);"> ඔව් 
                     </label>
                 </td>
             </tr>`;
