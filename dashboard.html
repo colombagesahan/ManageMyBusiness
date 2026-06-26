@@ -275,9 +275,15 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 <!-- MAIN CONTENT -->
 <main class="main">
     <header class="header">
-        <div style="display:flex; align-items:center;">
+        <div style="display:flex; align-items:center; gap: 20px;">
             <i class="ri-menu-2-line mobile-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')"></i>
             <h3 id="pageTitle">Overview</h3>
+            
+            <!-- 🛡️ ENTERPRISE FIX: SECURE LIVE CLOCK -->
+            <div style="background: #1e293b; color: #10b981; padding: 6px 15px; border-radius: 50px; font-family: monospace; font-weight: 800; font-size: 13px; letter-spacing: 1px; display: flex; align-items: center; gap: 8px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5); border: 1px solid #0f172a;">
+                <i class="ri-time-line"></i> 
+                <span id="secureLiveClockText">Loading SL Time...</span>
+            </div>
         </div>
         <div style="display: flex; gap: 10px; align-items: center;">
             <!-- NEW: STAFF ATTENDANCE SCANNER -->
@@ -1094,6 +1100,8 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                     </select>
                     <input type="number" id="payrollYear" style="margin:0; width:80px; border:none; outline:none; font-weight:bold;" value="2026">
                     <button class="btn btn-primary" style="padding:4px 10px;" onclick="loadMasterPayroll()"><i class="ri-refresh-line"></i> Generate</button>
+                    <!-- ✅ මෙන්න මේ බොත්තම අලුතින් එක් කරන්න -->
+                    <button class="btn btn-warning" style="padding:4px 10px; background:#f59e0b;" onclick="openModal('rosterModal')"><i class="ri-calendar-settings-line"></i> Roster Settings</button>
                     <button class="btn btn-ghost" style="padding:4px 10px;" onclick="printMasterPayroll()"><i class="ri-printer-line"></i> Print</button>
                 </div>
             </div>
@@ -1342,6 +1350,47 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 </main>
 
 <!-- MODALS -->
+
+<!-- 🚀 NEW: MONTHLY HR ROSTER CALENDAR MODAL -->
+<div id="rosterModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.8); display:none; align-items:center; justify-content:center; z-index:5000; backdrop-filter:blur(3px);">
+    <div class="card" style="width:100%; max-width:900px; height:90vh; display:flex; flex-direction:column; margin:0; border-top: 5px solid var(--primary);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid #e5e7eb; padding-bottom:10px;">
+            <div>
+                <h3 style="color:var(--primary); margin:0;"><i class="ri-calendar-todo-fill"></i> මාසික කාලසටහන් සැකසුම (Monthly Roster)</h3>
+                <p style="font-size:12px; color:#64748b; margin-top:2px;">අදාළ මාසයේ නිවාඩු දින, වැඩ කරන වේලාවන් සහ OT ගණනය වන ආකාරය මෙතැනින් සකසන්න.</p>
+            </div>
+            <i class="ri-close-line" style="cursor:pointer; font-size:24px; background:#f1f5f9; padding:5px; border-radius:50%;" onclick="closeModal('rosterModal')"></i>
+        </div>
+        
+        <div style="display:flex; gap:10px; margin-bottom:15px; background:#f8fafc; padding:10px; border-radius:8px; border:1px solid #e2e8f0; align-items:center;">
+            <label style="font-weight:bold; font-size:13px;">මාසය තෝරන්න:</label>
+            <input type="month" id="rosterMonthSelect" style="margin:0; width:150px; border:2px solid var(--primary); font-weight:bold;" onchange="generateRosterTable()">
+            <button class="btn btn-warning" style="padding:8px 15px; font-size:12px;" onclick="applyStandardToAll()">සාමාන්‍ය වෙලාව සියලු දිනවලට යොදන්න</button>
+        </div>
+
+        <div style="flex:1; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px;">
+            <table id="rosterTable" style="width:100%; font-size:12px; text-align:center;">
+                <thead style="background:#f1f5f9; position:sticky; top:0; z-index:10;">
+                    <tr>
+                        <th style="padding:10px;">දිනය</th>
+                        <th style="padding:10px; color:var(--danger);">ආයතනය වසා ඇත (Closed)</th>
+                        <th style="padding:10px;">ආරම්භක වෙලාව (In)</th>
+                        <th style="padding:10px;">අවසන් වන වෙලාව (Out)</th>
+                        <th style="padding:10px; color:var(--success);">නිවාඩු දින OT (Double Pay)</th>
+                    </tr>
+                </thead>
+                <tbody id="rosterBody">
+                    <tr><td colspan="5" style="padding:30px; color:#64748b;">කරුණාකර ඉහළින් මාසය තෝරන්න...</td></tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <div style="margin-top:15px; display:flex; justify-content:flex-end; gap:10px; border-top:1px solid #e5e7eb; padding-top:15px;">
+            <button class="btn btn-ghost" onclick="closeModal('rosterModal')">Cancel</button>
+            <button class="btn btn-primary" onclick="saveMonthlyRoster()"><i class="ri-save-line"></i> කාලසටහන Save කරන්න</button>
+        </div>
+    </div>
+</div>
 
 <!-- New Branch Modal -->
 <div id="shopModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:1000;">
@@ -3082,13 +3131,22 @@ body.pos-fullscreen-mode #view-pos > div > .card {
     }, 300);
 
     // ENTERPRISE FIX: Deep Database Fetching for Auto-Fill (Bypassing 100-limit cache)
-    window.autoFillPosCustomer = async (rawPhone) => {
+    // 🛡️ SECURITY FIX: Added 'visited' Set to prevent Infinite Recursion on Cyclical SIM Recycles
+    window.autoFillPosCustomer = async (rawPhone, visited = new Set()) => {
         if (!rawPhone) return;
         
         // 🚀 1. NORMALIZE FIRST (Block invalid formats instantly)
         const phone = normalizePhone(rawPhone);
         if(phone !== rawPhone) document.getElementById('modalCustPhone').value = phone;
         
+        // 🛡️ PREVENT INFINITE LOOP (A -> B -> A Crash)
+        if (visited.has(phone)) {
+            console.warn(`Cyclic identity loop detected for ${phone}. Breaking loop.`);
+            document.getElementById('modalCustName').value = "";
+            return showToast("Error: Circular Identity Migration detected! Stopping auto-forward.", "error");
+        }
+        visited.add(phone); // මේ අංකය පරීක්ෂා කළ බව සටහන් කරගනී
+
         let c = customersCache.find(x => x.id === phone);
         
         // 🚀 2. DEEP RESOLUTION (Bypassing Cache Limits to Prevent Ghost Resurrection)
@@ -3103,16 +3161,22 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                     customersCache.unshift(c); 
                 } else {
                     // Active එකේ නැත්නම්, මේක Migrate කරපු අංකයක්ද කියල Archive එක පීරලා බලයි (Ultimate Truth)
-                    const archiveQ = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/customer_archives`), where("originalId", "==", phone), limit(1));
+                    // 🛡️ ENTERPRISE FIX: Fetch all and sort in RAM to prevent Firebase Composite Index Crash
+                    const archiveQ = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/customer_archives`), where("originalId", "==", phone));
                     const archSnap = await getDocs(archiveQ);
                     
                     if (!archSnap.empty) {
-                        const forwardedTo = archSnap.docs[0].data().forwardedTo;
+                        let archives = [];
+                        archSnap.forEach(d => archives.push(d.data()));
+                        // අනිවාර්යයෙන්ම අලුත්ම (Latest) Migration එක උඩට ගනී
+                        archives.sort((a, b) => new Date(b.archivedAt) - new Date(a.archivedAt)); 
+                        
+                        const forwardedTo = archives[0].forwardedTo;
                         showToast(`Alert: Number migrated! Auto-switched to new ID: ${forwardedTo}`, "warning");
                         
-                        // ආශ්චර්යය මෙතනයි! Cashier ටත් හොරෙන් අංකය මාරු කරලා, අලුත් අංකයෙන් Function එක ආයෙත් දුවවනවා.
+                        // ආශ්චර්යය මෙතනයි! අලුත් අංකයෙන් Function එක ආයෙත් දුවවනවා, ඒ වගේම Visited ලිස්ට් එකත් යවනවා.
                         document.getElementById('modalCustPhone').value = forwardedTo;
-                        return autoFillPosCustomer(forwardedTo); 
+                        return autoFillPosCustomer(forwardedTo, visited); 
                     }
                 }
             } catch(e) { console.error("Error deeply resolving customer identity:", e); }
@@ -5345,21 +5409,15 @@ window.checkout = async () => {
         if(window.isCheckingOut) return;
         if(!cart.length) return showToast("Cart is empty!", "error");
 
-        // 🛡️ ENTERPRISE UX FIX: Auto-Capture Forgotten Fees (Anti-Revenue Leakage)
-        // Cashier ට '+' බොත්තම ඔබන්න අමතක වෙලා තිබ්බත්, කොටුවල අකුරු තියෙනවා නම් System එක ස්වයංක්‍රීයව ඒක බිලට එකතු කරනවා!
+        // 🛡️ ENTERPRISE UX FIX: "Hard Stop" Validation for Ambiguous Fees
+        // පද්ධතිය කිසිවිටෙකත් Cashier ගේ අදහස අනුමාන නොකරයි. අකුරු ටයිප් කර ඇත්නම් එය Add කරන්න හෝ Clear කරන්නැයි බල කරයි!
         const pendingFeeName = document.getElementById('newFeeName').value.trim();
-        const pendingFeeAmt = parseFloat(document.getElementById('newFeeAmount').value);
+        const pendingFeeAmtRaw = document.getElementById('newFeeAmount').value.trim();
         
-        if (pendingFeeName !== '' || !isNaN(pendingFeeAmt)) {
-            if (!pendingFeeName || isNaN(pendingFeeAmt) || pendingFeeAmt < 0) {
-                document.getElementById('newFeeAmount').focus();
-                return showToast("Please complete or clear the 'Other Fees' section before checking out!", "error");
-            }
-            // ස්වයංක්‍රීයව Array එකට එකතු කිරීම
-            currentOtherFees.push({ name: pendingFeeName, amount: pendingFeeAmt });
-            document.getElementById('newFeeName').value = '';
-            document.getElementById('newFeeAmount').value = '';
-            renderFees(); // UI එක Update කිරීම
+        if (pendingFeeName !== '' || pendingFeeAmtRaw !== '') {
+            document.getElementById('newFeeAmount').focus();
+            // බිල කැපීම නවතා Cashier ට පැහැදිලි තීරණයක් ගැනීමට බල කරයි
+            return showToast("⚠️ ඔබ Fee එකක් ටයිප් කර ඇත. කරුණාකර '+' ඔබා එය බිලට එකතු කරන්න, නැතහොත් කොටු මකා දමන්න!", "error");
         }
 
         const paymentMethod = document.getElementById('posPaymentMethod').value;
@@ -10800,6 +10858,22 @@ window.setQuickCash = (amount) => {
                     }
                 }
 
+                // 🛡️ ENTERPRISE ROSTER VALIDATION (Before Clocking In/Out)
+                const [y, m, d] = todayStr.split('-');
+                const rosterRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/settings`, `roster_${y}_${m}`);
+                const rosterSnap = await getDoc(rosterRef);
+                
+                if (!rosterSnap.exists()) {
+                    toggleLoader(false);
+                    return alert(`⚠️ System Locked!\nAdmin has not configured the Monthly Roster for ${y}-${m}.\nPlease configure the Roster Settings from the Payroll tab before staff can punch in!`);
+                }
+                
+                const todayRoster = rosterSnap.data().days[todayStr];
+                if (!todayRoster) {
+                    toggleLoader(false);
+                    return alert(`Error: Today's date (${todayStr}) is missing in the Roster Calendar.`);
+                }
+
                 // 3. Logic: Clock-In or Clock-Out
                 if(!isClockingOut) {
                     const qToday = query(logsRef, where("date", "==", todayStr));
@@ -10842,38 +10916,54 @@ window.setQuickCash = (amount) => {
                     } else if(logData.clockInTime) {
                         // --- SCENARIO C: CLOCK-OUT & OT CALCULATION (පිටවීමේ ස්කෑන් කිරීම) ---
                         const inTime = new Date(logData.clockInTime);
-                        const outTime = now;
+                        const outTime = now; // 🛡️ Secure Time
                         
-                       // ආයතනයේ සිටි මුළු පැය ගණන ගණනය කිරීම
+                       // ආයතනයේ සිටි මුළු පැය ගණන ගණනය කිරීම (Gross Time)
                         const diffMs = outTime - inTime;
-                        let workedHrs = diffMs / (1000 * 60 * 60);
-                        
-                        // ADVANCED LOGIC: Fetch employee's specific Standard Hours from cache
-                        const empData = employeesCache.find(emp => emp.id === foundEmpId);
-                        const stdHours = empData ? (empData.standardHours || 8) : 8;
-                        
+                        let grossHrs = diffMs / (1000 * 60 * 60); 
+
                         let calculatedOT = 0;
-                        
-                        // ENTERPRISE FIX: Prevent 24-Hour Ghost Shifts (Forgot to clock out yesterday)
-                        if (workedHrs > 16) {
-                            workedHrs = stdHours; // Auto-cap to standard hours to prevent massive fake OT
-                            showToast(`Warning: Abnormal shift duration. Capped to ${stdHours} hrs. Manager must verify!`, "warning");
-                        } else if (workedHrs > stdHours) {
-                            calculatedOT = workedHrs - stdHours; // Normal OT calculation
+                        let netWorkedHrs = grossHrs;
+
+                        // 🛡️ ENTERPRISE HR: DYNAMIC ROSTER LOGIC
+                        if (todayRoster.isClosed || todayRoster.isHolidayOT) {
+                            // පෝය, නිවාඩු හෝ Closed දවසක් නම් -> වැඩ කරන හැම තත්පරයම OT (Double Pay)! කෑම පැය අදාළ නෑ!
+                            calculatedOT = grossHrs;
+                            netWorkedHrs = 0; // සාමාන්‍ය පඩියට යන පැය ගාණ බිංදුවයි, ඔක්කොම යන්නේ OT වලට.
+                        } else {
+                            // සාමාන්‍ය දවසක් නම්: Calendar එකෙන් Shift එකේ දිග (Duration) හොයාගන්නවා
+                            const startD = new Date(`1970-01-01T${todayRoster.shiftStart}:00`);
+                            const endD = new Date(`1970-01-01T${todayRoster.shiftEnd}:00`);
+                            // උදා: 17:00 - 08:00 = පැය 9යි. මේ පැය 9 ඇතුළේ කෑම පැය ස්වභාවිකවම (Implicitly) අඩංගුයි!
+                            const shiftDurationHrs = (endD - startD) / (1000 * 60 * 60); 
+
+                            // 24 Hour Ghost Check
+                            if (grossHrs > 16) {
+                                netWorkedHrs = shiftDurationHrs;
+                                showToast(`Warning: Abnormal shift. Capped to ${shiftDurationHrs} hrs. Manager must verify!`, "warning");
+                            } else {
+                                // OT හැදෙන්නේ Shift Duration එකට (උදා: පැය 9ට) වඩා වැඩිපුර හිටියොත් විතරයි!
+                                if (grossHrs > shiftDurationHrs) {
+                                    calculatedOT = grossHrs - shiftDurationHrs;
+                                    netWorkedHrs = shiftDurationHrs; // Net එක සාමාන්‍ය ගාණට අගුලු වැටේ
+                                } else {
+                                    netWorkedHrs = grossHrs; // අඩුවෙන් වැඩ කළා නම්, ඒ ගාණ විතරයි
+                                }
+                            }
                         }
 
-                        // ENTERPRISE FIX: Never overwrite manually granted OT by Manager with a lesser value from scanner!
+                        // Manager අතින් දුන්න OT එකක් තිබ්බොත් ඒක මකන්නේ නෑ
                         const finalOT = Math.max((logData.ot || 0), parseFloat(calculatedOT.toFixed(2)));
 
-                        // Update the database with exact hours and OT
+                        // Update the database
                         await updateDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/employees/${foundEmpId}/logs`, logDoc.id), {
                             clockOutTime: outTime.toISOString(),
-                            workedHours: parseFloat(workedHrs.toFixed(2)),
+                            workedHours: parseFloat(netWorkedHrs.toFixed(2)),
                             ot: finalOT 
                         });
 
                         if(window.writeSystemLog) {
-                            writeSystemLog("ATTENDANCE_OUT", `${foundEmpName} Clocked OUT. Worked: ${workedHrs.toFixed(2)} Hrs | OT: ${calculatedOT.toFixed(2)} Hrs`);
+                            writeSystemLog("ATTENDANCE_OUT", `${foundEmpName} Clocked OUT. Gross: ${grossHrs.toFixed(1)}h | Net: ${netWorkedHrs.toFixed(2)}h | OT: ${calculatedOT.toFixed(2)}h`);
                         }
                         showToast(`Goodbye ${foundEmpName}! Clock-OUT recorded. (OT: ${calculatedOT.toFixed(2)} hours)`, "success");
                         
@@ -10994,6 +11084,15 @@ window.setQuickCash = (amount) => {
                 return;
             }
 
+            // 🛡️ ENTERPRISE FIX: Pre-fetch already paid salaries for this specific month to prevent Double Payouts!
+            const expQ = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`), 
+                where("isPayroll", "==", true), 
+                where("payrollPeriod", "==", `${year}_${month}`)
+            );
+            const expSnap = await getDocs(expQ);
+            const paidSalariesMap = {};
+            expSnap.forEach(d => { paidSalariesMap[d.data().empId] = true; });
+
             let html = '';
             // Process each employee securely
             for(let emp of allEmployees) {
@@ -11077,6 +11176,13 @@ window.setQuickCash = (amount) => {
                     totWorked, totExtra, totAdvance, otPay, deficitDeduction, earnedBasic, epfDeduction, netSalary
                 });
 
+                // 🛡️ ENTERPRISE FIX: Generate Pay Button or Paid Badge
+                const isPaid = paidSalariesMap[emp.id];
+                const safeEmpName = emp.name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                const payActionHtml = isPaid 
+                    ? `<button class="btn btn-ghost" style="padding:4px 8px; font-size:11px; color:#10b981; border-color:#bbf7d0; background:#f0fdf4; width:100%; cursor:default;" disabled><i class="ri-check-double-line"></i> Salary Paid</button>`
+                    : `<button class="btn btn-success" style="padding:4px 8px; font-size:11px; width:100%;" onclick="processSalaryPayment('${emp.id}', '${safeEmpName}', ${netSalary}, ${year}, ${month})"><i class="ri-wallet-3-line"></i> Pay Salary</button>`;
+
                 html += `
                 <tr>
                     <td style="font-family:monospace;">${emp.id}</td>
@@ -11087,9 +11193,12 @@ window.setQuickCash = (amount) => {
                     <td>${totExtra.toFixed(1)} h</td>
                     <td><span style="color:var(--success);">+${formatMoney(otPay)}</span></td>
                     <td><span style="color:var(--danger);">-${formatMoney(deficitDeduction + totAdvance)}</span></td>
-                    <td style="font-weight:900; font-size:16px; color:${netSalary < 0 ? 'red' : 'inherit'}">${formatMoney(netSalary)}</td>
+                    <td style="font-weight:900; font-size:16px; color:${netSalary <= 0 ? 'red' : 'inherit'}">${formatMoney(netSalary)}</td>
                     <td>
-                        <button class="btn btn-info" style="padding:4px 8px; font-size:11px;" onclick="viewEmployeeTimesheet('${emp.id}')">Timesheet & Slip</button>
+                        <div style="display:flex; flex-direction:column; gap:5px;">
+                            <button class="btn btn-info" style="padding:4px 8px; font-size:11px; width:100%;" onclick="viewEmployeeTimesheet('${emp.id}')">View Details</button>
+                            ${netSalary > 0 ? payActionHtml : `<button class="btn btn-ghost" style="padding:4px 8px; font-size:11px; color:#ef4444; border-color:#fecaca; background:#fef2f2; width:100%; cursor:default;" disabled>No Payable</button>`}
+                        </div>
                     </td>
                 </tr>`;
             }
@@ -12826,6 +12935,185 @@ let currentBatchForSerials = null;
             }
         }
         return { isPromo: false, price: batch.sell };
+    };
+// ==========================================
+    // 🛡️ ENTERPRISE PAYROLL-TO-LEDGER INTEGRATION
+    // ==========================================
+    window.processSalaryPayment = async (empId, empName, amount, year, month) => {
+        if (amount <= 0) return showToast("Net salary is zero or negative!", "error");
+        
+        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        const periodName = `${monthNames[month]} ${year}`;
+
+        if (!confirm(`Authorize Official Salary Payout?\n\nEmployee: ${empName}\nAmount: ${formatMoney(amount)}\nPeriod: ${periodName}\n\nThis will be securely deducted from your Shop's Net Profit and EOD Cash Drawer.`)) return;
+
+        toggleLoader(true);
+        try {
+            // 🛡️ 1. DOUBLE-PAYOUT PREVENTION: Check DB one last time before saving
+            const checkQ = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`), 
+                where("isPayroll", "==", true), 
+                where("payrollPeriod", "==", `${year}_${month}`),
+                where("empId", "==", empId)
+            );
+            const checkSnap = await getDocs(checkQ);
+            
+            if (!checkSnap.empty) {
+                toggleLoader(false);
+                await loadMasterPayroll(); // Refresh UI to fix stale state
+                return showToast(`Security Alert: Salary for ${empName} was already paid!`, "error");
+            }
+
+            // 🛡️ 2. RECORD IN EXPENSES (General Ledger)
+            const expRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`));
+            await setDoc(expRef, {
+                description: `Staff Salary Payout: ${empName} (${periodName})`,
+                amount: amount,
+                isIncome: false,
+                payMethod: 'Cash', // Logs as Cash so EOD Drawer is perfectly balanced
+                date: window.getSecureTime().toISOString(),
+                // Metadata to link back to HR
+                isPayroll: true,
+                payrollPeriod: `${year}_${month}`,
+                empId: empId
+            });
+
+            if(window.writeSystemLog) writeSystemLog("SALARY_DISBURSED", `Officially disbursed salary of ${formatMoney(amount)} to ${empName} for ${periodName}`);
+
+            showToast(`Salary Paid to ${empName} successfully!`, "success");
+            
+            // 🛡️ 3. REFRESH UI & PROFITS INSTANTLY
+            await loadMasterPayroll(); 
+            updateDashboard(); 
+
+        } catch (e) {
+            console.error("Salary Payout Error:", e);
+            showToast("Error processing salary. Check connection.", "error");
+        } finally {
+            toggleLoader(false);
+        }
+    };
+// ✅ ADD THIS NEW FUNCTION:
+    // 🛡️ SECURE CLOCK UI UPDATER
+    setInterval(() => {
+        const clockEl = document.getElementById('secureLiveClockText');
+        if(clockEl && window.getSecureTime) {
+            const secureNow = window.getSecureTime();
+            // බලහත්කාරයෙන් ශ්‍රී ලංකාවේ (Asia/Colombo) වේලාවට හැරවීම (පරිගණකයේ OS එක කුමක් වුවත්)
+            const options = { timeZone: 'Asia/Colombo', year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true };
+            clockEl.textContent = secureNow.toLocaleString('en-US', options);
+        }
+    }, 1000);
+// ✅ ADD THIS NEW CODE BLOCK FOR ROSTER LOGIC:
+    // ==========================================
+    // 🚀 ENTERPRISE HR: MONTHLY ROSTER ENGINE
+    // ==========================================
+    window.generateRosterTable = async () => {
+        const monthVal = document.getElementById('rosterMonthSelect').value;
+        if (!monthVal) return;
+        
+        toggleLoader(true);
+        const [year, month] = monthVal.split('-');
+        const daysInMonth = new Date(year, month, 0).getDate();
+        
+        // Check if roster already exists in DB
+        const rosterRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/settings`, `roster_${year}_${month}`);
+        const snap = await getDoc(rosterRef);
+        let savedData = snap.exists() ? snap.data().days : {};
+
+        const tbody = document.getElementById('rosterBody');
+        let html = '';
+
+        for (let i = 1; i <= daysInMonth; i++) {
+            const dateStr = `${year}-${month}-${String(i).padStart(2, '0')}`;
+            const dateObj = new Date(dateStr);
+            const dayName = dateObj.toLocaleDateString('si-LK', { weekday: 'short' }); // සිංහලෙන් දවසේ නම
+            const isSunday = dateObj.getDay() === 0; // ඉරිදා නම් ස්වයංක්‍රීයව Highlight වේ
+            
+            const existing = savedData[dateStr] || {};
+            const isClosed = existing.isClosed !== undefined ? existing.isClosed : isSunday;
+            const startT = existing.shiftStart || '08:00';
+            const endT = existing.shiftEnd || '17:00'; // පැය 9ක සම්මත Shift එක (කෑම පැයද ඇතුළුව)
+            const isHolidayOT = existing.isHolidayOT || false;
+
+            const rowBg = isClosed ? '#fee2e2' : (isSunday ? '#fff7ed' : 'white');
+
+            html += `
+            <tr style="background:${rowBg}; border-bottom:1px solid #e2e8f0;" id="row_${dateStr}">
+                <td style="padding:8px; font-weight:bold;">${dateStr} <br><span style="font-size:10px; color:#64748b;">${dayName}</span></td>
+                <td><input type="checkbox" class="chk-closed" data-date="${dateStr}" ${isClosed ? 'checked' : ''} onchange="toggleRowColor('${dateStr}')" style="width:20px; height:20px; cursor:pointer; accent-color:var(--danger);"></td>
+                <td><input type="time" class="inp-start" data-date="${dateStr}" value="${startT}" style="margin:0; width:120px;" ${isClosed ? 'disabled' : ''}></td>
+                <td><input type="time" class="inp-end" data-date="${dateStr}" value="${endT}" style="margin:0; width:120px;" ${isClosed ? 'disabled' : ''}></td>
+                <td>
+                    <label style="display:flex; align-items:center; justify-content:center; gap:5px; font-size:11px; font-weight:bold; color:var(--success); cursor:pointer;">
+                        <input type="checkbox" class="chk-holidayOT" data-date="${dateStr}" ${isHolidayOT ? 'checked' : ''} style="width:16px; height:16px; margin:0; accent-color:var(--success);"> අද දින වැඩ කළොත් OT ද?
+                    </label>
+                </td>
+            </tr>`;
+        }
+        tbody.innerHTML = html;
+        toggleLoader(false);
+    };
+
+    window.toggleRowColor = (dateStr) => {
+        const isClosed = document.querySelector(`.chk-closed[data-date="${dateStr}"]`).checked;
+        const row = document.getElementById(`row_${dateStr}`);
+        const start = document.querySelector(`.inp-start[data-date="${dateStr}"]`);
+        const end = document.querySelector(`.inp-end[data-date="${dateStr}"]`);
+        
+        if (isClosed) {
+            row.style.background = '#fee2e2';
+            start.disabled = true; end.disabled = true;
+        } else {
+            row.style.background = 'white';
+            start.disabled = false; end.disabled = false;
+        }
+    };
+
+    window.applyStandardToAll = () => {
+        const defStart = prompt("පෙරනිමි ආරම්භක වෙලාව (උදා: 08:00):", "08:00");
+        const defEnd = prompt("පෙරනිමි අවසන් වෙලාව (උදා: 17:00):", "17:00");
+        if(defStart && defEnd) {
+            document.querySelectorAll('.inp-start:not(:disabled)').forEach(i => i.value = defStart);
+            document.querySelectorAll('.inp-end:not(:disabled)').forEach(i => i.value = defEnd);
+            showToast("සාමාන්‍ය වෙලාවන් යොදන ලදී!", "success");
+        }
+    };
+
+    window.saveMonthlyRoster = async () => {
+        if(userRole !== 'admin') return showToast("Only Admin can set the Roster!", "error");
+        
+        const monthVal = document.getElementById('rosterMonthSelect').value;
+        if (!monthVal) return;
+        const [year, month] = monthVal.split('-');
+
+        toggleLoader(true);
+        const rosterData = {};
+        
+        document.querySelectorAll('#rosterBody tr').forEach(tr => {
+            const dateStr = tr.querySelector('.chk-closed')?.dataset.date;
+            if(!dateStr) return;
+            
+            rosterData[dateStr] = {
+                isClosed: tr.querySelector('.chk-closed').checked,
+                shiftStart: tr.querySelector('.inp-start').value,
+                shiftEnd: tr.querySelector('.inp-end').value,
+                isHolidayOT: tr.querySelector('.chk-holidayOT').checked
+            };
+        });
+
+        try {
+            await setDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/settings`, `roster_${year}_${month}`), {
+                month: monthVal,
+                days: rosterData,
+                updatedAt: window.getSecureTime().toISOString()
+            });
+            if(window.writeSystemLog) writeSystemLog("ROSTER_SAVED", `Admin saved monthly roster for ${monthVal}`);
+            closeModal('rosterModal');
+            showToast("Roster Settings Saved Successfully!");
+        } catch(e) {
+            showToast("Error saving roster", "error");
+        }
+        toggleLoader(false);
     };
 </script>
 
