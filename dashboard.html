@@ -525,9 +525,20 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                     </div>
                 </div>
                 
-                <!-- ENTERPRISE FIX: Document Footer & Terms Customization -->
+                <!-- 🛡️ ENTERPRISE FIX: Document Footer, Terms & LOGO VISIBILITY Customization -->
                 <div style="margin-top:30px; padding-top:20px; border-top:2px dashed #e5e7eb;">
-                    <h4 style="margin-bottom:15px; color:var(--primary);"><i class="ri-file-paper-2-line"></i> Document Footers & Terms</h4>
+                    <h4 style="margin-bottom:15px; color:var(--primary);"><i class="ri-file-paper-2-line"></i> Document Footers & Printing Preferences</h4>
+                    
+                    <!-- ලාංඡනය පෙන්වීම පාලනය කරන Checkboxes -->
+                    <div style="background:#f8fafc; padding:15px; border-radius:8px; border:1px solid #e2e8f0; margin-bottom:20px;">
+                        <label style="font-size:12px; font-weight:bold; color:var(--secondary); display:block; margin-bottom:10px;"><i class="ri-image-line"></i> ලාංඡනය (Logo) මුද්‍රණය විය යුතු බිල්පත් වර්ග තෝරන්න:</label>
+                        <div style="display:flex; gap:20px; flex-wrap:wrap;">
+                            <label class="visibility-toggle" style="font-size:12px; font-weight:bold;"><input type="checkbox" id="showLogoFormal" checked> Formal Invoices / Quotations</label>
+                            <label class="visibility-toggle" style="font-size:12px; font-weight:bold;"><input type="checkbox" id="showLogoA4" checked> Smart POS A4 Bills</label>
+                            <label class="visibility-toggle" style="font-size:12px; font-weight:bold;"><input type="checkbox" id="showLogoThermal" checked> Thermal POS Receipts (58/80mm)</label>
+                        </div>
+                    </div>
+
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
                         
                         <div>
@@ -3286,6 +3297,11 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         document.getElementById('showFax').checked = p.showFax !== false;
         document.getElementById('showEmail').checked = p.showEmail !== false;
         
+        // 🛡️ Logo Print Preferences
+        document.getElementById('showLogoFormal').checked = p.showLogoFormal !== false;
+        document.getElementById('showLogoA4').checked = p.showLogoA4 !== false;
+        document.getElementById('showLogoThermal').checked = p.showLogoThermal !== false;
+        
         // Load Terms (With sensible defaults if empty)
         document.getElementById('profTermsThermal').value = p.termsThermal !== undefined ? p.termsThermal : "Thank You! Come Again.\nExchange within 7 days with original receipt.";
         document.getElementById('profTermsA4').value = p.termsA4 !== undefined ? p.termsA4 : "THANK YOU FOR YOUR BUSINESS!\nItems can be returned or exchanged within 7 days with this original receipt.\nConditions apply.";
@@ -3360,6 +3376,11 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             showWhatsapp: document.getElementById('showWhatsapp').checked,
             showFax: document.getElementById('showFax').checked,
             showEmail: document.getElementById('showEmail').checked,
+            
+            // 🛡️ Logo Print Preferences
+            showLogoFormal: document.getElementById('showLogoFormal').checked,
+            showLogoA4: document.getElementById('showLogoA4').checked,
+            showLogoThermal: document.getElementById('showLogoThermal').checked,
 
             // Terms & Conditions
             termsThermal: document.getElementById('profTermsThermal').value,
@@ -6413,29 +6434,55 @@ window.autoFillDocCustomer = (name) => {
 };
 
    // ==========================================
-    // 🚀 ENTERPRISE HYBRID PDF GENERATOR (FOR BOTH POS RECEIPTS & FORMAL QUOTATIONS)
+    // 🚀 ENTERPRISE HYBRID PDF & THERMAL PRINT GENERATOR 
+    // (Fully Dynamic: Colors, Toggles, Notes & Signatures)
     // ==========================================
     window.generateDocumentPDF = (docData) => {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF('p', 'mm', 'a4'); 
         const shop = profileCache || {};
         
+        // 🛡️ 1. DYNAMIC COLOR ENGINE (HEX to RGB Conversion)
+        const hexColor = shop.logoColor || '#4F46E5';
+        const hex2rgb = (hex) => {
+            let v = hex.replace('#', '');
+            if(v.length === 3) v = v.split('').map(c => c+c).join('');
+            return [parseInt(v.substr(0, 2), 16), parseInt(v.substr(2, 2), 16), parseInt(v.substr(4, 2), 16)];
+        };
+        const themeRgb = hex2rgb(hexColor);
+        
         const pageWidth = doc.internal.pageSize.width; 
         const pageHeight = doc.internal.pageSize.height; 
         const margin = 15;
         let currentY = 20;
-        
-        // 🚀 BUG FIX: Define Global Theme Color for Document (Prevents System Crash)
-        const themeColor = [79, 70, 229]; // RGB for #4F46E5 (Primary Color)
 
-        // --- 1. HEADER (Dynamic Profile Syncing) ---
-        if (shop.logoImage) {
-            try { doc.addImage(shop.logoImage, 'JPEG', pageWidth - margin - 45, 10, 45, 25); } catch(e){ console.error(e); }
+        // 🛡️ 2. DYNAMIC LOGO VISIBILITY
+        let showLogoHere = false;
+        if (docData.type === 'RECEIPT') showLogoHere = shop.showLogoA4 !== false;
+        else showLogoHere = shop.showLogoFormal !== false;
+
+        // 🛡️ ENTERPRISE FIX: Smart Aspect Ratio Scaling (Prevent Logo Stretching)
+        if (showLogoHere && shop.logoImage) {
+            try { 
+                const imgProps = doc.getImageProperties(shop.logoImage);
+                const ratio = imgProps.width / imgProps.height;
+                let logoW = 45; // උපරිම පළල
+                let logoH = logoW / ratio;
+                
+                if (logoH > 25) { // උස වැඩි නම්, උසට සීමා කර පළල හදයි
+                    logoH = 25; // උපරිම උස
+                    logoW = 25 * ratio;
+                }
+                
+                const logoX = pageWidth - margin - logoW; // දකුණු කෙළවරට තැබීම
+                doc.addImage(shop.logoImage, imgProps.fileType || 'JPEG', logoX, 10, logoW, logoH); 
+            } catch(e) { console.error("Logo rendering error:", e); }
         }
 
+        // --- HEADER (Strictly obeying "Show on Docs" toggles) ---
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(14);
-        doc.setTextColor(0);
+        doc.setFontSize(15);
+        doc.setTextColor(...themeRgb); // Dynamic Color for Main Heading
         
         if (shop.showBizName !== false && shop.bizName) {
             doc.text(shop.bizName.toUpperCase(), pageWidth / 2, currentY, { align: "center" });
@@ -6444,6 +6491,7 @@ window.autoFillDocCustomer = (name) => {
 
         doc.setFontSize(9);
         doc.setFont("helvetica", "normal");
+        doc.setTextColor(0); // Black for text
         
         if (shop.showAddress !== false && shop.address) {
             const addrParts = shop.address.replace(/\n/g, ', '); 
@@ -6455,6 +6503,7 @@ window.autoFillDocCustomer = (name) => {
         if (shop.showPhone1 !== false && shop.phone1) contactStr.push(shop.phone1);
         if (shop.showPhone2 !== false && shop.phone2) contactStr.push(shop.phone2);
         if (shop.showWhatsapp !== false && shop.whatsapp) contactStr.push(`WA: ${shop.whatsapp}`);
+        if (shop.showFax !== false && shop.fax) contactStr.push(`Fax: ${shop.fax}`);
         if (shop.showEmail !== false && shop.email) contactStr.push(shop.email);
         
         if (contactStr.length > 0) {
@@ -6463,18 +6512,20 @@ window.autoFillDocCustomer = (name) => {
         }
 
         if (shop.showReg !== false && shop.regNo) {
-            doc.text(`Reg No: ${shop.regNo}`, pageWidth / 2, currentY, { align: "center" });
+            doc.text(`Reg No / BR: ${shop.regNo}`, pageWidth / 2, currentY, { align: "center" });
             currentY += 5;
         }
 
-        // --- 2. DOCUMENT TITLE & META ---
+        // --- DOCUMENT TITLE & META ---
         currentY += 10; 
         doc.setFont("helvetica", "bold");
-        doc.setFontSize(11);
+        doc.setFontSize(12);
+        doc.setTextColor(...themeRgb); // Dynamic Color for Document Type
         doc.text(docData.type.toUpperCase(), pageWidth / 2, currentY, { align: 'center' });
         
         currentY += 10;
         doc.setFontSize(10);
+        doc.setTextColor(0);
         let docLabel = docData.type === 'invoice' ? 'Invoice Number' : (docData.type === 'quotation' ? 'Quotation Number' : 'Receipt Number');
         doc.text(docLabel, margin, currentY);
         doc.text(`: ${docData.docId}`, margin + 40, currentY);
@@ -6484,7 +6535,7 @@ window.autoFillDocCustomer = (name) => {
         doc.text(dateLabel, margin, currentY);
         doc.text(`: ${docData.date} ${docData.type === 'RECEIPT' ? docData.dueDate||'' : ''}`, margin + 40, currentY);
 
-        // --- 3. CUSTOMER INFO ---
+        // --- CUSTOMER INFO ---
         currentY += 12;
         doc.setFont("helvetica", "bold");
         doc.text(docData.customer.name ? docData.customer.name : "CASH CUSTOMER", margin, currentY);
@@ -6508,19 +6559,19 @@ window.autoFillDocCustomer = (name) => {
         doc.text("Dear Sir/Madam,", margin, currentY);
         currentY += 7;
         doc.text(`SUBJECT: ${docData.type.toUpperCase()} FOR SUPPLY & INSTALLATION`, margin, currentY);
-        doc.setLineWidth(0.3);
-        doc.line(margin, currentY+1, margin + 95, currentY+1);
+        doc.setDrawColor(...themeRgb); // Dynamic Line Color
+        doc.setLineWidth(0.5);
+        doc.line(margin, currentY+2, margin + 100, currentY+2);
 
-        // --- 4. POLYMORPHIC DATA TABLES (The Magic Fix) ---
+        // --- DATA TABLES ---
         currentY += 8;
 
-        // SCENARIO A: Document Builder (Options Grouping)
-        if (docData.options && docData.options.length > 0) {
+        if (docData.options && docData.options.length > 0) { // Document Builder (Invoice/Quote)
             docData.options.forEach((opt, idx) => {
                 const tableBody = [];
                 opt.items.forEach((item, i) => {
                     let displayName = item.name + (item.batchNumber ? ` (Batch: ${formatBatch(item.batchNumber)})` : "");
-                    if (item.description) displayName += `\n${item.description}`;
+                    if (item.description) displayName += `\n* Note: ${item.description}`; // Include Warranty/Notes
 
                     tableBody.push([
                         i + 1, item.brand || "-", displayName,
@@ -6530,35 +6581,34 @@ window.autoFillDocCustomer = (name) => {
                     ]);
                 });
                 tableBody.push([
-                    { content: 'Grand Total', colSpan: 5, styles: { halign: 'center', fontStyle: 'bold', fillColor: [240, 255, 240] } },
-                    { content: opt.items.reduce((sum,i)=>sum+i.qty,0), styles: { fontStyle: 'bold', halign: 'center', fillColor: [240, 255, 240] } },
-                    { content: opt.total.toLocaleString('en-US', {minimumFractionDigits: 2}), styles: { fontStyle: 'bold', halign: 'right', fillColor: [240, 255, 240] } }
+                    { content: 'Grand Total', colSpan: 5, styles: { halign: 'center', fontStyle: 'bold', fillColor: [245, 245, 245] } },
+                    { content: opt.items.reduce((sum,i)=>sum+i.qty,0), styles: { fontStyle: 'bold', halign: 'center', fillColor: [245, 245, 245] } },
+                    { content: opt.total.toLocaleString('en-US', {minimumFractionDigits: 2}), styles: { fontStyle: 'bold', halign: 'right', fillColor: [245, 245, 245] } }
                 ]);
                 doc.autoTable({
                     startY: currentY,
                     head: [
-                        [{ content: `${opt.title || 'Option'} ${opt.description ? '- ' + opt.description : ''}`, colSpan: 7, styles: { fillColor: [134, 239, 172], textColor: 0, fontStyle: 'bold' } }],
+                        [{ content: `${opt.title || 'Option'} ${opt.description ? '- ' + opt.description : ''}`, colSpan: 7, styles: { fillColor: themeRgb, textColor: 255, fontStyle: 'bold' } }],
                         ['No', 'Brand', 'Item / Description', 'Unit Price', 'Discounted Price', 'Qty', 'Total']
                     ],
                     body: tableBody, theme: 'grid',
                     headStyles: { fillColor: [229, 231, 235], textColor: 0, fontSize: 9, fontStyle: 'bold' }, bodyStyles: { fontSize: 9, textColor: 0 },
                     columnStyles: { 0: { cellWidth: 10, halign:'center' }, 1: { cellWidth: 20, halign:'center' }, 3: { cellWidth: 25, halign:'right' }, 4: { cellWidth: 30, halign:'right' }, 5: { cellWidth: 12, halign:'center' }, 6: { cellWidth: 25, halign:'right' } },
-                    styles: { lineColor: [0, 0, 0], lineWidth: 0.1 }, margin: { left: margin, right: margin }
+                    styles: { lineColor: [200, 200, 200], lineWidth: 0.1 }, margin: { left: margin, right: margin }
                 });
                 currentY = doc.lastAutoTable.finalY + 5;
             });
         } 
-        // 🛡️ SCENARIO B: Smart POS A4 Receipt (Flat Items)
-        else if (docData.items && docData.items.length > 0) {
+        else if (docData.items && docData.items.length > 0) { // Smart POS A4 Receipt
             const tableBody = docData.items.map((item, i) => {
                 let displayName = item.name + (item.batchNumber ? ` (Batch: ${formatBatch(item.batchNumber)})` : "");
-                if (item.description) displayName += `\n${item.description}`;
+                if (item.description) displayName += `\n* Note: ${item.description}`; // Warranty/Note included!
                 if (item.serials && item.serials.length > 0) displayName += `\nS/N: ${item.serials.map(s => s.split('-').pop()).join(', ')}`;
                 
                 return [
                     i + 1, item.sku || "-", displayName,
                     formatMoney(item.sell || item.price).replace(currentCurrency,''),
-                    Number.isInteger(item.qty) ? item.qty : Number(item.qty).toFixed(3), // 🛡️ Fix A4 quantity display
+                    Number.isInteger(item.qty) ? item.qty : Number(item.qty).toFixed(3),
                     formatMoney((item.sell || item.price) * item.qty).replace(currentCurrency,'')
                 ];
             });
@@ -6567,13 +6617,13 @@ window.autoFillDocCustomer = (name) => {
                 startY: currentY,
                 head: [['No', 'Item Code', 'Item / Description', 'Unit Price', 'Qty', 'Amount']],
                 body: tableBody, theme: 'grid',
-                headStyles: { fillColor: themeColor, textColor: 255, fontSize: 9, fontStyle: 'bold', halign:'center' }, bodyStyles: { fontSize: 9, textColor: 0 },
+                headStyles: { fillColor: themeRgb, textColor: 255, fontSize: 9, fontStyle: 'bold', halign:'center' }, bodyStyles: { fontSize: 9, textColor: 0 },
                 columnStyles: { 0: { cellWidth: 10, halign:'center' }, 1: { cellWidth: 30 }, 3: { cellWidth: 30, halign:'right' }, 4: { cellWidth: 15, halign:'center' }, 5: { cellWidth: 35, halign:'right' } },
                 styles: { lineColor: [200, 200, 200], lineWidth: 0.1, cellPadding: 4 }, margin: { left: margin, right: margin }
             });
             currentY = doc.lastAutoTable.finalY + 5;
             
-            // 🛡️ POS TOTALS BLOCK RESTORED
+            // POS TOTALS BLOCK
             const totalBoxWidth = 85;
             const totalBoxX = pageWidth - margin - totalBoxWidth;
             
@@ -6589,7 +6639,7 @@ window.autoFillDocCustomer = (name) => {
             if(docData.fees && docData.fees.length > 0) docData.fees.forEach(f => drawTotalLine(f.name, "+" + formatMoney(f.amount)));
             
             currentY += 2;
-            doc.setFillColor(themeColor[0], themeColor[1], themeColor[2]);
+            doc.setFillColor(...themeRgb); // Dynamic Color
             doc.rect(totalBoxX - 2, currentY, totalBoxWidth + 4, 10, 'F');
             doc.setTextColor(255); doc.setFont("helvetica", "bold"); doc.setFontSize(12);
             doc.text("NET TOTAL", totalBoxX, currentY + 7);
@@ -6609,30 +6659,14 @@ window.autoFillDocCustomer = (name) => {
             }
         }
 
-        // --- 5. EXTRA CHARGES TABLE (Only for Quotations/Docs) ---
-        if (docData.extras && docData.extras.length > 0) {
-            currentY += 5;
-            doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.setTextColor(0);
-            doc.text("Extra Charges - If Required", margin, currentY);
-            
-            const extraBody = docData.extras.map((ext, i) => [ i + 1, ext.cap || "-", ext.type, ext.rate > 0 ? ext.rate.toLocaleString('en-US', {minimumFractionDigits: 2}) : "-" ]);
-            doc.autoTable({
-                startY: currentY + 3, head: [['No', 'Btu Capacity', 'Type', 'Per M Rate']], body: extraBody, theme: 'grid',
-                headStyles: { fillColor: [255, 255, 255], textColor: 0, fontStyle: 'bold' }, bodyStyles: { fontSize: 9, textColor: 0 },
-                columnStyles: { 0: { cellWidth: 10, halign:'center' }, 1: { cellWidth: 30, halign:'center' }, 3: { cellWidth: 30, halign:'right', fontStyle: 'bold' } },
-                styles: { lineColor: [0, 0, 0], lineWidth: 0.1 }, margin: { left: margin, right: margin }
-            });
-            currentY = doc.lastAutoTable.finalY + 10;
-        }
+        // --- TERMS & CONDITIONS ---
+        currentY += 10;
+        if (currentY > pageHeight - 50) { doc.addPage(); currentY = 20; } 
 
-        // --- 6. TERMS & CONDITIONS ---
-        currentY += 5;
-        if (currentY > pageHeight - 60) { doc.addPage(); currentY = 20; } 
-
-        doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.setTextColor(0);
-        doc.text("Terms & Conditions", margin, currentY);
+        doc.setFontSize(10); doc.setFont("helvetica", "bold"); doc.setTextColor(...themeRgb);
+        doc.text("Terms & Conditions / Notes", margin, currentY);
         
-        currentY += 5; doc.setFontSize(9); doc.setFont("helvetica", "normal");
+        currentY += 6; doc.setFontSize(9); doc.setFont("helvetica", "normal"); doc.setTextColor(0);
         
         let termsText = docData.type === 'quotation' ? shop.termsQuote : (docData.type === 'invoice' ? shop.termsInvoice : shop.termsA4);
         if(!termsText) termsText = "Thank You for your business!";
@@ -6649,39 +6683,137 @@ window.autoFillDocCustomer = (name) => {
             currentY += 5;
         });
 
-        // --- 7. SIGNATURE BLOCK ---
+        // 🛡️ ENTERPRISE SIGNATURE FIX: Available for EVERY A4 Document!
         currentY += 15;
         if (currentY > pageHeight - 30) { doc.addPage(); currentY = 30; }
         
-        if (docData.type !== 'RECEIPT') {
-            doc.setFont("helvetica", "bold"); doc.text("Regards,", margin, currentY);
-            doc.setLineWidth(0.3); doc.line(margin, currentY + 10, margin + 40, currentY + 10);
-            doc.setFontSize(9);
-            if (shop.showOwner !== false && shop.ownerName) doc.text(shop.ownerName, margin, currentY + 15);
-            else doc.text("Authorized Manager", margin, currentY + 15);
-            
-            doc.setFont("helvetica", "normal");
-            if (shop.showBizName !== false && shop.bizName) doc.text(shop.bizName, margin, currentY + 20);
-            if (shop.showPhone1 !== false && shop.phone1) doc.text(shop.phone1, margin, currentY + 25);
-        }
+        doc.setFont("helvetica", "bold"); doc.text("Regards,", margin, currentY);
+        doc.setDrawColor(0); doc.setLineWidth(0.3); 
+        doc.line(margin, currentY + 10, margin + 45, currentY + 10);
+        
+        // Customer Signature Line (Right side)
+        doc.line(pageWidth - margin - 45, currentY + 10, pageWidth - margin, currentY + 10);
+        
+        doc.setFontSize(9);
+        const authName = (shop.showOwner !== false && shop.ownerName) ? shop.ownerName : "Authorized Manager";
+        doc.text(authName, margin, currentY + 15);
+        doc.text("Customer Signature", pageWidth - margin - 45, currentY + 15);
 
-        // 🛡️ PIN RENDER RESTORED (Bottom of POS Receipt)
-        if (docData.initialPin) {
-            let pinY = pageHeight - 15; 
-            doc.setFont("helvetica", "bold"); doc.setFontSize(10);
-            doc.text(`Customer Portal PIN: ${docData.initialPin}`, margin, pinY);
-            doc.setFont("helvetica", "normal"); doc.setFontSize(8);
-            doc.text(`(For security, please change this PIN after your first login)`, margin, pinY + 4);
-        }
-
-        // Download or Print
+        // --- 🔴 THERMAL RECEIPT PRINTING LOGIC ---
         if (docData.type === 'RECEIPT') {
+            const sizePref = localStorage.getItem('posBillSize_' + currentShopId) || '80mm';
+            
+            // Generate Thermal Items List (With Notes & Serials)
+            let itemsHtml = '';
+            docData.items.forEach(i => {
+                const itemTotal = i.qty * (i.sell || i.price);
+                const qtyDisplay = Number.isInteger(i.qty) ? i.qty : Number(i.qty).toFixed(3);
+                // 🛡️ Ensure Warranties/Notes and Serials are printed clearly on thermal
+                const noteHtml = i.description ? `<tr><td colspan="3" style="text-align:left; font-size:10px; color:#444; padding-bottom:2px; font-style:italic;">* ${i.description}</td></tr>` : '';
+                const serialsHtml = (i.serials && i.serials.length > 0) ? `<tr><td colspan="3" style="text-align:left; font-size:10px; color:#000; font-weight:bold; padding-bottom:3px;">S/N: ${i.serials.map(s => s.split('-').pop()).join(', ')}</td></tr>` : '';
+                
+                itemsHtml += `
+                    <tr><td colspan="3" style="text-align: left; font-weight: bold; padding-top: 5px;">${i.name}</td></tr>
+                    ${noteHtml} ${serialsHtml}
+                    <tr>
+                        <td style="text-align: left; border-bottom: 1px dashed #000; padding-bottom: 4px;">${qtyDisplay} x ${formatMoney(i.sell || i.price)}</td>
+                        <td style="border-bottom: 1px dashed #000;"></td>
+                        <td style="text-align: right; border-bottom: 1px dashed #000; padding-bottom: 4px;">${formatMoney(itemTotal)}</td>
+                    </tr>`;
+            });
+
+            let feesHtml = '';
+            if(docData.fees && docData.fees.length > 0) {
+                docData.fees.forEach(f => {
+                    feesHtml += `<tr><td colspan="2" style="text-align: left;">${f.name}</td><td style="text-align: right;">+${formatMoney(f.amount)}</td></tr>`;
+                });
+            }
+
+            // 🛡️ ENTERPRISE FIX: object-fit:contain යොදා Thermal බිලෙත් ඇදීම නැවැත්වීම
+            const thermalLogoHtml = (shop.showLogoThermal !== false && shop.logoImage) 
+                ? `<img src="${shop.logoImage}" style="max-width:80%; height:80px; object-fit:contain; margin-bottom:10px; filter:grayscale(100%);">` 
+                : '';
+
+            const receiptHtml = `
+                <html>
+                <head>
+                    <title>Receipt - ${docData.docId}</title>
+                    <style>
+                        body { font-family: 'Courier New', Courier, monospace; margin: 0; padding: 10px; width: ${sizePref === '58mm' ? '200px' : '300px'}; color: #000; font-size: ${sizePref === '58mm' ? '10px' : '12px'}; }
+                        .center { text-align: center; } .bold { font-weight: bold; } .fs-14 { font-size: 14px; } .fs-16 { font-size: 16px; }
+                        .divider { border-bottom: 1px dashed #000; margin: 8px 0; }
+                        table { width: 100%; border-collapse: collapse; } td { vertical-align: top; }
+                        /* 🛡️ Thermal Dynamic Color Injection (Only visible if saved as PDF, physical printers print B/W) */
+                        .brand-text { color: ${hexColor}; }
+                        @media print { @page { margin: 0; } body { width: 100%; padding: 0; } }
+                    </style>
+                </head>
+                <body>
+                    <div class="center">
+                        ${thermalLogoHtml}
+                        ${shop.showBizName !== false && shop.bizName ? `<div class="bold fs-16 brand-text">${shop.bizName.toUpperCase()}</div>` : ''}
+                        ${shop.showAddress !== false && shop.address ? `<div>${shop.address.replace(/\n/g, ', ')}</div>` : ''}
+                        ${shop.showPhone1 !== false && shop.phone1 ? `<div>Tel: ${shop.phone1} ${shop.showPhone2 !== false && shop.phone2 ? '/ '+shop.phone2 : ''}</div>` : ''}
+                        <div class="divider"></div>
+                        <div class="bold fs-14">CASH RECEIPT</div>
+                    </div>
+                    
+                    <div style="margin-top: 10px; display: flex; justify-content: space-between;"><div>No: ${docData.docId}</div><div>${docData.date.split('T')[0]}</div></div>
+                    <div style="display: flex; justify-content: space-between;"><div>Cashier: ${currentUser ? currentUser.email.split('@')[0] : 'Admin'}</div><div>${docData.dueDate || new Date().toLocaleTimeString()}</div></div>
+                    
+                    ${docData.customer && docData.customer.name !== "Walk-in Customer" && docData.customer.name !== "Cash Customer" ? `
+                    <div class="divider"></div>
+                    <div>Cust: ${docData.customer.name}</div>
+                    ${docData.customer.phone && docData.customer.phone !== "N/A" ? `<div>Tel: ${docData.customer.phone.length >= 9 ? docData.customer.phone.slice(0, 3) + ' **** ' + docData.customer.phone.slice(-3) : docData.customer.phone}</div>` : ''}
+                    ` : ''}
+
+                    <div class="divider"></div>
+                    <table><tbody>${itemsHtml}</tbody></table>
+                    <table style="margin-top: 10px;">
+                        <tr><td style="text-align: left; padding: 2px 0;">Sub Total</td><td style="text-align: right; padding: 2px 0;">${formatMoney(docData.subtotal)}</td></tr>
+                        ${docData.discount > 0 ? `<tr><td style="text-align: left; padding: 2px 0;">Discount</td><td style="text-align: right; padding: 2px 0;">-${formatMoney(docData.discount)}</td></tr>` : ''}
+                        ${feesHtml}
+                        <tr>
+                            <td class="bold fs-14 brand-text" style="text-align: left; padding: 5px 0; border-top: 1px solid #000; border-bottom: 2px solid #000;">NET TOTAL</td>
+                            <td class="bold fs-14 brand-text" style="text-align: right; padding: 5px 0; border-top: 1px solid #000; border-bottom: 2px solid #000;">${formatMoney(docData.total)}</td>
+                        </tr>
+                    </table>
+
+                    <table style="margin-top: 10px;">
+                        <tr><td style="text-align: left;">Pay Mode:</td><td style="text-align: right; font-weight: bold;">${(docData.paymentMethod || 'Cash').toUpperCase()}</td></tr>
+                        ${docData.paymentMethod === 'Pay Later' ? `
+                        <tr><td style="text-align: left;">Adv Paid:</td><td style="text-align: right;">${formatMoney(docData.cashGiven || 0)}</td></tr>
+                        <tr><td style="text-align: left; font-weight: bold;">Credit Bal:</td><td style="text-align: right; font-weight: bold;">${formatMoney(docData.creditBalance || (docData.total - (docData.cashGiven||0)))}</td></tr>
+                        ` : `
+                        <tr><td style="text-align: left;">Cash Given:</td><td style="text-align: right;">${formatMoney(docData.cashGiven || docData.total)}</td></tr>
+                        <tr><td style="text-align: left; font-weight: bold;">Balance:</td><td style="text-align: right; font-weight: bold;">${formatMoney(docData.balance || 0)}</td></tr>
+                        `}
+                    </table>
+
+                    <div class="divider"></div>
+                    <div class="center" style="margin-bottom: 5px;">
+                        ${(shop.termsThermal !== undefined ? shop.termsThermal : "Thank You! Come Again.\nExchange within 7 days.").replace(/\n/g, '<br>')}
+                    </div>
+                    
+                    ${docData.initialPin ? `
+                    <div style="margin-top: 8px; padding: 6px; border: 1px dashed #000; text-align: center;">
+                        <div class="bold fs-14">Portal PIN: ${docData.initialPin}</div>
+                        <div style="font-size: 9px; margin-top: 3px;">(Please change PIN after 1st login)</div>
+                    </div>` : ''}
+                    
+                    <div class="center" style="font-size: 10px; margin-top: 10px; color: #666;">System by 070 315 0742</div>
+                    
+                    <script>
+                        window.onload = function() { setTimeout(() => { window.print(); window.close(); }, 300); };
+                    <\/script>
+                </body>
+                </html>
+            `;
             doc.autoPrint({variant: 'non-conform'}); 
-            // 🚀 BUG FIX: Bypassing Modern Browser iFrame Security Blocks for PDFs
-            const blobUrl = doc.output('bloburl');
-            window.open(blobUrl, '_blank'); // Safely opens in new tab and auto-prints
+            window.open(doc.output('bloburl'), '_blank'); // Open A4 format for PDF saving
+            window.silentPrint(receiptHtml, false); // Send to thermal printer
         } else {
-            doc.save(`${docData.type}_${docData.docId}.pdf`);
+            doc.save(`${docData.type}_${docData.docId}.pdf`); // Direct download for Invoices/Quotes
         }
     };
 
@@ -7857,30 +7989,36 @@ window.autoFillDocCustomer = (name) => {
     let alertsCache = [  ];
     
     async function loadAlerts() {
-        // 🛡️ ENTERPRISE FIX: Prevent Array Bomb (Limit to upcoming 300 to save RAM & Read Costs)
         const q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/alerts`), where('status', 'in', ['active', 'triggered']), limit(300));
         const snap = await getDocs(q);
         alertsCache = [  ];
         snap.forEach(d => alertsCache.push({id: d.id, ...d.data()}));
         
-        const now = new Date();
+        const now = window.getSecureTime ? window.getSecureTime() : new Date(); // 🛡️ Secure Time Integration
         let hasNew = false;
         let triggeredMessages = [  ];
 
         for(let a of alertsCache) {
             const tDate = new Date(a.targetDate);
             
-            // ENTERPRISE FIX: Silent Auto-Forwarding Bug Removed!
-            // We ONLY change the status to 'triggered'. We DO NOT change the date until the user explicitly clicks "Mark Done".
+            // 🛡️ ENTERPRISE UX FIX: Format customer/ref details clearly for the Popup
+            let refDisplay = a.refId || 'General Alert';
+            if(a.type === 'customer') refDisplay = `Cust: ${a.refId}`;
+            else if(a.type === 'employee') refDisplay = `Emp: ${a.refId}`;
+            
+            const alertText = `<strong style="color:var(--primary);">${refDisplay}</strong> - ${a.message}`;
+
             if(tDate <= now && a.status === 'active') {
                 hasNew = true;
-                triggeredMessages.push(a.message);
+                triggeredMessages.push(alertText);
                 
                 await updateDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/alerts`, a.id), { status: 'triggered' });
-                a.status = 'triggered'; // Update local cache
+                a.status = 'triggered'; 
             }
             else if (a.status === 'triggered') {
-                hasNew = true; // It's still waiting to be marked as done by the user
+                hasNew = true;
+                // Popup එකේ පරණ (අමතක වූ) දේවල්ද පෙන්නුම් කිරීමට (උපරිම 5ක් පමණක්)
+                if(triggeredMessages.length < 5) triggeredMessages.push(alertText); 
             }
         }
 
@@ -7888,7 +8026,11 @@ window.autoFillDocCustomer = (name) => {
         if(hasNew) {
             badge.style.display = 'block';
             if(triggeredMessages.length > 0) {
-                document.getElementById('dashboardAlertMsg').innerHTML = triggeredMessages.join('<br>• ');
+                let popupHtml = triggeredMessages.join('<br><span style="color:var(--primary); font-weight:bold;">•</span> ');
+                if (alertsCache.filter(a => a.status === 'triggered').length > 5) {
+                    popupHtml += `<br><em style="font-size:11px; color:#666;">...and more in Alerts tab</em>`;
+                }
+                document.getElementById('dashboardAlertMsg').innerHTML = `<span style="color:var(--primary); font-weight:bold;">•</span> ` + popupHtml;
                 document.getElementById('dashboardAlertPopup').style.display = 'block';
             }
         } else {
@@ -7912,7 +8054,7 @@ window.autoFillDocCustomer = (name) => {
         
         // 🛡️ ENTERPRISE FIX: DOM Overload Prevention for Alerts Tab
         const topAlerts = alertsCache.slice(0, 100);
-        let htmlStr = '';
+        let htmlStr = ''; // 🛡️ BUG FIX: Accumulate string instead of overwriting innerHTML
 
         topAlerts.forEach(a => {
             let statusBadge = '';
@@ -7925,19 +8067,23 @@ window.autoFillDocCustomer = (name) => {
             }
 
             let refDisplay = a.refId || '-';
-            if(a.type === 'customer') refDisplay = 'Cust: ' + refDisplay;
+            if(a.type === 'customer') {
+                // 🛡️ ENTERPRISE UX FIX: Try to fetch Customer Name from Cache for better display!
+                const c = customersCache.find(x => x.id === a.refId);
+                refDisplay = c ? `${c.name} <br><span style="font-size:10px; color:#666;">ID: ${a.refId}</span>` : `Cust: ${a.refId}`;
+            }
             else if(a.type === 'employee') refDisplay = 'Emp: ' + refDisplay;
             else if(a.type === 'global' || a.refId === 'GENERAL') refDisplay = 'General Alert';
 
-            tbody.innerHTML += `
+            // 🛡️ BUG FIX: Append to htmlStr instead of directly modifying DOM in loop
+            htmlStr += `
             <tr style="${rowStyle}">
-                <td style="font-weight:600;">${new Date(a.targetDate).toLocaleString()}</td>
-                <td style="text-transform:capitalize;">${a.frequency}</td>
-                <td>${a.message}</td>
-                <td style="font-family:monospace; font-size:11px; color:var(--primary);">${refDisplay}</td>
+                <td style="font-weight:600; font-size:13px;">${new Date(a.targetDate).toLocaleString()}</td>
+                <td style="text-transform:capitalize; font-size:12px;">${a.frequency}</td>
+                <td style="font-weight:bold; color:var(--secondary); font-size:14px;">${a.message}</td>
+                <td style="font-family:monospace; font-size:13px; color:var(--primary); font-weight:bold;">${refDisplay}</td>
                 <td>${statusBadge}</td>
                 <td style="display:flex; gap:5px;">
-                    <!-- ENTERPRISE FIX: Distinct Done vs Delete buttons -->
                     <button class="btn btn-success" style="padding:4px 8px; font-size:11px;" onclick="closeAlert('${a.id}')" title="Acknowledge & Mark Done">
                         <i class="ri-check-double-line"></i> Done
                     </button>
@@ -7951,6 +8097,8 @@ window.autoFillDocCustomer = (name) => {
         if (alertsCache.length > 100) {
             htmlStr += `<tr><td colspan="6" style="text-align:center; font-weight:bold; color:var(--primary); background:#e0e7ff;">+ ${alertsCache.length - 100} more alerts hidden to maintain speed.</td></tr>`;
         }
+        
+        // 🛡️ BUG FIX: Finally set the completely built string to the table
         tbody.innerHTML = htmlStr;
     }
 
