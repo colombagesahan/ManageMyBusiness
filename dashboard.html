@@ -244,8 +244,10 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         <!-- NEW: SERVICE CRM TAB -->
         <a class="nav-item" onclick="loadView('crm')"><i class="ri-calendar-check-line"></i> Service CRM</a>
         <a class="nav-item" onclick="loadView('refunds')"><i class="ri-arrow-go-back-line"></i> Refunds</a>
-        <a class="nav-item" onclick="loadView('debt')"><i class="ri-money-dollar-box-line"></i> Debt Collection</a> <!-- NEW -->
-        <a class="nav-item" onclick="loadView('expenses')"><i class="ri-wallet-3-line"></i> Cash Flow (Expenses)</a> <!-- NEW TAB -->
+        <a class="nav-item" onclick="loadView('debt')"><i class="ri-money-dollar-box-line"></i> Debt Collection</a>
+        <!-- 🛡️ ENTERPRISE FIX: New Cheque Management Tab -->
+        <a class="nav-item" onclick="loadView('cheques')"><i class="ri-bank-card-line"></i> Cheque Management</a>
+        <a class="nav-item" onclick="loadView('expenses')"><i class="ri-wallet-3-line"></i> Cash Flow (Expenses)</a>
         <a class="nav-item" onclick="loadView('eod')"><i class="ri-file-chart-line"></i> End of Day (EOD)</a> <!-- NEW -->
         <a class="nav-item" onclick="loadView('alerts')"><i class="ri-alarm-line"></i> Alerts <span class="badge-dot" id="alertBadge"></span></a>
         
@@ -296,7 +298,8 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                 <option value="">Loading Branches...</option>
             </select>
             <button class="btn btn-primary" onclick="openModal('shopModal')" style="height: 36px; padding: 0 12px; box-sizing: border-box; font-size:12px; border-radius:8px;"><i class="ri-add-line"></i> Branch</button>
-            <button class="btn btn-danger" onclick="deleteCurrentShop()" title="Delete Branch" style="height: 36px; width: 36px; padding: 0; box-sizing: border-box; display:flex; align-items:center; justify-content:center; border-radius:8px;"><i class="ri-delete-bin-line"></i></button>
+            <!-- 🛡️ UI FIX: පළල (Width) 44px දක්වා වැඩි කර ඇත -->
+            <button class="btn btn-danger" onclick="deleteCurrentShop()" title="Delete Branch" style="height: 36px; width: 44px; padding: 0; box-sizing: border-box; display:flex; align-items:center; justify-content:center; border-radius:8px;"><i class="ri-delete-bin-line"></i></button>
         </div>
     </header>
 
@@ -1231,6 +1234,28 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             </div>
         </div>
 
+        <!-- 🛡️ ENTERPRISE FIX: NEW CHEQUE MANAGEMENT TAB -->
+        <div id="view-cheques" class="view">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
+                <h3><i class="ri-bank-card-line"></i> Cheque Registry (චෙක්පත් කළමනාකරණය)</h3>
+                <div style="display:flex; gap:10px;">
+                    <select id="chequeStatusFilter" onchange="loadCheques()" style="margin:0; width:150px; font-weight:bold;">
+                        <option value="PENDING">Pending (මාරු වීමට ඇති)</option>
+                        <option value="CLEARED">Cleared (මාරු වූ)</option>
+                        <option value="BOUNCED">Bounced (අගරු වූ)</option>
+                    </select>
+                    <button class="btn btn-primary" onclick="loadCheques()"><i class="ri-refresh-line"></i></button>
+                </div>
+            </div>
+            <div class="note-box"><i class="ri-information-fill"></i> චෙක්පත් මගින් ණය ගෙවූ විට ඒවා මෙහි Pending ලෙස වැටේ. බැංකුවට මුදල් වැටුණු පසු එය 'Clear' කරන්න. චෙක්පත අගරු වුවහොත් 'Bounce' කරන්න (එවිට පාරිභෝගිකයාගේ ණය නැවතත් පද්ධතියට එකතු වේ).</div>
+            <div class="card" style="overflow-x:auto;">
+                <table id="chequesTable">
+                    <thead><tr><th>Received Date</th><th>Customer</th><th>Cheque Details</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
         <!-- NEW: EXPENSES & CASH FLOW TAB -->
         <div id="view-expenses" class="view">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
@@ -2060,11 +2085,23 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         <input id="dsPayAmount" type="number" placeholder="Enter amount received" style="margin-bottom:10px;">
 
         <label style="font-size:12px;">Payment Method *</label>
-        <select id="dsPayMethod" style="margin-bottom:10px;">
+        <select id="dsPayMethod" style="margin-bottom:10px;" onchange="document.getElementById('dsChequeDetails').style.display = this.value === 'Cheque' ? 'block' : 'none';">
             <option value="Cash">Cash</option>
             <option value="Online Transfer">Bank / Online Transfer</option>
-            <option value="Cheque">Cheque</option>
+            <option value="Cheque">Cheque (චෙක්පත්)</option>
         </select>
+
+        <!-- 🛡️ ENTERPRISE FIX: Cheque Details Inputs -->
+        <div id="dsChequeDetails" style="display:none; background:#fffbeb; padding:10px; border-radius:8px; border:1px solid #fde68a; margin-bottom:10px;">
+            <label style="font-size:11px; font-weight:bold; color:#d97706;">Cheque Number *</label>
+            <input type="text" id="dsChequeNo" placeholder="e.g. 123456" style="margin-bottom:5px; font-size:12px;">
+            
+            <label style="font-size:11px; font-weight:bold; color:#d97706;">Bank & Branch *</label>
+            <input type="text" id="dsChequeBank" placeholder="e.g. BOC Maharagama" style="margin-bottom:5px; font-size:12px;">
+            
+            <label style="font-size:11px; font-weight:bold; color:#d97706;">Cheque Date (දිනය) *</label>
+            <input type="date" id="dsChequeDate" style="margin-bottom:0; font-size:12px;">
+        </div>
 
         <div style="display:flex; gap:10px; margin-top:15px;">
             <button class="btn btn-success" style="flex:1;" onclick="processDebtPayment()">Receive Payment</button>
@@ -2156,6 +2193,14 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         
         <input id="modalCustName" type="text" placeholder="Customer Name" style="padding:12px; font-size:14px; text-align:center;">
         
+        <!-- 🛡️ ENTERPRISE FIX: Cheque Details in POS Modal -->
+        <div id="posChequeDetails" style="display:none; background:#fffbeb; padding:10px; border-radius:8px; border:1px solid #fde68a; margin:10px 0; text-align:left;">
+            <label style="font-size:11px; font-weight:bold; color:#d97706;">Cheque Details (Required) *</label>
+            <input type="text" id="posChequeNo" placeholder="Cheque No (e.g. 123456)" style="padding:8px; font-size:12px; width:100%; margin-bottom:5px; border-color:#fcd34d;">
+            <input type="text" id="posChequeBank" placeholder="Bank & Branch (e.g. BOC)" style="padding:8px; font-size:12px; width:100%; margin-bottom:5px; border-color:#fcd34d;">
+            <input type="date" id="posChequeDate" style="padding:8px; font-size:12px; width:100%; margin-bottom:0; border-color:#fcd34d;">
+        </div>
+
         <label id="modalCustAddrLabel" style="font-size:11px; color:#666; display:block; text-align:left; margin-bottom:5px;">Address (Optional)</label>
         <textarea id="modalCustAddr" rows="2" placeholder="Customer Address..." style="padding:12px; font-size:13px; margin-bottom:15px;"></textarea>
 
@@ -3249,6 +3294,12 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         document.getElementById('modalCustPhone').value = '';
         document.getElementById('modalCustName').value = '';
         document.getElementById('modalCustAddr').value = '';
+        
+        // 🛡️ ENTERPRISE FIX: Clear POS Cheque Fields
+        if(document.getElementById('posChequeNo')) document.getElementById('posChequeNo').value = '';
+        if(document.getElementById('posChequeBank')) document.getElementById('posChequeBank').value = '';
+        if(document.getElementById('posChequeDate')) document.getElementById('posChequeDate').value = '';
+
         // CRM BUG FIX: බිල අවසානයේදී Service Reminder Fields ද හිස් කිරීම
         if(document.getElementById('modalServiceDate')) document.getElementById('modalServiceDate').value = '';
         if(document.getElementById('modalServiceNote')) document.getElementById('modalServiceNote').value = '';
@@ -3479,6 +3530,8 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         if(viewName === 'syslogs') loadSystemLogs(); 
         if(viewName === 'suppliers') loadSuppliers();
         if(viewName === 'debt') loadDebts();
+        // 🛡️ ENTERPRISE FIX: Tab Switch Logic for Cheques
+        if(viewName === 'cheques') loadCheques(); 
         if(viewName === 'expenses') loadExpensesUI(); // NEW CASH FLOW TAB LOGIC
         if(viewName === 'eod') {
             document.getElementById('eodDate').value = window.getSecureLocalDateStr();
@@ -5557,6 +5610,9 @@ window.checkout = async () => {
         // Setup Modal Text based on payment method
         document.getElementById('modalCustAddrLabel').innerHTML = paymentMethod === 'Pay Later' ? 'Address * (Required for Credit)' : 'Address (Optional)';
         
+        // 🛡️ ENTERPRISE FIX: Show Cheque Fields if method is Cheque
+        document.getElementById('posChequeDetails').style.display = paymentMethod === 'Cheque' ? 'block' : 'none';
+        
         // Open Modal
         document.getElementById('checkoutCustomerModal').style.display = 'flex';
         setTimeout(() => document.getElementById('modalCustPhone').focus(), 100);
@@ -5576,8 +5632,16 @@ window.checkout = async () => {
         if(paymentMethod === "Pay Later" && (!custName || !custPhone || !custAddr)) {
             return showToast("Name, Phone & Address Required for Pay Later", "error");
         }
+        
+        // 🛡️ ENTERPRISE FIX: Strict Validation for POS Cheques
+        if(paymentMethod === "Cheque") {
+            if(!custName || !custPhone) return showToast("Customer Name & Phone required for Cheques!", "error");
+            if(!document.getElementById('posChequeNo').value.trim() || !document.getElementById('posChequeBank').value.trim() || !document.getElementById('posChequeDate').value) {
+                return showToast("Cheque Number, Bank, and Date are strictly required!", "error");
+            }
+        }
 
-        // ආරක්ෂිත සීමාව: එක බිලකට භාණ්ඩ වර්ග 150 කට වඩා ඇතුළත් කළ නොහැක (Firebase 500-op limit එක නිසා)
+        // ආරක්ෂිත සීමාව: එක බිලකට භාණ්ඩ වර්ග 150 කට වඩා ඇතුළත් කළ නොහැක
         if(cart.length > 150) {
             return showToast("Maximum 150 different item types allowed per bill. Please split into two bills.", "error");
         }
@@ -5823,6 +5887,28 @@ window.checkout = async () => {
                 saleData.id = saleRef.id; // Store ID for local cache
                 transaction.set(saleRef, saleData);
 
+                // 🛡️ ENTERPRISE FIX: Direct POS Cheque Registration
+                // POS එකෙන් ගහන චෙක්පත කෙලින්ම Cheque Registry එකටම යැවීම
+                if (finalPaymentMethod === 'Cheque') {
+                    const chqRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/cheques`));
+                    let breakdownObj = {};
+                    breakdownObj[customOrderId] = total; // මුළු බිලම මේ චෙක් එකට අදාළයි
+
+                    transaction.set(chqRef, {
+                        customerPhone: finalCustPhone,
+                        customerName: finalCustName,
+                        chequeNo: document.getElementById('posChequeNo').value.trim(),
+                        bank: document.getElementById('posChequeBank').value.trim(),
+                        chequeDate: document.getElementById('posChequeDate').value,
+                        amount: total,
+                        status: 'PENDING',
+                        receivedDate: window.getSecureTime().toISOString(),
+                        breakdown: breakdownObj,
+                        billedPhonesInvolved: [finalCustPhone],
+                        linkedOrders: [customOrderId]
+                    });
+                }
+
                 // 🛡️ ENTERPRISE STORE CREDIT FIX: Log overpayments as liabilities/advance income!
                 if (overpaidAmount > 0) {
                     const expRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`));
@@ -5846,6 +5932,12 @@ window.checkout = async () => {
 
             if(window.writeSystemLog) {
                 writeSystemLog("SALE_COMPLETED", `Order ${saleData.customOrderId} completed. Value: ${formatMoney(total)} via ${finalPaymentMethod}`);
+                
+                // 🛡️ ENTERPRISE FIX: Explicit Log for POS Cheques
+                if (finalPaymentMethod === 'Cheque') {
+                    const chqNo = document.getElementById('posChequeNo').value.trim();
+                    writeSystemLog("POS_CHEQUE_RECEIVED", `Received Cheque (${chqNo}) directly from POS for Order ${saleData.customOrderId}`);
+                }
             }
 
             // Sync Customer Cache Manually to avoid another network call
@@ -6484,7 +6576,7 @@ window.autoFillDocCustomer = (name) => {
         const margin = 15;
         let currentY = 20;
 
-        // 🛡️ 2. DYNAMIC LOGO VISIBILITY (Now precisely separated per doc type)
+        // 🛡️ 2. DYNAMIC LOGO VISIBILITY
         let showLogoHere = false;
         if (docData.type === 'RECEIPT') {
             showLogoHere = shop.showLogoA4 !== false;
@@ -6494,76 +6586,105 @@ window.autoFillDocCustomer = (name) => {
             showLogoHere = shop.showLogoQuote !== false;
         }
 
+        // 🛡️ 3. DYNAMIC DOCUMENT TITLES (Accounting Standard Fix)
+        let mainTitle = "DOCUMENT";
+        if (docData.type === 'invoice') mainTitle = "INVOICE";
+        else if (docData.type === 'quotation') mainTitle = "QUOTATION";
+        else if (docData.type === 'RECEIPT') {
+            // Pay Later (ණයට) හෝ Cheque (චෙක්පත්) නම් එය අනිවාර්යයෙන්ම INVOICE එකකි!
+            if (docData.paymentMethod === 'Pay Later' || docData.paymentMethod === 'Cheque') {
+                mainTitle = "INVOICE";
+            } else {
+                mainTitle = "CASH RECEIPT";
+            }
+        }
+
+        // --- 4. HEADER LAYOUT (Left-Right Split OR Centered) ---
         if (showLogoHere && shop.logoImage) {
+            // LOGO ON LEFT, TEXT ON RIGHT (Standard Letterhead)
             try { 
                 const imgProps = doc.getImageProperties(shop.logoImage);
                 const ratio = imgProps.width / imgProps.height;
-                let logoW = 45; // උපරිම පළල
+                let logoW = 45; 
                 let logoH = logoW / ratio;
-                
-                if (logoH > 25) { // උස වැඩි නම්, උසට සීමා කර පළල හදයි
-                    logoH = 25; // උපරිම උස
-                    logoW = 25 * ratio;
-                }
-                
-                const logoX = pageWidth - margin - logoW; // දකුණු කෙළවරට තැබීම
+                if (logoH > 25) { logoH = 25; logoW = 25 * ratio; }
+                const logoX = margin; // 👈 Logo එක වම් පසට
                 doc.addImage(shop.logoImage, imgProps.fileType || 'JPEG', logoX, 10, logoW, logoH); 
-            } catch(e) { console.error("Logo rendering error:", e); }
-        }
+            } catch(e) { console.error("Logo error:", e); }
 
-        // --- HEADER (Strictly obeying "Show on Docs" toggles) ---
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(15);
-        doc.setTextColor(...themeRgb); // Dynamic Color for Main Heading
-        
-        if (shop.showBizName !== false && shop.bizName) {
-            doc.text(shop.bizName.toUpperCase(), pageWidth / 2, currentY, { align: "center" });
-            currentY += 6;
-        }
+            let rightY = 15;
+            doc.setFont("helvetica", "bold"); doc.setFontSize(15); doc.setTextColor(...themeRgb);
+            if (shop.showBizName !== false && shop.bizName) {
+                doc.text(shop.bizName.toUpperCase(), pageWidth - margin, rightY, { align: "right" });
+                rightY += 6;
+            }
 
-        doc.setFontSize(9);
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(0); // Black for text
-        
-        if (shop.showAddress !== false && shop.address) {
-            const addrParts = shop.address.replace(/\n/g, ', '); 
-            doc.text(addrParts, pageWidth / 2, currentY, { align: "center" });
-            currentY += 5;
-        }
+            doc.setFontSize(9); doc.setFont("helvetica", "normal"); doc.setTextColor(0);
+            if (shop.showAddress !== false && shop.address) {
+                const addrParts = shop.address.replace(/\n/g, ', '); 
+                doc.text(addrParts, pageWidth - margin, rightY, { align: "right" });
+                rightY += 5;
+            }
 
-        let contactStr = [];
-        if (shop.showPhone1 !== false && shop.phone1) contactStr.push(shop.phone1);
-        if (shop.showPhone2 !== false && shop.phone2) contactStr.push(shop.phone2);
-        if (shop.showWhatsapp !== false && shop.whatsapp) contactStr.push(`WA: ${shop.whatsapp}`);
-        if (shop.showFax !== false && shop.fax) contactStr.push(`Fax: ${shop.fax}`);
-        if (shop.showEmail !== false && shop.email) contactStr.push(shop.email);
-        
-        if (contactStr.length > 0) {
-            doc.text(contactStr.join(' | '), pageWidth / 2, currentY, { align: "center" });
-            currentY += 5;
-        }
+            let contactStr = [];
+            if (shop.showPhone1 !== false && shop.phone1) contactStr.push(shop.phone1);
+            if (shop.showPhone2 !== false && shop.phone2) contactStr.push(shop.phone2);
+            if (shop.showWhatsapp !== false && shop.whatsapp) contactStr.push(`WA: ${shop.whatsapp}`);
+            if (shop.showFax !== false && shop.fax) contactStr.push(`Fax: ${shop.fax}`);
+            if (shop.showEmail !== false && shop.email) contactStr.push(shop.email);
+            if (contactStr.length > 0) {
+                doc.text(contactStr.join(' | '), pageWidth - margin, rightY, { align: "right" });
+                rightY += 5;
+            }
+            if (shop.showReg !== false && shop.regNo) {
+                doc.text(`Reg No / BR: ${shop.regNo}`, pageWidth - margin, rightY, { align: "right" });
+                rightY += 5;
+            }
+            currentY = Math.max(35, rightY + 5);
 
-        if (shop.showReg !== false && shop.regNo) {
-            doc.text(`Reg No / BR: ${shop.regNo}`, pageWidth / 2, currentY, { align: "center" });
-            currentY += 5;
+        } else {
+            // NO LOGO: TEXT CENTERED
+            doc.setFont("helvetica", "bold"); doc.setFontSize(15); doc.setTextColor(...themeRgb); 
+            if (shop.showBizName !== false && shop.bizName) {
+                doc.text(shop.bizName.toUpperCase(), pageWidth / 2, currentY, { align: "center" });
+                currentY += 6;
+            }
+
+            doc.setFontSize(9); doc.setFont("helvetica", "normal"); doc.setTextColor(0); 
+            if (shop.showAddress !== false && shop.address) {
+                const addrParts = shop.address.replace(/\n/g, ', '); 
+                doc.text(addrParts, pageWidth / 2, currentY, { align: "center" });
+                currentY += 5;
+            }
+
+            let contactStr = [];
+            if (shop.showPhone1 !== false && shop.phone1) contactStr.push(shop.phone1);
+            if (shop.showPhone2 !== false && shop.phone2) contactStr.push(shop.phone2);
+            if (shop.showWhatsapp !== false && shop.whatsapp) contactStr.push(`WA: ${shop.whatsapp}`);
+            if (shop.showFax !== false && shop.fax) contactStr.push(`Fax: ${shop.fax}`);
+            if (shop.showEmail !== false && shop.email) contactStr.push(shop.email);
+            if (contactStr.length > 0) {
+                doc.text(contactStr.join(' | '), pageWidth / 2, currentY, { align: "center" });
+                currentY += 5;
+            }
+            if (shop.showReg !== false && shop.regNo) {
+                doc.text(`Reg No / BR: ${shop.regNo}`, pageWidth / 2, currentY, { align: "center" });
+                currentY += 5;
+            }
         }
 
         // --- DOCUMENT TITLE & META ---
         currentY += 10; 
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(12);
-        doc.setTextColor(...themeRgb); // Dynamic Color for Document Type
-        doc.text(docData.type.toUpperCase(), pageWidth / 2, currentY, { align: 'center' });
+        doc.setFont("helvetica", "bold"); doc.setFontSize(12); doc.setTextColor(...themeRgb); 
+        doc.text(mainTitle, pageWidth / 2, currentY, { align: 'center' }); // 👈 Dynamic Title Applied
         
-        currentY += 10;
-        doc.setFontSize(10);
-        doc.setTextColor(0);
-        let docLabel = docData.type === 'invoice' ? 'Invoice Number' : (docData.type === 'quotation' ? 'Quotation Number' : 'Receipt Number');
+        currentY += 10; doc.setFontSize(10); doc.setTextColor(0);
+        let docLabel = (mainTitle === 'INVOICE') ? 'Invoice Number' : (mainTitle === 'QUOTATION' ? 'Quotation Number' : 'Receipt Number');
         doc.text(docLabel, margin, currentY);
         doc.text(`: ${docData.docId}`, margin + 40, currentY);
         
         currentY += 6;
-        let dateLabel = docData.type === 'RECEIPT' ? 'Date & Time' : (docData.type === 'invoice' ? 'Invoice Date' : 'Quotation Date');
+        let dateLabel = (mainTitle === 'INVOICE') ? 'Invoice Date' : (mainTitle === 'QUOTATION' ? 'Quotation Date' : 'Date & Time');
         doc.text(dateLabel, margin, currentY);
         doc.text(`: ${docData.date} ${docData.type === 'RECEIPT' ? docData.dueDate||'' : ''}`, margin + 40, currentY);
 
@@ -6572,9 +6693,7 @@ window.autoFillDocCustomer = (name) => {
         doc.setFont("helvetica", "bold");
         doc.text(docData.customer.name ? docData.customer.name : "CASH CUSTOMER", margin, currentY);
         
-        currentY += 6;
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(9);
+        currentY += 6; doc.setFont("helvetica", "normal"); doc.setFontSize(9);
         if(docData.customer.address) {
             const custAddrLines = doc.splitTextToSize(docData.customer.address, 100);
             doc.text(custAddrLines, margin, currentY);
@@ -6587,12 +6706,10 @@ window.autoFillDocCustomer = (name) => {
             currentY += 6;
         }
         
-        doc.setFont("helvetica", "bold");
-        doc.text("Dear Sir/Madam,", margin, currentY);
+        doc.setFont("helvetica", "bold"); doc.text("Dear Sir/Madam,", margin, currentY);
         currentY += 7;
-        doc.text(`SUBJECT: ${docData.type.toUpperCase()} FOR SUPPLY & INSTALLATION`, margin, currentY);
-        doc.setDrawColor(...themeRgb); // Dynamic Line Color
-        doc.setLineWidth(0.5);
+        doc.text(`SUBJECT: ${mainTitle} FOR SUPPLY & INSTALLATION`, margin, currentY); // 👈 Dynamic Title
+        doc.setDrawColor(...themeRgb); doc.setLineWidth(0.5);
         doc.line(margin, currentY+2, margin + 100, currentY+2);
 
         // --- DATA TABLES ---
@@ -6727,9 +6844,26 @@ window.autoFillDocCustomer = (name) => {
         doc.line(pageWidth - margin - 45, currentY + 10, pageWidth - margin, currentY + 10);
         
         doc.setFontSize(9);
-        const authName = (shop.showOwner !== false && shop.ownerName) ? shop.ownerName : "Authorized Manager";
-        doc.text(authName, margin, currentY + 15);
+        // 🛡️ ENTERPRISE FIX: Replaced Owner's Name with standard Authorized Signature
+        doc.text("Authorized Signature", margin, currentY + 15);
         doc.text("Customer Signature", pageWidth - margin - 45, currentY + 15);
+
+        // 🛡️ ENTERPRISE SECURITY FIX: Restore & Enhance Portal PIN for A4 Bills
+        // අලුත් පාරිභෝගිකයෙකු POS එකෙන් බිලක් කපන විට, ඔහුගේ Customer Portal එකට ලොග් වීමට අදාළ රහස්‍ය PIN අංකය A4 බිලෙහිද අලංකාරව පෙන්වීම.
+        if (docData.initialPin) {
+            let pinY = currentY + 25; 
+            if (pinY > pageHeight - 20) { doc.addPage(); pinY = 20; }
+            
+            // ලස්සන කොටුවක් ඇතුළේ PIN එක පෙන්වීම
+            doc.setDrawColor(...themeRgb);
+            doc.setFillColor(245, 245, 255); // ලා නිල් පසුබිමක්
+            doc.rect(margin, pinY, 90, 14, 'FD'); 
+
+            doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(...themeRgb);
+            doc.text(`Customer Portal PIN : ${docData.initialPin}`, margin + 5, pinY + 6);
+            doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(100);
+            doc.text(`(For security, please change this PIN after your first login)`, margin + 5, pinY + 11);
+        }
 
         // --- 🔴 THERMAL RECEIPT PRINTING LOGIC ---
         if (docData.type === 'RECEIPT') {
@@ -7369,12 +7503,16 @@ window.autoFillDocCustomer = (name) => {
 
             ${settlementHtml}
 
-            <div style="margin-top:20px; display:flex; gap:10px;">
-                <button class="btn btn-primary" style="flex:1;" onclick="reprintOrderById('${order.id}')">Reprint Bill</button>
-                <button class="btn btn-warning" style="flex:1;" onclick="goToRefundForOrder('${customId}')">Process Refund</button>
-                ${(order.paymentMethod === 'Pay Later' && order.creditBalance > 0) ? 
-                  `<button class="btn btn-success" style="flex:1;" onclick="settleCreditDebt('${order.id}')">Mark as Paid</button>` 
-                  : ''}
+            <div style="margin-top:20px; display:flex; flex-wrap:wrap; gap:10px;">
+                <button class="btn btn-primary" style="flex:1; min-width:120px;" onclick="reprintOrderById('${order.id}')"><i class="ri-printer-line"></i> Reprint Copy</button>
+                <button class="btn btn-warning" style="flex:1; min-width:120px;" onclick="goToRefundForOrder('${customId}')">Process Refund</button>
+                
+                ${(order.paymentMethod === 'Pay Later' || order.paymentMethod === 'Cheque') && order.creditBalance > 0 ? 
+                  `<button class="btn btn-success" style="flex:1; min-width:120px;" onclick="settleCreditDebt('${order.id}')">Receive Payment</button>` : ''}
+                  
+                <!-- 🛡️ ENTERPRISE FIX: "Issue Final Receipt" for settled credit invoices -->
+                ${(order.paymentMethod === 'Pay Later' || order.paymentMethod === 'Cheque') && (!order.creditBalance || order.creditBalance <= 0) ? 
+                  `<button class="btn btn-info" style="flex:1; min-width:120px; background:#047857;" onclick="printFinalReceipt('${order.id}')"><i class="ri-check-double-line"></i> Issue Final Receipt</button>` : ''}
             </div>
         `;
         
@@ -8301,8 +8439,9 @@ window.autoFillDocCustomer = (name) => {
                     ${address ? `<div>${address}</div>` : ''}
                     ${phone ? `<div>Tel: ${phone}</div>` : ''}
                     <div class="divider"></div>
-                    <div class="bold fs-14">CASH RECEIPT</div>
-                </div>
+                        <!-- 🛡️ ENTERPRISE FIX: Dynamic Thermal Title -->
+                        <div class="bold fs-14 brand-text">${mainTitle}</div>
+                    </div>
                 
                 <div style="margin-top: 10px; display: flex; justify-content: space-between;">
                     <div>No: ${orderId}</div>
@@ -10907,20 +11046,47 @@ window.setQuickCash = (amount) => {
             }
 
             const payMethod = document.getElementById('dsPayMethod').value;
-            const expRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`));
+            const secureNow = window.getSecureTime().toISOString();
             
-            // 🚀 DUAL-IDENTITY AUDIT LOG
-            const expData = {
-                description: `Debt Settled (${payMethod}) by active identity ${currentActivePhone} [Orders: ${settledOrderIds.join(', ')}]`,
-                amount: totalPaidNow,
-                isIncome: true,
-                payMethod: payMethod,
-                settledByPhone: currentActivePhone,
-                originalBilledPhones: Array.from(billedPhonesInvolved), // Audit Trail: Which old numbers were paid
-                breakdown: settlementBreakdown,
-                date: window.getSecureTime().toISOString()
-            };
-            batch.set(expRef, expData);
+            // 🛡️ ENTERPRISE FIX: Route Cheques to Registry instead of Cash Flow!
+            if (payMethod === 'Cheque') {
+                const chqNo = document.getElementById('dsChequeNo').value.trim();
+                const chqBank = document.getElementById('dsChequeBank').value.trim();
+                const chqDate = document.getElementById('dsChequeDate').value;
+                
+                if(!chqNo || !chqBank || !chqDate) throw new Error("Cheque Number, Bank, and Date are strictly required!");
+                
+                const chqRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/cheques`));
+                batch.set(chqRef, {
+                    customerPhone: currentActivePhone,
+                    customerName: document.getElementById('dsCustomerName').textContent,
+                    chequeNo: chqNo,
+                    bank: chqBank,
+                    chequeDate: chqDate,
+                    amount: totalPaidNow,
+                    status: 'PENDING',
+                    receivedDate: secureNow,
+                    breakdown: settlementBreakdown, // To restore debt if bounced!
+                    billedPhonesInvolved: Array.from(billedPhonesInvolved),
+                    linkedOrders: settledOrderIds
+                });
+                if(window.writeSystemLog) writeSystemLog("CHEQUE_RECEIVED", `Received Cheque (${chqNo} - ${chqBank}) for ${formatMoney(totalPaidNow)} from ${currentActivePhone}`);
+            } else {
+                // Cash / Online (Direct Income)
+                const expRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`));
+                const expData = {
+                    description: `Debt Settled (${payMethod}) by active identity ${currentActivePhone} [Orders: ${settledOrderIds.join(', ')}]`,
+                    amount: totalPaidNow,
+                    isIncome: true,
+                    payMethod: payMethod,
+                    settledByPhone: currentActivePhone,
+                    originalBilledPhones: Array.from(billedPhonesInvolved),
+                    breakdown: settlementBreakdown,
+                    date: secureNow
+                };
+                batch.set(expRef, expData);
+                if(window.writeSystemLog) writeSystemLog("DEBT_SETTLEMENT", `Received ${formatMoney(totalPaidNow)} (${payMethod}) from ${currentActivePhone}`);
+            }
 
             await batch.commit();
             
@@ -13365,6 +13531,171 @@ let currentBatchForSerials = null;
             showToast("Error saving roster", "error");
         }
         toggleLoader(false);
+    };
+// ==========================================
+    // 🛡️ ENTERPRISE CHEQUE MANAGEMENT ENGINE
+    // ==========================================
+    window.loadCheques = async () => {
+        const tbody = document.querySelector('#chequesTable tbody');
+        if(!tbody) return;
+        
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Loading Cheques...</td></tr>';
+        const filter = document.getElementById('chequeStatusFilter').value;
+        
+        try {
+            const q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/cheques`), where("status", "==", filter), orderBy("receivedDate", "desc"), limit(100));
+            const snap = await getDocs(q);
+            
+            if(snap.empty) {
+                tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#666;">No ${filter.toLowerCase()} cheques found.</td></tr>`;
+                return;
+            }
+
+            let html = '';
+            snap.forEach(d => {
+                const c = { id: d.id, ...d.data() };
+                const badgeColor = c.status === 'PENDING' ? '#d97706' : (c.status === 'CLEARED' ? '#15803d' : '#b91c1c');
+                const badgeBg = c.status === 'PENDING' ? '#fef3c7' : (c.status === 'CLEARED' ? '#dcfce7' : '#fee2e2');
+                
+                let actions = '';
+                if(c.status === 'PENDING') {
+                    actions = `
+                        <button class="btn btn-success" style="padding:4px 8px; font-size:11px;" onclick="processCheque('${c.id}', 'CLEARED')"><i class="ri-check-double-line"></i> Clear</button>
+                        <button class="btn btn-danger" style="padding:4px 8px; font-size:11px;" onclick="processCheque('${c.id}', 'BOUNCED')"><i class="ri-close-circle-line"></i> Bounce</button>
+                    `;
+                } else {
+                    actions = `<span style="font-size:11px; color:#64748b;"><i class="ri-lock-2-line"></i> Locked</span>`;
+                }
+
+                html += `
+                <tr>
+                    <td style="font-size:12px;">${new Date(c.receivedDate).toLocaleDateString()}</td>
+                    <td><b>${c.customerName}</b><br><span style="font-size:11px; color:#666;">${c.customerPhone}</span></td>
+                    <td style="font-size:12px;">
+                        <b>No:</b> <span style="font-family:monospace;">${c.chequeNo}</span><br>
+                        <b>Bank:</b> ${c.bank}<br>
+                        <span style="color:var(--primary); font-weight:bold;">Chq Date: ${c.chequeDate}</span>
+                    </td>
+                    <td style="font-weight:900; font-size:15px;">${formatMoney(c.amount)}</td>
+                    <td><span style="background:${badgeBg}; color:${badgeColor}; padding:2px 6px; border-radius:4px; font-size:11px; font-weight:bold;">${c.status}</span></td>
+                    <td style="display:flex; gap:5px;">${actions}</td>
+                </tr>`;
+            });
+            tbody.innerHTML = html;
+            
+        } catch(e) {
+            console.error("Cheque Load Error:", e);
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:red;">Error loading cheques</td></tr>';
+        }
+    };
+
+    window.processCheque = async (chequeId, action) => {
+        const actionText = action === 'CLEARED' ? "Mark as CLEARED (Money received in bank)" : "Mark as BOUNCED (Return debt to customer)";
+        if(!confirm(`Are you sure you want to ${actionText}?`)) return;
+
+        toggleLoader(true);
+        try {
+            await runTransaction(db, async (t) => {
+                const chqRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/cheques`, chequeId);
+                const snap = await t.get(chqRef);
+                if(!snap.exists() || snap.data().status !== 'PENDING') throw new Error("Cheque is not in PENDING state!");
+
+                const cData = snap.data();
+                const secureNow = window.getSecureTime().toISOString();
+
+                // ACTION 1: CHEQUE CLEARED
+                if (action === 'CLEARED') {
+                    t.update(chqRef, { status: 'CLEARED', clearedDate: secureNow });
+                    
+                    // Add to Cash Flow as Income (Online/Bank Transfer)
+                    const expRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`));
+                    t.set(expRef, {
+                        description: `Cheque Cleared (${cData.chequeNo} - ${cData.bank}) [Orders: ${cData.linkedOrders.join(', ')}]`,
+                        amount: cData.amount,
+                        isIncome: true,
+                        payMethod: 'Online Transfer', // Hits Bank/Other in EOD, not Cash Drawer!
+                        customerPhone: cData.customerPhone,
+                        date: secureNow
+                    });
+                    if(window.writeSystemLog) writeSystemLog("CHEQUE_CLEARED", `Cheque ${cData.chequeNo} of ${formatMoney(cData.amount)} Cleared & Added to Income.`);
+                } 
+                // ACTION 2: CHEQUE BOUNCED (Dishonored)
+                else if (action === 'BOUNCED') {
+                    t.update(chqRef, { status: 'BOUNCED', bouncedDate: secureNow });
+                    
+                    // Restore Debt to original orders!
+                    for (const [orderId, allocatedAmt] of Object.entries(cData.breakdown)) {
+                        // Find the exact order Document ID (It could be custom ID or Firebase ID)
+                        const qOrder = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`), where("customOrderId", "==", orderId), limit(1));
+                        const orderSnap = await getDocs(qOrder);
+                        
+                        let targetRef = null;
+                        if (!orderSnap.empty) targetRef = orderSnap.docs[0].ref;
+                        else targetRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`, orderId); // Fallback to Document ID
+                        
+                        t.update(targetRef, { creditBalance: increment(allocatedAmt) }); // Adds the debt back!
+                    }
+                    if(window.writeSystemLog) writeSystemLog("CHEQUE_BOUNCED", `Cheque ${cData.chequeNo} BOUNCED! Restored ${formatMoney(cData.amount)} debt to customer ${cData.customerPhone}.`);
+                }
+            });
+
+            showToast(`Cheque marked as ${action} successfully!`, "success");
+            loadCheques();
+            if(document.getElementById('view-debt').classList.contains('active')) loadDebts();
+            updateDashboard();
+
+        } catch (e) {
+            console.error("Cheque Process Error:", e);
+            showToast(e.message || "Error processing cheque", "error");
+        } finally {
+            toggleLoader(false);
+        }
+    };
+
+    // ==========================================
+    // 🛡️ ENTERPRISE: INVOICE TO FINAL RECEIPT CONVERSION
+    // ==========================================
+    window.printFinalReceipt = async (orderId) => {
+        toggleLoader(true);
+        try {
+            const docRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`, orderId);
+            const snap = await getDoc(docRef);
+            if (snap.exists()) {
+                const order = { id: snap.id, ...snap.data() };
+                
+                // 🛡️ ACCOUNTING RULE: Force title to RECEIPT since debt is 0
+                // We create a temporary modified object just for the PDF generator
+                const receiptData = {
+                    ...order,
+                    type: 'RECEIPT', // Forces "CASH RECEIPT" title
+                    paymentMethod: 'Settled in Full', // Overrides "Pay Later" text
+                    cashGiven: order.total,
+                    balance: 0,
+                    creditBalance: 0
+                };
+                
+                openModal('printSizeModal');
+                
+                // Override the reprint execution temporarily for this flow
+                window.executeReprint = (size) => {
+                    closeModal('printSizeModal');
+                    if(window.writeSystemLog) writeSystemLog("FINAL_RECEIPT_PRINTED", `Printed Final Cash Receipt for settled invoice: ${order.customOrderId || orderId}`);
+                    generateInvoicePDF(receiptData, size); 
+                    
+                    // Restore original logic
+                    window.executeReprint = async (origSize) => {
+                        const id = document.getElementById('psOrderId').value;
+                        closeModal('printSizeModal');
+                        let o = salesCache.find(s => s.id === id);
+                        if(o) { generateInvoicePDF(o, origSize); }
+                    };
+                };
+            }
+        } catch (e) {
+            showToast("Error generating receipt", "error");
+        } finally {
+            toggleLoader(false);
+        }
     };
 </script>
 
