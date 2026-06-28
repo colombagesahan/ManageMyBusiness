@@ -217,13 +217,14 @@ input:focus, textarea:focus { border-color: var(--primary); }
 
     // 🔴 FIREBASE CONFIG
     const firebaseConfig = {
-        apiKey: "AIzaSyCZrmkX2RsJTbn4j-WmbuCMudWaETMvXwQ",
-        authDomain: "managemybusiness-b4afb.firebaseapp.com",
-        projectId: "managemybusiness-b4afb",
-        storageBucket: "managemybusiness-b4afb.firebasestorage.app",
-        messagingSenderId: "237936848306",
-        appId: "1:237936848306:web:91a996c3d1d3ceda3b48ab"
-    };
+  apiKey: "AIzaSyBDwLs_z_SXX-t6olQ8xu6dRjxVpgRkuvE",
+  authDomain: "nawarathna-cool-engineering.firebaseapp.com",
+  projectId: "nawarathna-cool-engineering",
+  storageBucket: "nawarathna-cool-engineering.firebasestorage.app",
+  messagingSenderId: "863435741101",
+  appId: "1:863435741101:web:c2774c9a557d0fe014f324",
+  measurementId: "G-2PH6L13GP4"
+};
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
@@ -419,59 +420,78 @@ input:focus, textarea:focus { border-color: var(--primary); }
         } catch(e) { console.error(e); }
     }
 
+    // 🛡️ ENTERPRISE FIX: GPS Audit Trail Engine
     window.toggleClock = async () => {
-        const todayStr = window.getLocalDateStr();
-        const nowIso = new Date().toISOString();
-        const logsRef = collection(db, `users/${OWNER_ID}/shops/${SHOP_ID}/employees/${loggedInEmp.id}/logs`);
-        
-        toggleLoader(true);
-        try {
-            if(!todayLogDocId) {
-                // CLOCK IN
-                const newLogRef = await addDoc(logsRef, {
-                    date: todayStr,
-                    status: 'P',
-                    clockInTime: nowIso,
-                    ot: 0, workedHours: 0, advance: 0,
-                    timestamp: nowIso
-                });
-                todayLogDocId = newLogRef.id;
-                showToast("Clocked IN Successfully!");
-            } else {
-                // CLOCK OUT
-                const logDoc = await getDoc(doc(logsRef, todayLogDocId));
-                const lData = logDoc.data();
-                
-                const inTime = new Date(lData.clockInTime);
-                const outTime = new Date();
-                const diffMs = outTime - inTime;
-                let workedHrs = diffMs / (1000 * 60 * 60);
-                
-                const stdHours = Number(loggedInEmp.standardHours) || 8;
-                let calculatedOT = 0;
-                
-                if (workedHrs > 16) {
-                    workedHrs = stdHours; // Cap to prevent 24h ghost shifts
-                } else if (workedHrs > stdHours) {
-                    calculatedOT = workedHrs - stdHours;
-                }
-
-                const finalOT = Math.max((lData.ot || 0), parseFloat(calculatedOT.toFixed(2)));
-
-                await updateDoc(doc(logsRef, todayLogDocId), {
-                    clockOutTime: nowIso,
-                    workedHours: parseFloat(workedHrs.toFixed(2)),
-                    ot: finalOT
-                });
-                showToast(`Clocked OUT! Worked: ${workedHrs.toFixed(1)}h | OT: ${finalOT}h`);
-            }
-            await checkTodayAttendance();
-            calculateCurrentMonthSalary(); // Refresh salary metrics
-        } catch (e) {
-            console.error(e);
-            showToast("Error updating attendance", "error");
+        // 1. දුරකථනයේ Location (GPS) ලබා ගැනීමට අවසර ඉල්ලීම
+        if (!navigator.geolocation) {
+            return showToast("Location services are not supported by your browser.", "error");
         }
-        toggleLoader(false);
+
+        toggleLoader(true);
+        document.querySelector('#loader div:nth-child(2)').textContent = "Acquiring GPS Location...";
+
+        navigator.geolocation.getCurrentPosition(async (position) => {
+            // GPS සාර්ථකව ලබා ගත්තේය
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            const mapLink = `https://www.google.com/maps?q=${lat},${lng}`;
+
+            const todayStr = window.getLocalDateStr();
+            const nowIso = new Date().toISOString();
+            const logsRef = collection(db, `users/${OWNER_ID}/shops/${SHOP_ID}/employees/${loggedInEmp.id}/logs`);
+
+            document.querySelector('#loader div:nth-child(2)').textContent = "Saving Record...";
+
+            try {
+                if(!todayLogDocId) {
+                    // CLOCK IN
+                    const newLogRef = await addDoc(logsRef, {
+                        date: todayStr, status: 'P', clockInTime: nowIso,
+                        ot: 0, workedHours: 0, advance: 0, timestamp: nowIso,
+                        clockInLocation: mapLink // 📍 Saving GPS Location
+                    });
+                    todayLogDocId = newLogRef.id;
+                    showToast("Clocked IN Successfully!");
+                } else {
+                    // CLOCK OUT
+                    const logDoc = await getDoc(doc(logsRef, todayLogDocId));
+                    const lData = logDoc.data();
+                    
+                    const inTime = new Date(lData.clockInTime);
+                    const outTime = new Date();
+                    const diffMs = outTime - inTime;
+                    let workedHrs = diffMs / (1000 * 60 * 60);
+                    
+                    const stdHours = Number(loggedInEmp.standardHours) || 8;
+                    let calculatedOT = 0;
+                    
+                    if (workedHrs > 16) workedHrs = stdHours; 
+                    else if (workedHrs > stdHours) calculatedOT = workedHrs - stdHours;
+
+                    const finalOT = Math.max((lData.ot || 0), parseFloat(calculatedOT.toFixed(2)));
+
+                    await updateDoc(doc(logsRef, todayLogDocId), {
+                        clockOutTime: nowIso,
+                        workedHours: parseFloat(workedHrs.toFixed(2)),
+                        ot: finalOT,
+                        clockOutLocation: mapLink // 📍 Saving GPS Location
+                    });
+                    showToast(`Clocked OUT! Worked: ${workedHrs.toFixed(1)}h | OT: ${finalOT}h`);
+                }
+                await checkTodayAttendance();
+                calculateCurrentMonthSalary(); 
+            } catch (e) {
+                console.error(e);
+                showToast("Error updating attendance", "error");
+            }
+            toggleLoader(false);
+            
+        }, (error) => {
+            // 🚨 සේවකයා GPS on කිරීම ප්‍රතික්ෂේප කළහොත් බොත්තම වැඩ කරන්නේ නැත!
+            toggleLoader(false);
+            showToast("You MUST allow GPS Location to Clock In/Out!", "error");
+            alert("ආයතනික නීති වලට අනුව පැමිණීම සටහන් කිරීමට අනිවාර්යයෙන්ම GPS Location On කළ යුතුය.");
+        }, { enableHighAccuracy: true }); // උපරිම නිරවද්‍යතාවය (High Accuracy)
     };
 
     // --- Real-time Salary & Advance Engine ---
@@ -643,14 +663,24 @@ input:focus, textarea:focus { border-color: var(--primary); }
         });
     }
 
-    // --- Task Engine ---
+    // --- 🛡️ ENTERPRISE Task Engine ---
     window.markTaskDone = async (taskId) => {
+        // 🚀 සේවකයා Task එක අවසන් කළ බවට සටහනක් (Note) ඉල්ලීම
+        const empNote = prompt("Please enter a completion note (e.g., 'Cleaned filters' or 'Finished'):");
+        if (empNote === null) return; // Cancel එබුවහොත් Task එක Done වෙන්නේ නෑ!
+
+        toggleLoader(true);
         try {
             await updateDoc(doc(db, `users/${OWNER_ID}/shops/${SHOP_ID}/tasks`, taskId), {
-                status: 'done', completedAt: new Date().toISOString()
+                status: 'done', 
+                completedAt: new Date().toISOString(),
+                employeeNote: empNote.trim() || 'No remarks added' // 👈 සේවකයාගේ සටහන
             });
-            showToast("Task marked as Done!");
-        } catch(e) { showToast("Error updating task", "error"); }
+            showToast("Task marked as Done & Sent to Manager!");
+        } catch(e) { 
+            showToast("Error updating task", "error"); 
+        }
+        toggleLoader(false);
     };
 
     // --- Chat Engine ---
