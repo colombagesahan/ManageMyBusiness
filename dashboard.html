@@ -11501,10 +11501,6 @@ window.setQuickCash = (amount) => {
                             // 🔴 Cashier/Employee ට රතු පාටින් අනතුරු ඇඟවීමක් පෙන්වීම
                             showToast("🚨 ඊයේ දින පිටවීමේ සටහන (Clock-Out) නොමැති බැවින් ඊයේ දවසේ පඩිය අත්හිටුවා ඇත. කරුණාකර කළමනාකරු හමුවන්න!", "error");
                         } else {
-                            
-                            // Cashier ට ලස්සන පණිවිඩයක් පෙන්වීම
-                            showToast("⚠️ We noticed you forgot to Clock-Out your last shift. It was auto-closed based on the Roster.", "warning");
-                        } else {
                             // පැය 16 ට අඩුයි නම්, එය සාමාන්‍ය පරිදි එදිනට අදාළ Clock-Out වීමකි
                             isClockingOut = true;
                             targetLogDoc = lastLog;
