@@ -4341,7 +4341,10 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                     });
 
                     if (baseProdRef) {
-                        transaction.update(baseProdRef, { latestBatchNumber: nextBatchNum });
+                        transaction.update(baseProdRef, { 
+                            latestBatchNumber: nextBatchNum,
+                            poPending: false // 🛡️ ENTERPRISE FIX: Goods Arrived! Remove the PO lock.
+                        });
                     }
 
                     const logRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/inventory_logs`));
@@ -5369,11 +5372,13 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         };
 
         con.innerHTML = cart.map((i, idx) => {
-            // Apply Live Promo Pricing directly in the cart
-            const priceInfo = window.getEffectivePrice(i);
-            i.effectiveSell = priceInfo.price; // Save for checkout
-            
-            subtotal += i.effectiveSell * i.qty;
+                // Apply Live Promo Pricing directly in the cart
+                const priceInfo = window.getEffectivePrice(i);
+                i.effectiveSell = priceInfo.price; // Save for checkout
+                
+                // 🛡️ ENTERPRISE ACCOUNTING FIX: Strictly round each cart item
+                const itemTotalRounded = Math.round((i.effectiveSell * i.qty) * 100) / 100;
+                subtotal += itemTotalRounded;
             
             return `<div style="display:flex; justify-content:space-between; margin-bottom:12px; font-size:13px; align-items:flex-start; border-bottom:1px dashed #e5e7eb; padding-bottom:8px;">
                 <div style="flex:1; padding-right:10px;">
@@ -5403,7 +5408,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                    </div>
                 </div>
                 <div style="text-align:right;">
-                    <div style="font-weight:900;">${formatMoney(i.effectiveSell * i.qty)}</div>
+                    <div style="font-weight:900;">${formatMoney(itemTotalRounded)}</div>
                     <div style="margin-top:5px; display:flex; justify-content:flex-end; gap:5px;">
                         <!-- 🛡️ Add Note Button -->
                         <button class="btn btn-ghost" style="padding:2px 6px; font-size:10px; color:#15803d; border-color:#bbf7d0; background:#f0fdf4;" onclick="addPosItemNote(${idx})" title="Add Warranty/Note"><i class="ri-edit-2-line"></i></button>
@@ -5554,7 +5559,8 @@ window.checkout = async () => {
         }
         
         const discountVal = discountValRaw;
-        let subtotal = cart.reduce((a,b)=>a+(b.sell*b.qty),0);
+        // 🛡️ ENTERPRISE ACCOUNTING FIX: Sum rounded values only
+        let subtotal = cart.reduce((a,b) => a + Math.round((b.sell * b.qty) * 100) / 100, 0);
         let discountAmt = discountType === 'percent' ? (subtotal * discountVal / 100) : discountVal;
         if(discountAmt > subtotal) discountAmt = subtotal;
 
@@ -5663,7 +5669,8 @@ window.checkout = async () => {
 
         const discountType = document.getElementById('discountType').value;
         const discountVal = parseFloat(document.getElementById('discountValue').value) || 0;
-        let subtotal = cart.reduce((a,b)=>a+(b.sell*b.qty),0);
+        // 🛡️ ENTERPRISE ACCOUNTING FIX: Sum rounded values only
+        let subtotal = cart.reduce((a,b) => a + Math.round((b.sell * b.qty) * 100) / 100, 0);
         let discountAmt = discountType === 'percent' ? (subtotal * discountVal / 100) : discountVal;
         if(discountAmt > subtotal) discountAmt = subtotal;
 
@@ -6144,7 +6151,9 @@ window.checkout = async () => {
                 const uPriceStr = tr.querySelector('.item-uprice').value;
                 const activePrice = dPriceStr ? parseFloat(dPriceStr) : (parseFloat(uPriceStr) || 0);
                 
-                const lineTotal = qty * activePrice;
+                // 🛡️ ENTERPRISE ACCOUNTING FIX: Line-by-Line Rounding (Zero Cent Mismatch)
+                const lineTotal = Math.round((qty * activePrice) * 100) / 100;
+                
                 tr.querySelector('.item-total').textContent = lineTotal.toLocaleString('en-US', {minimumFractionDigits: 2});
                 blockTotal += lineTotal;
             });
@@ -6184,6 +6193,8 @@ window.checkout = async () => {
 
         // 🚀 ENTERPRISE DOCUMENT DATA EXTRACTOR
         const optionsData = [];
+        let validationError = null; // 🛡️ ENTERPRISE SECURITY: Exploit prevention flag
+
         document.querySelectorAll('.doc-option-block').forEach(block => {
             const optTitle = block.querySelector('.opt-title').value.trim();
             const optDesc = block.querySelector('.opt-desc').value.trim();
@@ -6194,11 +6205,27 @@ window.checkout = async () => {
                 const brand = tr.querySelector('.item-brand').value.trim();
                 const name = tr.querySelector('.item-name').value.trim();
                 const uPrice = parseFloat(tr.querySelector('.item-uprice').value) || 0;
-                const dPrice = parseFloat(tr.querySelector('.item-dprice').value) || 0;
-                const qty = parseFloat(tr.querySelector('.item-qty').value) || 0;
-                const lineTot = qty * (dPrice > 0 ? dPrice : uPrice);
                 
-                if(name && qty > 0) {
+                // Allow empty discounted price safely
+                const dPriceStr = tr.querySelector('.item-dprice').value;
+                const dPrice = dPriceStr !== '' ? parseFloat(dPriceStr) : 0; 
+                
+                const qty = parseFloat(tr.querySelector('.item-qty').value) || 0;
+                
+                if (name) {
+                    // 🛡️ SECURITY FIX: Block Negative Injection Exploits!
+                    if (uPrice < 0 || dPrice < 0) {
+                        validationError = `SECURITY ALERT: Unit prices for '${name}' cannot be negative!`;
+                        return; // Halt inner loop
+                    }
+                    if (qty <= 0) {
+                        validationError = `Invalid Quantity: Quantity for '${name}' must be greater than zero!`;
+                        return; // Halt inner loop
+                    }
+
+                    const activePrice = dPrice > 0 ? dPrice : uPrice;
+                    const lineTot = Math.round((qty * activePrice) * 100) / 100;
+                    
                     optItems.push({ brand, name, uPrice, dPrice, qty, total: lineTot });
                     optTotal += lineTot;
                 }
@@ -6206,13 +6233,25 @@ window.checkout = async () => {
             if(optItems.length > 0) optionsData.push({ title: optTitle, description: optDesc, items: optItems, total: optTotal });
         });
 
+        if (validationError) return showToast(validationError, "error"); // ⛔ Stop execution if exploited
+
         const extrasData = [];
         document.querySelectorAll('.extra-charge-row').forEach(row => {
             const cap = row.querySelector('.ext-cap').value.trim();
             const type = row.querySelector('.ext-type').value.trim();
             const rate = parseFloat(row.querySelector('.ext-rate').value) || 0;
-            if(type) extrasData.push({ cap, type, rate });
+            
+            if(type) {
+                // 🛡️ SECURITY FIX: Block negative extra charges
+                if (rate < 0) {
+                    validationError = `SECURITY ALERT: Extra charge '${type}' cannot have a negative rate!`;
+                    return;
+                }
+                extrasData.push({ cap, type, rate });
+            }
         });
+
+        if (validationError) return showToast(validationError, "error"); // ⛔ Stop execution if exploited
 
         if(optionsData.length === 0) return showToast("Please add at least one Option block with valid items", "error");
 
@@ -6220,6 +6259,9 @@ window.checkout = async () => {
         const discount = parseFloat(document.getElementById('docDiscount').value) || 0;
         const tax = parseFloat(document.getElementById('docTax').value) || 0;
         const total = parseFloat(document.getElementById('docTotal').textContent.replace(/[^0-9.-]+/g,"")); 
+
+        // 🛡️ FINAL FAILSAFE: Grand Total cannot be negative
+        if (total < 0) return showToast("SECURITY ALERT: Document Grand Total cannot be negative!", "error");
 
         const convertedQuoteId = document.getElementById('convertedFromQuoteId') ? document.getElementById('convertedFromQuoteId').value : null;
 
@@ -8944,49 +8986,77 @@ window.autoFillDocCustomer = (name) => {
         const newOt = Number(document.getElementById('payOT').value);
         const newAdv = Number(document.getElementById('payAdv').value);
         
-        // ENTERPRISE SECURITY: Prevent negative inputs that exploit payroll math formulas
-        if (newOt < 0 || newAdv < 0) {
-            return showToast("OT and Advance values cannot be negative!", "error");
-        }
+        if (newOt < 0 || newAdv < 0) return showToast("OT and Advance values cannot be negative!", "error");
         
-        // ENTERPRISE FIX: Block Time-Travel Advances to strictly protect EOD Cash Drawer Balances!
-        const now = new Date();
-        const localDateStr = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+        const now = window.getSecureTime ? window.getSecureTime() : new Date();
+        const localDateStr = window.getSecureLocalDateStr ? window.getSecureLocalDateStr() : dateVal;
+        
         if (newAdv > 0 && dateVal !== localDateStr) {
             return showToast("Cash Advances MUST be recorded on today's date to accurately balance today's EOD Cash Drawer!", "error");
         }
 
         toggleLoader(true);
         try {
+            const empData = employeesCache.find(e => e.id === empId);
+            const empName = empData ? empData.name : "Unknown Employee";
+
             const logsRef = collection(db, `users/${dbOwnerId}/shops/${currentShopId}/employees/${empId}/logs`);
             const q = query(logsRef, where("date", "==", dateVal));
             const snap = await getDocs(q);
             
+            let advanceDiff = newAdv;
+            let logDocRef = null;
+            const batch = writeBatch(db);
+
             if (!snap.empty) {
                 const existingLog = snap.docs[0].data();
-                // ENTERPRISE FIX: Manager form is the absolute truth. Allow overriding values back to 0 if mistakes were made.
-                const updateData = { 
-                    status: newStatus, 
-                    timestamp: window.getSecureTime().toISOString(),
-                    ot: newOt, // Trust exact input
-                    advance: newAdv // Trust exact input
-                };
+                advanceDiff = newAdv - (Number(existingLog.advance) || 0); // 🛡️ Calculate difference for updates
                 
-                await updateDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/employees/${empId}/logs`, snap.docs[0].id), updateData);
-                showToast("Daily Log Updated Safely");
-            } else {
-                await addDoc(logsRef, {
-                    date: dateVal, status: newStatus, ot: newOt, advance: newAdv, timestamp: window.getSecureTime().toISOString()
+                logDocRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/employees/${empId}/logs`, snap.docs[0].id);
+                batch.update(logDocRef, { 
+                    status: newStatus, timestamp: now.toISOString(), ot: newOt, advance: newAdv 
                 });
-                showToast("Daily Log Saved");
+            } else {
+                logDocRef = doc(logsRef);
+                batch.set(logDocRef, {
+                    date: dateVal, status: newStatus, ot: newOt, advance: newAdv, timestamp: now.toISOString()
+                });
             }
+
+            // 🛡️ ENTERPRISE FIX: Link Cash Advance directly to General Ledger (Cash Flow)
+            if (advanceDiff !== 0) {
+                const expRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`));
+                if (advanceDiff > 0) {
+                    // Cash goes OUT (Expense)
+                    batch.set(expRef, {
+                        description: `Staff Cash Advance: ${empName}`,
+                        amount: advanceDiff, isIncome: false, payMethod: 'Cash', date: now.toISOString(),
+                        isAdvanceEvent: true // 👈 EOD Double-Deduction Guard Flag
+                    });
+                } else {
+                    // Cash comes back IN (Manager corrected a mistake)
+                    batch.set(expRef, {
+                        description: `Advance Correction (Cash returned to Till): ${empName}`,
+                        amount: Math.abs(advanceDiff), isIncome: true, payMethod: 'Cash', date: now.toISOString(),
+                        isAdvanceEvent: true // 👈 EOD Double-Deduction Guard Flag
+                    });
+                }
+            }
+
+            await batch.commit();
+
+            if(window.writeSystemLog) writeSystemLog("EMPLOYEE_LOG_UPDATED", `Manager updated daily log for Emp ID: ${empId}. Status: ${newStatus}, OT: ${newOt} hrs, Advance: Rs.${newAdv} (Diff: ${advanceDiff})`);
             
-            if(window.writeSystemLog) writeSystemLog("EMPLOYEE_LOG_UPDATED", `Manager updated daily log for Emp ID: ${empId}. Status: ${newStatus}, OT: ${newOt} hrs, Advance Paid: Rs.${newAdv}`);
-            
-            // Optional: Clear fields after saving to prevent accidental double entry
             document.getElementById('payOT').value = 0;
             document.getElementById('payAdv').value = 0;
+            closeModal('dailyLogModal');
+            
+            if(document.getElementById('view-expenses').classList.contains('active')) loadExpensesUI();
+            updateDashboard();
+            showToast("Daily Log & Cash Flow Updated Safely", "success");
+
         } catch (e) {
+            console.error("Save Log Error:", e);
             showToast("Error saving log", "error");
         } finally {
             toggleLoader(false);
@@ -9097,8 +9167,16 @@ window.autoFillDocCustomer = (name) => {
             snapRef.forEach(d => {
                 const r = d.data();
                 totalRevenue -= r.amount; 
-                const refundedItemCost = (parseFloat(r.amount) - (parseFloat(r.profitReversal) || 0));
-                totalCOGS = Math.round((totalCOGS - refundedItemCost) * 100) / 100;
+                
+                // 🛡️ ENTERPRISE ACCOUNTING FIX: Damaged Goods Profit Illusion
+                // භාණ්ඩය කසළ බඳුනට දැමුවා නම් (Restock නොකළේ නම්), එහි ගැනුම් මිල කඩේට පාඩුවකි!
+                // එබැවින් Restock කළහොත් පමණක් COGS (විකුණුම් පිරිවැය) ප්‍රතිවර්තනය කරයි.
+                if (r.restock !== false) { 
+                    const refundedItemCost = (parseFloat(r.amount) - (parseFloat(r.profitReversal) || 0));
+                    totalCOGS = Math.round((totalCOGS - refundedItemCost) * 100) / 100;
+                }
+                // r.restock === false අවස්ථාවේදී COGS එක අඩු නොකරන බැවින්, 
+                // එය ස්වභාවිකවම Net Profit එකෙන් අඩු වී ආයතනයේ පාඩුව නිවැරදිව පෙන්වයි!
             });
 
             // Fetch Cash Flow (Expenses & Incomes)
@@ -10370,20 +10448,27 @@ window.setQuickCash = (amount) => {
     // ENTERPRISE CASH FLOW (INCOME & EXPENSE) LOGIC
     // ==========================================
     
-    // 🛡️ ENTERPRISE FIX: Fetch Historical Expenses directly from DB
+    // 🛡️ ENTERPRISE FIX: Fetch Historical Expenses directly from DB (State-Preserved)
     window.fetchHistoricalExpenses = async () => {
         const monthFilter = document.getElementById('expenseMonthFilter').value;
         const tbody = document.querySelector('#expensesTable tbody');
         if(!tbody) return;
 
-        if (!monthFilter) {
-            // No filter? Use default cache
-            return window.loadExpensesUI();
-        }
-
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--primary); font-weight:bold;">Querying Cash Flow... <i class="ri-loader-4-line ri-spin"></i></td></tr>';
-        
+        toggleLoader(true);
         try {
+            if (!monthFilter) {
+                // 🛡️ STATE FIX: User cleared the filter. We MUST refetch the default active cache (latest 100)
+                // මෙය සිදු නොකළහොත් පද්ධතිය හිරවී පරණ දත්ත පෙන්වමින් සිටී.
+                const qExp = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`), orderBy("date", "desc"), limit(100));
+                const snapExp = await getDocs(qExp);
+                expensesCache = [];
+                snapExp.forEach(d => expensesCache.push({id: d.id, ...d.data()}));
+                window.loadExpensesUI();
+                return;
+            }
+
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--primary); font-weight:bold;">Querying Cash Flow... <i class="ri-loader-4-line ri-spin"></i></td></tr>';
+            
             const startIso = new Date(monthFilter + "-01T00:00:00.000Z").toISOString();
             const y = parseInt(monthFilter.split('-')[0]), m = parseInt(monthFilter.split('-')[1]);
             const endIso = new Date(y, m, 0, 23, 59, 59, 999).toISOString();
@@ -10391,18 +10476,19 @@ window.setQuickCash = (amount) => {
             const q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`), where("date", ">=", startIso), where("date", "<=", endIso), orderBy("date", "desc"));
             const snap = await getDocs(q);
             
-            let tempExpCache = [];
-            snap.forEach(d => tempExpCache.push({id: d.id, ...d.data()}));
-
-            // Temporary overwrite cache for UI render
-            const originalCache = [...expensesCache];
-            expensesCache = tempExpCache;
+            // 🛡️ ENTERPRISE MEMORY FIX: Do not swap caches temporarily!
+            // Global Cache එක සම්පූර්ණයෙන්ම ඓතිහාසික (Historical) දත්ත වලින් පුරවයි.
+            // මේ නිසා Delete/Edit බොත්තම් එබූ විට කේතයට කිසිදු අපහසුවකින් තොරව අදාළ දත්තය සොයාගත හැක!
+            expensesCache = [];
+            snap.forEach(d => expensesCache.push({id: d.id, ...d.data()}));
+            
             window.loadExpensesUI();
-            expensesCache = originalCache; // Restore original cache
 
         } catch (e) {
             console.error("Expense Fetch Error", e);
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:red;">Failed to fetch historical expenses.</td></tr>';
+            if(tbody) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:red;">Failed to fetch historical expenses.</td></tr>';
+        } finally {
+            toggleLoader(false);
         }
     };
 
@@ -10492,16 +10578,22 @@ window.setQuickCash = (amount) => {
             };
             
             const docRef = await addDoc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`), expData);
-            
             expData.id = docRef.id; 
             
-            // Insert by Date order into Cache
-            expensesCache.unshift(expData);
-            expensesCache.sort((a,b) => new Date(b.date) - new Date(a.date));
-            
             closeModal('expenseModal');
-            
-            loadExpensesUI(); // Update Table
+
+            // 🛡️ ENTERPRISE UI FIX: Prevent injecting new data into historical view
+            const monthFilterEl = document.getElementById('expenseMonthFilter');
+            if (monthFilterEl && monthFilterEl.value !== '') {
+                // පරණ මාසයක් බලමින් සිටියේ නම්, Filter එක අයින් කර අද දවසේ අලුත්ම ලැයිස්තුවට ඔහුව ගෙන එයි.
+                monthFilterEl.value = '';
+                await window.fetchHistoricalExpenses(); 
+            } else {
+                // Filter එකක් නැතිනම් සාමාන්‍ය පරිදි උඩටම එකතු කරයි
+                expensesCache.unshift(expData);
+                expensesCache.sort((a,b) => new Date(b.date) - new Date(a.date));
+                loadExpensesUI(); 
+            }
             updateDashboard(); // Update Profit Metrics instantly!
             
             if(window.writeSystemLog) writeSystemLog("CASH_FLOW", `Manual ${isIncome ? 'Income' : 'Expense'} Added: ${formatMoney(amount)} (${desc})`);
@@ -10519,10 +10611,17 @@ window.setQuickCash = (amount) => {
     window.deleteExpense = async (id) => {
         const exp = expensesCache.find(e => e.id === id);
         
-        // ENTERPRISE SECURITY: Block deletion of automated system records (Like Debt Settlements)
-        if(exp && exp.description && exp.description.toLowerCase().includes('debt settled')) {
-            if(window.writeSystemLog) writeSystemLog("FRAUD_ATTEMPT_DETECTED", `CRITICAL: User attempted to manually DELETE an automated Debt Settlement record! (Amount: ${formatMoney(exp.amount)})`);
-            return showToast("Security Alert: Cannot delete automated System records!", "error");
+        // 🛡️ ENTERPRISE FAILSAFE: Prevent Application Crash
+        if (!exp) return showToast("Error: Record not found in active memory! Please refresh the page.", "error");
+
+        // 🛡️ ENTERPRISE SECURITY: Block deletion of ALL Automated System Records!
+        // (Debt Settlements, Salary Payouts, Staff Advances, Write-offs, and Cheque Clearances)
+        const isSystemGen = exp.isAdvanceEvent || exp.isPayroll || exp.isLiability || 
+                           (exp.description && exp.description.toLowerCase().match(/(debt settled|cheque cleared|write-off loss|advance correction)/));
+
+        if(isSystemGen) {
+            if(window.writeSystemLog) writeSystemLog("FRAUD_ATTEMPT_DETECTED", `CRITICAL: User attempted to manually DELETE an automated System Ledger record! (Amount: ${formatMoney(exp.amount)})`);
+            return showToast("Security Alert: This is an auto-generated system record. You cannot delete it manually!", "error");
         }
         
         if(!confirm(`Are you sure you want to delete this ${exp.isIncome ? 'Income' : 'Expense'} record?`)) return;
@@ -11150,6 +11249,12 @@ window.setQuickCash = (amount) => {
         const snapExp = await getDocs(qExp);
         snapExp.forEach(docSnap => {
             const e = docSnap.data();
+            
+            // 🛡️ ENTERPRISE EOD FIX: Prevent Double-Deduction!
+            // Advances are already calculated separately via HR logs (staffAdvances variable). 
+            // So we strictly skip them here to keep the Cash Drawer math perfect!
+            if (e.isAdvanceEvent) return;
+
             if(e.isIncome) {
                 if(!e.payMethod || e.payMethod === 'Cash') debtCollections += e.amount;
                 else otherSales += e.amount;
@@ -11267,11 +11372,42 @@ window.setQuickCash = (amount) => {
                 if (!logSnap.empty) {
                     const lastLog = logSnap.docs[0];
                     const lData = lastLog.data();
-                    // If the last log has a Clock-In but NO Clock-Out, then they must be clocking out now!
+                    
                     if (lData.clockInTime && !lData.clockOutTime) {
-                        isClockingOut = true;
-                        targetLogDoc = lastLog;
-                        targetLogData = lData;
+                        // 🛡️ ENTERPRISE HR FIX: Prevent "Time-Travel Clock Out" & State Desync
+                        const inTimeMs = new Date(lData.clockInTime).getTime();
+                        const nowMs = now.getTime();
+                        const hrsSinceIn = (nowMs - inTimeMs) / (1000 * 60 * 60);
+
+                        if (hrsSinceIn > 16) {
+                            // 🛡️ ENTERPRISE HR FIX: "ZERO-TRUST" PENALTY ENGINE (Anti-Time Theft)
+                            // වංචාව වැළැක්වීම: Clock-out කර නැතිනම් අනුමාන කර පඩිය දීම සම්පූර්ණයෙන්ම නතර කර ඇත!
+                            // සේවකයාට එදිනට හිමිවන පැය ගණන බිංදුවක් (0) වේ. Manager විසින් Manual Override කළ යුතුමය.
+                            
+                            await updateDoc(lastLog.ref, {
+                                clockOutTime: new Date(inTimeMs + 60000).toISOString(), // ආපු වෙලාවෙම ගියා සේ සලකා විනාඩියකින් වසා දමයි
+                                workedHours: 0, // 👈 THE PENALTY (0 Hours!)
+                                ot: 0,
+                                systemNote: '⚠️ PENALTY: 0 Hours (Missed Out-Punch). Manager approval required!'
+                            });
+                            
+                            if(window.writeSystemLog) writeSystemLog("SYSTEM_PENALTY", `Zero hours assigned to ${foundEmpName} for missing clock-out on ${lData.date}.`);
+                            
+                            // 🚀 අද දවස සඳහා අලුත් Clock-In එකක් දැමීමට isClockingOut = false කරයි!
+                            isClockingOut = false; 
+                            
+                            // 🔴 Cashier/Employee ට රතු පාටින් අනතුරු ඇඟවීමක් පෙන්වීම
+                            showToast("🚨 ඊයේ දින පිටවීමේ සටහන (Clock-Out) නොමැති බැවින් ඊයේ දවසේ පඩිය අත්හිටුවා ඇත. කරුණාකර කළමනාකරු හමුවන්න!", "error");
+                        } else {
+                            
+                            // Cashier ට ලස්සන පණිවිඩයක් පෙන්වීම
+                            showToast("⚠️ We noticed you forgot to Clock-Out your last shift. It was auto-closed based on the Roster.", "warning");
+                        } else {
+                            // පැය 16 ට අඩුයි නම්, එය සාමාන්‍ය පරිදි එදිනට අදාළ Clock-Out වීමකි
+                            isClockingOut = true;
+                            targetLogDoc = lastLog;
+                            targetLogData = lData;
+                        }
                     }
                 }
 
@@ -11401,71 +11537,93 @@ window.setQuickCash = (amount) => {
         }
     };
 // ==========================================
-    // AUTO PURCHASE ORDER (PO) GENERATOR
+    // 🛡️ ENTERPRISE AUTO PURCHASE ORDER (PO) ENGINE
     // ==========================================
-    // ENTERPRISE FIX: Make Auto-PO Async to bypass 150-limit cache and scan the ENTIRE database!
     window.generateAutoPO = async () => {
+        if(!confirm("Generate Auto Purchase Order?\n\nThis will find items with low stock (< 5) and create a PDF.\n\nItems that were ALREADY ordered recently will be skipped to prevent double-ordering!")) return;
+
         toggleLoader(true);
         try {
+            // 1. Fetch ALL Base Products to catch 0 stock items correctly
+            const qBase = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/base_products`));
+            const snapBase = await getDocs(qBase);
+            const baseProducts = [];
+            snapBase.forEach(d => baseProducts.push({ id: d.id, ...d.data() }));
+
+            // 2. Fetch Active Stock to calculate current quantities
+            const qStock = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`), where("qty", ">", 0));
+            const snapStock = await getDocs(qStock);
             const stockMap = {};
-            // 🛡️ ENTERPRISE FIX: Stop Full DB Scan! Fetch ONLY active items (qty > 0) to prevent massive billing spikes.
-            const q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`), where("qty", ">", 0), limit(1500));
-            const snap = await getDocs(q);
-            
-            snap.forEach(d => {
+            snapStock.forEach(d => {
                 const p = d.data();
-                if(p.qty >= 0) {
-                    const key = p.sku || p.name;
-                    if(!stockMap[key]) stockMap[key] = { ...p, totalQty: 0 };
-                    stockMap[key].totalQty += p.qty;
+                const key = p.sku || p.name;
+                stockMap[key] = (stockMap[key] || 0) + p.qty;
+            });
+
+            const lowStockItems = [];
+            const baseProductsToUpdate = [];
+
+            // 3. Filter Logic (The Double-Order Prevention Engine & 0-Stock Catch)
+            baseProducts.forEach(bp => {
+                const key = bp.sku || bp.name;
+                const currentQty = stockMap[key] || 0; // 0 (Out of Stock) අයිතමද මෙහිදී නිවැරදිව හසුවේ!
+
+                // 🛡️ ENTERPRISE FIX: Check if stock is low AND not already pending an order
+                if (currentQty < 5 && bp.poPending !== true) {
+                    lowStockItems.push({
+                        id: bp.id,
+                        sku: bp.sku || '-',
+                        name: bp.name,
+                        currentQty: currentQty,
+                        reqQty: currentQty === 0 ? 20 : 10 // Smart reorder recommendation
+                    });
+                    baseProductsToUpdate.push(bp.id); // Add to lock list
                 }
             });
-            
-            // ENTERPRISE BUG FIX: 0 (Out of stock) වී ඇති භාණ්ඩ ද Purchase Order එකට ඇතුළත් කිරීම
-            const lowStockItems = Object.values(stockMap).filter(p => p.totalQty < 5);
-        
-        if(lowStockItems.length === 0) {
-            return showToast("No low stock items found to order!", "info");
-        }
 
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF();
-        const shop = profileCache || {};
-        
-        doc.setFontSize(20);
-        doc.setTextColor(0, 0, 150);
-        doc.text("PURCHASE ORDER (PO)", 14, 20);
-        
-        doc.setFontSize(10);
-        doc.setTextColor(0);
-        doc.text(`From: ${(shop.bizName || "Our Shop")}`, 14, 30);
-        doc.text(`Contact: ${(shop.phone1 || "")}`, 14, 35);
-        doc.text(`Date: ${new Date().toLocaleDateString()}`, 150, 30);
-        
-        doc.text("Please supply the following low-stock items at your earliest convenience:", 14, 45);
+            if(lowStockItems.length === 0) {
+                toggleLoader(false);
+                return showToast("No new items to order! (Low stock items might already be in a 'Pending' PO).", "warning");
+            }
 
-        const tableData = lowStockItems.map(p =>[
-            p.sku || '-',
-            p.name,
-            p.totalQty, // Current Stock (Aggregated properly)
-            "10"   // Recommended Order Qty (Default 10, supplier/user can adjust)
-        ]);
+            // 4. Generate PDF
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            const shop = profileCache || {};
 
-        doc.autoTable({
-            startY: 50,
-            head: [['SKU / Barcode', 'Product Name', 'Current Stock', 'Req. Order Qty']],
-            body: tableData,
-            theme: 'grid',
-            headStyles: { fillColor:[79, 70, 229] }
-        });
+            doc.setFontSize(20); doc.setTextColor(0, 0, 150); doc.text("PURCHASE ORDER (PO)", 14, 20);
+            doc.setFontSize(10); doc.setTextColor(0);
+            doc.text(`From: ${(shop.bizName || "Our Shop")}`, 14, 30);
+            doc.text(`Contact: ${(shop.phone1 || "")}`, 14, 35);
+            doc.text(`Date: ${window.getSecureTime().toLocaleDateString()}`, 150, 30);
 
-        const finalY = doc.lastAutoTable.finalY + 20;
-        doc.text("Authorized Signature: ....................................", 14, finalY);
+            doc.text("Please supply the following low-stock items at your earliest convenience:", 14, 45);
 
-        doc.save(`Purchase_Order_${new Date().getTime()}.pdf`);
-        if(window.writeSystemLog) writeSystemLog("AUTO_PO_GENERATED", `Generated automated Purchase Order PDF for low stock items.`);
-        showToast("Purchase Order PDF Generated Successfully!", "success");
-        
+            const tableData = lowStockItems.map(p => [ p.sku, p.name, p.currentQty, p.reqQty ]);
+
+            doc.autoTable({
+                startY: 50,
+                head: [['SKU / Barcode', 'Product Name', 'Current Stock', 'Req. Order Qty']],
+                body: tableData, theme: 'grid', headStyles: { fillColor:[79, 70, 229] }
+            });
+
+            doc.text("Authorized Signature: ....................................", 14, doc.lastAutoTable.finalY + 20);
+            doc.save(`Purchase_Order_${new Date().getTime()}.pdf`);
+
+            // 5. Update DB: Mark as Pending using Batch Chunking (Protects Firebase 500 Limit)
+            const CHUNK_SIZE = 450;
+            for (let i = 0; i < baseProductsToUpdate.length; i += CHUNK_SIZE) {
+                const chunk = baseProductsToUpdate.slice(i, i + CHUNK_SIZE);
+                const batch = writeBatch(db);
+                chunk.forEach(id => {
+                    batch.update(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/base_products`, id), { poPending: true });
+                });
+                await batch.commit();
+            }
+
+            if(window.writeSystemLog) writeSystemLog("AUTO_PO_GENERATED", `Generated PO for ${lowStockItems.length} items. Marked as pending.`);
+            showToast("Purchase Order Generated & Items Marked as Ordered!", "success");
+
         } catch (error) {
             console.error(error);
             showToast("Error generating Auto PO", "error");
