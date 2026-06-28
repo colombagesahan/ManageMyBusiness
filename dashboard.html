@@ -260,7 +260,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         <a class="nav-item" onclick="loadView('services')"><i class="ri-service-line"></i> Services</a>
 
         <div class="nav-group">HR & Admin</div>
-        <a class="nav-item" onclick="loadView('cashiers')"><i class="ri-user-settings-line"></i> Cashier Access</a>
+        <a class="nav-item" onclick="loadView('cashiers')"><i class="ri-user-settings-line"></i> System Officers Access</a>
         <a class="nav-item" onclick="loadView('employees')"><i class="ri-team-line"></i> Employees</a>
         <!-- NEW: SYSTEM LOGS -->
         <a class="nav-item" onclick="loadView('syslogs')" id="navSysLogs"><i class="ri-history-line"></i> Activity Logs</a>
@@ -1783,30 +1783,59 @@ body.pos-fullscreen-mode #view-pos > div > .card {
     </div>
 </div>
 
-<!-- Create Cashier Auth Modal -->
-<div id="cashierModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:2000;">
-    <div class="card" style="width:400px; margin:0;">
-        <h3 id="cashModalTitle">Create Cashier Account</h3>
-        <input type="hidden" id="cashUid">
-        
-        <input id="cashEmail" type="email" placeholder="Cashier Email (e.g. branch1@myshop.com)">
-        
-        <div id="cashPassWrapper">
-            <input id="cashPass" type="text" placeholder="Login Password (Min 6 characters)">
-            <div style="font-size:11px; color:#666; margin-top:-5px; margin-bottom:10px;">Note: Passwords cannot be changed here once created.</div>
+<!-- Create System Officer Auth Modal -->
+<div id="cashierModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.6); display:none; align-items:center; justify-content:center; z-index:2000; backdrop-filter: blur(2px);">
+    <div class="card" style="width:500px; margin:0; max-height:90vh; display:flex; flex-direction:column;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:10px; border-bottom:1px solid #eee; padding-bottom:10px;">
+            <h3 id="cashModalTitle" style="margin:0; color:var(--primary);">Create System Officer</h3>
+            <i class="ri-close-line" style="cursor:pointer; font-size:24px;" onclick="closeModal('cashierModal')"></i>
         </div>
         
-        <!-- 🛡️ දෝෂය 3 විසඳුම: Password Reset Button (Edit කිරීමේදී පමණක් පෙන්වයි) -->
-        <div id="cashResetWrapper" style="display:none; background:#eff6ff; padding:10px; border-radius:8px; border:1px solid #bfdbfe; margin-bottom:10px;">
-            <div style="font-size:11px; color:#1e40af; font-weight:bold; margin-bottom:5px;">Password Recovery:</div>
-            <button class="btn btn-info" style="width:100%; font-size:12px; padding:6px;" onclick="sendCashierResetLink()"><i class="ri-mail-send-line"></i> Send Password Reset Email</button>
+        <div style="overflow-y:auto; padding-right:5px; flex:1;">
+            <input type="hidden" id="cashUid">
+            <label style="font-size:12px; font-weight:bold;">Officer Login Email *</label>
+            <input id="cashEmail" type="email" placeholder="e.g. nimal@nawarathnacool.com">
+            
+            <div id="cashPassWrapper">
+                <label style="font-size:12px; font-weight:bold;">Login Password *</label>
+                <input id="cashPass" type="text" placeholder="Min 6 characters">
+                <div style="font-size:10px; color:#ef4444; margin-top:-5px; margin-bottom:10px;">Passwords cannot be viewed later.</div>
+            </div>
+            
+            <div id="cashResetWrapper" style="display:none; background:#eff6ff; padding:10px; border-radius:8px; border:1px solid #bfdbfe; margin-bottom:10px;">
+                <div style="font-size:11px; color:#1e40af; font-weight:bold; margin-bottom:5px;">Password Recovery:</div>
+                <button class="btn btn-info" style="width:100%; font-size:12px; padding:6px;" onclick="sendCashierResetLink()"><i class="ri-mail-send-line"></i> Send Password Reset Email</button>
+            </div>
+
+            <label style="font-size:12px; font-weight:bold;">Assign to Branch *</label>
+            <select id="cashShopSelect" style="border-color:var(--primary); font-weight:bold;"></select>
+            
+            <!-- 🛡️ ENTERPRISE FIX: DYNAMIC TAB PERMISSIONS -->
+            <label style="font-size:12px; font-weight:bold; color:var(--primary); margin-top:10px; display:block; border-bottom:1px dashed #ccc; padding-bottom:5px;">Module Access Permissions (Allowed Tabs)</label>
+            <div id="officerPermissions" style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; background:#f8fafc; padding:12px; border-radius:8px; border:1px solid #e2e8f0; margin-top:10px; font-size:12px; font-weight:600; color:#334155;">
+                <label><input type="checkbox" value="dashboard" class="perm-chk"> Dashboard</label>
+                <label><input type="checkbox" value="pos" class="perm-chk" checked> Smart POS</label>
+                <label><input type="checkbox" value="orders" class="perm-chk" checked> Sales History</label>
+                <label><input type="checkbox" value="refunds" class="perm-chk" checked> Refunds</label>
+                <label><input type="checkbox" value="crm" class="perm-chk"> Service CRM</label>
+                <label><input type="checkbox" value="debt" class="perm-chk"> Debt Collection</label>
+                <label><input type="checkbox" value="cheques" class="perm-chk"> Cheque Registry</label>
+                <label><input type="checkbox" value="expenses" class="perm-chk"> Cash Flow</label>
+                <label><input type="checkbox" value="eod" class="perm-chk"> EOD Report</label>
+                <label><input type="checkbox" value="documents" class="perm-chk"> Invoices/Quotes</label>
+                <label><input type="checkbox" value="catalog" class="perm-chk"> Base Products</label>
+                <label><input type="checkbox" value="products" class="perm-chk"> Add Stock</label>
+                <label><input type="checkbox" value="transfers" class="perm-chk"> Stock Transfers</label>
+                <label><input type="checkbox" value="stocktake" class="perm-chk"> Audit (Stock Take)</label>
+                <label><input type="checkbox" value="services" class="perm-chk"> Services Setup</label>
+                <label><input type="checkbox" value="suppliers" class="perm-chk"> Suppliers / PO</label>
+                <label><input type="checkbox" value="customers" class="perm-chk"> Customers</label>
+                <label><input type="checkbox" value="alerts" class="perm-chk"> Reminders/Alerts</label>
+            </div>
         </div>
 
-        <label style="font-size:12px; margin-top:10px;">Assign to Branch *</label>
-        <select id="cashShopSelect"></select>
-        
-        <div style="display:flex; gap:10px; margin-top:15px;">
-            <button class="btn btn-primary" onclick="saveCashier()">Save Account</button>
+        <div style="display:flex; gap:10px; margin-top:15px; padding-top:15px; border-top:1px solid #eee;">
+            <button class="btn btn-primary" style="flex:1;" onclick="saveCashier()">Save Officer</button>
             <button class="btn btn-ghost" onclick="closeModal('cashierModal')">Cancel</button>
         </div>
     </div>
@@ -1916,6 +1945,48 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                 <button type="button" class="btn btn-primary" onclick="if(window.saveEmployee) window.saveEmployee(); else alert('System Error: Function not loaded. Please refresh.');">Save Employee</button>
                 <button type="button" class="btn btn-ghost" onclick="document.getElementById('empModal').style.display='none'">Cancel</button>
             </div>
+    </div>
+</div>
+
+<!-- 🚀 NEW: EMPLOYEE TASKS MODAL -->
+<div id="empTasksModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.6); display:none; align-items:center; justify-content:center; z-index:4500; backdrop-filter:blur(3px);">
+    <div class="card" style="width:500px; margin:0; border-top:5px solid var(--success); max-height:85vh; display:flex; flex-direction:column;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:15px; border-bottom:1px solid #eee; padding-bottom:10px;">
+            <h3 style="color:var(--success); margin:0;"><i class="ri-list-check-2"></i> Assign Duty</h3>
+            <i class="ri-close-line" style="cursor:pointer; font-size:24px;" onclick="closeModal('empTasksModal')"></i>
+        </div>
+        <div id="etEmpName" style="font-weight:bold; color:var(--primary); margin-bottom:15px;"></div>
+        
+        <input type="hidden" id="etEmpId">
+        <input type="text" id="etTaskTitle" placeholder="Task Title (e.g. Clean the storage room)" style="font-weight:bold; border-color:var(--success);">
+        <textarea id="etTaskDesc" rows="2" placeholder="Additional Details / Instructions..." style="margin-bottom:10px;"></textarea>
+        <button class="btn btn-success" style="width:100%; justify-content:center; margin-bottom:20px;" onclick="assignTaskToEmployee()">Assign Task</button>
+
+        <h5 style="margin-bottom:10px; color:#64748b;">Active & Recent Tasks</h5>
+        <div id="etTasksList" style="flex:1; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; padding:10px; background:#f8fafc;">
+            <!-- Tasks loaded here -->
+        </div>
+    </div>
+</div>
+
+<!-- 🚀 NEW: EMPLOYEE LIVE CHAT MODAL -->
+<div id="empChatModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.6); display:none; align-items:center; justify-content:center; z-index:4500; backdrop-filter:blur(3px);">
+    <div class="card" style="width:400px; margin:0; border-top:5px solid var(--primary); max-height:85vh; display:flex; flex-direction:column; padding:0;">
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:15px; background:#f1f5f9; border-bottom:1px solid #e2e8f0;">
+            <h3 style="color:var(--primary); margin:0; font-size:16px;"><i class="ri-chat-3-fill"></i> <span id="ecEmpName"></span></h3>
+            <i class="ri-close-line" style="cursor:pointer; font-size:24px;" onclick="closeEmpChat()"></i>
+        </div>
+        
+        <input type="hidden" id="ecEmpId">
+        
+        <div id="ecChatHistory" style="flex:1; overflow-y:auto; padding:15px; display:flex; flex-direction:column; gap:10px; background:#fff; min-height:300px;">
+            <div style="text-align:center; color:#999; font-size:11px;">End-to-End Encrypted Intercom</div>
+        </div>
+        
+        <div style="padding:15px; background:#f8fafc; border-top:1px solid #e2e8f0; display:flex; gap:10px;">
+            <input type="text" id="ecChatInput" placeholder="Type a message..." style="margin:0; border-radius:20px;" onkeypress="if(event.key === 'Enter') sendEmpMessage()">
+            <button class="btn btn-primary" style="width:45px; height:45px; border-radius:50%; padding:0; flex-shrink:0;" onclick="sendEmpMessage()"><i class="ri-send-plane-fill"></i></button>
+        </div>
     </div>
 </div>
 
@@ -2716,19 +2787,20 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             if (userDoc.exists() && userDoc.data().role) {
                 const uData = userDoc.data();
                 
-                // ENTERPRISE FIX: Instantly block suspended cashiers (Zombie Logins)
                 if (uData.status === 'suspended') {
                     alert("Security Alert: Your access has been suspended by the Administrator.");
-                    logout();
-                    return;
+                    logout(); return;
                 }
 
                 userRole = uData.role; 
                 if (userRole === 'cashier') {
                     dbOwnerId = uData.ownerId; 
                     assignedShopId = uData.allowedShop; 
+                    // 🛡️ ENTERPRISE FIX: Load dynamic permissions into Global Memory
+                    // පරණ ගිණුමක් නම් (Permissions නැති) Default ලෙස POS දෙනවා
+                    window.currentUserTabs = uData.allowedTabs || ['pos', 'orders', 'refunds']; 
                 } else {
-                    dbOwnerId = user.uid; // Admin නම් ඔහුගේම දත්ත ගනී
+                    dbOwnerId = user.uid; 
                 }
             } else {
                 // ENTERPRISE SECURITY FIX: Prevent broken Cashier accounts from escalating to Admin rights!
@@ -3490,9 +3562,9 @@ body.pos-fullscreen-mode #view-pos > div > .card {
     });
 
    window.loadView = (viewName) => {
-        // SECURITY FIX: Hard-block cashiers from accessing restricted views even via Console/Inspect Element
-        const restrictedForCashier =['dashboard', 'profile', 'employees', 'payroll', 'documents', 'catalog', 'products', 'transfers', 'cashiers', 'syslogs', 'suppliers', 'expenses'];
-        if (userRole === 'cashier' && restrictedForCashier.includes(viewName)) {
+        // 🛡️ ENTERPRISE SECURITY FIX: Dynamic Hard-Block (Console Hack Prevention)
+        if (userRole === 'cashier' && !window.currentUserTabs.includes(viewName)) {
+            if(window.writeSystemLog) writeSystemLog("SECURITY_BREACH_ATTEMPT", `Officer attempted to access unauthorized Tab: ${viewName}`);
             showToast("Access Denied: You do not have permission to view this page.", "error");
             return;
         }
@@ -4215,7 +4287,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
     window.saveStock = async (keepOpen = false) => {
         // 🛡️ ENTERPRISE SECURITY: Block Developer Console Hacks
         if (userRole !== 'admin') {
-            if(window.writeSystemLog) writeSystemLog("HACK_ATTEMPT", "CRITICAL: Cashier attempted to execute saveStock via Developer Console!");
+            if(window.writeSystemLog) writeSystemLog("HACK_ATTEMPT", "CRITICAL: System Officer attempted to execute saveStock via Developer Console!");
             return showToast("Security Alert: Access Denied!", "error");
         }
         const id = document.getElementById('mpId').value;
@@ -8664,8 +8736,15 @@ window.autoFillDocCustomer = (name) => {
                     </div>
                     <div style="margin-top:auto; padding-top:10px; border-top:1px dashed #e5e7eb; display:flex; flex-wrap:wrap; gap:5px;">
                         <button class="btn btn-warning" onclick="openDailyLogModal('${safeId}', '${safeName}')" style="flex:1; padding:6px; font-size:11px; font-weight:bold;"><i class="ri-money-dollar-circle-line"></i> Advance</button>
-                        <button class="btn btn-info" onclick="openEmployeeHistorySafe('${safeId}', '${safeName}')" title="Records" style="padding:6px; font-size:11px;"><i class="ri-history-line"></i></button>
-                        <button class="btn btn-primary" onclick="printEmployeeIDCard('${safeId}')" title="Print ID" style="padding:6px; font-size:11px;"><i class="ri-profile-line"></i></button>
+                        
+                        <!-- 🛡️ ENTERPRISE FIX: Task and Chat Buttons for Admin -->
+                        <button class="btn btn-success" onclick="openEmpTasksModal('${safeId}', '${safeName}')" title="Assign Duties / Tasks" style="flex:1; padding:6px; font-size:11px;"><i class="ri-list-check-2"></i> Tasks</button>
+                        <button class="btn btn-primary" onclick="openEmpChatModal('${safeId}', '${safeName}')" title="Live Intercom Chat" style="padding:6px; font-size:11px;"><i class="ri-chat-3-line"></i> Chat</button>
+                        
+                        <div style="width:100%; border-bottom:1px solid #f1f5f9; margin:2px 0;"></div>
+                        
+                        <button class="btn btn-info" onclick="openEmployeeHistorySafe('${safeId}', '${safeName}')" title="Records" style="flex:1; padding:6px; font-size:11px;"><i class="ri-history-line"></i> Records</button>
+                        <button class="btn btn-ghost" style="padding:6px; border-color:var(--primary); color:var(--primary);" onclick="printEmployeeIDCard('${safeId}')" title="Print ID"><i class="ri-profile-line"></i></button>
                         <button class="btn btn-ghost" onclick="openEmployeeNoteModalSafe('${safeId}')" title="Notes" style="padding:6px;"><i class="ri-sticky-note-line"></i></button>
                         <button class="btn btn-ghost" onclick="openAlertModal('EMP:${safeId}')" title="Alerts" style="padding:6px;"><i class="ri-alarm-line"></i></button>
                         <button class="btn btn-ghost" onclick="editEmployee('${safeId}')" title="Edit" style="padding:6px;"><i class="ri-edit-line"></i></button>
@@ -8881,7 +8960,7 @@ window.autoFillDocCustomer = (name) => {
     window.saveEmployee = async () => {
         // 🛡️ ENTERPRISE SECURITY: Block Developer Console Hacks
         if (userRole !== 'admin') {
-            if(window.writeSystemLog) writeSystemLog("HACK_ATTEMPT", "CRITICAL: Cashier attempted to execute saveEmployee via Developer Console!");
+            if(window.writeSystemLog) writeSystemLog("HACK_ATTEMPT", "CRITICAL: System Officer attempted to execute saveEmployee via Developer Console!");
             return showToast("Security Alert: Access Denied!", "error");
         }
         if (window.isSavingEmployee) return; // ද්විත්ව ක්ලික් කිරීම් (Double-clicks) වැළැක්වීම
@@ -9692,18 +9771,19 @@ window.clearEntireCart = () => {
     };
 window.applyRoleRestrictions = () => {
         if (userRole === 'cashier') {
-            // ENTERPRISE FIX: Cashier කෙනෙක්ට අදාළ නැති සියලුම අලුත් Tabs Sidebar එකෙන් සම්පූර්ණයෙන්ම සැඟවීම
-            const restrictedNavs =['dashboard', 'profile', 'employees', 'payroll', 'documents', 'catalog', 'products', 'transfers', 'cashiers', 'syslogs', 'suppliers'];
-            
+            // 🛡️ ENTERPRISE FIX: DYNAMIC RBAC (Role-Based Access Control)
+            // Admin දුන්නු ටැබ් ටික විතරක් පෙන්වයි. අනිත් ඔක්කොම සඟවයි.
             document.querySelectorAll('.nav-item').forEach(item => {
                 const action = item.getAttribute('onclick');
                 if (action) {
-                    restrictedNavs.forEach(restricted => {
-                        // Strict check to prevent partial matches (e.g. avoiding matching 'products' inside a potentially similar named safe tab)
-                        if (action.includes(`'${restricted}'`)) {
-                            item.style.display = 'none'; // Hide menu item securely
+                    const match = action.match(/'([^']+)'/); // Extract view name (e.g. 'pos')
+                    if (match && match[1]) {
+                        const view = match[1];
+                        // අයිති නැති ටැබ් එකක් නම් සඟවයි
+                        if (!window.currentUserTabs.includes(view)) {
+                            item.style.display = 'none';
                         }
-                    });
+                    }
                 }
             });
 
@@ -9711,8 +9791,13 @@ window.applyRoleRestrictions = () => {
             const deleteShopBtn = document.querySelector('.header .btn-danger');
             if (deleteShopBtn) deleteShopBtn.style.display = 'none';
 
-            // View එක කෙලින්ම POS එකට මාරු කිරීම
-            loadView('pos'); 
+            // පළමු වරට ලොග් වෙද්දී ඔහුට අයිති පළමු ටැබ් එකට ඔහුව ගෙන යාම
+            if(window.currentUserTabs && window.currentUserTabs.length > 0) {
+                loadView(window.currentUserTabs[0]); 
+            } else {
+                alert("You have no permissions assigned! Contact Admin.");
+                logout();
+            }
         }
     };
 window.setQuickCash = (amount) => {
@@ -9793,45 +9878,65 @@ window.setQuickCash = (amount) => {
         tbody.innerHTML = html;
     };
 
+    // 🛡️ ENTERPRISE FIX: DYNAMIC SYSTEM OFFICER MANAGEMENT
     window.prepareAddCashier = () => {
-        document.getElementById('cashModalTitle').textContent = "Create Cashier Account";
+        document.getElementById('cashModalTitle').textContent = "Create System Officer";
         document.getElementById('cashUid').value = '';
         document.getElementById('cashEmail').value = '';
         document.getElementById('cashEmail').disabled = false;
         document.getElementById('cashPassWrapper').style.display = 'block';
-        document.getElementById('cashResetWrapper').style.display = 'none'; // අලුතින් හදද්දි Reset එපා
+        document.getElementById('cashResetWrapper').style.display = 'none'; 
         document.getElementById('cashPass').value = '';
         
+        // Reset permissions to default (POS, Orders, Refunds)
+        document.querySelectorAll('.perm-chk').forEach(chk => {
+            chk.checked = ['pos', 'orders', 'refunds'].includes(chk.value);
+        });
+
         const sel = document.getElementById('cashShopSelect');
         sel.innerHTML = shopsCache.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
         openModal('cashierModal');
     };
 
-    window.editCashier = (uid, email, shopId) => {
-        document.getElementById('cashModalTitle').textContent = "Edit Assigned Branch";
+    window.editCashier = async (uid, email, shopId) => {
+        document.getElementById('cashModalTitle').textContent = "Edit System Officer";
         document.getElementById('cashUid').value = uid;
         document.getElementById('cashEmail').value = email;
-        document.getElementById('cashEmail').disabled = true; // Email cannot be changed
-        document.getElementById('cashPassWrapper').style.display = 'none'; // Password cannot be edited here
-        document.getElementById('cashResetWrapper').style.display = 'block'; // 🛡️ Password Reset කොටුව පෙන්වීම
+        document.getElementById('cashEmail').disabled = true; 
+        document.getElementById('cashPassWrapper').style.display = 'none'; 
+        document.getElementById('cashResetWrapper').style.display = 'block'; 
         
         const sel = document.getElementById('cashShopSelect');
         sel.innerHTML = shopsCache.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
         sel.value = shopId;
         
+        // 🛡️ Fetch exact permissions from Database
+        toggleLoader(true);
+        try {
+            const docSnap = await getDoc(doc(db, 'users', uid));
+            const allowedTabs = (docSnap.exists() && docSnap.data().allowedTabs) ? docSnap.data().allowedTabs : ['pos', 'orders', 'refunds'];
+            
+            document.querySelectorAll('.perm-chk').forEach(chk => {
+                chk.checked = allowedTabs.includes(chk.value);
+            });
+        } catch(e) { console.error(e); }
+        toggleLoader(false);
+
         openModal('cashierModal');
     };
-// 🛡️ දෝෂය 3 විසඳුම: Password Reset Link යැවීමේ කේතය
+// 🛡️ ENTERPRISE FIX: System Officer Password Reset Link
     window.sendCashierResetLink = async () => {
         const email = document.getElementById('cashEmail').value.trim();
         if(!email) return;
         
-        if(!confirm(`Send password reset email to ${email}?`)) return;
+        // 🛡️ UX FIX: වෘත්තීය නාමය භාවිතා කිරීම
+        if(!confirm(`Send password reset email to System Officer: ${email}?`)) return;
         
         toggleLoader(true);
         try {
             await sendPasswordResetEmail(auth, email);
-            if(window.writeSystemLog) writeSystemLog("CASHIER_PWD_RESET_SENT", `Sent password reset email to Cashier: ${email}`);
+            // 🛡️ AUDIT FIX: Log එකට වැටෙන නම නිවැරදි කිරීම
+            if(window.writeSystemLog) writeSystemLog("OFFICER_PWD_RESET_SENT", `Sent password reset email to System Officer: ${email}`);
             showToast("Password Reset link sent securely to the email!", "success");
         } catch (e) {
             console.error("Password reset error:", e);
@@ -9841,10 +9946,7 @@ window.setQuickCash = (amount) => {
         }
     };
     window.saveCashier = async () => {
-        // 🛡️ දෝෂය 2 විසඳුම: Backend Role Validation (Cashiers ලාට මේ function එක run කිරීම තහනම්!)
-        if (userRole !== 'admin') {
-            return showToast("SECURITY ALERT: You do not have permission to create or edit users!", "error");
-        }
+        if (userRole !== 'admin') return showToast("SECURITY ALERT: Admin Only!", "error");
 
         const uid = document.getElementById('cashUid').value;
         const email = document.getElementById('cashEmail').value.trim();
@@ -9853,51 +9955,51 @@ window.setQuickCash = (amount) => {
 
         if(!shopId) return showToast("Please select a branch", "error");
 
+        // 🛡️ Get Selected Permissions Array
+        const selectedTabs = [];
+        document.querySelectorAll('.perm-chk:checked').forEach(chk => selectedTabs.push(chk.value));
+        if(selectedTabs.length === 0) return showToast("Please select at least one permission!", "error");
+
         toggleLoader(true);
         let secondaryApp = null;
         
         try {
             if (uid) {
-                // EDIT MODE: Update Branch Only
-                await updateDoc(doc(db, 'users', uid), { allowedShop: shopId });
-                if(window.writeSystemLog) writeSystemLog("CASHIER_UPDATED", `Changed assigned branch for Cashier (${email}) to Shop ID: ${shopId}`);
-                showToast("Branch updated successfully!");
+                // UPDATE
+                await updateDoc(doc(db, 'users', uid), { 
+                    allowedShop: shopId,
+                    allowedTabs: selectedTabs // 👈 Save permissions dynamically
+                });
+                if(window.writeSystemLog) writeSystemLog("OFFICER_UPDATED", `Updated Branch/Permissions for Officer (${email})`);
+                showToast("Officer updated successfully!");
             } else {
-                // CREATE MODE: Needs secondary app
+                // CREATE
                 if(!email || pass.length < 6) throw new Error("Valid email and min 6 char password required");
-
-                // ENTERPRISE FIX: Secondary App Memory Leak Prevention!
                 secondaryApp = initializeApp(firebaseConfig, "SecondaryApp_" + Date.now());
                 const secondaryAuth = getAuth(secondaryApp);
-                
                 const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, pass);
                 const newUid = userCredential.user.uid;
 
                 await setDoc(doc(db, 'users', newUid), {
-                    role: 'cashier',
+                    role: 'cashier', // Keeping internal DB role as 'cashier' for backward compatibility
                     ownerId: dbOwnerId,
                     allowedShop: shopId,
                     email: email,
-                    status: 'active', // Set active flag
+                    status: 'active',
+                    allowedTabs: selectedTabs, // 👈 Save permissions dynamically
                     createdAt: window.getSecureTime().toISOString()
                 });
 
                 await signOut(secondaryAuth);
-                if(window.writeSystemLog) writeSystemLog("CASHIER_CREATED", `Created cashier account: ${email}`);
-                showToast("Cashier account created successfully!");
+                if(window.writeSystemLog) writeSystemLog("OFFICER_CREATED", `Created System Officer: ${email}`);
+                showToast("Officer account created successfully!");
             }
-
             closeModal('cashierModal');
             await loadCashiersUI();
-            
         } catch(e) {
-            console.error(e);
-            showToast(e.message || "Error saving cashier", "error");
+            console.error(e); showToast(e.message || "Error saving officer", "error");
         } finally {
-            // CRITICAL FIX: Destroy Secondary App instance to prevent Browser Memory Leaks & Firebase Limits!
-            if (secondaryApp) {
-                await deleteApp(secondaryApp).catch(console.error);
-            }
+            if (secondaryApp) await deleteApp(secondaryApp).catch(console.error);
             toggleLoader(false);
         }
     };
@@ -13854,6 +13956,167 @@ let currentBatchForSerials = null;
         } finally {
             toggleLoader(false);
         }
+    };
+
+// ==========================================
+    // 🛡️ ENTERPRISE: EMPLOYEE TASK & CHAT ENGINE
+    // ==========================================
+
+    let activeEmpChatUnsub = null;
+
+    // --- 1. TASKS ENGINE ---
+    window.openEmpTasksModal = async (empId, empName) => {
+        document.getElementById('etEmpId').value = empId;
+        document.getElementById('etEmpName').textContent = "Assigning to: " + empName;
+        document.getElementById('etTaskTitle').value = '';
+        document.getElementById('etTaskDesc').value = '';
+        
+        openModal('empTasksModal');
+        await loadEmployeeTasks(empId);
+    };
+
+    async function loadEmployeeTasks(empId) {
+        const list = document.getElementById('etTasksList');
+        list.innerHTML = '<div style="text-align:center; color:#999; margin-top:20px;"><i class="ri-loader-4-line ri-spin"></i> Loading tasks...</div>';
+        
+        try {
+            const q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/tasks`), where("assignedTo", "==", empId), orderBy("createdAt", "desc"), limit(20));
+            const snap = await getDocs(q);
+            
+            if(snap.empty) {
+                list.innerHTML = '<div style="text-align:center; color:#999; margin-top:20px;">No tasks assigned yet.</div>';
+                return;
+            }
+
+            let html = '';
+            snap.forEach(d => {
+                const t = d.data();
+                const isDone = t.status === 'done';
+                const badge = isDone 
+                    ? `<span style="background:#dcfce7; color:#15803d; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold;">DONE</span>` 
+                    : `<span style="background:#fee2e2; color:#b91c1c; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold;">PENDING</span>`;
+                
+                // 🛡️ සේවකයා එවන Note එක මෙතැන පෙන්වයි
+                const empNoteHtml = isDone && t.employeeNote 
+                    ? `<div style="margin-top:5px; background:#fffbeb; padding:5px 8px; border-radius:4px; border-left:2px solid #f59e0b; font-size:11px; color:#b45309;"><i class="ri-reply-line"></i> <b>Staff Note:</b> ${t.employeeNote}</div>` 
+                    : '';
+
+                html += `
+                <div style="background:white; border:1px solid #e2e8f0; border-radius:8px; padding:10px; margin-bottom:10px; ${isDone ? 'opacity:0.7;' : ''}">
+                    <div style="display:flex; justify-content:space-between; align-items:start;">
+                        <div style="font-weight:bold; font-size:13px;">${t.title}</div>
+                        ${badge}
+                    </div>
+                    <div style="font-size:11px; color:#64748b; margin-top:3px;">${t.desc || 'No description'}</div>
+                    <div style="font-size:10px; color:var(--primary); margin-top:5px;">Assigned: ${new Date(t.createdAt).toLocaleString()}</div>
+                    ${empNoteHtml}
+                </div>`;
+            });
+            list.innerHTML = html;
+        } catch(e) {
+            console.error("Task load error:", e);
+            list.innerHTML = '<div style="color:red; text-align:center;">Error loading tasks</div>';
+        }
+    }
+
+    window.assignTaskToEmployee = async () => {
+        const empId = document.getElementById('etEmpId').value;
+        const title = document.getElementById('etTaskTitle').value.trim();
+        const desc = document.getElementById('etTaskDesc').value.trim();
+        
+        if(!title) return showToast("Task title is required!", "error");
+        
+        toggleLoader(true);
+        try {
+            await addDoc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/tasks`), {
+                assignedTo: empId,
+                title: title,
+                desc: desc,
+                status: 'pending',
+                createdAt: window.getSecureTime().toISOString()
+            });
+            
+            if(window.writeSystemLog) writeSystemLog("TASK_ASSIGNED", `Assigned task '${title}' to Employee ID: ${empId}`);
+            
+            document.getElementById('etTaskTitle').value = '';
+            document.getElementById('etTaskDesc').value = '';
+            await loadEmployeeTasks(empId);
+            showToast("Task assigned successfully!");
+        } catch(e) {
+            showToast("Error assigning task", "error");
+        } finally {
+            toggleLoader(false);
+        }
+    };
+
+    // --- 2. LIVE CHAT ENGINE ---
+    window.openEmpChatModal = (empId, empName) => {
+        document.getElementById('ecEmpId').value = empId;
+        document.getElementById('ecEmpName').textContent = empName;
+        document.getElementById('ecChatInput').value = '';
+        document.getElementById('ecChatHistory').innerHTML = '<div style="text-align:center; margin-top:20px;"><i class="ri-loader-4-line ri-spin"></i> Connecting...</div>';
+        openModal('empChatModal');
+
+        // Kill previous listener if exists
+        if(activeEmpChatUnsub) activeEmpChatUnsub();
+
+        const chatRef = collection(db, `users/${dbOwnerId}/shops/${currentShopId}/employees/${empId}/messages`);
+        const qChat = query(chatRef, orderBy("timestamp", "asc"), limit(50));
+        
+        activeEmpChatUnsub = onSnapshot(qChat, (snap) => {
+            const history = document.getElementById('ecChatHistory');
+            let html = '<div style="text-align:center; color:#999; font-size:11px; margin-bottom:15px;">Encrypted Live Intercom Connected</div>';
+
+            snap.forEach(d => {
+                const msg = d.data();
+                const timeStr = new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                
+                if(msg.sender === 'manager' || msg.sender === 'admin') {
+                    // Admin Msg (Right Side - Greenish)
+                    html += `
+                    <div style="align-self:flex-end; background:#dcfce7; color:#166534; padding:8px 12px; border-radius:12px; border-bottom-right-radius:2px; font-size:12px; max-width:85%;">
+                        ${msg.text.replace(/</g, "&lt;")}
+                        <div style="font-size:9px; color:#15803d; text-align:right; margin-top:3px;">${timeStr}</div>
+                    </div>`;
+                } else {
+                    // Employee Msg (Left Side - Grey)
+                    html += `
+                    <div style="align-self:flex-start; background:#f1f5f9; color:#334155; padding:8px 12px; border-radius:12px; border-bottom-left-radius:2px; font-size:12px; max-width:85%; border:1px solid #e2e8f0;">
+                        ${msg.text.replace(/</g, "&lt;")}
+                        <div style="font-size:9px; color:#64748b; text-align:left; margin-top:3px;">${timeStr}</div>
+                    </div>`;
+                }
+            });
+
+            history.innerHTML = html;
+            setTimeout(() => { history.scrollTop = history.scrollHeight; }, 100);
+        });
+    };
+
+    window.sendEmpMessage = async () => {
+        const empId = document.getElementById('ecEmpId').value;
+        const input = document.getElementById('ecChatInput');
+        const text = input.value.trim();
+        
+        if(!text) return;
+        input.value = ''; // Instant clear UX
+        
+        try {
+            const chatRef = collection(db, `users/${dbOwnerId}/shops/${currentShopId}/employees/${empId}/messages`);
+            await addDoc(chatRef, {
+                sender: 'manager', // Or admin
+                text: text,
+                timestamp: window.getSecureTime().toISOString()
+            });
+        } catch(e) {
+            console.error(e);
+            showToast("Failed to send message", "error");
+        }
+    };
+
+    window.closeEmpChat = () => {
+        if(activeEmpChatUnsub) { activeEmpChatUnsub(); activeEmpChatUnsub = null; }
+        closeModal('empChatModal');
     };
 </script>
 
