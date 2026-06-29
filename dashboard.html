@@ -287,6 +287,8 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         <a class="nav-item" onclick="loadView('syslogs')" id="navSysLogs"><i class="ri-history-line"></i> Activity Logs</a>
         <a class="nav-item" onclick="loadView('payroll')"><i class="ri-calculator-line"></i> Payroll Processor</a>
         <a class="nav-item" onclick="loadView('customers')"><i class="ri-user-heart-line"></i> Customers</a>
+        <!-- 🛡️ ENTERPRISE FIX: Email Center -->
+        <a class="nav-item" onclick="loadView('emailcenter')"><i class="ri-mail-send-line"></i> Email Center <span class="badge-dot" id="emailBadge"></span></a>
     </div>
     <div style="padding: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
         <div style="font-size: 12px; opacity: 0.7;">Logged in as</div>
@@ -609,6 +611,37 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                 <div style="text-align:right; margin-top:20px; border-top:1px solid #eee; padding-top:20px;">
                     <button class="btn btn-primary" id="btnSaveProfile" onclick="saveProfile()" style="padding:10px 30px;">Save Profile</button>
                 </div>
+            </div>
+        </div>
+
+<!-- 🚀 NEW: ENTERPRISE EMAIL CENTER -->
+        <div id="view-emailcenter" class="view">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                 <h3><i class="ri-mail-send-fill" style="color:var(--primary);"></i> Communication Center</h3>
+                 <button class="btn btn-primary" onclick="openComposeEmail()"><i class="ri-pencil-fill"></i> Compose Email</button>
+            </div>
+            
+            <div style="display:flex; height: calc(100vh - 160px); background: #ffffff; border-radius: 12px; border: 1px solid #e5e7eb; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+                
+                <!-- Left Sidebar: Inbox List -->
+                <div style="width: 320px; border-right: 1px solid #e5e7eb; display: flex; flex-direction: column; background: #fdfdfe;">
+                    <div style="padding: 15px; border-bottom: 1px solid #e5e7eb; display: flex; gap: 10px;">
+                        <button class="btn btn-ghost" style="flex:1; font-size:12px; background:#f1f5f9;" id="tabInbox" onclick="loadEmails('inbox')"><i class="ri-inbox-archive-line"></i> Inbox</button>
+                        <button class="btn btn-ghost" style="flex:1; font-size:12px;" id="tabSent" onclick="loadEmails('sent')"><i class="ri-send-plane-line"></i> Sent</button>
+                    </div>
+                    <div id="emailListContainer" style="flex: 1; overflow-y: auto; padding: 10px;">
+                        <!-- Email list items will load here -->
+                    </div>
+                </div>
+
+                <!-- Right Main Area: Email Reader / Composer -->
+                <div id="emailReaderArea" style="flex: 1; display: flex; flex-direction: column; background: #f8fafc; position: relative;">
+                    <div style="flex:1; display:flex; align-items:center; justify-content:center; color:#9ca3af; flex-direction:column;">
+                        <i class="ri-mail-open-line" style="font-size:60px; color:#e2e8f0; margin-bottom:10px;"></i>
+                        <h3>Select an email to read</h3>
+                    </div>
+                </div>
+
             </div>
         </div>
 
@@ -3693,7 +3726,8 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         if(viewName === 'alerts') renderAlertsTable();
         if(viewName === 'customers') loadCustomers(); 
         if(viewName === 'workspace') loadWorkspaceUI();
-        if(viewName === 'transfers') loadTransfersUI(); 
+        if(viewName === 'transfers') loadTransfersUI();
+        if(viewName === 'emailcenter') loadEmails('inbox'); 
         if(viewName === 'cashiers') loadCashiersUI(); 
         if(viewName === 'services') loadServices();
         if(viewName === 'syslogs') loadSystemLogs(); 
@@ -4698,10 +4732,10 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">Loading history...</td></tr>';
         
         try {
-            // 🛡️ ENTERPRISE FIX: Parallel Composite Querying (Eliminates the Blindspot Bug)
-            // මුළු ආයතන ජාලයේම Transfers ගෙනවිත් ෆිල්ටර් කරනවා වෙනුවට, මේ කඩේට අදාළ Outgoing සහ Incoming පමණක් සෘජුවම DB එකෙන් ඇදීම.
-            const qOut = query(collection(db, `users/${dbOwnerId}/transfers`), where("sourceShopId", "==", currentShopId), orderBy('date', 'desc'), limit(50));
-            const qIn = query(collection(db, `users/${dbOwnerId}/transfers`), where("targetShopId", "==", currentShopId), orderBy('date', 'desc'), limit(50));
+            // 🛡️ ENTERPRISE FIX: RAM-Sorting to bypass Firebase Composite Index Crashes!
+            // 'orderBy' ඉවත් කර සෘජුවම අදාළ ශාඛාවේ Transfers පමණක් ගෙනැවිත් බ්‍රවුසරයේ RAM එක ඇතුළේදී දින පිළිවෙලට සකසයි.
+            const qOut = query(collection(db, `users/${dbOwnerId}/transfers`), where("sourceShopId", "==", currentShopId));
+            const qIn = query(collection(db, `users/${dbOwnerId}/transfers`), where("targetShopId", "==", currentShopId));
 
             // Run both queries concurrently for maximum speed
             const [snapOut, snapIn] = await Promise.all([getDocs(qOut), getDocs(qIn)]);
@@ -4718,8 +4752,9 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             snapOut.forEach(addTransfer);
             snapIn.forEach(addTransfer);
 
-            // Sort the combined list chronologically (Newest first)
-            transfers.sort((a, b) => new Date(b.date) - new Date(a.date));
+            // 🛡️ ENTERPRISE RAM-SORTING: Sort the combined list chronologically (Newest first)
+            // මේ හරහා Firebase Error එක සම්පූර්ණයෙන්ම මග හැරේ!
+            transfers.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
             // 🛡️ Ensure UI is not overloaded (Slice top 50 relevant strictly to this branch)
             const topTransfers = transfers.slice(0, 50);
@@ -14723,11 +14758,19 @@ let currentBatchForSerials = null;
     let hasMoreLogs = true;
 
     window.loadSystemLogs = async (isLoadMore = false) => {
-        const tbody = document.getElementById('sysLogsTbody'); // Corrected ID
+        const tbody = document.getElementById('sysLogsTbody'); 
         const loaderUi = document.getElementById('logsLoadMoreLoader');
         if(!tbody) return;
 
-        const shopFilter = document.getElementById('logShopFilter')?.value || 'ALL';
+        // 🛡️ ENTERPRISE FIX: Restore Branch Filter Population (Lost during pagination update)
+        // මේ කේතය මගින් Dropdown එක හිස් නම්, එයට ඔබගේ සියලුම ශාඛා වල නම් ස්වයංක්‍රීයව පුරවයි.
+        const shopFilterSelect = document.getElementById('logShopFilter');
+        if (shopFilterSelect && shopFilterSelect.options.length === 0) {
+            shopFilterSelect.innerHTML = '<option value="ALL">All Branches</option>';
+            shopsCache.forEach(s => { shopFilterSelect.innerHTML += `<option value="${s.name}">${s.name}</option>`; });
+        }
+
+        const shopFilter = shopFilterSelect?.value || 'ALL';
         const actionFilter = document.getElementById('logActionFilter')?.value || 'ALL';
         const dateFilter = document.getElementById('logDateFilter')?.value;
 
@@ -14938,6 +14981,138 @@ let currentBatchForSerials = null;
         const area = document.getElementById('empScrollArea');
         if (area.scrollTop + area.clientHeight >= area.scrollHeight - 10) {
             if (hasMoreEmps && !isFetchingEmps) loadEmployees(true);
+        }
+    };
+// ==========================================
+    // 🛡️ ENTERPRISE: TWO-WAY EMAIL CENTER ENGINE
+    // ==========================================
+    let currentEmailMode = 'inbox';
+    let unsubEmails = null;
+
+    window.loadEmails = async (mode) => {
+        currentEmailMode = mode;
+        
+        // Tab UI Update
+        document.getElementById('tabInbox').style.background = mode === 'inbox' ? '#e0e7ff' : 'transparent';
+        document.getElementById('tabInbox').style.color = mode === 'inbox' ? 'var(--primary)' : 'inherit';
+        document.getElementById('tabSent').style.background = mode === 'sent' ? '#e0e7ff' : 'transparent';
+        document.getElementById('tabSent').style.color = mode === 'sent' ? 'var(--primary)' : 'inherit';
+
+        const list = document.getElementById('emailListContainer');
+        list.innerHTML = '<div style="text-align:center; padding:20px; color:#999;"><i class="ri-loader-4-line ri-spin"></i> Loading emails...</div>';
+
+        if(unsubEmails) unsubEmails();
+
+        try {
+            // Firestore collections: 'inbox' (Received via Webhook) and 'outbox' (Sent by us)
+            const collectionName = mode === 'inbox' ? 'inbox' : 'outbox';
+            const q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/${collectionName}`), orderBy("timestamp", "desc"), limit(50));
+            
+            unsubEmails = onSnapshot(q, (snap) => {
+                if (snap.empty) {
+                    list.innerHTML = `<div style="text-align:center; padding:20px; color:#64748b; font-size:12px;">No ${mode} emails found.</div>`;
+                    return;
+                }
+
+                let html = '';
+                snap.forEach(d => {
+                    const e = { id: d.id, ...d.data() };
+                    const isUnread = mode === 'inbox' && !e.read;
+                    const dateStr = new Date(e.timestamp).toLocaleDateString();
+                    const targetEmail = mode === 'inbox' ? e.from : e.to;
+                    
+                    html += `
+                    <div style="padding:12px; border-bottom:1px solid #e2e8f0; cursor:pointer; background:${isUnread ? '#fff' : '#f8fafc'}; border-left:3px solid ${isUnread ? 'var(--primary)' : 'transparent'};" onclick='openEmailReader(${JSON.stringify(e).replace(/'/g, "&#39;")})'>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                            <strong style="font-size:13px; color:${isUnread ? '#111827' : '#4b5563'}; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${targetEmail}</strong>
+                            <span style="font-size:10px; color:#94a3b8;">${dateStr}</span>
+                        </div>
+                        <div style="font-size:12px; font-weight:${isUnread ? 'bold' : 'normal'}; color:#334155; margin-bottom:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${e.subject || 'No Subject'}</div>
+                        <div style="font-size:11px; color:#64748b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${e.body ? e.body.replace(/<[^>]*>?/gm, '').substring(0, 40) : ''}...</div>
+                    </div>`;
+                });
+                list.innerHTML = html;
+            });
+        } catch(e) {
+            console.error("Email Load Error:", e);
+            list.innerHTML = '<div style="color:red; text-align:center; padding:20px; font-size:12px;">Connection Error</div>';
+        }
+    };
+
+    window.openEmailReader = async (emailObj) => {
+        const reader = document.getElementById('emailReaderArea');
+        const isInbox = currentEmailMode === 'inbox';
+        
+        // Mark as read in DB if unread
+        if (isInbox && !emailObj.read) {
+            try { await updateDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/inbox`, emailObj.id), { read: true }); } catch(e){}
+        }
+
+        reader.innerHTML = `
+            <div style="padding:20px; background:#fff; border-bottom:1px solid #e2e8f0;">
+                <h2 style="margin-bottom:15px; color:#1f2937;">${emailObj.subject || 'No Subject'}</h2>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <div style="font-size:13px; color:#4b5563;"><b>${isInbox ? 'From:' : 'To:'}</b> ${isInbox ? emailObj.from : emailObj.to}</div>
+                        <div style="font-size:11px; color:#94a3b8; margin-top:3px;">${new Date(emailObj.timestamp).toLocaleString()}</div>
+                    </div>
+                    ${isInbox ? `<button class="btn btn-primary" style="width:auto; padding:6px 15px; font-size:12px;" onclick="openComposeEmail('${emailObj.from}', 'Re: ${emailObj.subject}')"><i class="ri-reply-line"></i> Reply</button>` : ''}
+                </div>
+            </div>
+            <div style="padding:20px; flex:1; overflow-y:auto; font-size:14px; color:#334155; line-height:1.6; background:#fdfdfe; white-space:pre-wrap;">
+                ${emailObj.body}
+            </div>
+        `;
+    };
+
+    window.openComposeEmail = (replyTo = '', replySubject = '') => {
+        const reader = document.getElementById('emailReaderArea');
+        reader.innerHTML = `
+            <div style="padding:20px; background:#fff; border-bottom:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+                <h3 style="margin:0;"><i class="ri-pencil-fill"></i> Compose Email</h3>
+            </div>
+            <div style="padding:20px; flex:1; display:flex; flex-direction:column; gap:15px; background:#f8fafc;">
+                <input type="email" id="composeTo" placeholder="To: (Email Address) *" value="${replyTo}" style="border-color:#cbd5e1; font-weight:bold;">
+                <input type="text" id="composeSubject" placeholder="Subject *" value="${replySubject}" style="border-color:#cbd5e1; font-weight:bold;">
+                <textarea id="composeBody" placeholder="Type your message here..." style="flex:1; border-color:#cbd5e1; resize:none; font-family:sans-serif;"></textarea>
+                
+                <div style="text-align:right;">
+                    <button class="btn btn-success" style="width:150px; display:inline-flex;" onclick="sendSystemEmail()"><i class="ri-send-plane-fill"></i> Send Email</button>
+                </div>
+            </div>
+        `;
+    };
+
+    window.sendSystemEmail = async () => {
+        const to = document.getElementById('composeTo').value.trim();
+        const subject = document.getElementById('composeSubject').value.trim();
+        const body = document.getElementById('composeBody').value.trim();
+
+        if(!to || !subject || !body) return showToast("All fields are required!", "error");
+
+        toggleLoader(true);
+        try {
+            // 🛡️ ENTERPRISE FIX: Write to Outbox. 
+            // Firebase "Trigger Email" extension will automatically pick this up and send it via SendGrid!
+            await addDoc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/outbox`), {
+                to: to,
+                message: {
+                    subject: subject,
+                    text: body,
+                    html: `<div style="font-family:sans-serif;">${body.replace(/\n/g, '<br>')}</div><br><hr><p style="font-size:10px;color:#999;">Sent securely via Nawarathna Cool Engineering ERP</p>`
+                },
+                timestamp: window.getSecureTime().toISOString(),
+                status: 'pending' // Extension will change this to 'success' or 'error'
+            });
+
+            if(window.writeSystemLog) writeSystemLog("EMAIL_SENT", `Sent an email to: ${to} (Subject: ${subject})`);
+            showToast("Email queued for sending!", "success");
+            loadEmails('sent'); // Switch to sent tab
+        } catch(e) {
+            console.error(e);
+            showToast("Failed to queue email", "error");
+        } finally {
+            toggleLoader(false);
         }
     };
 </script>
