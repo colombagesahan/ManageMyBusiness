@@ -270,6 +270,10 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         <a class="nav-item" onclick="loadView('eod')"><i class="ri-file-chart-line"></i> End of Day (EOD)</a> <!-- NEW -->
         <a class="nav-item" onclick="loadView('alerts')"><i class="ri-alarm-line"></i> Alerts <span class="badge-dot" id="alertBadge"></span></a>
         
+        <!-- 🛡️ ENTERPRISE FIX: Fleet Management -->
+        <div class="nav-group">Operations & Fleet</div>
+        <a class="nav-item" onclick="loadView('fleet')"><i class="ri-car-line"></i> Fleet Management</a>
+
         <div class="nav-group">Inventory</div>
         <a class="nav-item" onclick="loadView('suppliers')"><i class="ri-truck-fill"></i> Suppliers</a> <!-- NEW -->
         <a class="nav-item" onclick="loadView('catalog')"><i class="ri-archive-line"></i> Add Products</a>
@@ -642,6 +646,128 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                     </div>
                 </div>
 
+            </div>
+        </div>
+
+<!-- 🚀 NEW: ENTERPRISE FLEET MANAGEMENT TAB -->
+        <div id="view-fleet" class="view">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
+                 <h3><i class="ri-car-fill" style="color:var(--primary);"></i> වාහන සහ ගමන් කළමනාකරණය (Fleet)</h3>
+                 <div style="display:flex; gap:10px;">
+                     <button class="btn btn-warning" onclick="openFleetExpenseModal()"><i class="ri-gas-station-fill"></i> ඉන්ධන / නඩත්තු</button>
+                     <button class="btn btn-primary" onclick="openAddVehicleModal()">+ අලුත් වාහනයක්</button>
+                 </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; align-items:start;">
+                <!-- Left: Vehicle Registry & Status -->
+                <div class="card" style="margin:0; border-top: 4px solid var(--primary);">
+                    <h4 style="margin-bottom:15px;"><i class="ri-steering-2-line"></i> ව්‍යාපාරයේ වාහන (Vehicles)</h4>
+                    <div id="vehiclesGrid" style="display:flex; flex-direction:column; gap:10px; max-height:400px; overflow-y:auto; padding-right:5px;">
+                        <div style="text-align:center; color:#999; padding:20px;">Loading Vehicles...</div>
+                    </div>
+                </div>
+
+                <!-- Right: Active Trips & Dispatcher -->
+                <div class="card" style="margin:0; border-top: 4px solid var(--warning);">
+                    <h4 style="margin-bottom:15px;"><i class="ri-route-line"></i> සක්‍රීය ගමන් (Active Trips)</h4>
+                    <button class="btn btn-success" style="width:100%; margin-bottom:15px; font-size:15px;" onclick="openDispatchModal()"><i class="ri-send-plane-fill"></i> ගමනක් පිටත් කිරීම (Dispatch)</button>
+                    
+                    <div id="activeTripsList" style="display:flex; flex-direction:column; gap:10px; max-height:350px; overflow-y:auto; padding-right:5px;">
+                        <div style="text-align:center; color:#999; padding:20px;">No active trips right now.</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Bottom: Trip & Expense History -->
+            <div class="card" style="margin-top:20px; overflow-x:auto;">
+                <h4 style="margin-bottom:15px;"><i class="ri-history-line"></i> ගමන් සහ නඩත්තු ඉතිහාසය (History)</h4>
+                <table id="fleetHistoryTable">
+                    <thead style="background:#f9fafb;"><tr><th>Date & Time</th><th>Vehicle</th><th>Driver</th><th>Type / Route</th><th>KM / Liters</th><th>Cost / Status</th></tr></thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 🚀 FLEET MODALS -->
+        <!-- 1. Add Vehicle Modal -->
+        <div id="fleetVehicleModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.6); display:none; align-items:center; justify-content:center; z-index:5000; backdrop-filter:blur(3px);">
+            <div class="card" style="width:400px; margin:0;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:15px;"><h3>වාහනයක් ඇතුළත් කිරීම</h3><i class="ri-close-line" style="cursor:pointer; font-size:24px;" onclick="closeModal('fleetVehicleModal')"></i></div>
+                <input type="hidden" id="fVehId">
+                <input id="fVehPlate" placeholder="වාහන අංකය (උදා: WP CAB-1234)" style="text-transform:uppercase; font-weight:bold;">
+                <select id="fVehType" style="margin-bottom:10px;">
+                    <option value="Lorry">ලොරි (Lorry)</option><option value="Van">වෑන් (Van)</option><option value="Car">කාර් (Car)</option><option value="Bike">යතුරුපැදි (Bike)</option><option value="Three-Wheeler">ත්‍රිරෝද රථ (Three-Wheeler)</option>
+                </select>
+                <div style="display:flex; gap:10px; align-items:center; margin-bottom:15px;">
+                    <input id="fVehEfficiency" type="number" placeholder="10" style="width:80px; margin:0; font-weight:bold; text-align:center;">
+                    <span style="font-size:12px; color:#666;">සාමාන්‍යයෙන් ලීටරයකට වැඩ කරන කිලෝමීටර ගණන (KM/L)</span>
+                </div>
+                <button class="btn btn-primary" onclick="saveFleetVehicle()">Save Vehicle</button>
+            </div>
+        </div>
+
+        <!-- 2. Dispatch Trip Modal -->
+        <div id="fleetDispatchModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.6); display:none; align-items:center; justify-content:center; z-index:5000; backdrop-filter:blur(3px);">
+            <div class="card" style="width:450px; margin:0; border-top:5px solid var(--success);">
+                <div style="display:flex; justify-content:space-between; margin-bottom:15px;"><h3 style="color:var(--success);">වාහනය පිටත් කිරීම</h3><i class="ri-close-line" style="cursor:pointer; font-size:24px;" onclick="closeModal('fleetDispatchModal')"></i></div>
+                
+                <label style="font-size:12px; font-weight:bold;">වාහනය තෝරන්න *</label>
+                <select id="fdVehicle" style="margin-bottom:10px;"></select>
+                
+                <label style="font-size:12px; font-weight:bold;">රියදුරු (සේවකයා) *</label>
+                <select id="fdDriver" style="margin-bottom:10px;"></select>
+                
+                <label style="font-size:12px; font-weight:bold;">ගමනාන්තය සහ අරමුණ *</label>
+                <input id="fdDestination" placeholder="උදා: මහරගම - AC සවි කිරීමට">
+                
+                <button class="btn btn-success" onclick="startFleetTrip()">Dispatch Now</button>
+            </div>
+        </div>
+
+        <!-- 3. Return Trip Modal (Calculate KM/Fuel) -->
+        <div id="fleetReturnModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.6); display:none; align-items:center; justify-content:center; z-index:5000; backdrop-filter:blur(3px);">
+            <div class="card" style="width:450px; margin:0; border-top:5px solid var(--warning);">
+                <h3 style="color:var(--warning); margin-bottom:15px;">ගමන අවසන් කිරීම (Return)</h3>
+                <input type="hidden" id="frTripId">
+                <input type="hidden" id="frVehId">
+                <input type="hidden" id="frEfficiency">
+                
+                <div style="background:#fefce8; padding:10px; border-radius:8px; border:1px solid #fef08a; margin-bottom:15px;">
+                    <div id="frTripInfo" style="font-size:13px; font-weight:bold; color:#854d0e;"></div>
+                    <button class="btn btn-ghost" style="margin-top:10px; font-size:11px; padding:4px 8px; border-color:#ca8a04; color:#ca8a04;" onclick="openTripMap()"><i class="ri-map-pin-line"></i> Open Google Maps for Route</button>
+                </div>
+
+                <label style="font-size:12px; font-weight:bold;">සම්පූර්ණ ගමන් කළ දුර (KM) *</label>
+                <input id="frDistance" type="number" placeholder="උදා: 45.5" onkeyup="calcFleetFuel()" style="font-size:18px; font-weight:bold;">
+                
+                <div style="display:flex; justify-content:space-between; font-size:13px; color:#4b5563; margin-bottom:15px;">
+                    <span>පිච්චුණු ඉන්ධන ප්‍රමාණය (අනුමාන):</span>
+                    <strong id="frFuelEst" style="color:var(--danger); font-size:16px;">0.00 L</strong>
+                </div>
+
+                <button class="btn btn-warning" onclick="finishFleetTrip()">End Trip & Save Log</button>
+                <button class="btn btn-ghost" style="margin-top:10px;" onclick="closeModal('fleetReturnModal')">Cancel</button>
+            </div>
+        </div>
+
+        <!-- 4. Fleet Expenses Modal -->
+        <div id="fleetExpenseModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.6); display:none; align-items:center; justify-content:center; z-index:5000; backdrop-filter:blur(3px);">
+            <div class="card" style="width:400px; margin:0; border-top:5px solid #ef4444;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:15px;"><h3 style="color:#ef4444;">ඉන්ධන / නඩත්තු වියදම්</h3><i class="ri-close-line" style="cursor:pointer; font-size:24px;" onclick="closeModal('fleetExpenseModal')"></i></div>
+                <div class="note-box" style="margin-top:0; margin-bottom:15px;">මෙම මුදල ස්වයංක්‍රීයව අද දින කඩේ Cash Flow (Expenses) එකෙන් සහ EOD වාර්තාවෙන් අඩු වේ.</div>
+                
+                <select id="feVehicle" style="margin-bottom:10px;"></select>
+                <select id="feType" style="margin-bottom:10px; border-color:#fca5a5;">
+                    <option value="Fuel (Diesel)">ඩීසල් (Diesel)</option>
+                    <option value="Fuel (Petrol)">පෙට්‍රල් (Petrol)</option>
+                    <option value="Maintenance">නඩත්තු (Service/Repair)</option>
+                    <option value="Other">වෙනත් (Toll/Parking)</option>
+                </select>
+                <input id="feAmount" type="number" placeholder="වියදම් කළ මුදල (Rs) *" style="font-size:18px; font-weight:bold;">
+                <input id="feDesc" placeholder="විස්තරය (උදා: තෙල් ගැසුවා)">
+                
+                <button class="btn btn-danger" onclick="saveFleetExpense()">Save Fleet Expense</button>
             </div>
         </div>
 
@@ -3736,6 +3862,8 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         // 🛡️ ENTERPRISE FIX: Tab Switch Logic for Cheques
         if(viewName === 'cheques') loadCheques(); 
         if(viewName === 'expenses') loadExpensesUI(); // NEW CASH FLOW TAB LOGIC
+        // 🛡️ ENTERPRISE FIX: Fleet Management
+        if(viewName === 'fleet') loadFleetUI();
         if(viewName === 'eod') {
             document.getElementById('eodDate').value = window.getSecureLocalDateStr();
             generateEOD();
@@ -15115,6 +15243,309 @@ let currentBatchForSerials = null;
             toggleLoader(false);
         }
     };
+// ==========================================
+    // 🛡️ ENTERPRISE FLEET MANAGEMENT ENGINE
+    // ==========================================
+    let vehiclesCache = [];
+    let tripsCache = [];
+
+    window.loadFleetUI = async () => {
+        toggleLoader(true);
+        try {
+            // Load Vehicles
+            const vQ = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/vehicles`));
+            const vSnap = await getDocs(vQ);
+            vehiclesCache = [];
+            vSnap.forEach(d => vehiclesCache.push({ id: d.id, ...d.data() }));
+
+            // Load Active Trips
+            const tQ = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/vehicle_trips`), where("status", "==", "ACTIVE"));
+            const tSnap = await getDocs(tQ);
+            tripsCache = [];
+            tSnap.forEach(d => tripsCache.push({ id: d.id, ...d.data() }));
+
+            renderVehicles();
+            renderActiveTrips();
+            loadFleetHistory(); // Background load history
+        } catch(e) { console.error("Fleet Load Error:", e); }
+        toggleLoader(false);
+    };
+
+    function renderVehicles() {
+        const grid = document.getElementById('vehiclesGrid');
+        if(vehiclesCache.length === 0) {
+            grid.innerHTML = '<div style="text-align:center; padding:15px; color:#666;">No vehicles registered yet.</div>';
+            return;
+        }
+
+        grid.innerHTML = vehiclesCache.map(v => {
+            const isOut = tripsCache.some(t => t.vehicleId === v.id);
+            const statusBadge = isOut 
+                ? `<span style="background:#fee2e2; color:#b91c1c; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold;">ON TRIP (පිටත)</span>`
+                : `<span style="background:#dcfce7; color:#15803d; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold;">AVAILABLE</span>`;
+            
+            return `
+            <div style="border:1px solid #e5e7eb; border-radius:8px; padding:10px; display:flex; justify-content:space-between; align-items:center; background:${isOut ? '#fef2f2' : '#fff'};">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <div style="width:40px; height:40px; border-radius:8px; background:#f1f5f9; color:var(--primary); display:flex; align-items:center; justify-content:center; font-size:20px;"><i class="ri-car-fill"></i></div>
+                    <div>
+                        <div style="font-weight:900; font-size:14px; text-transform:uppercase;">${v.plateNo}</div>
+                        <div style="font-size:11px; color:#666;">Type: ${v.type} | Eff: ${v.efficiency} KM/L</div>
+                    </div>
+                </div>
+                <div>${statusBadge}</div>
+            </div>`;
+        }).join('');
+    }
+
+    function renderActiveTrips() {
+        const list = document.getElementById('activeTripsList');
+        if(tripsCache.length === 0) {
+            list.innerHTML = '<div style="text-align:center; padding:20px; color:#666;">No active trips right now.</div>';
+            return;
+        }
+
+        list.innerHTML = tripsCache.map(t => {
+            return `
+            <div style="border:1px solid #fde68a; border-radius:8px; padding:12px; background:#fffbeb;">
+                <div style="display:flex; justify-content:space-between; align-items:start;">
+                    <div style="font-weight:bold; color:#b45309; font-size:13px;"><i class="ri-map-pin-user-fill"></i> To: ${t.destination}</div>
+                    <span style="font-size:10px; color:#1e40af; font-weight:bold;">${new Date(t.dispatchTime).toLocaleTimeString()}</span>
+                </div>
+                <div style="font-size:12px; color:#6b7280; margin-top:5px; font-weight:600;">Driver: ${t.driverName}</div>
+                <div style="font-size:11px; color:#374151; font-family:monospace; margin-top:2px; font-weight:bold;">Vehicle: ${t.plateNo}</div>
+                <div style="text-align:right; margin-top:10px; border-top:1px dashed #fcd34d; padding-top:10px;">
+                    <button class="btn btn-warning" style="padding:6px 12px; font-size:12px; width:auto; display:inline-flex;" onclick="openReturnModal('${t.id}')">Return (ගමන අවසන්)</button>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    window.openAddVehicleModal = () => {
+        document.getElementById('fVehId').value = '';
+        document.getElementById('fVehPlate').value = '';
+        document.getElementById('fVehEfficiency').value = '';
+        openModal('fleetVehicleModal');
+    };
+
+    window.saveFleetVehicle = async () => {
+        const plate = document.getElementById('fVehPlate').value.trim().toUpperCase();
+        const type = document.getElementById('fVehType').value;
+        const eff = parseFloat(document.getElementById('fVehEfficiency').value) || 10;
+        
+        if(!plate) return showToast("Vehicle Plate Number required", "error");
+
+        toggleLoader(true);
+        try {
+            await addDoc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/vehicles`), {
+                plateNo: plate, type: type, efficiency: eff, createdAt: window.getSecureTime().toISOString()
+            });
+            closeModal('fleetVehicleModal');
+            loadFleetUI();
+            if(window.writeSystemLog) writeSystemLog("VEHICLE_ADDED", `Added vehicle ${plate} (${type})`);
+            showToast("Vehicle Saved!");
+        } catch(e) { showToast("Error saving vehicle", "error"); }
+        toggleLoader(false);
+    };
+
+    window.openDispatchModal = () => {
+        const vehSel = document.getElementById('fdVehicle');
+        vehSel.innerHTML = '<option value="">-- වාහනය තෝරන්න --</option>';
+        vehiclesCache.forEach(v => {
+            // Only show available vehicles
+            if(!tripsCache.some(t => t.vehicleId === v.id)) {
+                vehSel.innerHTML += `<option value="${v.id}" data-plate="${v.plateNo}">${v.plateNo} (${v.type})</option>`;
+            }
+        });
+
+        const drvSel = document.getElementById('fdDriver');
+        drvSel.innerHTML = '<option value="">-- රියදුරු තෝරන්න --</option>';
+        employeesCache.forEach(e => {
+            drvSel.innerHTML += `<option value="${e.id}" data-name="${e.name}">${e.name} (${e.role || 'Staff'})</option>`;
+        });
+
+        document.getElementById('fdDestination').value = '';
+        openModal('fleetDispatchModal');
+    };
+
+    window.startFleetTrip = async () => {
+        const vehSel = document.getElementById('fdVehicle');
+        const drvSel = document.getElementById('fdDriver');
+        const dest = document.getElementById('fdDestination').value.trim();
+
+        if(!vehSel.value || !drvSel.value || !dest) return showToast("All fields are required!", "error");
+
+        const vehPlate = vehSel.options[vehSel.selectedIndex].dataset.plate;
+        const drvName = drvSel.options[drvSel.selectedIndex].dataset.name;
+        
+        toggleLoader(true);
+        try {
+            await addDoc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/vehicle_trips`), {
+                vehicleId: vehSel.value, plateNo: vehPlate,
+                driverId: drvSel.value, driverName: drvName,
+                destination: dest, status: 'ACTIVE',
+                dispatchTime: window.getSecureTime().toISOString()
+            });
+            
+            closeModal('fleetDispatchModal');
+            loadFleetUI();
+            if(window.writeSystemLog) writeSystemLog("FLEET_DISPATCH", `Dispatched ${vehPlate} to ${dest} (Driver: ${drvName})`);
+            showToast("Vehicle Dispatched!");
+        } catch(e) { showToast("Error dispatching", "error"); }
+        toggleLoader(false);
+    };
+
+    window.openReturnModal = (tripId) => {
+        const t = tripsCache.find(x => x.id === tripId);
+        if(!t) return;
+        
+        const v = vehiclesCache.find(x => x.id === t.vehicleId);
+        const eff = v ? v.efficiency : 10;
+
+        document.getElementById('frTripId').value = t.id;
+        document.getElementById('frVehId').value = t.vehicleId;
+        document.getElementById('frEfficiency').value = eff;
+        
+        document.getElementById('frTripInfo').innerHTML = `Vehicle: ${t.plateNo} <br>Driver: ${t.driverName} <br>Destination: ${t.destination}`;
+        document.getElementById('frDistance').value = '';
+        document.getElementById('frFuelEst').textContent = '0.00 L';
+        
+        openModal('fleetReturnModal');
+    };
+
+    window.calcFleetFuel = () => {
+        const km = parseFloat(document.getElementById('frDistance').value) || 0;
+        const eff = parseFloat(document.getElementById('frEfficiency').value) || 10;
+        const fuel = km / eff;
+        document.getElementById('frFuelEst').textContent = fuel.toFixed(2) + " L";
+    };
+
+    window.openTripMap = () => {
+        const t = tripsCache.find(x => x.id === document.getElementById('frTripId').value);
+        if(!t) return;
+        // Open Google Maps Directions securely in a new tab without needing an API Key!
+        const url = `https://www.google.com/maps/dir/?api=1&origin=My+Location&destination=${encodeURIComponent(t.destination)}`;
+        window.open(url, '_blank');
+    };
+
+    window.finishFleetTrip = async () => {
+        const tripId = document.getElementById('frTripId').value;
+        const km = parseFloat(document.getElementById('frDistance').value);
+        const fuel = parseFloat(document.getElementById('frFuelEst').textContent); // Extracted from label
+        
+        if(isNaN(km) || km <= 0) return showToast("Enter valid distance (KM)", "error");
+
+        toggleLoader(true);
+        try {
+            await updateDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/vehicle_trips`, tripId), {
+                status: 'COMPLETED',
+                returnTime: window.getSecureTime().toISOString(),
+                distanceKm: km,
+                fuelUsedLiters: fuel
+            });
+            
+            closeModal('fleetReturnModal');
+            loadFleetUI();
+            showToast(`Trip Ended! Estimated Fuel Used: ${fuel.toFixed(2)} L`, "success");
+        } catch(e) { showToast("Error saving trip", "error"); }
+        toggleLoader(false);
+    };
+
+    // 🛡️ EXPENSES SYNC ENGINE
+    window.openFleetExpenseModal = () => {
+        const vehSel = document.getElementById('feVehicle');
+        vehSel.innerHTML = '<option value="">-- වාහනය තෝරන්න --</option>';
+        vehiclesCache.forEach(v => { vehSel.innerHTML += `<option value="${v.plateNo}">${v.plateNo}</option>`; });
+        
+        document.getElementById('feAmount').value = '';
+        document.getElementById('feDesc').value = '';
+        openModal('fleetExpenseModal');
+    };
+
+    window.saveFleetExpense = async () => {
+        const plate = document.getElementById('feVehicle').value;
+        const type = document.getElementById('feType').value;
+        const amt = parseFloat(document.getElementById('feAmount').value);
+        let desc = document.getElementById('feDesc').value.trim();
+
+        if(!plate || isNaN(amt) || amt <= 0) return showToast("Vehicle and Amount required!", "error");
+        
+        desc = `[Fleet] ${plate} - ${type}: ${desc}`;
+
+        toggleLoader(true);
+        try {
+            // 🛡️ Write directly to General Ledger (Expenses) so it hits P&L and EOD!
+            const expRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`));
+            await setDoc(expRef, {
+                description: desc,
+                amount: amt,
+                isIncome: false,
+                payMethod: 'Cash', // Default to cash so drawer balances
+                date: window.getSecureTime().toISOString(),
+                isFleetExpense: true,
+                vehiclePlate: plate
+            });
+
+            closeModal('fleetExpenseModal');
+            if(document.getElementById('view-expenses').classList.contains('active')) loadExpensesUI();
+            updateDashboard(); // Reduce Net Profit!
+            loadFleetHistory(); // Refresh history
+            
+            if(window.writeSystemLog) writeSystemLog("FLEET_EXPENSE", `Added Fleet Expense: ${formatMoney(amt)} for ${plate}`);
+            showToast("Fleet Expense saved & Profit updated!");
+        } catch(e) { showToast("Error saving expense", "error"); }
+        toggleLoader(false);
+    };
+
+    async function loadFleetHistory() {
+        const tbody = document.querySelector('#fleetHistoryTable tbody');
+        if(!tbody) return;
+        
+        try {
+            // Get last 20 trips
+            const qT = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/vehicle_trips`), where("status", "==", "COMPLETED"), orderBy("returnTime", "desc"), limit(20));
+            // Get last 20 fleet expenses
+            const qE = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`), where("isFleetExpense", "==", true), orderBy("date", "desc"), limit(20));
+
+            const [snapT, snapE] = await Promise.all([getDocs(qT), getDocs(qE)]);
+            
+            let records = [];
+            snapT.forEach(d => records.push({ type: 'TRIP', ...d.data(), sortDate: new Date(d.data().returnTime) }));
+            snapE.forEach(d => records.push({ type: 'EXPENSE', ...d.data(), sortDate: new Date(d.data().date) }));
+
+            records.sort((a,b) => b.sortDate - a.sortDate);
+
+            if(records.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:#666;">No fleet history found.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = records.map(r => {
+                if(r.type === 'TRIP') {
+                    return `
+                    <tr>
+                        <td style="font-size:11px;">${r.sortDate.toLocaleString()}</td>
+                        <td style="font-weight:bold;">${r.plateNo}</td>
+                        <td style="font-size:12px;">${r.driverName}</td>
+                        <td style="font-size:12px;">Trip: ${r.destination}</td>
+                        <td style="font-weight:bold; color:var(--primary);">${r.distanceKm} KM <br><span style="font-size:10px; color:var(--danger);">${r.fuelUsedLiters.toFixed(2)} L Used</span></td>
+                        <td><span style="background:#dcfce7; color:#15803d; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold;">COMPLETED</span></td>
+                    </tr>`;
+                } else {
+                    return `
+                    <tr style="background:#fef2f2;">
+                        <td style="font-size:11px;">${r.sortDate.toLocaleString()}</td>
+                        <td style="font-weight:bold;">${r.vehiclePlate}</td>
+                        <td style="font-size:12px; color:#666;">-</td>
+                        <td style="font-size:12px; color:#b91c1c;">${r.description.replace('[Fleet] ','')}</td>
+                        <td style="font-weight:bold;">-</td>
+                        <td style="font-weight:900; color:#b91c1c; font-size:14px;">-${formatMoney(r.amount)}</td>
+                    </tr>`;
+                }
+            }).join('');
+
+        } catch(e) { console.error(e); }
+    }
 </script>
 
 </body>
