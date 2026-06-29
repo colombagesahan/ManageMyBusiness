@@ -689,7 +689,8 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                     </div>
                 </div>
 
-                <div class="card" style="height:fit-content; max-height:80vh; overflow-y:auto; display:flex; flex-direction:column;">
+                <!-- 🛡️ ENTERPRISE FIX: Infinite Scroll Container for Documents -->
+                <div class="card" id="docsScrollArea" onscroll="handleDocsScroll()" style="height:fit-content; max-height:80vh; overflow-y:auto; display:flex; flex-direction:column;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
                         <h3 style="margin:0;">History</h3>
                         
@@ -706,6 +707,9 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                         </div>
                     </div>
                     <div id="docHistoryList" style="flex:1;"></div>
+                    <div id="docsLoadMoreLoader" style="text-align:center; padding:15px; display:none; color:var(--primary); font-weight:bold;">
+                        <i class="ri-loader-4-line ri-spin"></i> පරණ ලියකියවිලි ගෙන එමින් පවතී...
+                    </div>
                 </div>
             </div>
         </div>
@@ -818,11 +822,17 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                 </div>
                 <button class="btn btn-primary" onclick="prepareAddStock()">+ Add Stock</button>
             </div>
-            <div class="card" style="overflow-x:auto;">
-                <table id="prodTable">
-                    <thead><tr><th>Image</th><th>Date Added</th><th>Name / SKU</th><th>Category</th><th>Buy</th><th>Sell</th><th>Stock</th><th>Action</th></tr></thead>
-                    <tbody></tbody>
+            <!-- 🛡️ ENTERPRISE FIX: Infinite Scroll Container -->
+            <div class="card" id="stockScrollArea" style="overflow-x:auto; max-height:65vh; overflow-y:auto; padding-right:5px; margin-bottom:0;" onscroll="handleStockScroll()">
+                <table id="prodTable" style="position:relative;">
+                    <thead style="position:sticky; top:0; background:#f9fafb; z-index:10; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
+                        <tr><th>Image</th><th>Date Added</th><th>Name / SKU</th><th>Category</th><th>Buy</th><th>Sell</th><th>Stock</th><th>Action</th></tr>
+                    </thead>
+                    <tbody id="prodTbody"></tbody>
                 </table>
+                <div id="stockLoadMoreLoader" style="text-align:center; padding:15px; display:none; color:var(--primary); font-weight:bold;">
+                    <i class="ri-loader-4-line ri-spin"></i> පැරණි තොග වාර්තා ගෙන එමින් පවතී...
+                </div>
             </div>
         </div>
 
@@ -968,7 +978,8 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                             <i class="ri-fullscreen-line" style="font-size: 16px;"></i>
                         </button>
                     </div>
-                    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap:10px; flex:1; overflow-y:auto; min-height: 400px;" id="posGrid"></div>
+                    <!-- 🛡️ ENTERPRISE FIX: POS Infinite Scroll Trigger -->
+                    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap:10px; flex:1; overflow-y:auto; min-height: 400px; padding-right:5px; align-content: start;" id="posGrid" onscroll="handlePosGridScroll()"></div>
                 </div>
 
                 <!-- MIDDLE: Current Order Panel (Cart Only) -->
@@ -1084,11 +1095,18 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                      <button class="btn btn-ghost" onclick="loadOrders()"><i class="ri-refresh-line"></i></button>
                  </div>
             </div>
-            <div class="card" style="overflow-x:auto;">
-                <table id="ordersTable">
-                    <thead><tr><th>Sale ID</th><th>Date</th><th>Customer</th><th>Pay Method</th><th>Total</th><th>Status</th><th>Actions</th></tr></thead>
-                    <tbody></tbody>
+            <!-- 🛡️ ENTERPRISE FIX: Infinite Scroll Container -->
+            <!-- max-height එකක් දී onscroll ඉවෙන්ට් එකක් අල්ලාගෙන ඇත -->
+            <div class="card" id="ordersScrollArea" style="overflow-x:auto; max-height:65vh; overflow-y:auto;" onscroll="handleOrdersScroll()">
+                <table id="ordersTable" style="position:relative;">
+                    <thead style="position:sticky; top:0; background:#f9fafb; z-index:10; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
+                        <tr><th>Sale ID</th><th>Date</th><th>Customer</th><th>Pay Method</th><th>Total</th><th>Status</th><th>Actions</th></tr>
+                    </thead>
+                    <tbody id="ordersTbody"></tbody>
                 </table>
+                <div id="ordersLoadMoreLoader" style="text-align:center; padding:15px; display:none; color:var(--primary); font-weight:bold;">
+                    <i class="ri-loader-4-line ri-spin"></i> තවත් පැරණි බිල්පත් ගෙන එමින් පවතී...
+                </div>
             </div>
         </div>
 
@@ -1137,7 +1155,13 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                     <button class="btn btn-primary" onclick="openEmployeeModal()">+ Add Employee</button>
                 </div>
             </div>
-            <div id="empGrid"></div>
+            <!-- 🛡️ ENTERPRISE FIX: Infinite Scroll Container -->
+            <div id="empScrollArea" style="max-height:65vh; overflow-y:auto; padding-right:5px;" onscroll="handleEmployeesScroll()">
+                <div id="empGrid"></div>
+                <div id="empLoadMoreLoader" style="text-align:center; padding:15px; display:none; color:var(--primary); font-weight:bold;">
+                    <i class="ri-loader-4-line ri-spin"></i> තවත් සේවක දත්ත ගෙන එමින් පවතී...
+                </div>
+            </div>
         </div>
 
 <!-- 🚀 NEW: TEAM WORKSPACE (MESSENGER UI) -->
@@ -1259,11 +1283,17 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             <div class="note-box" style="background:#fefce8; border-color:#fef08a; color:#854d0e;">
                 <i class="ri-shield-keyhole-fill"></i> Security Audit Trail: Records all critical system actions, who performed them, and exactly when. This data cannot be deleted by cashiers.
             </div>
-            <div class="card" style="overflow-x:auto;">
-                <table id="sysLogsTable">
-                    <thead><tr><th>Date & Time</th><th>User (Email)</th><th>Role</th><th>Branch</th><th>Action Type</th><th>Description</th></tr></thead>
-                    <tbody></tbody>
+            <!-- 🛡️ ENTERPRISE FIX: Infinite Scroll Container -->
+            <div class="card" id="logsScrollArea" style="overflow-x:auto; max-height:65vh; overflow-y:auto; margin-bottom:0;" onscroll="handleLogsScroll()">
+                <table id="sysLogsTable" style="position:relative;">
+                    <thead style="position:sticky; top:0; background:#f9fafb; z-index:10; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
+                        <tr><th>Date & Time</th><th>User (Email)</th><th>Role</th><th>Branch</th><th>Action Type</th><th>Description</th></tr>
+                    </thead>
+                    <tbody id="sysLogsTbody"></tbody>
                 </table>
+                <div id="logsLoadMoreLoader" style="text-align:center; padding:15px; display:none; color:var(--primary); font-weight:bold;">
+                    <i class="ri-loader-4-line ri-spin"></i> පැරණි ලොග් වාර්තා ගෙන එමින් පවතී...
+                </div>
             </div>
         </div>
 
@@ -1325,11 +1355,17 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                  </div>
             </div>
             <div class="note-box"><i class="ri-information-fill"></i> Track manual cash movements (e.g., Utility bills, Meals, Other Incomes). This ensures your EOD Cash Drawer stays 100% accurate.</div>
-            <div class="card" style="overflow-x:auto;">
-                <table id="expensesTable">
-                    <thead><tr><th>Date & Time</th><th>Type</th><th>Description</th><th>Amount</th><th>Action</th></tr></thead>
-                    <tbody></tbody>
+            <!-- 🛡️ ENTERPRISE FIX: Infinite Scroll Container for Expenses -->
+            <div class="card" id="expensesScrollArea" style="overflow-x:auto; max-height:65vh; overflow-y:auto; margin-bottom:0;" onscroll="handleExpensesScroll()">
+                <table id="expensesTable" style="position:relative;">
+                    <thead style="position:sticky; top:0; background:#f9fafb; z-index:10; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
+                        <tr><th>Date & Time</th><th>Type</th><th>Description</th><th>Amount</th><th>Action</th></tr>
+                    </thead>
+                    <tbody id="expensesTbody"></tbody>
                 </table>
+                <div id="expLoadMoreLoader" style="text-align:center; padding:15px; display:none; color:var(--primary); font-weight:bold;">
+                    <i class="ri-loader-4-line ri-spin"></i> තවත් පැරණි වාර්තා ගෙන එමින් පවතී...
+                </div>
             </div>
         </div>
 
@@ -1448,7 +1484,13 @@ body.pos-fullscreen-mode #view-pos > div > .card {
     </div>
     
     <!-- Customer List/Grid -->
-    <div class="grid-4" id="customerGrid"></div>
+    <!-- 🛡️ ENTERPRISE FIX: Infinite Scroll Container -->
+    <div id="custScrollArea" style="max-height:65vh; overflow-y:auto; padding-right:5px;" onscroll="handleCustomersScroll()">
+        <div class="grid-4" id="customerGrid"></div>
+        <div id="custLoadMoreLoader" style="text-align:center; padding:15px; display:none; color:var(--primary); font-weight:bold; grid-column: 1/-1;">
+            <i class="ri-loader-4-line ri-spin"></i> තවත් පාරිභෝගික දත්ත ගෙන එමින් පවතී...
+        </div>
+    </div>
 </div>
 
     </div>
@@ -3613,11 +3655,14 @@ body.pos-fullscreen-mode #view-pos > div > .card {
     });
 
    window.loadView = (viewName) => {
-        // 🛡️ ENTERPRISE SECURITY FIX: Dynamic Hard-Block (Console Hack Prevention)
-        if (userRole === 'cashier' && !window.currentUserTabs.includes(viewName)) {
-            if(window.writeSystemLog) writeSystemLog("SECURITY_BREACH_ATTEMPT", `Officer attempted to access unauthorized Tab: ${viewName}`);
-            showToast("Access Denied: You do not have permission to view this page.", "error");
-            return;
+        // 🛡️ ENTERPRISE SECURITY FIX: Admin Crash Prevention & Dynamic Hard-Block
+        // Cashier කෙනෙක් නම් පමණක් මේ Array එක පරීක්ෂා කරයි. Admin ගේ කේතය කඩා වැටීම 100% ක් නතර වේ.
+        if (userRole === 'cashier') {
+            if (!window.currentUserTabs || !window.currentUserTabs.includes(viewName)) {
+                if(window.writeSystemLog) writeSystemLog("SECURITY_BREACH_ATTEMPT", `Officer attempted to access unauthorized Tab: ${viewName}`);
+                showToast("Access Denied: You do not have permission to view this page.", "error");
+                return;
+            }
         }
 
         // Enforce Profile Check (Rule: profile must be complete - ONLY FOR ADMINS)
@@ -4079,28 +4124,75 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 
 
     // --- 2. STOCK (Add Stock) LOGIC ---
-    async function loadProducts() {
-        // MEMORY OPTIMIZED: මුලින්ම ගෙන එන්නේ අලුත්ම Stock බැච් 150 පමණි.
-        const q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`), orderBy('dateAdded', 'desc'), limit(150));
-        const snap = await getDocs(q);
-        
-        // ENTERPRISE FIX: Preserve active cart items from being wiped out of local cache
-        const oldCache = [ ...productsCache ]; 
-        productsCache = [  ]; 
-        
-        snap.forEach(d => productsCache.push({id: d.id, ...d.data()}));
+    // ==========================================
+    // 🛡️ ENTERPRISE: INFINITE SCROLL (STOCK LOAD)
+    // ==========================================
+    let lastProdDoc = null;
+    let isFetchingProds = false;
+    let hasMoreProds = true;
 
-        // Cart එකේ දැනටමත් බඩු තියෙනවා නම්, ඒවා අලුත් 150 ට අහුවුණේ නැත්නම්, ඒ ටික විතරක් පරණ Cache එකෙන් අරන් ආපහු දානවා
-        cart.forEach(cartItem => {
-            if(!cartItem.isService && !productsCache.find(p => p.id === cartItem.id)) {
-                const oldItem = oldCache.find(p => p.id === cartItem.id);
-                if(oldItem) productsCache.push(oldItem);
+    window.loadProducts = async (isLoadMore = false) => {
+        const loaderUi = document.getElementById('stockLoadMoreLoader');
+        
+        if (!isLoadMore) {
+            lastProdDoc = null; hasMoreProds = true;
+            productsCache = []; 
+            document.querySelector('#prodTable tbody').innerHTML = '<tr><td colspan="8" style="text-align:center; color:var(--primary); font-weight:bold;">Loading Stock... <i class="ri-loader-4-line ri-spin"></i></td></tr>';
+            toggleLoader(true);
+        } else {
+            if(loaderUi) loaderUi.style.display = 'block';
+        }
+
+        if (isFetchingProds || !hasMoreProds) return;
+        isFetchingProds = true;
+
+        try {
+            let q;
+            if (lastProdDoc) {
+                q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`), orderBy('dateAdded', 'desc'), startAfter(lastProdDoc), limit(100));
+            } else {
+                q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`), orderBy('dateAdded', 'desc'), limit(100));
             }
-        });
 
-        renderProducts();
-        renderPosGrid();
-    }
+            const snap = await getDocs(q);
+            
+            if (snap.empty) {
+                hasMoreProds = false;
+            } else {
+                lastProdDoc = snap.docs[snap.docs.length - 1];
+                if (snap.docs.length < 100) hasMoreProds = false;
+
+                const oldCache = [...productsCache];
+                snap.forEach(d => {
+                    if(!productsCache.find(x => x.id === d.id)) productsCache.push({ id: d.id, ...d.data() });
+                });
+                
+                // 🛡️ Preserve active cart items
+                cart.forEach(cartItem => {
+                    if(!cartItem.isService && !productsCache.find(p => p.id === cartItem.id)) {
+                        const oldItem = oldCache.find(p => p.id === cartItem.id);
+                        if(oldItem) productsCache.push(oldItem);
+                    }
+                });
+
+                renderProducts(); // Existing logic remains untouched!
+                renderPosGrid(false, isLoadMore); // Calls the new POS grid logic
+            }
+        } catch (e) { console.error("Stock Load Error:", e); } 
+        finally {
+            isFetchingProds = false;
+            if(loaderUi) loaderUi.style.display = 'none';
+            toggleLoader(false);
+        }
+    };
+
+    window.handleStockScroll = () => {
+        if(document.getElementById('prodSearch').value.trim() !== '') return; 
+        const area = document.getElementById('stockScrollArea');
+        if (area.scrollTop + area.clientHeight >= area.scrollHeight - 10) {
+            if (hasMoreProds && !isFetchingProds) loadProducts(true);
+        }
+    };
 
     function renderProducts() {
         const term = document.getElementById('prodSearch').value.toLowerCase();
@@ -4225,6 +4317,10 @@ body.pos-fullscreen-mode #view-pos > div > .card {
     }
     window.filterProducts = debounceSearch(async () => {
         const term = document.getElementById('prodSearch').value.trim();
+        
+        // 🛡️ ENTERPRISE FIX: Search Bar Reset for Infinite Scroll
+        // Search එක මකා දැමූ සැණින්, නැවතත් මුල සිට සාමාන්‍ය දත්ත 100 ගෙනවිත් Pagination එක සක්‍රීය කරයි.
+        if (term === '') return loadProducts(false); 
         
         if (term.length >= 2) {
             document.querySelector('#prodTable tbody').innerHTML = '<tr><td colspan="8" style="text-align:center;">Searching Database...</td></tr>';
@@ -4974,114 +5070,147 @@ body.pos-fullscreen-mode #view-pos > div > .card {
     };
 
 
-    function renderPosGrid() {
+    // --- POS GRID DOM PAGINATION ---
+    let posCombinedCache = [];
+    let posRenderedCount = 0;
+    const POS_CHUNK = 40;
+
+    window.renderPosGrid = (isDOMScroll = false, preserveScroll = false) => {
         const grid = document.getElementById('posGrid');
-        
-        // 🚀 SMART SEARCH INTELLIGENCE (For Grid Filtering)
-        let termRaw = document.getElementById('posSearch').value.toLowerCase().trim();
-        let term = termRaw;
-        if(term.includes('-b')) {
-            term = term.split('-b')[0].trim(); // Local filter එක සඳහාත් Base SKU එක පමණක් ගනී
-        }
-        
-        const itemType = document.getElementById('posItemType').value;
-        const prodCatFilter = document.getElementById('posFilterCategory').value;
-        const srvCatFilter = document.getElementById('posServiceCategory').value;
+        let savedScroll = 0;
+        if (preserveScroll && grid) savedScroll = grid.scrollTop;
 
-        let combined = [];
+        // 1. Grouping Data (Only done when NOT just scrolling the DOM)
+        if (!isDOMScroll) {
+            let termRaw = document.getElementById('posSearch').value.toLowerCase().trim();
+            let term = termRaw;
+            if(term.includes('-b')) term = term.split('-b')[0].trim();
+            
+            const itemType = document.getElementById('posItemType').value;
+            const prodCatFilter = document.getElementById('posFilterCategory').value;
+            const srvCatFilter = document.getElementById('posServiceCategory').value;
 
-        if(itemType === 'product' || itemType === 'all') {
-            const groupedProds = {};
-            productsCache.forEach(p => {
-                if(p.qty <= 0) return; 
-                
-                const matchName = p.name.toLowerCase().includes(term) || (p.sku && p.sku.toLowerCase().includes(term));
-                const matchCat = prodCatFilter === 'All' || (p.categoryId === prodCatFilter) || (!p.categoryId && prodCatFilter === "");
-                
-                if(matchName && matchCat) {
-                    const key = p.sku || p.name; 
-                    if(!groupedProds[key]) {
-                        groupedProds[key] = { ...p, totalQty: 0, batches: [] };
+            let combined = [];
+
+            if(itemType === 'product' || itemType === 'all') {
+                const groupedProds = {};
+                productsCache.forEach(p => {
+                    if(p.qty <= 0) return; 
+                    const matchName = p.name.toLowerCase().includes(term) || (p.sku && p.sku.toLowerCase().includes(term));
+                    const matchCat = prodCatFilter === 'All' || (p.categoryId === prodCatFilter) || (!p.categoryId && prodCatFilter === "");
+                    
+                    if(matchName && matchCat) {
+                        const key = p.sku || p.name; 
+                        if(!groupedProds[key]) groupedProds[key] = { ...p, totalQty: 0, batches: [] };
+                        groupedProds[key].totalQty += p.qty;
+                        groupedProds[key].batches.push(p);
                     }
-                    groupedProds[key].totalQty += p.qty;
-                    groupedProds[key].batches.push(p);
-                }
-            });
+                });
 
-            Object.values(groupedProds).forEach(g => {
-                g.batches.sort((a,b) => (a.batchNumber||0) - (b.batchNumber||0));
-                const oldestBatch = g.batches[0];
-                g.displayPrice = oldestBatch.sell;
-                g.oldestBatchId = oldestBatch.id; 
-                combined.push(g);
-            });
-        }
+                Object.values(groupedProds).forEach(g => {
+                    g.batches.sort((a,b) => (a.batchNumber||0) - (b.batchNumber||0));
+                    g.displayPrice = g.batches[0].sell;
+                    g.oldestBatchId = g.batches[0].id; 
+                    combined.push(g);
+                });
+            }
 
-        if(itemType === 'service' || itemType === 'all') {
-            const srvFiltered = servicesCache.filter(s => {
-                const matchName = s.name.toLowerCase().includes(term);
-                const matchCat = srvCatFilter === 'All' || (s.categoryId === srvCatFilter) || (!s.categoryId && srvCatFilter === "");
-                return matchName && matchCat;
-            });
-            const mappedServices = srvFiltered.map(s => ({...s, displayPrice: s.price, isService: true, oldestBatchId: s.id}));
-            combined = [...combined, ...mappedServices];
-        }
+            if(itemType === 'service' || itemType === 'all') {
+                const srvFiltered = servicesCache.filter(s => {
+                    const matchName = s.name.toLowerCase().includes(term);
+                    const matchCat = srvCatFilter === 'All' || (s.categoryId === srvCatFilter) || (!s.categoryId && srvCatFilter === "");
+                    return matchName && matchCat;
+                });
+                const mappedServices = srvFiltered.map(s => ({...s, displayPrice: s.price, isService: true, oldestBatchId: s.id}));
+                combined = [...combined, ...mappedServices];
+            }
 
-        if(combined.length === 0) {
-            grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: #9ca3af; padding: 20px;">No items match your selection</div>';
+            posCombinedCache = combined;
+            
+            // 🛡️ Determine how many items to render to maintain UI state
+            const targetRenderCount = preserveScroll ? Math.max(posRenderedCount, POS_CHUNK) : POS_CHUNK;
+            posRenderedCount = 0; 
+            if(grid) grid.innerHTML = '';
+            
+            if (posCombinedCache.length === 0) {
+                if(grid) grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: #9ca3af; padding: 20px;">No items match your selection</div>';
+                return;
+            }
+
+            renderPosHTML(targetRenderCount);
+            if (preserveScroll && grid) grid.scrollTop = savedScroll; // Restore exact scroll position!
             return;
         }
-        
-        const topResults = combined.slice(0, 60);
-        let htmlStr = topResults.map(p => {
+
+        // 2. RAM to DOM Pagination (Normal Scroll)
+        renderPosHTML(posRenderedCount + POS_CHUNK);
+    };
+
+    // Helper to generate the HTML Cards safely
+    function renderPosHTML(targetLimit) {
+        const grid = document.getElementById('posGrid');
+        if(!grid) return;
+        const limit = Math.min(targetLimit, posCombinedCache.length);
+        if (posRenderedCount >= limit) return; // Nothing to add
+
+        let htmlStr = '';
+        for (let i = posRenderedCount; i < limit; i++) {
+            const p = posCombinedCache[i];
+            
             if (p.isService) {
-                return `
+                htmlStr += `
                 <div onclick="addToCart('${p.oldestBatchId}')" style="background:#f0fdf4; padding:10px; border-radius:8px; cursor:pointer; text-align:center; border:1px solid #bbf7d0; box-shadow:0 1px 2px rgba(0,0,0,0.05); position:relative; overflow:hidden;">
                     <div style="position:absolute; top:5px; right:5px;" class="batch-badge batch-latest">SERVICE</div>
                     <div style="font-size:30px; color:#16a34a; margin:5px 0;"><i class="ri-customer-service-2-line"></i></div>
                     <div style="font-weight:600; font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-top:5px;">${p.name}</div>
                     <div style="color:var(--primary); font-weight:700;">${formatMoney(p.displayPrice)}</div>
                 </div>`;
+                continue;
             }
 
             const imgTag = p.image ? `<img src="${p.image}" style="width:100%; height:80px; object-fit:contain; margin-bottom:5px;">` : '';
-            
-            // 🛡️ Apply Promo Logic to POS Grid
             const priceInfo = window.getEffectivePrice(p.batches[0]);
             const displayPriceHtml = priceInfo.isPromo 
                 ? `<div style="color:#9ca3af; text-decoration:line-through; font-size:11px;">${formatMoney(p.batches[0].sell)}</div>
                    <div style="color:var(--danger); font-weight:900; font-size:18px;">${formatMoney(priceInfo.price)} <i class="ri-fire-fill" style="font-size:14px;"></i></div>` 
                 : `<div style="color:var(--primary); font-weight:800; font-size:16px;">${formatMoney(p.batches[0].sell)}</div>`;
 
-            return `
+            htmlStr += `
             <div onclick="addToCart('${p.oldestBatchId}')" style="background:${priceInfo.isPromo ? '#fff1f2' : 'white'}; border-color:${priceInfo.isPromo ? '#fecaca' : '#e5e7eb'}; padding:10px; border-radius:8px; cursor:pointer; text-align:center; border:1px solid; box-shadow:0 1px 2px rgba(0,0,0,0.05); position:relative; overflow:hidden; display:flex; flex-direction:column; justify-content:space-between;">
                 ${priceInfo.isPromo ? `<div style="position:absolute; top:5px; right:5px; background:var(--danger); color:white; padding:2px 4px; border-radius:4px; font-size:9px; font-weight:bold; animation: blink-success 2s infinite;">PROMO</div>` : ''}
                 ${p.batches.length > 1 ? `<div style="position:absolute; top:5px; left:5px; background:#fef3c7; color:#d97706; padding:2px 4px; border-radius:4px; font-size:9px; font-weight:bold; border:1px solid #fde68a;">${p.batches.length} BATCHES</div>` : ''}
                 ${p.isRefund ? `<div style="position:absolute; top:5px; right:5px; background:#dbeafe; color:#1e40af; padding:2px 4px; border-radius:4px; font-size:9px; font-weight:bold; border:1px solid #bfdbfe;">RETURNED</div>` : ''}
-                
                 <div>
                     ${imgTag}
                     <div style="font-weight:700; font-size:13px; margin-top:5px; line-height:1.2;">${p.name}</div>
                     <div style="font-size:10px; color:#9ca3af; margin-top:2px;">${p.sku || ''}</div>
                 </div>
-                
                 <div style="margin-top:8px;">
-                    <div style="color:var(--primary); font-weight:800; font-size:16px;">${formatMoney(p.displayPrice)}</div>
+                    ${displayPriceHtml}
                     <div style="font-size:11px; color:${p.totalQty < 5 ? '#ef4444' : '#10b981'}; font-weight:600; margin-top:2px;">Total Stock: ${p.totalQty}</div>
                 </div>
             </div>`;
-        }).join('');
-        
-        if (combined.length > 60) {
-            htmlStr += `<div style="grid-column: 1/-1; text-align: center; color: var(--primary); padding: 10px; font-weight: bold; font-size: 12px; background: #e0e7ff; border-radius: 8px;">+ ${combined.length - 60} more items hidden. Use search.</div>`;
         }
-        grid.innerHTML = htmlStr;
+
+        grid.insertAdjacentHTML('beforeend', htmlStr);
+        posRenderedCount = limit;
     }
+
+    // 🚀 POS GRID SCROLL LISTENER
+    window.handlePosGridScroll = () => {
+        const grid = document.getElementById('posGrid');
+        if (grid.scrollTop + grid.clientHeight >= grid.scrollHeight - 20) {
+            if (posRenderedCount < posCombinedCache.length) {
+                renderPosGrid(true); // Load from RAM
+            } else if (hasMoreProds && !isFetchingProds && document.getElementById('posSearch').value.trim() === '') {
+                loadProducts(true); // Load from DB
+            }
+        }
+    };
 
     // MEMORY OPTIMIZED & SMART SEARCH INTELLIGENCE
     window.filterPos = debounceSearch(async () => {
         let originalTerm = document.getElementById('posSearch').value.trim();
-        
         // 🛡️ ENTERPRISE REGEX FIX: Prevent splitting valid product names like "Type-B Cable"
         // This regex specifically looks for our serial pattern: ends with "-B" followed by numbers and "-"
         let term = originalTerm;
@@ -6602,65 +6731,100 @@ window.autoFillDocCustomer = (name) => {
         }
         toggleLoader(false);
     };
+    // ==========================================
+    // 🛡️ ENTERPRISE INFINITE SCROLL: DOCUMENTS
+    // ==========================================
+    let lastDocRecord = null;
+    let isFetchingDocs = false;
+    let hasMoreDocs = true;
 
-    async function loadDocumentsHistory() {
+    async function loadDocumentsHistory(isLoadMore = false) {
         const list = document.getElementById('docHistoryList');
-        list.innerHTML = '<div style="text-align:center; padding:20px; color:var(--primary); font-weight:bold;">Querying Database... <i class="ri-loader-4-line ri-spin"></i></div>';
+        const loaderUi = document.getElementById('docsLoadMoreLoader');
+
+        if (!isLoadMore) {
+            lastDocRecord = null; hasMoreDocs = true;
+            list.innerHTML = '<div style="text-align:center; padding:20px; color:var(--primary); font-weight:bold;">Querying Database... <i class="ri-loader-4-line ri-spin"></i></div>';
+        } else {
+            if(loaderUi) loaderUi.style.display = 'block';
+        }
+
+        if (isFetchingDocs || !hasMoreDocs) return;
+        isFetchingDocs = true;
         
         try {
             const monthFilter = document.getElementById('docMonthFilter')?.value;
             let q;
 
-            // 🛡️ ENTERPRISE FIX: Access hidden historical data via Month Filter
             if (monthFilter) {
+                hasMoreDocs = false; // Month filter disables infinite scroll
                 const startIso = new Date(monthFilter + "-01T00:00:00.000Z").toISOString();
                 const y = parseInt(monthFilter.split('-')[0]), m = parseInt(monthFilter.split('-')[1]);
                 const endIso = new Date(y, m, 0, 23, 59, 59, 999).toISOString();
-                
-                // Fetch ALL docs for that month (Bypassing the 50 limit)
                 q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/documents`), where("createdAt", ">=", startIso), where("createdAt", "<=", endIso), orderBy('createdAt', 'desc'), limit(300));
             } else {
-                q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/documents`), orderBy('createdAt', 'desc'), limit(50));
+                if (lastDocRecord) {
+                    q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/documents`), orderBy('createdAt', 'desc'), startAfter(lastDocRecord), limit(20));
+                } else {
+                    q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/documents`), orderBy('createdAt', 'desc'), limit(20));
+                }
             }
 
             const snap = await getDocs(q);
-            
-            list.innerHTML = '';
+            if (!isLoadMore) list.innerHTML = '';
+
             if (snap.empty) {
-                list.innerHTML = '<div style="text-align:center; padding:20px; color:#666;">No documents generated yet.</div>';
-                return;
+                if(!isLoadMore) list.innerHTML = '<div style="text-align:center; padding:20px; color:#666;">No documents generated yet.</div>';
+                hasMoreDocs = false;
+            } else {
+                lastDocRecord = snap.docs[snap.docs.length - 1];
+                if (snap.docs.length < 20) hasMoreDocs = false;
+
+                let htmlStr = '';
+                snap.forEach(d => {
+                    const docData = { id: d.id, ...d.data() };
+                    // String Builder pattern to prevent DOM repaints
+                    htmlStr += `
+                    <div class="card" style="padding:12px; margin-bottom:10px; border:1px solid #e5e7eb; border-left:4px solid ${docData.type==='invoice'?'var(--success)':'var(--warning)'}; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <strong style="font-size:15px; color:#111827;">${docData.docId}</strong>
+                            <span style="font-size:10px; font-weight:800; padding:2px 6px; border-radius:4px; background:${docData.type==='invoice'?'#dcfce7':'#fef3c7'}; color:${docData.type==='invoice'?'#15803d':'#d97706'};">${docData.type.toUpperCase()}</span>
+                        </div>
+                        <div style="font-size:12px; color:#6b7280; margin-top:4px;">
+                            <i class="ri-user-3-line"></i> ${String(docData.customer.name).replace(/</g,"&lt;")} <br>
+                            <i class="ri-calendar-line"></i> ${docData.date}
+                        </div>
+                        <div style="font-weight:900; font-size:16px; margin-top:8px; color:var(--primary);">${formatMoney(docData.total)}</div>
+                        
+                        <div style="margin-top:10px; display:flex; gap:8px; border-top:1px dashed #e5e7eb; padding-top:10px;">
+                            <button class="btn btn-ghost" style="flex:1; padding:6px; font-size:11px; border-color:var(--primary); color:var(--primary);" onclick="window.triggerDocAction('pdf', '${docData.id}')"><i class="ri-printer-line"></i> View / PDF</button>
+                            ${docData.type === 'quotation' && docData.status !== 'converted' ? `<button class="btn btn-info" style="flex:1; padding:6px; font-size:11px;" onclick="window.triggerDocAction('convert', '${docData.id}')"><i class="ri-exchange-line"></i> Make Invoice</button>` : ''}
+                            ${docData.type === 'quotation' && docData.status === 'converted' ? `<button class="btn btn-ghost" style="flex:1; padding:6px; font-size:11px; color:#10b981; border-color:#bbf7d0; background:#f0fdf4;" disabled><i class="ri-check-double-line"></i> Invoiced (${docData.convertedTo || ''})</button>` : ''}
+                        </div>
+                    </div>`;
+                });
+                list.insertAdjacentHTML('beforeend', htmlStr);
             }
-            snap.forEach(d => {
-                renderDocumentCard(list, { id: d.id, ...d.data() }, false);
-            });
         } catch (e) {
             console.error("Doc History Error:", e);
+            if(!isLoadMore) list.innerHTML = '<div style="text-align:center; color:red;">Failed to load documents.</div>';
+        } finally {
+            isFetchingDocs = false;
+            if(loaderUi) loaderUi.style.display = 'none';
         }
     }
 
-    function renderDocumentCard(container, docData, clearFirst) {
-        if (clearFirst) container.innerHTML = '';
-        
-        container.innerHTML += `
-            <div class="card" style="padding:12px; margin-bottom:10px; border:1px solid #e5e7eb; border-left:4px solid ${docData.type==='invoice'?'var(--success)':'var(--warning)'}; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <strong style="font-size:15px; color:#111827;">${docData.docId}</strong>
-                    <span style="font-size:10px; font-weight:800; padding:2px 6px; border-radius:4px; background:${docData.type==='invoice'?'#dcfce7':'#fef3c7'}; color:${docData.type==='invoice'?'#15803d':'#d97706'};">${docData.type.toUpperCase()}</span>
-                </div>
-                <div style="font-size:12px; color:#6b7280; margin-top:4px;">
-                    <i class="ri-user-3-line"></i> ${String(docData.customer.name).replace(/</g,"&lt;")} <br>
-                    <i class="ri-calendar-line"></i> ${docData.date}
-                </div>
-                <div style="font-weight:900; font-size:16px; margin-top:8px; color:var(--primary);">${formatMoney(docData.total)}</div>
-                
-                <div style="margin-top:10px; display:flex; gap:8px; border-top:1px dashed #e5e7eb; padding-top:10px;">
-                    <button class="btn btn-ghost" style="flex:1; padding:6px; font-size:11px; border-color:var(--primary); color:var(--primary);" onclick="window.triggerDocAction('pdf', '${docData.id}')"><i class="ri-printer-line"></i> View / PDF</button>
-                    ${docData.type === 'quotation' && docData.status !== 'converted' ? `<button class="btn btn-info" style="flex:1; padding:6px; font-size:11px;" onclick="window.triggerDocAction('convert', '${docData.id}')"><i class="ri-exchange-line"></i> Make Invoice</button>` : ''}
-                    ${docData.type === 'quotation' && docData.status === 'converted' ? `<button class="btn btn-ghost" style="flex:1; padding:6px; font-size:11px; color:#10b981; border-color:#bbf7d0; background:#f0fdf4;" disabled><i class="ri-check-double-line"></i> Invoiced (${docData.convertedTo || ''})</button>` : ''}
-                </div>
-            </div>
-        `;
-    }
+    // Scroll trigger logic safely separated
+    window.handleDocsScroll = () => {
+        if(document.getElementById('docSearchInput').value.trim() !== '') return; 
+        const area = document.getElementById('docsScrollArea');
+        if (area.scrollTop + area.clientHeight >= area.scrollHeight - 10) {
+            if (hasMoreDocs && !isFetchingDocs) loadDocumentsHistory(true);
+        }
+    };
+    
+    // We replaced renderDocumentCard entirely with string builder above, so if it existed elsewhere, it's covered.
+    window.renderDocumentCard = () => {}; // Safe dummy just in case
 
     window.convertQuoteToInvoice = (quote) => {
         // Pre-fill form
@@ -7422,100 +7586,140 @@ window.autoFillDocCustomer = (name) => {
         }
     }
 
-    // --- ORDERS TAB LOGIC ---
-    window.loadOrders = async () => {
-        const tbody = document.querySelector('#ordersTable tbody');
+    // ==========================================
+    // 🛡️ ENTERPRISE: INFINITE SCROLL ORDERS ENGINE
+    // ==========================================
+    let lastOrderDoc = null; // කොතැනින්ද නතර කළේ කියා මතක තබා ගැනීමට
+    let isFetchingOrders = false; // එකවර දෙපාරක් Load වීම වැළැක්වීමට (Lock)
+    let hasMoreOrders = true; // තවත් දත්ත ඉතිරිව ඇත්දැයි බැලීමට
+
+    window.loadOrders = async (isLoadMore = false) => {
+        const tbody = document.getElementById('ordersTbody');
+        const loaderUi = document.getElementById('ordersLoadMoreLoader');
         if(!tbody) return;
-        
-        toggleLoader(true);
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:var(--primary); font-weight:bold;">Querying Sales Records... <i class="ri-loader-4-line ri-spin"></i></td></tr>';
-        
+
+        const dateFilter = document.getElementById('orderDateFilter')?.value;
+        const searchInput = document.getElementById('orderIdSearch')?.value.trim();
+
+        // 1. අලුතින්ම Load කරනවා නම් පරණ දත්ත Clear කිරීම
+        if (!isLoadMore) {
+            lastOrderDoc = null;
+            hasMoreOrders = true;
+            salesCache = [];
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:var(--primary); font-weight:bold;">Querying Sales Records... <i class="ri-loader-4-line ri-spin"></i></td></tr>';
+            toggleLoader(!isLoadMore); 
+        } else {
+            // Scroll කරන විට යටින් Loader එක පෙන්වීම
+            loaderUi.style.display = 'block';
+        }
+
+        if (isFetchingOrders || !hasMoreOrders) return;
+        isFetchingOrders = true;
+
         try {
-            // 🛡️ ENTERPRISE FIX: Dynamic Date Querying to access historical data
-            const dateFilter = document.getElementById('orderDateFilter')?.value;
             let q;
 
-            if (dateFilter) {
-                // දිනයක් තේරුවහොත්, එම දිනයේ මුල සිට අග දක්වා සියලුම බිල්පත් ගෙන එයි (Bypasses the 50 limit completely!)
-                const startOfDay = new Date(dateFilter + "T00:00:00.000Z").toISOString();
-                const endOfDay = new Date(dateFilter + "T23:59:59.999Z").toISOString();
-                q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`), where("date", ">=", startOfDay), where("date", "<=", endOfDay), orderBy("date", "desc"), limit(300));
+            // Search එකක් හෝ Date එකක් තියෙනවා නම් Infinite Scroll අක්‍රීය කර ඒ අදාළ දත්ත පමණක් ගෙනෙයි
+            if (searchInput || dateFilter) {
+                hasMoreOrders = false; // Search කරන විට තවත් පල්ලෙහාට යෑම අක්‍රීයයි
+                if (dateFilter) {
+                    const startOfDay = new Date(dateFilter + "T00:00:00.000Z").toISOString();
+                    const endOfDay = new Date(dateFilter + "T23:59:59.999Z").toISOString();
+                    q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`), where("date", ">=", startOfDay), where("date", "<=", endOfDay), orderBy("date", "desc"), limit(300));
+                }
             } else {
-                // Default: නිකන්ම Load වෙනකොට අලුත්ම බිල් 50 පමණක් පෙන්වයි
-                q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`), orderBy('date', 'desc'), limit(50));
+                // 🚀 INFINITE SCROLL LOGIC
+                if (lastOrderDoc) {
+                    q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`), orderBy('date', 'desc'), startAfter(lastOrderDoc), limit(30));
+                } else {
+                    q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`), orderBy('date', 'desc'), limit(30));
+                }
             }
+
+            if(!q) { isFetchingOrders = false; toggleLoader(false); return; }
 
             const snap = await getDocs(q);
             
-            tbody.innerHTML = '';
-            salesCache = [  ]; // Keep cache synced
-            
+            if (!isLoadMore) tbody.innerHTML = ''; // අලුතින් නම් Clear කරයි
+
             if(snap.empty) {
-                 tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:20px;">No sales records found.</td></tr>';
+                if(!isLoadMore) tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:20px;">No sales records found.</td></tr>';
+                hasMoreOrders = false;
+            } else {
+                // ඊළඟ වතාවේ ගන්න ඕනේ කොතන ඉඳන්ද කියලා මතක තියාගන්නවා
+                lastOrderDoc = snap.docs[snap.docs.length - 1]; 
+                if (snap.docs.length < 30) hasMoreOrders = false; // 30ට අඩුවෙන් ආවා නම් ඒ කියන්නේ තව දත්ත නෑ
+
+                let newHtml = '';
+                snap.forEach(d => {
+                    try {
+                        const o = {id: d.id, ...d.data()};
+                        salesCache.push(o);
+                        
+                        const date = o.date ? new Date(o.date).toLocaleString() : "N/A";
+                        const isPayLaterOriginal = o.paymentMethod === 'Pay Later';
+                        const isSettled = (isPayLaterOriginal && (o.creditBalance === 0 || o.creditBalance === undefined)) || o.paymentMethod === 'Cash (Settled)' || o.paymentMethod === 'Cheque';
+                        
+                        const rowClass = (isPayLaterOriginal && !isSettled) ? 'row-danger' : (isSettled ? 'row-success' : '');
+                        
+                        let payMethodDisplay = o.paymentMethod || "Unknown";
+                        if (isSettled && isPayLaterOriginal) {
+                            payMethodDisplay = `<span style="text-decoration: line-through; color: #ef4444; font-weight:bold;">Pay Later</span><br><span style="font-size:11px; color:#10b981; font-weight:800;"><i class="ri-check-double-fill"></i> SETTLED</span>`;
+                        } else if (isSettled) {
+                            payMethodDisplay = `<span style="font-size:11px; color:#10b981; font-weight:800;"><i class="ri-check-double-fill"></i> SETTLED</span>`;
+                        }
+
+                        const orderIdDisplay = o.customOrderId || o.id.substring(0,8);
+                        const custName = (o.customer && o.customer.name) ? o.customer.name : "Walk-in Customer";
+                        const custPhone = (o.customer && o.customer.phone) ? o.customer.phone : "N/A";
+                        
+                        const isCredit = (isPayLaterOriginal && !isSettled);
+                        const badgeBg = isCredit ? '#fee2e2' : '#dcfce7';
+                        const badgeText = isCredit ? 'Credit' : 'Paid';
+
+                        newHtml += `
+                        <tr class="${rowClass}" onclick="viewOrderDetails('${o.id}')" style="cursor:pointer; transition:0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
+                            <td><span class="order-id-badge">${orderIdDisplay}</span></td>
+                            <td>${date}</td>
+                            <td>
+                                <div style="font-weight:600;">${custName.replace(/</g, "&lt;")}</div>
+                                <div style="font-size:11px; color:#666;">${custPhone}</div>
+                            </td>
+                            <td>${payMethodDisplay}</td>
+                            <td style="font-weight:900; color:var(--primary); font-size:15px;">${formatMoney(o.total || 0)}</td>
+                            <td><span style="font-size:11px; padding:2px 6px; background:${badgeBg}; border-radius:4px; font-weight:bold;">${badgeText}</span></td>
+                            <td>
+                                <div style="display:flex; gap:5px;" onclick="event.stopPropagation()">
+                                    <button class="btn btn-ghost" style="padding:4px;" title="Add Note" onclick="openNoteModal('${o.id}')"><i class="ri-sticky-note-line"></i></button>
+                                    <button class="btn btn-ghost" style="padding:4px;" title="Create Alert" onclick="openAlertModal('${o.id}')"><i class="ri-alarm-line"></i></button>
+                                    <button class="btn btn-ghost" style="padding:4px; border-color:var(--primary); color:var(--primary);" title="Bill" onclick="reprintOrderById('${o.id}')"><i class="ri-printer-line"></i></button>
+                                </div>
+                            </td>
+                        </tr>`;
+                    } catch (rowError) { console.error("Parse Error: ", rowError); }
+                });
+                
+                // අලුත් කෑල්ල පරණ ටේබල් එකේ අගට අමුණනවා (Append)
+                tbody.insertAdjacentHTML('beforeend', newHtml);
             }
-
-            snap.forEach(d => {
-                // ENTERPRISE FIX: Inner Try-Catch prevents one corrupted bill from crashing the entire table
-                try {
-                    const o = {id: d.id, ...d.data()};
-                    salesCache.push(o);
-                    
-                    const date = o.date ? new Date(o.date).toLocaleString() : "N/A";
-                    
-                    // ENTERPRISE FIX: Accurately identify Settled Debts using creditBalance instead of strings
-                    const isPayLaterOriginal = o.paymentMethod === 'Pay Later';
-                    const isSettled = (isPayLaterOriginal && (o.creditBalance === 0 || o.creditBalance === undefined)) || o.paymentMethod === 'Cash (Settled)';
-                    
-                    const rowClass = (isPayLaterOriginal && !isSettled) ? 'row-danger' : (isSettled ? 'row-success' : '');
-                    
-                    let payMethodDisplay = o.paymentMethod || "Unknown";
-                    if (isSettled && isPayLaterOriginal) {
-                        payMethodDisplay = `<span style="text-decoration: line-through; color: #ef4444; font-weight:bold;">Pay Later</span><br><span style="font-size:11px; color:#10b981; font-weight:800;"><i class="ri-check-double-fill"></i> SETTLED</span>`;
-                    } else if (isSettled) {
-                        payMethodDisplay = `<span style="font-size:11px; color:#10b981; font-weight:800;"><i class="ri-check-double-fill"></i> SETTLED</span>`;
-                    }
-
-                    const orderIdDisplay = o.customOrderId || o.id.substring(0,8);
-                    
-                    // CRITICAL FIX: Safe fallback for missing customer details in old/corrupted data
-                    const custName = (o.customer && o.customer.name) ? o.customer.name : "Walk-in Customer";
-                    const custPhone = (o.customer && o.customer.phone) ? o.customer.phone : "N/A";
-                    
-                    // Logic fix for the Credit/Paid badge
-                    const isCredit = (isPayLaterOriginal && !isSettled);
-                    const badgeBg = isCredit ? '#fee2e2' : '#dcfce7';
-                    const badgeText = isCredit ? 'Credit' : 'Paid';
-
-                    tbody.innerHTML += `
-                    <tr class="${rowClass}" onclick="viewOrderDetails('${o.id}')" style="cursor:pointer;">
-                        <td><span class="order-id-badge">${orderIdDisplay}</span></td>
-                        <td>${date}</td>
-                        <td>
-                            <div style="font-weight:600;">${custName}</div>
-                            <div style="font-size:11px; color:#666;">${custPhone}</div>
-                        </td>
-                        <td>${payMethodDisplay}</td>
-                        <td style="font-weight:700;">${formatMoney(o.total || 0)}</td>
-                        <td><span style="font-size:11px; padding:2px 6px; background:${badgeBg}; border-radius:4px;">${badgeText}</span></td>
-                        <td>
-                            <div style="display:flex; gap:5px;" onclick="event.stopPropagation()">
-                                <button class="btn btn-ghost" style="padding:4px;" title="Add Note" onclick="openNoteModal('${o.id}')"><i class="ri-sticky-note-line"></i></button>
-                                <button class="btn btn-ghost" style="padding:4px;" title="Create Alert" onclick="openAlertModal('${o.id}')"><i class="ri-alarm-line"></i></button>
-                                <button class="btn btn-ghost" style="padding:4px;" title="Bill" onclick="reprintOrderById('${o.id}')"><i class="ri-printer-line"></i></button>
-                            </div>
-                        </td>
-                    </tr>`;
-                } catch (rowError) {
-                    console.error("Error parsing single order row: ", rowError);
-                }
-            });
-            
         } catch (error) {
-            console.error("Fatal Error loading orders:", error);
-            showToast("Failed to load sales data.", "error");
+            console.error("Orders Error:", error);
+            if(!isLoadMore) showToast("Failed to load sales data.", "error");
         } finally {
-            // Absolute guarantee the loader disappears
+            isFetchingOrders = false;
+            loaderUi.style.display = 'none';
             toggleLoader(false);
+        }
+    };
+
+    // 🚀 SCROLL LISTENER (The Magic Trigger)
+    window.handleOrdersScroll = () => {
+        const area = document.getElementById('ordersScrollArea');
+        // පල්ලෙහාටම යන්න Pixel 10ක් තියෙද්දි ඊළඟ කෑල්ල ගේන්න කියනවා
+        if (area.scrollTop + area.clientHeight >= area.scrollHeight - 10) {
+            if (hasMoreOrders && !isFetchingOrders) {
+                loadOrders(true); // isLoadMore = true ලෙස යවයි
+            }
         }
     };
 
@@ -7810,6 +8014,7 @@ window.autoFillDocCustomer = (name) => {
 
     window.filterCustomers = debounceSearch(async () => {
         const originalTerm = document.getElementById('custSearch').value.trim();
+        if (originalTerm === '') return loadCustomers(false); // 🛡️ FIX: Reset to default paginated list when cleared
         const term = originalTerm.toLowerCase();
         
         if (originalTerm.length >= 3) {
@@ -8797,6 +9002,10 @@ window.autoFillDocCustomer = (name) => {
                         
                         <button class="btn btn-info" onclick="openEmployeeHistorySafe('${safeId}', '${safeName}')" title="Records" style="flex:1; padding:6px; font-size:11px;"><i class="ri-history-line"></i> Records</button>
                         <button class="btn btn-ghost" style="padding:6px; border-color:var(--primary); color:var(--primary);" onclick="printEmployeeIDCard('${safeId}')" title="Print ID"><i class="ri-profile-line"></i></button>
+                        
+                        <!-- 🛡️ ENTERPRISE FIX: Copy Portal Link Button -->
+                        <button class="btn btn-ghost" style="padding:6px; border-color:#10b981; color:#10b981; background:#f0fdf4;" onclick="copyEmployeePortalLink()" title="Copy Portal Link"><i class="ri-links-line"></i></button>
+                        
                         <button class="btn btn-ghost" onclick="openEmployeeNoteModalSafe('${safeId}')" title="Notes" style="padding:6px;"><i class="ri-sticky-note-line"></i></button>
                         <button class="btn btn-ghost" onclick="openAlertModal('EMP:${safeId}')" title="Alerts" style="padding:6px;"><i class="ri-alarm-line"></i></button>
                         <button class="btn btn-ghost" onclick="editEmployee('${safeId}')" title="Edit" style="padding:6px;"><i class="ri-edit-line"></i></button>
@@ -8818,6 +9027,7 @@ window.autoFillDocCustomer = (name) => {
     // 3. Database Omni-Search Engine (Bypasses the 150 limit)
     window.filterEmployees = debounceSearch(async () => {
         const originalTerm = document.getElementById('empSearch').value.trim();
+        if (originalTerm === '') return loadEmployees(false); // 🛡️ FIX: Reset to default paginated list when cleared
         const term = originalTerm.toLowerCase();
         
         if (originalTerm.length >= 3) {
@@ -10603,85 +10813,107 @@ window.setQuickCash = (amount) => {
     // ==========================================
     
     // 🛡️ ENTERPRISE FIX: Fetch Historical Expenses directly from DB (State-Preserved)
-    window.fetchHistoricalExpenses = async () => {
+    // ==========================================
+    // 🛡️ ENTERPRISE INFINITE SCROLL: CASH FLOW
+    // ==========================================
+    let lastExpDoc = null;
+    let isFetchingExp = false;
+    let hasMoreExp = true;
+
+    // We merge both fetch and render logic here safely
+    window.fetchHistoricalExpenses = async (isLoadMore = false) => {
         const monthFilter = document.getElementById('expenseMonthFilter').value;
-        const tbody = document.querySelector('#expensesTable tbody');
+        const tbody = document.getElementById('expensesTbody');
+        const loaderUi = document.getElementById('expLoadMoreLoader');
         if(!tbody) return;
 
-        toggleLoader(true);
+        if (!isLoadMore) {
+            lastExpDoc = null; hasMoreExp = true; expensesCache = [];
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--primary); font-weight:bold;">Querying Cash Flow... <i class="ri-loader-4-line ri-spin"></i></td></tr>';
+            toggleLoader(!isLoadMore);
+        } else {
+            if(loaderUi) loaderUi.style.display = 'block';
+        }
+
+        if (isFetchingExp || !hasMoreExp) return;
+        isFetchingExp = true;
+
         try {
-            if (!monthFilter) {
-                // 🛡️ STATE FIX: User cleared the filter. We MUST refetch the default active cache (latest 100)
-                // මෙය සිදු නොකළහොත් පද්ධතිය හිරවී පරණ දත්ත පෙන්වමින් සිටී.
-                const qExp = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`), orderBy("date", "desc"), limit(100));
-                const snapExp = await getDocs(qExp);
-                expensesCache = [];
-                snapExp.forEach(d => expensesCache.push({id: d.id, ...d.data()}));
-                window.loadExpensesUI();
-                return;
+            let q;
+            if (monthFilter) {
+                hasMoreExp = false; // Month filter stops infinite scroll
+                const startIso = new Date(monthFilter + "-01T00:00:00.000Z").toISOString();
+                const y = parseInt(monthFilter.split('-')[0]), m = parseInt(monthFilter.split('-')[1]);
+                const endIso = new Date(y, m, 0, 23, 59, 59, 999).toISOString();
+                q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`), where("date", ">=", startIso), where("date", "<=", endIso), orderBy("date", "desc"));
+            } else {
+                if (lastExpDoc) {
+                    q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`), orderBy("date", "desc"), startAfter(lastExpDoc), limit(30));
+                } else {
+                    q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`), orderBy("date", "desc"), limit(30));
+                }
             }
 
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--primary); font-weight:bold;">Querying Cash Flow... <i class="ri-loader-4-line ri-spin"></i></td></tr>';
-            
-            const startIso = new Date(monthFilter + "-01T00:00:00.000Z").toISOString();
-            const y = parseInt(monthFilter.split('-')[0]), m = parseInt(monthFilter.split('-')[1]);
-            const endIso = new Date(y, m, 0, 23, 59, 59, 999).toISOString();
-
-            const q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`), where("date", ">=", startIso), where("date", "<=", endIso), orderBy("date", "desc"));
             const snap = await getDocs(q);
-            
-            // 🛡️ ENTERPRISE MEMORY FIX: Do not swap caches temporarily!
-            // Global Cache එක සම්පූර්ණයෙන්ම ඓතිහාසික (Historical) දත්ත වලින් පුරවයි.
-            // මේ නිසා Delete/Edit බොත්තම් එබූ විට කේතයට කිසිදු අපහසුවකින් තොරව අදාළ දත්තය සොයාගත හැක!
-            expensesCache = [];
-            snap.forEach(d => expensesCache.push({id: d.id, ...d.data()}));
-            
-            window.loadExpensesUI();
+            if (!isLoadMore) tbody.innerHTML = '';
 
+            if (snap.empty) {
+                if(!isLoadMore) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#999;">No cash flow records found.</td></tr>';
+                hasMoreExp = false;
+            } else {
+                lastExpDoc = snap.docs[snap.docs.length - 1];
+                if (snap.docs.length < 30) hasMoreExp = false;
+
+                let newHtml = '';
+                snap.forEach(d => {
+                    const exp = {id: d.id, ...d.data()};
+                    if(!expensesCache.find(x => x.id === exp.id)) expensesCache.push(exp); // Safely push to cache for deletions
+                    
+                    const isSystemGen = exp.isAdvanceEvent || exp.isPayroll || exp.isLiability || (exp.description && exp.description.toLowerCase().match(/(debt settled|cheque cleared|write-off loss|advance correction)/));
+                    const typeText = exp.isIncome ? 'INCOME' : 'EXPENSE';
+                    const color = exp.isIncome ? '#15803d' : '#b91c1c';
+                    const bg = exp.isIncome ? '#dcfce7' : '#fee2e2';
+                    
+                    newHtml += `
+                    <tr>
+                        <td style="font-size:12px;">
+                            <div style="font-weight:bold;">${new Date(exp.date).toLocaleDateString()}</div>
+                            <div style="color:#666;">${new Date(exp.date).toLocaleTimeString()}</div>
+                        </td>
+                        <td><span style="background:${bg}; color:${color}; padding:2px 6px; border-radius:4px; font-size:11px; font-weight:bold;">${typeText}</span></td>
+                        <td>
+                            <div style="font-weight:600; font-size:13px;">${exp.description.replace(/</g, "&lt;")}</div>
+                            ${isSystemGen ? '<div style="font-size:10px; color:var(--primary);"><i class="ri-robot-2-line"></i> Auto-Generated by System</div>' : ''}
+                        </td>
+                        <td style="color:${color}; font-weight:800;">${exp.isIncome ? '+' : '-'}${formatMoney(exp.amount)}</td>
+                        <td>
+                            ${isSystemGen ? 
+                                `<button class="btn btn-ghost" style="padding:4px 8px; font-size:11px; opacity:0.5;" disabled title="System records cannot be deleted">Locked</button>` : 
+                                `<button class="btn btn-danger" style="padding:4px 8px; font-size:11px;" onclick="deleteExpense('${exp.id}')"><i class="ri-delete-bin-line"></i></button>`
+                            }
+                        </td>
+                    </tr>`;
+                });
+                tbody.insertAdjacentHTML('beforeend', newHtml);
+            }
         } catch (e) {
             console.error("Expense Fetch Error", e);
-            if(tbody) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:red;">Failed to fetch historical expenses.</td></tr>';
+            if(!isLoadMore) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:red;">Failed to fetch historical expenses.</td></tr>';
         } finally {
+            isFetchingExp = false;
+            if(loaderUi) loaderUi.style.display = 'none';
             toggleLoader(false);
         }
     };
 
-    window.loadExpensesUI = () => {
-        const tbody = document.querySelector('#expensesTable tbody');
-        if(!tbody) return;
-        
-        if(expensesCache.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:#999;">No cash flow records found.</td></tr>';
-            return;
-        }
+    // Bridge for compatibility with other functions
+    window.loadExpensesUI = () => { window.fetchHistoricalExpenses(false); };
 
-        tbody.innerHTML = expensesCache.map(exp => {
-            // Debt settlements auto-generated by system have descriptions containing "Debt Settled"
-            const isSystemGen = exp.description && exp.description.toLowerCase().includes('debt settled');
-            const typeText = exp.isIncome ? 'INCOME' : 'EXPENSE';
-            const color = exp.isIncome ? '#15803d' : '#b91c1c';
-            const bg = exp.isIncome ? '#dcfce7' : '#fee2e2';
-            
-            return `
-            <tr>
-                <td style="font-size:12px;">
-                    <div style="font-weight:bold;">${new Date(exp.date).toLocaleDateString()}</div>
-                    <div style="color:#666;">${new Date(exp.date).toLocaleTimeString()}</div>
-                </td>
-                <td><span style="background:${bg}; color:${color}; padding:2px 6px; border-radius:4px; font-size:11px; font-weight:bold;">${typeText}</span></td>
-                <td>
-                    <div style="font-weight:600; font-size:13px;">${exp.description.replace(/</g, "&lt;")}</div>
-                    ${isSystemGen ? '<div style="font-size:10px; color:var(--primary);"><i class="ri-robot-2-line"></i> Auto-Generated by System</div>' : ''}
-                </td>
-                <td style="color:${color}; font-weight:800;">${exp.isIncome ? '+' : '-'}${formatMoney(exp.amount)}</td>
-                <td>
-                    ${isSystemGen ? 
-                        `<button class="btn btn-ghost" style="padding:4px 8px; font-size:11px; opacity:0.5;" disabled title="System records cannot be deleted">Locked</button>` : 
-                        `<button class="btn btn-danger" style="padding:4px 8px; font-size:11px;" onclick="deleteExpense('${exp.id}')"><i class="ri-delete-bin-line"></i></button>`
-                    }
-                </td>
-            </tr>`;
-        }).join('');
+    window.handleExpensesScroll = () => {
+        const area = document.getElementById('expensesScrollArea');
+        if (area.scrollTop + area.clientHeight >= area.scrollHeight - 10) {
+            if (hasMoreExp && !isFetchingExp) window.fetchHistoricalExpenses(true);
+        }
     };
 
     window.openExpenseModal = (isIncome) => {
@@ -14384,7 +14616,9 @@ let currentBatchForSerials = null;
             `;
 
             // Setup Realtime Tasks Listener
-            const qTasks = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/tasks`), where("assignedTo", "==", e.id), orderBy("createdAt", "desc"), limit(30));
+            // 🛡️ ENTERPRISE FIX: Bypassed Firebase Composite Index Crash using RAM-Sorting
+            const qTasks = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/tasks`), where("assignedTo", "==", e.id));
+            
             wsUnsubTasks = onSnapshot(qTasks, (snap) => {
                 const list = document.getElementById('wsTasksHistory');
                 if(snap.empty) {
@@ -14392,9 +14626,14 @@ let currentBatchForSerials = null;
                     return;
                 }
 
+                // 🛡️ RAM Sorting (නවතම දත්ත උඩට ගැනීම)
+                let tasksArray = [];
+                snap.forEach(d => tasksArray.push({ id: d.id, ...d.data() }));
+                tasksArray.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                const topTasks = tasksArray.slice(0, 30); // උපරිම 30යි
+
                 let html = '';
-                snap.forEach(d => {
-                    const t = d.data();
+                topTasks.forEach(t => {
                     const isDone = t.status === 'done';
                     const badge = isDone 
                         ? `<span style="background:#dcfce7; color:#15803d; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold;">DONE</span>` 
@@ -14457,6 +14696,249 @@ let currentBatchForSerials = null;
             await deleteDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/tasks`, taskId));
             showToast("Task Deleted");
         } catch(e) { showToast("Error deleting task", "error"); }
+    };
+// ==========================================
+    // 🛡️ ENTERPRISE: AUTO PORTAL LINK GENERATOR
+    // ==========================================
+    window.copyEmployeePortalLink = () => {
+        // පද්ධතියේ දැනට පවතින නිවැරදිම URL එක, Owner ID සහ Shop ID එකතු කර සාදයි.
+        const baseUrl = window.location.href.split('dashboard.html')[0];
+        const portalUrl = `${baseUrl}employee.html?owner=${dbOwnerId}&shop=${currentShopId}`;
+        
+        // එය පරිගණකයේ Clipboard එකට Copy කරයි (WhatsApp එකට කෙලින්ම Paste කළ හැක)
+        navigator.clipboard.writeText(portalUrl).then(() => {
+            showToast("✅ Employee Portal Link copied to clipboard! Paste it in WhatsApp.", "success");
+        }).catch(err => {
+            // යම් හෙයකින් Browser එක Copy කිරීම Block කළහොත්, මෙය පෙන්වයි.
+            prompt("Copy this link and send to employee:", portalUrl);
+        });
+    };
+// ==========================================
+    // 🛡️ ENTERPRISE: INFINITE PAGINATION ENGINES
+    // ==========================================
+
+    // --- 1. SYSTEM ACTIVITY LOGS PAGINATION ---
+    let lastLogDoc = null;
+    let isFetchingLogs = false;
+    let hasMoreLogs = true;
+
+    window.loadSystemLogs = async (isLoadMore = false) => {
+        const tbody = document.getElementById('sysLogsTbody'); // Corrected ID
+        const loaderUi = document.getElementById('logsLoadMoreLoader');
+        if(!tbody) return;
+
+        const shopFilter = document.getElementById('logShopFilter')?.value || 'ALL';
+        const actionFilter = document.getElementById('logActionFilter')?.value || 'ALL';
+        const dateFilter = document.getElementById('logDateFilter')?.value;
+
+        if (!isLoadMore) {
+            lastLogDoc = null; hasMoreLogs = true;
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--primary); font-weight:bold;">Querying Secure Audit Trail... <i class="ri-loader-4-line ri-spin"></i></td></tr>';
+            toggleLoader(true);
+        } else {
+            loaderUi.style.display = 'block';
+        }
+
+        if (isFetchingLogs || !hasMoreLogs) return;
+        isFetchingLogs = true;
+
+        try {
+            let logsRef = collection(db, `users/${dbOwnerId}/system_audit_logs`);
+            let q;
+
+            if (dateFilter) {
+                hasMoreLogs = false; // Date filter applied -> Fetch all for that day, stop scroll
+                const startOfDay = new Date(dateFilter + "T00:00:00.000Z").toISOString();
+                const endOfDay = new Date(dateFilter + "T23:59:59.999Z").toISOString();
+                q = query(logsRef, where("timestamp", ">=", startOfDay), where("timestamp", "<=", endOfDay), orderBy("timestamp", "desc"), limit(500));
+            } else {
+                if (lastLogDoc) {
+                    q = query(logsRef, orderBy('timestamp', 'desc'), startAfter(lastLogDoc), limit(50));
+                } else {
+                    q = query(logsRef, orderBy('timestamp', 'desc'), limit(50));
+                }
+            }
+
+            const snap = await getDocs(q);
+            let logs = [];
+            snap.forEach(d => logs.push(d.data()));
+
+            if (!isLoadMore) tbody.innerHTML = '';
+
+            if (snap.empty) {
+                if(!isLoadMore) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#6b7280; padding:20px;">No system logs found.</td></tr>';
+                hasMoreLogs = false;
+            } else {
+                lastLogDoc = snap.docs[snap.docs.length - 1];
+                if (snap.docs.length < 50) hasMoreLogs = false;
+
+                // RAM Filtering for Shop/Action
+                if (shopFilter !== 'ALL') logs = logs.filter(l => l.shopName === shopFilter);
+                if (actionFilter !== 'ALL') logs = logs.filter(l => l.action && l.action.includes(actionFilter));
+
+                let html = '';
+                logs.forEach(l => {
+                    const date = l.timestamp ? new Date(l.timestamp) : new Date();
+                    const safeEmail = String(l.userEmail || "Unknown").replace(/</g, "&lt;");
+                    const safeShop = String(l.shopName || "Unknown").replace(/</g, "&lt;");
+                    const safeAction = String(l.action || "UNKNOWN").replace(/</g, "&lt;");
+                    const safeDesc = String(l.description || "-").replace(/</g, "&lt;");
+
+                    const roleBadge = l.userRole === 'admin' 
+                        ? `<span style="background:#fef3c7; color:#b45309; padding:2px 6px; border-radius:4px; font-size:11px;">ADMIN</span>`
+                        : `<span style="background:#e0e7ff; color:#3730a3; padding:2px 6px; border-radius:4px; font-size:11px;">OFFICER</span>`;
+                        
+                    let actionColor = "#374151"; 
+                    if(safeAction.match(/(DELETE|REMOVE|ABORT|STATUS|PENALTY|BOUNCE)/)) actionColor = "#dc2626"; 
+                    if(safeAction.match(/(SALE|ADD|IN|DONE|SUCCESS)/)) actionColor = "#16a34a"; 
+                    if(safeAction.match(/(LOGIN|TRANSFER|UPDATE|MIGRATION)/)) actionColor = "#2563eb"; 
+
+                    html += `
+                    <tr>
+                        <td style="font-size:12px;"><div style="font-weight:bold;">${date.toLocaleDateString()}</div><div style="color:#666;">${date.toLocaleTimeString()}</div></td>
+                        <td style="font-weight:600; font-size:13px;">${safeEmail}</td><td>${roleBadge}</td>
+                        <td style="font-size:12px; color:#4b5563;">${safeShop}</td>
+                        <td style="font-weight:bold; font-size:12px; color:${actionColor};">${safeAction}</td>
+                        <td style="font-size:13px; line-height:1.4;">${safeDesc}</td>
+                    </tr>`;
+                });
+                tbody.insertAdjacentHTML('beforeend', html);
+            }
+        } catch(e) {
+            console.error(e);
+            if(!isLoadMore) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:red;">Error loading logs.</td></tr>';
+        } finally {
+            isFetchingLogs = false;
+            loaderUi.style.display = 'none';
+            toggleLoader(false);
+        }
+    };
+
+    window.handleLogsScroll = () => {
+        const area = document.getElementById('logsScrollArea');
+        if (area.scrollTop + area.clientHeight >= area.scrollHeight - 10) {
+            if (hasMoreLogs && !isFetchingLogs) loadSystemLogs(true);
+        }
+    };
+
+
+    // --- 2. CUSTOMERS PAGINATION ---
+    let lastCustDoc = null;
+    let isFetchingCusts = false;
+    let hasMoreCusts = true;
+
+    window.loadCustomers = async (isLoadMore = false) => {
+        // We replace onSnapshot with getDocs for scalable pagination!
+        if (window.unsubCustomers) { window.unsubCustomers(); window.unsubCustomers = null; }
+
+        const grid = document.getElementById('customerGrid');
+        const loaderUi = document.getElementById('custLoadMoreLoader');
+        
+        if (!isLoadMore) {
+            lastCustDoc = null; hasMoreCusts = true; customersCache = [];
+            grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:20px; font-weight:bold; color:var(--primary);"><i class="ri-loader-4-line ri-spin"></i> Loading Customers...</div>';
+        } else {
+            loaderUi.style.display = 'block';
+        }
+
+        if (isFetchingCusts || !hasMoreCusts) return;
+        isFetchingCusts = true;
+
+        try {
+            let q;
+            if (lastCustDoc) {
+                q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/customers`), orderBy('lastUpdated', 'desc'), startAfter(lastCustDoc), limit(40));
+            } else {
+                q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/customers`), orderBy('lastUpdated', 'desc'), limit(40));
+            }
+
+            const snap = await getDocs(q);
+            
+            if (snap.empty) {
+                if(!isLoadMore) grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:20px; color:#666;">No customers found.</div>';
+                hasMoreCusts = false;
+            } else {
+                lastCustDoc = snap.docs[snap.docs.length - 1];
+                if (snap.docs.length < 40) hasMoreCusts = false;
+
+                snap.forEach(d => {
+                    if(!customersCache.find(x => x.id === d.id)) customersCache.push({ id: d.id, ...d.data() });
+                });
+                renderCustomers(); // Updates grid from cache
+                updateCustomerDatalist(); // Updates POS Dropdowns dynamically
+            }
+        } catch(e) { console.error(e); } 
+        finally {
+            isFetchingCusts = false; loaderUi.style.display = 'none';
+        }
+    };
+
+    window.handleCustomersScroll = () => {
+        // Disable scroll fetching if search is active
+        if(document.getElementById('custSearch').value.trim() !== '') return; 
+        
+        const area = document.getElementById('custScrollArea');
+        if (area.scrollTop + area.clientHeight >= area.scrollHeight - 10) {
+            if (hasMoreCusts && !isFetchingCusts) loadCustomers(true);
+        }
+    };
+
+    // --- 3. EMPLOYEES PAGINATION ---
+    let lastEmpDoc = null;
+    let isFetchingEmps = false;
+    let hasMoreEmps = true;
+
+    window.loadEmployees = async (isLoadMore = false) => {
+        const grid = document.getElementById('empGrid');
+        const loaderUi = document.getElementById('empLoadMoreLoader');
+        
+        if (!isLoadMore) {
+            lastEmpDoc = null; hasMoreEmps = true; employeesCache = [];
+            grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:20px; font-weight:bold; color:var(--primary);"><i class="ri-loader-4-line ri-spin"></i> Loading Staff...</div>';
+        } else {
+            loaderUi.style.display = 'block';
+        }
+
+        if (isFetchingEmps || !hasMoreEmps) return;
+        isFetchingEmps = true;
+
+        try {
+            let q;
+            // Order by ID or Name to maintain consistency, let's use ID (phone)
+            if (lastEmpDoc) {
+                q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/employees`), orderBy('__name__'), startAfter(lastEmpDoc), limit(30));
+            } else {
+                q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/employees`), orderBy('__name__'), limit(30));
+            }
+
+            const snap = await getDocs(q);
+            
+            if (snap.empty) {
+                if(!isLoadMore) grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:20px; color:#666;">No employees found.</div>';
+                hasMoreEmps = false;
+            } else {
+                lastEmpDoc = snap.docs[snap.docs.length - 1];
+                if (snap.docs.length < 30) hasMoreEmps = false;
+
+                snap.forEach(d => {
+                    if(!employeesCache.find(x => x.id === d.id)) employeesCache.push({ id: d.id, ...d.data() });
+                });
+                renderEmployees(); 
+            }
+        } catch(e) { console.error(e); } 
+        finally {
+            isFetchingEmps = false; loaderUi.style.display = 'none';
+        }
+    };
+
+    window.handleEmployeesScroll = () => {
+        // Disable scroll fetching if search is active
+        if(document.getElementById('empSearch').value.trim() !== '') return; 
+        
+        const area = document.getElementById('empScrollArea');
+        if (area.scrollTop + area.clientHeight >= area.scrollHeight - 10) {
+            if (hasMoreEmps && !isFetchingEmps) loadEmployees(true);
+        }
     };
 </script>
 
