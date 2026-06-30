@@ -707,46 +707,74 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             </div>
         </div>
 
-        <!-- 2. Dispatch Trip Modal -->
+        <!-- 2. Dispatch Trip Modal (Enterprise Edit) -->
         <div id="fleetDispatchModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.6); display:none; align-items:center; justify-content:center; z-index:5000; backdrop-filter:blur(3px);">
-            <div class="card" style="width:450px; margin:0; border-top:5px solid var(--success);">
+            <div class="card" style="width:450px; margin:0; border-top:5px solid var(--success); max-height:90vh; overflow-y:auto;">
                 <div style="display:flex; justify-content:space-between; margin-bottom:15px;"><h3 style="color:var(--success);">වාහනය පිටත් කිරීම</h3><i class="ri-close-line" style="cursor:pointer; font-size:24px;" onclick="closeModal('fleetDispatchModal')"></i></div>
                 
                 <label style="font-size:12px; font-weight:bold;">වාහනය තෝරන්න *</label>
-                <select id="fdVehicle" style="margin-bottom:10px;"></select>
+                <select id="fdVehicle" style="margin-bottom:10px;" onchange="autoFillOdometer()"></select>
                 
                 <label style="font-size:12px; font-weight:bold;">රියදුරු (සේවකයා) *</label>
                 <select id="fdDriver" style="margin-bottom:10px;"></select>
                 
-                <label style="font-size:12px; font-weight:bold;">ගමනාන්තය සහ අරමුණ *</label>
-                <input id="fdDestination" placeholder="උදා: මහරගම - AC සවි කිරීමට">
+                <div style="background:#f8fafc; padding:10px; border-radius:8px; border:1px solid #e2e8f0; margin-bottom:15px;">
+                    <label style="font-size:12px; font-weight:bold; color:var(--primary);">පිටත්වන ස්ථානය (Origin) *</label>
+                    <input id="fdOrigin" value="Office / Store" placeholder="උදා: Office">
+                    
+                    <label style="font-size:12px; font-weight:bold; color:var(--primary);">ගමනාන්තය (Destination) *</label>
+                    <input id="fdDestination" placeholder="උදා: මහරගම">
+                    
+                    <label style="font-size:12px; font-weight:bold; color:#d97706;">ගමනේ අරමුණ (Purpose) *</label>
+                    <input id="fdPurpose" placeholder="උදා: AC යන්ත්‍රයක් සවි කිරීමට" style="margin-bottom:0;">
+                </div>
+
+                <div style="background:#fffbeb; padding:10px; border-radius:8px; border:1px solid #fde68a; margin-bottom:15px;">
+                    <label style="font-size:12px; font-weight:bold; color:#b45309;"><i class="ri-dashboard-3-line"></i> පිටත්වන විට වාහනයේ මීටරය (Start Odometer KM) *</label>
+                    <input type="number" id="fdStartMeter" placeholder="උදා: 45200" style="margin-bottom:0; font-size:16px; font-weight:bold; border-color:#fcd34d;">
+                    <div style="font-size:10px; color:#b45309; margin-top:5px;">පද්ධතියේ මතකයට අනුව මෙම වාහනයේ අවසාන මීටර් අගය ස්වයංක්‍රීයව පිරවී ඇත.</div>
+                </div>
                 
                 <button class="btn btn-success" onclick="startFleetTrip()">Dispatch Now</button>
             </div>
         </div>
 
-        <!-- 3. Return Trip Modal (Calculate KM/Fuel) -->
+        <!-- 3. Return Trip Modal (Enterprise Odometer Tracking) -->
         <div id="fleetReturnModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.6); display:none; align-items:center; justify-content:center; z-index:5000; backdrop-filter:blur(3px);">
-            <div class="card" style="width:450px; margin:0; border-top:5px solid var(--warning);">
+            <div class="card" style="width:450px; margin:0; border-top:5px solid var(--warning); max-height:90vh; overflow-y:auto;">
                 <h3 style="color:var(--warning); margin-bottom:15px;">ගමන අවසන් කිරීම (Return)</h3>
                 <input type="hidden" id="frTripId">
                 <input type="hidden" id="frVehId">
                 <input type="hidden" id="frEfficiency">
+                <input type="hidden" id="frStartMeterVal">
                 
                 <div style="background:#fefce8; padding:10px; border-radius:8px; border:1px solid #fef08a; margin-bottom:15px;">
-                    <div id="frTripInfo" style="font-size:13px; font-weight:bold; color:#854d0e;"></div>
-                    <button class="btn btn-ghost" style="margin-top:10px; font-size:11px; padding:4px 8px; border-color:#ca8a04; color:#ca8a04;" onclick="openTripMap()"><i class="ri-map-pin-line"></i> Open Google Maps for Route</button>
+                    <div id="frTripInfo" style="font-size:13px; font-weight:bold; color:#854d0e; line-height:1.5;"></div>
+                    <button class="btn btn-ghost" style="margin-top:10px; font-size:11px; padding:4px 8px; border-color:#ca8a04; color:#ca8a04; width:100%;" onclick="openTripMap()"><i class="ri-map-pin-line"></i> Google Maps හරහා නියමිත දුර පරීක්ෂා කරන්න</button>
                 </div>
 
-                <label style="font-size:12px; font-weight:bold;">සම්පූර්ණ ගමන් කළ දුර (KM) *</label>
-                <input id="frDistance" type="number" placeholder="උදා: 45.5" onkeyup="calcFleetFuel()" style="font-size:18px; font-weight:bold;">
+                <div style="display:flex; gap:10px; margin-bottom:10px;">
+                    <div style="flex:1;">
+                        <label style="font-size:11px; color:#666; font-weight:bold;">ආරම්භක මීටරය</label>
+                        <input id="frStartDisplay" disabled style="background:#f3f4f6; font-weight:bold; color:#9ca3af; margin:0;">
+                    </div>
+                    <div style="flex:1;">
+                        <label style="font-size:11px; color:var(--danger); font-weight:bold;">පැමිණි පසු මීටරය *</label>
+                        <input id="frEndMeter" type="number" placeholder="Enter KM" onkeyup="calcFleetFuel()" style="font-size:15px; font-weight:bold; border-color:var(--danger); margin:0;">
+                    </div>
+                </div>
+
+                <div style="background:#f0fdf4; padding:10px; border-radius:8px; border:1px solid #bbf7d0; margin-bottom:15px; text-align:center;">
+                    <label style="font-size:11px; color:#166534; font-weight:bold;">සම්පූර්ණ ගමන් කළ දුර (ස්වයංක්‍රීයව ගණනය වේ)</label>
+                    <input id="frDistance" type="number" disabled style="font-size:20px; font-weight:900; background:transparent; border:none; text-align:center; color:#15803d; margin:0; padding:5px;">
+                </div>
                 
-                <div style="display:flex; justify-content:space-between; font-size:13px; color:#4b5563; margin-bottom:15px;">
+                <div style="display:flex; justify-content:space-between; font-size:13px; color:#4b5563; margin-bottom:15px; padding:0 10px;">
                     <span>පිච්චුණු ඉන්ධන ප්‍රමාණය (අනුමාන):</span>
                     <strong id="frFuelEst" style="color:var(--danger); font-size:16px;">0.00 L</strong>
                 </div>
 
-                <button class="btn btn-warning" onclick="finishFleetTrip()">End Trip & Save Log</button>
+                <button class="btn btn-warning" onclick="finishFleetTrip()"><i class="ri-checkbox-circle-line"></i> End Trip & Save Log</button>
                 <button class="btn btn-ghost" style="margin-top:10px;" onclick="closeModal('fleetReturnModal')">Cancel</button>
             </div>
         </div>
@@ -1604,33 +1632,47 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                 </table>
             </div>
         </div>
-<!-- NEW: SERVICE CRM TAB (HTML) -->
+<!-- 🛡️ ENTERPRISE FIX: SERVICE CRM TAB WITH INFINITE SCROLL & SEARCH -->
         <div id="view-crm" class="view">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
-                 <h3><i class="ri-calendar-check-line"></i> Service CRM & Reminders</h3>
-                 <div style="display:flex; gap:10px;">
-                     <input type="month" id="crmMonthFilter" onchange="loadCRM()" style="margin:0; width:auto;">
-                     <button class="btn btn-ghost" onclick="loadCRM()"><i class="ri-refresh-line"></i> Refresh</button>
-                 </div>
-            </div>
-            
-            <!-- 🛡️ NEW: CUSTOMER ONLINE REQUESTS -->
-            <div class="card" style="background:#fffbeb; border-color:#fde68a;">
-                <h4 style="color:#d97706; margin-bottom:10px;"><i class="ri-smartphone-line"></i> Online Service Requests (From Customer Portal)</h4>
-                <div style="overflow-x:auto;">
-                    <table id="onlineRequestsTable" style="width:100%; font-size:13px;">
-                        <thead><tr><th>Date Requested</th><th>Customer</th><th>Service Details</th><th>Status</th><th>Action</th></tr></thead>
-                        <tbody><tr><td colspan="5" style="text-align:center;">Loading requests...</td></tr></tbody>
-                    </table>
-                </div>
+                 <h3><i class="ri-calendar-check-fill" style="color:var(--primary);"></i> Service CRM & Tickets</h3>
             </div>
 
-            <div class="note-box"><i class="ri-information-fill"></i> Track upcoming scheduled services linked to sales.</div>
-            <div class="card" style="overflow-x:auto;">
-                <table id="crmTable">
-                    <thead><tr><th>Scheduled Date</th><th>Customer</th><th>Note / Service</th><th>Linked Sale ID</th><th>Status</th><th>Actions</th></tr></thead>
-                    <tbody></tbody>
+            <!-- Deep Search Bar for CRM -->
+            <div style="display:flex; gap:10px; margin-bottom:20px; align-items:center; flex-wrap:wrap; background:#f8fafc; padding:10px; border-radius:12px; border:1px solid #e2e8f0;">
+                <div style="display:flex; flex:1; min-width:250px; background:#fff; border:1px solid #cbd5e1; border-radius:8px; align-items:center; padding:0 10px;">
+                    <i class="ri-search-line" style="color:#94a3b8;"></i>
+                    <input type="text" id="crmSearchInput" placeholder="Search by Customer Phone or Name..." style="border:none; margin:0; outline:none; box-shadow:none; padding:10px; width:100%; font-weight:bold;" onkeyup="searchCRMDebounced()">
+                </div>
+                <div style="display:flex; gap:10px; align-items:center;">
+                    <label style="font-size:12px; font-weight:bold; color:#64748b;">Month Filter:</label>
+                    <input type="month" id="crmMonthFilter" onchange="refreshCRM()" style="margin:0; width:auto; border-radius:8px; border:1px solid #cbd5e1; font-weight:bold;">
+                    <button class="btn btn-primary" style="width:auto; padding:0 15px;" onclick="refreshCRM()"><i class="ri-refresh-line"></i> Refresh</button>
+                </div>
+            </div>
+            
+            <!-- CUSTOMER ONLINE REQUESTS (Infinite Scroll) -->
+            <div class="card" id="crmReqScrollArea" style="background:#fffbeb; border-color:#fde68a; overflow-x:auto; overflow-y:auto; max-height:45vh; margin-bottom:20px;" onscroll="handleCRMReqScroll()">
+                <h4 style="color:#d97706; margin-bottom:10px; position:sticky; left:0;"><i class="ri-smartphone-line"></i> Online Service Requests (Tickets)</h4>
+                <table id="onlineRequestsTable" style="width:100%; font-size:13px; position:relative;">
+                    <thead style="background:#fef3c7; position:sticky; top:0; z-index:10; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
+                        <tr><th style="padding:10px;">Date</th><th style="padding:10px;">Customer</th><th style="padding:10px;">Issue Details</th><th style="padding:10px;">Status</th><th style="padding:10px;">Action</th></tr>
+                    </thead>
+                    <tbody id="crmReqTbody"></tbody>
                 </table>
+                <div id="crmReqLoader" style="display:none; text-align:center; padding:15px; color:#d97706; font-weight:bold;"><i class="ri-loader-4-line ri-spin"></i> තවත් පැරණි ටිකට්පත් ගෙන එමින්...</div>
+            </div>
+
+            <!-- SERVICE REMINDERS (Infinite Scroll) -->
+            <div class="note-box" style="margin-bottom:10px;"><i class="ri-information-fill"></i> Track scheduled maintenance & service reminders linked to sales.</div>
+            <div class="card" id="crmRemScrollArea" style="overflow-x:auto; overflow-y:auto; max-height:45vh; margin-bottom:0;" onscroll="handleCRMRemScroll()">
+                <table id="crmTable" style="width:100%; font-size:13px; position:relative;">
+                    <thead style="background:#f9fafb; position:sticky; top:0; z-index:10; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
+                        <tr><th style="padding:10px;">Target Date</th><th style="padding:10px;">Customer</th><th style="padding:10px;">Service Note</th><th style="padding:10px;">Sale ID</th><th style="padding:10px;">Status</th><th style="padding:10px;">Actions</th></tr>
+                    </thead>
+                    <tbody id="crmRemTbody"></tbody>
+                </table>
+                <div id="crmRemLoader" style="display:none; text-align:center; padding:15px; color:var(--primary); font-weight:bold;"><i class="ri-loader-4-line ri-spin"></i> තවත් පැරණි සිහිකැඳවීම් ගෙන එමින්...</div>
             </div>
         </div>
         <!-- REPLACEMENT FOR view-customers -->
@@ -3876,17 +3918,12 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             loadStockTakeUI(); // 🚀 LOAD AUDIT TAB
         }
         if(viewName === 'crm') {
-            // 🛡️ ENTERPRISE FIX: Secure Auto-fill for Month Filter & Auto Data Load
             const crmMonthInput = document.getElementById('crmMonthFilter');
-            
-            // කොටුව හිස්ව ඇත්නම් පමණක් (පළමු වරට පැමිණෙන විට) වර්තමාන මාසය පුරවයි
             if (!crmMonthInput.value) {
-                // යන්ත්‍රයේ වේලාව වෙනස් කළත් නොරැවටෙන Secure Time එකෙන් 'YYYY-MM' පමණක් කපා ගැනීම
                 crmMonthInput.value = window.getSecureLocalDateStr().slice(0, 7); 
             }
-            
-            // ටැබ් එක ක්ලික් කළ වහාම ස්වයංක්‍රීයව දත්ත ගෙන්වා ගැනීම
-            loadCRM();
+            // 🛡️ ENTERPRISE FIX: Call the new dual-pagination engine
+            refreshCRM();
         }
     };
     
@@ -15352,9 +15389,8 @@ let currentBatchForSerials = null;
         const vehSel = document.getElementById('fdVehicle');
         vehSel.innerHTML = '<option value="">-- වාහනය තෝරන්න --</option>';
         vehiclesCache.forEach(v => {
-            // Only show available vehicles
             if(!tripsCache.some(t => t.vehicleId === v.id)) {
-                vehSel.innerHTML += `<option value="${v.id}" data-plate="${v.plateNo}">${v.plateNo} (${v.type})</option>`;
+                vehSel.innerHTML += `<option value="${v.id}" data-plate="${v.plateNo}" data-meter="${v.currentOdometer || 0}">${v.plateNo} (${v.type})</option>`;
             }
         });
 
@@ -15364,18 +15400,42 @@ let currentBatchForSerials = null;
             drvSel.innerHTML += `<option value="${e.id}" data-name="${e.name}">${e.name} (${e.role || 'Staff'})</option>`;
         });
 
+        document.getElementById('fdOrigin').value = 'Office / Store';
         document.getElementById('fdDestination').value = '';
+        document.getElementById('fdPurpose').value = '';
+        document.getElementById('fdStartMeter').value = '';
+        
         openModal('fleetDispatchModal');
+    };
+
+    // 🛡️ Auto-fill last known odometer reading
+    window.autoFillOdometer = () => {
+        const sel = document.getElementById('fdVehicle');
+        const opt = sel.options[sel.selectedIndex];
+        if (opt && opt.dataset.meter) {
+            document.getElementById('fdStartMeter').value = opt.dataset.meter > 0 ? opt.dataset.meter : '';
+        }
     };
 
     window.startFleetTrip = async () => {
         const vehSel = document.getElementById('fdVehicle');
         const drvSel = document.getElementById('fdDriver');
+        const origin = document.getElementById('fdOrigin').value.trim();
         const dest = document.getElementById('fdDestination').value.trim();
+        const purpose = document.getElementById('fdPurpose').value.trim();
+        const startMeter = parseFloat(document.getElementById('fdStartMeter').value);
 
-        if(!vehSel.value || !drvSel.value || !dest) return showToast("All fields are required!", "error");
+        if(!vehSel.value || !drvSel.value || !origin || !dest || !purpose) return showToast("All fields are required!", "error");
+        if(isNaN(startMeter) || startMeter < 0) return showToast("Valid Start Odometer is required!", "error");
 
         const vehPlate = vehSel.options[vehSel.selectedIndex].dataset.plate;
+        const lastMeter = parseFloat(vehSel.options[vehSel.selectedIndex].dataset.meter);
+
+        // Security Check: Make sure meter doesn't go backwards
+        if(lastMeter > 0 && startMeter < lastMeter) {
+            if(!confirm(`Warning: The meter reading entered (${startMeter}) is LOWER than the last recorded meter (${lastMeter})!\n\nAre you sure this is correct?`)) return;
+        }
+
         const drvName = drvSel.options[drvSel.selectedIndex].dataset.name;
         
         toggleLoader(true);
@@ -15383,14 +15443,16 @@ let currentBatchForSerials = null;
             await addDoc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/vehicle_trips`), {
                 vehicleId: vehSel.value, plateNo: vehPlate,
                 driverId: drvSel.value, driverName: drvName,
-                destination: dest, status: 'ACTIVE',
+                origin: origin, destination: dest, purpose: purpose, 
+                startOdometer: startMeter,
+                status: 'ACTIVE',
                 dispatchTime: window.getSecureTime().toISOString()
             });
             
             closeModal('fleetDispatchModal');
             loadFleetUI();
-            if(window.writeSystemLog) writeSystemLog("FLEET_DISPATCH", `Dispatched ${vehPlate} to ${dest} (Driver: ${drvName})`);
-            showToast("Vehicle Dispatched!");
+            if(window.writeSystemLog) writeSystemLog("FLEET_DISPATCH", `Dispatched ${vehPlate} to ${dest} for ${purpose} (Driver: ${drvName}, Meter: ${startMeter})`);
+            showToast("Vehicle Dispatched & Meter Logged!");
         } catch(e) { showToast("Error dispatching", "error"); }
         toggleLoader(false);
     };
@@ -15405,16 +15467,33 @@ let currentBatchForSerials = null;
         document.getElementById('frTripId').value = t.id;
         document.getElementById('frVehId').value = t.vehicleId;
         document.getElementById('frEfficiency').value = eff;
+        document.getElementById('frStartMeterVal').value = t.startOdometer;
         
-        document.getElementById('frTripInfo').innerHTML = `Vehicle: ${t.plateNo} <br>Driver: ${t.driverName} <br>Destination: ${t.destination}`;
-        document.getElementById('frDistance').value = '';
+        document.getElementById('frTripInfo').innerHTML = `
+            <b>Vehicle:</b> ${t.plateNo} <br>
+            <b>Driver:</b> ${t.driverName} <br>
+            <b>Route:</b> ${t.origin || 'Store'} <i class="ri-arrow-right-line"></i> ${t.destination} <br>
+            <b>Purpose:</b> ${t.purpose || '-'}
+        `;
+        
+        document.getElementById('frStartDisplay').value = t.startOdometer;
+        document.getElementById('frEndMeter').value = '';
+        document.getElementById('frDistance').value = '0';
         document.getElementById('frFuelEst').textContent = '0.00 L';
         
         openModal('fleetReturnModal');
+        setTimeout(() => document.getElementById('frEndMeter').focus(), 100);
     };
 
     window.calcFleetFuel = () => {
-        const km = parseFloat(document.getElementById('frDistance').value) || 0;
+        const startMeter = parseFloat(document.getElementById('frStartMeterVal').value) || 0;
+        const endMeter = parseFloat(document.getElementById('frEndMeter').value) || 0;
+        
+        let km = endMeter - startMeter;
+        if (km < 0) km = 0; // Prevent negative distance
+
+        document.getElementById('frDistance').value = km.toFixed(1);
+
         const eff = parseFloat(document.getElementById('frEfficiency').value) || 10;
         const fuel = km / eff;
         document.getElementById('frFuelEst').textContent = fuel.toFixed(2) + " L";
@@ -15423,30 +15502,45 @@ let currentBatchForSerials = null;
     window.openTripMap = () => {
         const t = tripsCache.find(x => x.id === document.getElementById('frTripId').value);
         if(!t) return;
-        // Open Google Maps Directions securely in a new tab without needing an API Key!
-        const url = `https://www.google.com/maps/dir/?api=1&origin=My+Location&destination=${encodeURIComponent(t.destination)}`;
+        // 🛡️ Google Maps Directions API (Free URL formulation)
+        const origin = encodeURIComponent(t.origin || 'My Location');
+        const dest = encodeURIComponent(t.destination);
+        const url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${dest}`;
         window.open(url, '_blank');
     };
 
     window.finishFleetTrip = async () => {
         const tripId = document.getElementById('frTripId').value;
+        const vehId = document.getElementById('frVehId').value;
+        const startMeter = parseFloat(document.getElementById('frStartMeterVal').value);
+        const endMeter = parseFloat(document.getElementById('frEndMeter').value);
         const km = parseFloat(document.getElementById('frDistance').value);
-        const fuel = parseFloat(document.getElementById('frFuelEst').textContent); // Extracted from label
+        const fuel = parseFloat(document.getElementById('frFuelEst').textContent); 
         
-        if(isNaN(km) || km <= 0) return showToast("Enter valid distance (KM)", "error");
+        if(isNaN(endMeter) || endMeter <= startMeter) return showToast("End Odometer must be greater than Start Odometer!", "error");
 
         toggleLoader(true);
         try {
-            await updateDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/vehicle_trips`, tripId), {
-                status: 'COMPLETED',
-                returnTime: window.getSecureTime().toISOString(),
-                distanceKm: km,
-                fuelUsedLiters: fuel
+            // 🛡️ ENTERPRISE FIX: Atomic Transaction to update Trip and Vehicle Memory
+            await runTransaction(db, async (t) => {
+                const tripRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/vehicle_trips`, tripId);
+                const vehRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/vehicles`, vehId);
+                
+                t.update(tripRef, {
+                    status: 'COMPLETED',
+                    returnTime: window.getSecureTime().toISOString(),
+                    endOdometer: endMeter,
+                    distanceKm: km,
+                    fuelUsedLiters: fuel
+                });
+
+                // වාහනයේ මතකයට අලුත් මීටර් අගය යාවත්කාලීන කිරීම
+                t.update(vehRef, { currentOdometer: endMeter });
             });
             
             closeModal('fleetReturnModal');
-            loadFleetUI();
-            showToast(`Trip Ended! Estimated Fuel Used: ${fuel.toFixed(2)} L`, "success");
+            loadFleetUI(); // This will auto-refresh the history table too
+            showToast(`Trip Ended! Total Distance: ${km} KM`, "success");
         } catch(e) { showToast("Error saving trip", "error"); }
         toggleLoader(false);
     };
@@ -15546,6 +15640,298 @@ let currentBatchForSerials = null;
 
         } catch(e) { console.error(e); }
     }
+// ==========================================
+    // 🛡️ ENTERPRISE: CRM INFINITE PAGINATION & OMNI-SEARCH
+    // ==========================================
+
+    let lastCrmReqDoc = null;
+    let isFetchingCrmReq = false;
+    let hasMoreCrmReq = true;
+
+    let lastCrmRemDoc = null;
+    let isFetchingCrmRem = false;
+    let hasMoreCrmRem = true;
+
+    window.refreshCRM = () => {
+        // Tab එක Refresh කරද්දි Tables දෙකම මුල ඉඳන් Load කරයි
+        document.getElementById('crmSearchInput').value = '';
+        loadCRMRequests(false);
+        loadCRMReminders(false);
+    };
+
+    window.searchCRMDebounced = debounceSearch(() => {
+        // Search එකක් ගහද්දි මාසික Filter එක අයින් කරලා මුළු DB එකම පීරයි
+        document.getElementById('crmMonthFilter').value = '';
+        loadCRMRequests(false);
+        loadCRMReminders(false);
+    }, 400);
+
+    // --- 1. ONLINE REQUESTS (TICKETS) ENGINE ---
+    window.loadCRMRequests = async (isLoadMore = false) => {
+        const tbody = document.getElementById('crmReqTbody');
+        const loaderUi = document.getElementById('crmReqLoader');
+        if(!tbody) return;
+
+        const term = document.getElementById('crmSearchInput').value.trim().toLowerCase();
+
+        if (!isLoadMore) {
+            lastCrmReqDoc = null; hasMoreCrmReq = true; crmRequestsCache = [];
+            // 🛡️ Kill old listener to free RAM and switch to Paginated History
+            if (window.unsubCRMReqs) { window.unsubCRMReqs(); window.unsubCRMReqs = null; } 
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:#d97706; font-weight:bold;"><i class="ri-loader-4-line ri-spin"></i> Querying Tickets...</td></tr>';
+        } else {
+            if(loaderUi) loaderUi.style.display = 'block';
+        }
+
+        if (isFetchingCrmReq || !hasMoreCrmReq) return;
+        isFetchingCrmReq = true;
+
+        try {
+            let q;
+            const collRef = collection(db, `users/${dbOwnerId}/shops/${currentShopId}/service_requests`);
+
+            if (term.length >= 3) {
+                hasMoreCrmReq = false; // Search කරන විට Pagination අක්‍රීයයි
+                const capTerm = term.charAt(0).toUpperCase() + term.slice(1);
+                
+                // Omni-search (By Phone or Name) bypassing limits
+                const qPhone = query(collRef, where('customerPhone', '>=', term), where('customerPhone', '<=', term + '\uf8ff'), limit(20));
+                const qNameLow = query(collRef, where('customerName', '>=', term), where('customerName', '<=', term + '\uf8ff'), limit(20));
+                const qNameCap = query(collRef, where('customerName', '>=', capTerm), where('customerName', '<=', capTerm + '\uf8ff'), limit(20));
+
+                const [sPhone, sNameLow, sNameCap] = await Promise.all([getDocs(qPhone), getDocs(qNameLow), getDocs(qNameCap)]);
+                let uniqueReqs = new Map();
+                const addReq = (d) => uniqueReqs.set(d.id, {id: d.id, ...d.data()});
+                sPhone.forEach(addReq); sNameLow.forEach(addReq); sNameCap.forEach(addReq);
+                
+                crmRequestsCache = Array.from(uniqueReqs.values());
+                crmRequestsCache.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+                
+            } else {
+                // Normal Pagination (No search term)
+                if (lastCrmReqDoc) {
+                    q = query(collRef, orderBy('createdAt', 'desc'), startAfter(lastCrmReqDoc), limit(20));
+                } else {
+                    q = query(collRef, orderBy('createdAt', 'desc'), limit(20));
+                }
+
+                const snap = await getDocs(q);
+                if (snap.empty) {
+                    hasMoreCrmReq = false;
+                } else {
+                    lastCrmReqDoc = snap.docs[snap.docs.length - 1];
+                    if (snap.docs.length < 20) hasMoreCrmReq = false;
+                    snap.forEach(d => crmRequestsCache.push({id: d.id, ...d.data()}));
+                }
+            }
+
+            // Render Output
+            if (!isLoadMore) tbody.innerHTML = '';
+            
+            if(crmRequestsCache.length === 0) {
+                if(!isLoadMore) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:#666;">No requests found.</td></tr>';
+            } else {
+                // UI Rendering
+                let reqHtml = '';
+                const itemsToRender = isLoadMore ? crmRequestsCache.slice(crmRequestsCache.length - 20) : crmRequestsCache; // Render only the new chunk or all if fresh
+                
+                itemsToRender.forEach(r => {
+                    let bg, col, statusText;
+                    if(r.status === 'pending') { bg = '#fee2e2'; col = '#b91c1c'; statusText = 'ACTION REQUIRED'; }
+                    else if(r.status === 'replied') { bg = '#fef3c7'; col = '#d97706'; statusText = 'WAITING ON CUSTOMER'; }
+                    else { bg = '#dcfce7'; col = '#15803d'; statusText = 'RESOLVED'; }
+                    
+                    const replyCount = r.replies ? r.replies.length : 0;
+                    const replyBadge = replyCount > 0 ? `<div style="font-size:10px; color:var(--primary); font-weight:bold; margin-top:5px;"><i class="ri-message-3-fill"></i> ${replyCount} Messages in Thread</div>` : '';
+                    const safeCustNameReq = String(r.customerName || 'Unknown').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                    const recordsBtnReq = (r.customerPhone && r.customerPhone !== "N/A") ? `<div style="margin-top:5px;"><button class="btn btn-ghost" style="padding:2px 8px; font-size:10px; color:var(--primary); border-color:#c7d2fe; background:#e0e7ff; font-weight:bold;" onclick="openCustomerHistory('${r.customerPhone}', '${safeCustNameReq}')"><i class="ri-history-line"></i> Records</button></div>` : '';
+
+                    reqHtml += `
+                    <tr style="border-bottom:1px solid #fde68a; ${r.status === 'pending' ? 'background:#fff;' : 'background:transparent; opacity:0.8;'} transition:0.2s;" onmouseover="this.style.background='#fefce8'" onmouseout="this.style.background='${r.status === 'pending' ? '#fff' : 'transparent'}'">
+                        <td style="font-weight:bold; font-size:12px; padding:10px;">${new Date(r.createdAt).toLocaleString()}</td>
+                        <td style="padding:10px;">
+                            <b>${r.customerName.replace(/</g, "&lt;")}</b><br>
+                            <span style="font-size:11px; color:#666;">${r.customerPhone}</span>
+                            ${recordsBtnReq}
+                        </td>
+                        <td style="max-width:250px; white-space:normal; padding:10px;">
+                            <div style="font-size:13px; font-weight:600; color:#1f2937;">Issue: ${r.issueDescription.replace(/</g, "&lt;")}</div>
+                            ${replyBadge}
+                        </td>
+                        <td style="padding:10px;"><span style="background:${bg}; color:${col}; padding:3px 8px; border-radius:4px; font-size:10px; font-weight:900; letter-spacing:0.5px;">${statusText}</span></td>
+                        <td style="padding:10px;">
+                            <button class="${r.status === 'resolved' ? 'btn btn-ghost' : 'btn btn-primary'}" style="padding:6px 12px; font-size:12px;" onclick="openReplyModal('${r.id}')">
+                                <i class="ri-chat-3-line"></i> Open Ticket
+                            </button>
+                        </td>
+                    </tr>`;
+                });
+                tbody.insertAdjacentHTML('beforeend', reqHtml);
+            }
+        } catch(e) { console.error(e); if(!isLoadMore) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:red;">Error loading requests.</td></tr>'; }
+        finally { isFetchingCrmReq = false; if(loaderUi) loaderUi.style.display = 'none'; }
+    };
+
+    window.handleCRMReqScroll = () => {
+        if(document.getElementById('crmSearchInput').value.trim() !== '') return;
+        const area = document.getElementById('crmReqScrollArea');
+        if (area.scrollTop + area.clientHeight >= area.scrollHeight - 10) {
+            if (hasMoreCrmReq && !isFetchingCrmReq) loadCRMRequests(true);
+        }
+    };
+
+
+    // --- 2. SERVICE REMINDERS ENGINE ---
+    window.loadCRMReminders = async (isLoadMore = false) => {
+        const tbody = document.getElementById('crmRemTbody');
+        const loaderUi = document.getElementById('crmRemLoader');
+        if(!tbody) return;
+
+        const monthFilter = document.getElementById('crmMonthFilter').value;
+        const term = document.getElementById('crmSearchInput').value.trim().toLowerCase();
+
+        if (!isLoadMore) {
+            lastCrmRemDoc = null; hasMoreCrmRem = true;
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:var(--primary); font-weight:bold;"><i class="ri-loader-4-line ri-spin"></i> Querying Reminders...</td></tr>';
+        } else {
+            if(loaderUi) loaderUi.style.display = 'block';
+        }
+
+        if (isFetchingCrmRem || !hasMoreCrmRem) return;
+        isFetchingCrmRem = true;
+
+        try {
+            let q;
+            const collRef = collection(db, `users/${dbOwnerId}/shops/${currentShopId}/alerts`);
+            let rawResults = [];
+
+            if (term.length >= 3) {
+                 hasMoreCrmRem = false; // Disable infinite scroll during deep search
+                 // Search by Phone (refId)
+                 const qPhone = query(collRef, where('refId', '>=', term), where('refId', '<=', term + '\uf8ff'), limit(30));
+                 const snap = await getDocs(qPhone);
+                 snap.forEach(d => {
+                     const a = {id: d.id, ...d.data()};
+                     if(a.type === 'service_reminder') rawResults.push(a); // Filter locally due to Firebase Composite Limits
+                 });
+                 // Sort Ascending (Nearest target date first)
+                 rawResults.sort((a,b) => new Date(a.targetDate) - new Date(b.targetDate));
+            } 
+            else if (monthFilter) {
+                 hasMoreCrmRem = false; // Month filter disables infinite scroll, fetches the whole month
+                 const startIso = new Date(monthFilter + "-01T00:00:00.000Z").toISOString();
+                 const y = parseInt(monthFilter.split('-')[0]), m = parseInt(monthFilter.split('-')[1]);
+                 const endIso = new Date(y, m, 0, 23, 59, 59, 999).toISOString();
+                 q = query(collRef, where("type", "==", "service_reminder"), where("targetDate", ">=", startIso), where("targetDate", "<=", endIso), orderBy("targetDate", "asc"), limit(300));
+                 
+                 const snap = await getDocs(q);
+                 snap.forEach(d => rawResults.push({id: d.id, ...d.data()}));
+            } 
+            else {
+                 // Standard Pagination (Upcoming & Past Reminders, Newest first)
+                 if (lastCrmRemDoc) {
+                    q = query(collRef, where("type", "==", "service_reminder"), orderBy("targetDate", "desc"), startAfter(lastCrmRemDoc), limit(20));
+                 } else {
+                    q = query(collRef, where("type", "==", "service_reminder"), orderBy("targetDate", "desc"), limit(20));
+                 }
+                 
+                 const snap = await getDocs(q);
+                 if (!snap.empty) {
+                    lastCrmRemDoc = snap.docs[snap.docs.length - 1];
+                    if (snap.docs.length < 20) hasMoreCrmRem = false;
+                    snap.forEach(d => rawResults.push({id: d.id, ...d.data()}));
+                 } else {
+                    hasMoreCrmRem = false;
+                 }
+            }
+
+            // Render Output
+            if (!isLoadMore) tbody.innerHTML = '';
+            
+            if(rawResults.length === 0) {
+                if(!isLoadMore) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:#666;">No service reminders found for this selection.</td></tr>';
+            } else {
+                // 🚀 ENTERPRISE FIX: Alias Map for CRM to prevent Amnesia Bug (Customer identity resolution)
+                const aliasMap = {};
+                customersCache.forEach(c => { if (c.phone_history) c.phone_history.forEach(h => aliasMap[h.phone] = c); });
+
+                let html = '';
+                const now = window.getSecureTime ? window.getSecureTime() : new Date();
+
+                for (let s of rawResults) {
+                    let custName = "Unknown Customer";
+                    let custPhone = s.refId || "N/A";
+                    let migratedBadge = "";
+                    
+                    const activeIdentity = aliasMap[custPhone];
+                    if (activeIdentity) {
+                        custName = activeIdentity.name;
+                        custPhone = activeIdentity.id; // Corrected new phone!
+                        migratedBadge = `<span style="font-size:9px; background:#fef3c7; color:#d97706; padding:2px; border-radius:3px; margin-left:5px;">(Migrated)</span>`;
+                    } else {
+                        const c = customersCache.find(x => String(x.id) === String(s.refId));
+                        if (c) custName = c.name;
+                    }
+
+                    custName = custName.replace(/</g, "&lt;") + migratedBadge;
+                    const targetDateObj = new Date(s.targetDate);
+                    const isOverdue = targetDateObj < now && s.status === 'active';
+                    
+                    let statusBadge = ''; let rowStyle = '';
+                    if (s.status === 'closed') {
+                        statusBadge = '<span style="background:#dcfce7; color:#15803d; padding:4px 8px; border-radius:4px; font-size:11px; font-weight:bold;"><i class="ri-check-double-line"></i> DONE</span>';
+                        rowStyle = 'opacity:0.7; background:#f9fafb;';
+                    } else if (isOverdue) {
+                        statusBadge = '<span style="background:#fee2e2; color:#b91c1c; padding:4px 8px; border-radius:4px; font-size:11px; font-weight:bold;"><i class="ri-alarm-warning-line"></i> OVERDUE</span>';
+                        rowStyle = 'background:#fef2f2;';
+                    } else {
+                        statusBadge = '<span style="background:#fef3c7; color:#d97706; padding:4px 8px; border-radius:4px; font-size:11px; font-weight:bold;"><i class="ri-time-line"></i> UPCOMING</span>';
+                    }
+
+                    const safeCustNameSched = String(custName).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                    const recordsBtnSched = (custPhone && custPhone !== "N/A") ? `<div style="margin-top:5px;"><button class="btn btn-ghost" style="padding:2px 8px; font-size:10px; color:var(--primary); border-color:#c7d2fe; background:#e0e7ff; font-weight:bold;" onclick="openCustomerHistory('${custPhone}', '${safeCustNameSched}')"><i class="ri-history-line"></i> Records</button></div>` : '';
+
+                    html += `
+                    <tr style="${rowStyle} border-bottom:1px solid #e5e7eb; transition:0.2s;" onmouseover="this.style.background='${isOverdue ? '#fecaca' : '#f1f5f9'}'" onmouseout="this.style.background=''">
+                        <td style="font-weight:bold; font-size:13px; padding:12px;">${s.targetDate ? targetDateObj.toLocaleDateString() : '-'}</td>
+                        <td style="padding:12px;">
+                            <div style="font-weight:700; color:#1f2937;">${custName}</div>
+                            <div style="font-size:11px; color:#666;">${custPhone}</div>
+                            ${recordsBtnSched}
+                        </td>
+                        <td style="font-size:13px; max-width:200px; white-space:normal; font-weight:600; color:#4b5563; padding:12px;">${(s.message || '-').replace(/</g, "&lt;")}</td>
+                        <td style="font-family:monospace; font-size:13px; color:var(--primary); font-weight:bold; padding:12px;">${s.orderId || '-'}</td>
+                        <td style="padding:12px;">${statusBadge}</td>
+                        <td style="padding:12px;">
+                            ${s.status !== 'closed' ? `
+                            <div style="display:flex; gap:5px;">
+                                <button class="btn btn-success" style="padding:6px 10px; font-size:11px;" onclick="markServiceCRM('${s.id}', 'closed')" title="Mark as Done"><i class="ri-check-line"></i> Done</button>
+                                <button class="btn btn-warning" style="padding:6px 10px; font-size:11px;" onclick="rescheduleServiceCRM('${s.id}', '${s.targetDate}')" title="Reschedule Date"><i class="ri-calendar-line"></i> Reschedule</button>
+                            </div>
+                            ` : `
+                            <div style="display:flex; gap:5px;">
+                                <button class="btn btn-ghost" style="padding:6px 10px; font-size:11px; border-color:var(--primary); color:var(--primary);" onclick="markServiceCRM('${s.id}', 'active')" title="Reopen this service">Reopen</button>
+                                <button class="btn btn-danger" style="padding:6px 10px; font-size:11px;" onclick="deleteServiceCRM('${s.id}')" title="Delete record permanently"><i class="ri-delete-bin-line"></i></button>
+                            </div>
+                            `}
+                        </td>
+                    </tr>`;
+                }
+                tbody.insertAdjacentHTML('beforeend', html);
+            }
+        } catch(e) { console.error("CRM Rem Load Error:", e); if(!isLoadMore) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:red;">Error loading reminders.</td></tr>'; }
+        finally { isFetchingCrmRem = false; if(loaderUi) loaderUi.style.display = 'none'; }
+    };
+
+    window.handleCRMRemScroll = () => {
+        if(document.getElementById('crmSearchInput').value.trim() !== '') return;
+        if(document.getElementById('crmMonthFilter').value !== '') return; // Disabled if month is selected
+        
+        const area = document.getElementById('crmRemScrollArea');
+        if (area.scrollTop + area.clientHeight >= area.scrollHeight - 10) {
+            if (hasMoreCrmRem && !isFetchingCrmRem) loadCRMReminders(true);
+        }
+    };
 </script>
 
 </body>
