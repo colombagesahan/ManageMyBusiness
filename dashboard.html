@@ -3091,11 +3091,46 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                     dbOwnerId = uData.ownerId; 
                     assignedShopId = uData.allowedShop; 
                     // 🛡️ ENTERPRISE FIX: Load dynamic permissions into Global Memory
-                    // පරණ ගිණුමක් නම් (Permissions නැති) Default ලෙස POS දෙනවා
                     window.currentUserTabs = uData.allowedTabs || ['pos', 'orders', 'refunds']; 
                 } else {
                     dbOwnerId = user.uid; 
                 }
+
+                // =========================================================
+                // 🛡️ ENTERPRISE SECURITY: IMMUTABLE STATE WATCHDOG (Anti-Hack)
+                // =========================================================
+                // 1. සැබෑ දත්ත කිසිවෙකුට වෙනස් කළ නොහැකි ලෙස අගුලු දැමීම (Object.freeze)
+                window.SecureAuthGuard = Object.freeze({
+                    role: userRole,
+                    owner: dbOwnerId,
+                    shop: assignedShopId,
+                    tabs: JSON.stringify(window.currentUserTabs || [])
+                });
+
+                // 2. රහසිගත මුර බල්ලා (තත්පරයෙන් තත්පරය RAM එක පරීක්ෂා කරයි)
+                if (!window.authWatchdog) {
+                    window.authWatchdog = setInterval(() => {
+                        const currentTabsStr = JSON.stringify(window.currentUserTabs || []);
+                        
+                        // යම් හෙයකින් කවුරුන් හෝ Developer Console එක හරහා userRole එක හෝ වෙනත් දත්තයක් වෙනස් කර ඇත්දැයි බලයි.
+                        if (userRole !== window.SecureAuthGuard.role || 
+                            dbOwnerId !== window.SecureAuthGuard.owner || 
+                            currentTabsStr !== window.SecureAuthGuard.tabs) {
+                            
+                            clearInterval(window.authWatchdog); // Stop the watchdog
+                            
+                            // 🚨 හැක් කිරීමට උත්සාහ කළ බව Audit Log එකට ලියයි!
+                            if(window.writeSystemLog) {
+                                writeSystemLog("HACK_ATTEMPT_BLOCKED", `CRITICAL: Memory tampering detected! User attempted to change role or permissions in RAM via Console.`);
+                            }
+                            
+                            // ක්ෂණිකව පද්ධතියෙන් එළවා දමයි
+                            alert("🚨 Security Violation Detected!\n\nMemory Tampering (Hacking attempt) is strictly prohibited. Your session has been terminated.");
+                            logout();
+                        }
+                    }, 1000);
+                }
+                // =========================================================
             } else {
                 // ENTERPRISE SECURITY FIX: Prevent broken Cashier accounts from escalating to Admin rights!
                 try {
