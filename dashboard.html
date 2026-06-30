@@ -13411,6 +13411,7 @@ window.openReplyModal = (id) => {
         setTimeout(() => { chatBox.scrollTop = chatBox.scrollHeight; }, 100);
     };
 
+    // 🛡️ ENTERPRISE FIX: Manual State & UI Sync for Paginated CRM
     window.submitRequestReply = async (actionType) => {
         const id = document.getElementById('replyReqId').value;
         const text = document.getElementById('replyReqText').value.trim();
@@ -13418,35 +13419,37 @@ window.openReplyModal = (id) => {
         
         if(actionType === 'replied' && !text) return showToast("Please type a reply message", "error");
         
-        // Button එක එබූ සැණින් තත්පර කිහිපයකට Button එක ලොක් කිරීම (ද්විත්ව පණිවිඩ යැවීම වැළැක්වීමට)
         toggleLoader(true);
         try {
             const updateData = { status: actionType };
+            const currentReplies = r.replies || [];
+            
             if(text) {
-                const currentReplies = r.replies || [];
                 currentReplies.push({ sender: 'admin', text: text, date: window.getSecureTime().toISOString() });
-                
                 updateData.replies = currentReplies;
                 updateData.lastUpdatedAt = window.getSecureTime().toISOString();
             }
             
-            // Database එක Update කිරීම
             await updateDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/service_requests`, id), updateData);
             
-            // 💡 ENTERPRISE LOGIC FIX:
+            // 🛡️ STATE SYNC: Update the local cache memory instantly
+            r.status = actionType;
+            r.replies = currentReplies;
+            
             if(actionType === 'resolved') {
-                // වැඩේ අවසන් නම් පමණක් Modal එක වසයි
                 closeModal('replyRequestModal');
                 showToast("Ticket Closed and Resolved!");
             } else {
-                // Reply කළා නම් Modal එක අරගෙනම තියාගනී. ටයිප් කරපු කොටුව පමණක් හිස් කරයි.
-                // onSnapshot තාක්ෂණය මගින් පණිවිඩය ගිය සැණින් UI එක ස්වයංක්‍රීයව අලුත් වේ.
-            document.getElementById('replyReqText').value = '';
-            if(window.writeSystemLog) writeSystemLog("CRM_TICKET_REPLY", `Sent reply to customer ticket: ${r.customerName}. Action: ${actionType}. Message: "${text}"`);
-            showToast("Reply sent to customer!");
-        }
+                document.getElementById('replyReqText').value = '';
+                if(window.writeSystemLog) writeSystemLog("CRM_TICKET_REPLY", `Sent reply to customer ticket: ${r.customerName}`);
+                showToast("Reply sent to customer!");
+                
+                // 🛡️ UI SYNC: Refresh the Chat window instantly
+                openReplyModal(id); 
+            }
             
-            // බලෙන් Load කිරීම (await loadCRM();) ඉවත් කර ඇත. onSnapshot බලාගනු ඇත!
+            // 🛡️ UI SYNC: Refresh the background table to show new status and message count
+            loadCRMRequests(false);
             
         } catch(e) { 
             console.error(e);
@@ -15801,47 +15804,47 @@ let currentBatchForSerials = null;
         isFetchingCrmRem = true;
 
         try {
-            let q;
             const collRef = collection(db, `users/${dbOwnerId}/shops/${currentShopId}/alerts`);
             let rawResults = [];
 
             if (term.length >= 3) {
-                 hasMoreCrmRem = false; // Disable infinite scroll during deep search
-                 // Search by Phone (refId)
+                 hasMoreCrmRem = false; 
                  const qPhone = query(collRef, where('refId', '>=', term), where('refId', '<=', term + '\uf8ff'), limit(30));
                  const snap = await getDocs(qPhone);
                  snap.forEach(d => {
                      const a = {id: d.id, ...d.data()};
-                     if(a.type === 'service_reminder') rawResults.push(a); // Filter locally due to Firebase Composite Limits
+                     if(a.type === 'service_reminder') rawResults.push(a); 
                  });
-                 // Sort Ascending (Nearest target date first)
-                 rawResults.sort((a,b) => new Date(a.targetDate) - new Date(b.targetDate));
-            } 
-            else if (monthFilter) {
-                 hasMoreCrmRem = false; // Month filter disables infinite scroll, fetches the whole month
-                 const startIso = new Date(monthFilter + "-01T00:00:00.000Z").toISOString();
-                 const y = parseInt(monthFilter.split('-')[0]), m = parseInt(monthFilter.split('-')[1]);
-                 const endIso = new Date(y, m, 0, 23, 59, 59, 999).toISOString();
-                 q = query(collRef, where("type", "==", "service_reminder"), where("targetDate", ">=", startIso), where("targetDate", "<=", endIso), orderBy("targetDate", "asc"), limit(300));
-                 
-                 const snap = await getDocs(q);
-                 snap.forEach(d => rawResults.push({id: d.id, ...d.data()}));
+                 rawResults.sort((a,b) => new Date(b.targetDate) - new Date(a.targetDate));
             } 
             else {
-                 // Standard Pagination (Upcoming & Past Reminders, Newest first)
-                 if (lastCrmRemDoc) {
-                    q = query(collRef, where("type", "==", "service_reminder"), orderBy("targetDate", "desc"), startAfter(lastCrmRemDoc), limit(20));
-                 } else {
-                    q = query(collRef, where("type", "==", "service_reminder"), orderBy("targetDate", "desc"), limit(20));
-                 }
-                 
+                 // 🛡️ ENTERPRISE FIX: RAM Sorting to bypass Firebase Composite Index Crash!
+                 // "type" එක filter කර සියල්ල ගෙනවිත් RAM එකේ sort කරයි. Index අවශ්‍ය නොවේ.
+                 const q = query(collRef, where("type", "==", "service_reminder"));
                  const snap = await getDocs(q);
-                 if (!snap.empty) {
-                    lastCrmRemDoc = snap.docs[snap.docs.length - 1];
-                    if (snap.docs.length < 20) hasMoreCrmRem = false;
-                    snap.forEach(d => rawResults.push({id: d.id, ...d.data()}));
+                 
+                 let allReminders = [];
+                 snap.forEach(d => allReminders.push({id: d.id, ...d.data()}));
+
+                 if (monthFilter) {
+                     hasMoreCrmRem = false;
+                     const startIso = new Date(monthFilter + "-01T00:00:00.000Z").toISOString();
+                     const y = parseInt(monthFilter.split('-')[0]), m = parseInt(monthFilter.split('-')[1]);
+                     const endIso = new Date(y, m, 0, 23, 59, 59, 999).toISOString();
+                     
+                     rawResults = allReminders.filter(a => a.targetDate >= startIso && a.targetDate <= endIso);
+                     rawResults.sort((a,b) => new Date(a.targetDate) - new Date(b.targetDate)); // Oldest target first
                  } else {
-                    hasMoreCrmRem = false;
+                     // Sort ALL newest target date first
+                     allReminders.sort((a,b) => new Date(b.targetDate) - new Date(a.targetDate));
+                     
+                     // 🛡️ Custom RAM Pagination Logic
+                     if (!isLoadMore) window.crmRemRamOffset = 0;
+                     
+                     rawResults = allReminders.slice(window.crmRemRamOffset, window.crmRemRamOffset + 20);
+                     window.crmRemRamOffset += 20;
+                     
+                     if (window.crmRemRamOffset >= allReminders.length) hasMoreCrmRem = false;
                  }
             }
 
