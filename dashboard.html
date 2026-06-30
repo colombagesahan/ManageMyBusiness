@@ -15878,7 +15878,10 @@ let currentBatchForSerials = null;
 
                     custName = custName.replace(/</g, "&lt;") + migratedBadge;
                     const targetDateObj = new Date(s.targetDate);
-                    const isOverdue = targetDateObj < now && s.status === 'active';
+                    
+                    // 🛡️ ENTERPRISE FIX: State Collision Bug Resolved
+                    // Alerts Tab එක මගින් status එක 'triggered' කළත්, එය මෙහිදී නිවැරදිව OVERDUE ලෙස අල්ලා ගනී.
+                    const isOverdue = targetDateObj < now && (s.status === 'active' || s.status === 'triggered');
                     
                     let statusBadge = ''; let rowStyle = '';
                     if (s.status === 'closed') {
