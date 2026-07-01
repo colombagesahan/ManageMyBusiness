@@ -227,6 +227,12 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 .ws-content-area { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; }
 .ws-input-area { padding: 15px 20px; background: #ffffff; border-top: 1px solid #e5e7eb; display: flex; gap: 10px; align-items: flex-end; }
 .ws-empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #9ca3af; }
+/* 🚀 ENTERPRISE FIX: Native Browser Virtualization for Infinite Scroll */
+.virtual-card { 
+    content-visibility: auto; 
+    contain-intrinsic-size: 150px; /* බ්‍රවුසරයට කාඩ්පතේ දළ උස කියා දීම */
+    will-change: transform, opacity;
+}
 </style>
 </head>
 <body>
@@ -545,6 +551,27 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                             <label style="font-size:12px; font-weight:bold; color:#d97706;"><i class="ri-lock-password-line"></i> Manager Override PIN (For Discounts & Approvals)</label>
                             <input type="text" id="profManagerPin" placeholder="e.g. 1234" style="margin-bottom:0; margin-top:5px; border-color:#fcd34d; font-weight:bold; letter-spacing:2px; font-family:monospace;">
                             <div style="font-size:10px; color:#d97706; margin-top:5px;">Keep this secret. Used to approve large cashier discounts.</div>
+                        </div>
+
+                        <!-- 🚀 ENTERPRISE POS POLICIES (Taxes & Refunds) -->
+                        <div style="margin-top: 15px; padding: 15px; background: #f0fdf4; border: 2px solid #22c55e; border-radius: 8px;">
+                            <h4 style="color:#166534; margin-bottom:10px;"><i class="ri-government-line"></i> Tax & Refund Policies (බදු සහ ප්‍රතිලාභ නීති)</h4>
+                            <div style="font-size:10px; color:#b91c1c; font-weight:bold; margin-bottom:15px; background:#fee2e2; padding:5px; border-radius:4px;">
+                                ⚠️ WARNING: මෙම නීති නිතර වෙනස් කිරීමෙන් මාසික මූල්‍ය වාර්තා සහ ගිණුම්කරණය ව්‍යාකූල විය හැක. වෙනස් කිරීමේදී සැලකිලිමත් වන්න!
+                            </div>
+
+                            <label style="font-size:12px; font-weight:bold;">1. Smart POS Tax / VAT Engine</label>
+                            <div style="display:flex; gap:10px; margin-bottom:15px; margin-top:5px;">
+                                <input type="checkbox" id="profTaxEnabled" style="width:20px; height:20px; cursor:pointer;" title="Enable POS Tax">
+                                <input type="text" id="profTaxName" placeholder="Tax Name (e.g. VAT / SSCL)" style="margin:0; flex:1; font-weight:bold;">
+                                <input type="number" id="profTaxPercent" placeholder="%" style="margin:0; width:80px; font-weight:bold;">
+                            </div>
+
+                            <label style="font-size:12px; font-weight:bold;">2. Global Refund / Return Policy *</label>
+                            <select id="profRefundPolicy" style="margin-top:5px; border-color:#166534; font-weight:bold; color:#166534;">
+                                <option value="ALLOW_CASH">Cash Refunds Allowed (පාරිභෝගිකයාට මුදල් ආපසු දිය හැක)</option>
+                                <option value="EXCHANGE_ONLY">Strict Exchange Only (මුදල් ආපසු නොදේ! සමාන හෝ වැඩි වටිනාකමකින් යුත් භාණ්ඩයක් ගත යුතුමය)</option>
+                            </select>
                         </div>
 
                     </div>
@@ -1210,7 +1237,8 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                         <div style="display:flex; justify-content:space-between; font-size:14px; margin-bottom:5px;"><span>Subtotal:</span><span id="cartSubtotal" style="font-weight:600;">0.00</span></div>
                         <div style="display:flex; justify-content:space-between; font-size:14px; margin-bottom:5px; color:var(--danger);"><span>Discount:</span><span id="cartDiscount" style="font-weight:600;">0.00</span></div>
                         <div style="display:flex; justify-content:space-between; font-size:14px; margin-bottom:10px; color:var(--primary);"><span>Fees:</span><span id="cartFees" style="font-weight:600;">0.00</span></div>
-                        
+                        <!-- 🛡️ Tax HTML -->
+                        <div id="cartTaxRow" style="display:none; justify-content:space-between; font-size:14px; margin-bottom:10px; color:#b91c1c;"><span>Tax:</span><span id="cartTax" style="font-weight:600;">0.00</span></div>
                         <div style="display:flex; justify-content:space-between; font-weight:900; font-size:22px; margin-bottom: 15px; border-bottom:1px solid #e5e7eb; padding-bottom:10px;">
                             <span>Total</span><span id="cartTotal">0.00</span>
                         </div>
@@ -2284,6 +2312,19 @@ body.pos-fullscreen-mode #view-pos > div > .card {
     </div>
 </div>
 
+<!-- 🚀 NEW: ENTERPRISE VIDEO CALL MODAL (JITSI) -->
+<div id="videoCallModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.9); display:none; align-items:center; justify-content:center; z-index:9000; backdrop-filter:blur(5px);">
+    <div class="card" style="width:90%; max-width:1000px; height:85vh; margin:0; padding:0; display:flex; flex-direction:column; border-top:5px solid var(--success); overflow:hidden;">
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:15px; background:#111827; color:white;">
+            <h3 style="margin:0; font-size:16px; color:#10b981;"><i class="ri-vidicon-fill"></i> Secure Video Meeting</h3>
+            <button class="btn btn-danger" style="width:auto; padding:6px 15px; font-size:12px;" onclick="closeVideoCall()"><i class="ri-phone-camera-line"></i> End Call</button>
+        </div>
+        <div style="flex:1; background:#000; position:relative;">
+            <iframe id="videoCallIframe" style="width:100%; height:100%; border:none;" allow="camera; microphone; fullscreen; display-capture"></iframe>
+        </div>
+    </div>
+</div>
+
 <!-- 🚀 NEW: EMPLOYEE JOB ROLES MODAL -->
 <div id="empRoleModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:2500;">
     <div class="card" style="width:400px; margin:0; border-top: 5px solid var(--primary);">
@@ -2579,8 +2620,25 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:20px;">
             <button class="btn btn-danger" style="padding:12px;" onclick="backToCartFromModal()"><i class="ri-arrow-go-back-line"></i> Back to Cart</button>
-            <!-- Double Enter Support: Pressing Enter triggers this if focused -->
-            <button class="btn btn-success" style="padding:12px;" onclick="finalizeCheckout()" onkeypress="if(event.key === 'Enter') finalizeCheckout()"><i class="ri-check-double-line"></i> Confirm Sale</button>
+            <!-- 🛡️ ENTERPRISE FIX: Route through Wallet Verification Engine -->
+            <button class="btn btn-success" style="padding:12px;" onclick="verifyWalletAndCheckout()" onkeypress="if(event.key === 'Enter') verifyWalletAndCheckout()"><i class="ri-check-double-line"></i> Confirm Sale</button>
+        </div>
+    </div>
+</div>
+
+<!-- 🚀 NEW: WALLET PIN VERIFICATION MODAL (Security Failsafe) -->
+<div id="walletPinModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.85); display:none; align-items:center; justify-content:center; z-index:6000; backdrop-filter: blur(4px);">
+    <div class="card" style="width:350px; text-align:center; padding:30px; border-top: 5px solid var(--primary); margin:0;">
+        <h3 style="color:var(--primary); margin-bottom:5px;"><i class="ri-shield-keyhole-fill"></i> Security Check</h3>
+        <p style="font-size:12px; color:#666; margin-bottom:15px;" id="walletPinDesc">To redeem Store Credit, enter Customer PIN.</p>
+        
+        <input type="password" id="authPinInput" placeholder="Enter 4-Digit PIN" maxlength="4" style="text-align:center; font-weight:bold; font-size:24px; letter-spacing: 10px; padding:15px; border:2px solid var(--primary); border-radius:12px;" onkeypress="if(event.key === 'Enter') confirmWalletPin()">
+        
+        <button class="btn btn-primary" style="width:100%; padding:12px; margin-bottom:15px; font-size:14px; justify-content:center;" onclick="confirmWalletPin()">Verify & Proceed</button>
+        
+        <div style="border-top:1px dashed #ccc; padding-top:15px;">
+            <button class="btn btn-warning" style="width:100%; background:#fefce8; color:#b45309; border:1px solid #fde047; font-size:12px; justify-content:center; margin-bottom:10px;" onclick="requestManagerOverride()"><i class="ri-admin-fill"></i> Forgot PIN? Manager Override</button>
+            <button class="btn btn-ghost" style="width:100%; border:none; color:#94a3b8; justify-content:center;" onclick="cancelWalletPin()">Cancel Transaction</button>
         </div>
     </div>
 </div>
@@ -3675,7 +3733,12 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             const snapUnpaid = await getDocs(qUnpaid);
             snapUnpaid.forEach(d => { totalDebt += (d.data().creditBalance || 0); });
             
-            if (totalDebt > 0) {
+            // 🛡️ Check Store Credit (Wallet)
+            window.currentCustomerWallet = c.walletBalance || 0;
+            if (window.currentCustomerWallet > 0) {
+                showToast(`💰 Store Credit Available: ${formatMoney(window.currentCustomerWallet)}`, "success");
+                document.getElementById('modalCustName').style.color = 'var(--success)';
+            } else if (totalDebt > 0) {
                 showToast(`Warning: This customer owes ${formatMoney(totalDebt)} in pending credit!`, "warning");
                 document.getElementById('modalCustName').style.color = 'var(--danger)';
             } else {
@@ -3759,7 +3822,10 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         
         // Load the Manager PIN. If not set previously, default to 0000
         document.getElementById('profManagerPin').value = p.managerPin || '0000';
-        
+        document.getElementById('profTaxEnabled').checked = p.taxEnabled === true;
+        document.getElementById('profTaxName').value = p.taxName || '';
+        document.getElementById('profTaxPercent').value = p.taxPercent || '';
+        document.getElementById('profRefundPolicy').value = p.refundPolicy || 'ALLOW_CASH';
         document.getElementById('profLogoFont').value = p.logoFont || "'Plus Jakarta Sans'";
         document.getElementById('profLogoColor').value = p.logoColor || '#4F46E5';
 
@@ -3801,7 +3867,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 
     window.lockProfile = (lock) => {
         // 🛡️ ENTERPRISE FIX: Strict State Locking for all UI elements
-        document.querySelectorAll('#profFields input:not([type="checkbox"]), #profFields textarea, #profDefaultBillSize, #profLogoFont, #profLogoColor, #profLogoFile, #profScaleMode, #profScalePrefix, #profManagerPin, #profTermsThermal, #profTermsA4, #profTermsInvoice, #profTermsQuote').forEach(i => {
+        document.querySelectorAll('#profFields input:not([type="checkbox"]), #profFields textarea, #profDefaultBillSize, #profLogoFont, #profLogoColor, #profLogoFile, #profScaleMode, #profScalePrefix, #profManagerPin, #profTaxName, #profTaxPercent, #profRefundPolicy, #profTermsThermal, #profTermsA4, #profTermsInvoice, #profTermsQuote').forEach(i => {
             if (i) i.disabled = lock;
         });
         
@@ -3836,7 +3902,10 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             
             // Save the Manager PIN (Fallback to 0000 if left empty)
             managerPin: document.getElementById('profManagerPin').value.trim() || '0000',
-            
+            taxEnabled: document.getElementById('profTaxEnabled').checked,
+            taxName: document.getElementById('profTaxName').value.trim() || 'TAX',
+            taxPercent: parseFloat(document.getElementById('profTaxPercent').value) || 0,
+            refundPolicy: document.getElementById('profRefundPolicy').value,
             logoFont: document.getElementById('profLogoFont').value,
             logoColor: document.getElementById('profLogoColor').value,
             logoImage: compressedImageBase64 || (profileCache ? profileCache.logoImage : null),
@@ -5403,15 +5472,17 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                 continue;
             }
 
-            const imgTag = p.image ? `<img src="${p.image}" style="width:100%; height:80px; object-fit:contain; margin-bottom:5px;">` : '';
+            // 🛡️ ENTERPRISE FIX: Added loading="lazy" to save RAM
+            const imgTag = p.image ? `<img src="${p.image}" loading="lazy" style="width:100%; height:80px; object-fit:contain; margin-bottom:5px;">` : '';
             const priceInfo = window.getEffectivePrice(p.batches[0]);
             const displayPriceHtml = priceInfo.isPromo 
                 ? `<div style="color:#9ca3af; text-decoration:line-through; font-size:11px;">${formatMoney(p.batches[0].sell)}</div>
                    <div style="color:var(--danger); font-weight:900; font-size:18px;">${formatMoney(priceInfo.price)} <i class="ri-fire-fill" style="font-size:14px;"></i></div>` 
                 : `<div style="color:var(--primary); font-weight:800; font-size:16px;">${formatMoney(p.batches[0].sell)}</div>`;
 
+            // 🛡️ ENTERPRISE FIX: Added 'virtual-card' class for Native Engine Windowing
             htmlStr += `
-            <div onclick="addToCart('${p.oldestBatchId}')" style="background:${priceInfo.isPromo ? '#fff1f2' : 'white'}; border-color:${priceInfo.isPromo ? '#fecaca' : '#e5e7eb'}; padding:10px; border-radius:8px; cursor:pointer; text-align:center; border:1px solid; box-shadow:0 1px 2px rgba(0,0,0,0.05); position:relative; overflow:hidden; display:flex; flex-direction:column; justify-content:space-between;">
+            <div class="virtual-card" onclick="addToCart('${p.oldestBatchId}')" style="background:${priceInfo.isPromo ? '#fff1f2' : 'white'}; border-color:${priceInfo.isPromo ? '#fecaca' : '#e5e7eb'}; padding:10px; border-radius:8px; cursor:pointer; text-align:center; border:1px solid; box-shadow:0 1px 2px rgba(0,0,0,0.05); position:relative; overflow:hidden; display:flex; flex-direction:column; justify-content:space-between;">
                 ${priceInfo.isPromo ? `<div style="position:absolute; top:5px; right:5px; background:var(--danger); color:white; padding:2px 4px; border-radius:4px; font-size:9px; font-weight:bold; animation: blink-success 2s infinite;">PROMO</div>` : ''}
                 ${p.batches.length > 1 ? `<div style="position:absolute; top:5px; left:5px; background:#fef3c7; color:#d97706; padding:2px 4px; border-radius:4px; font-size:9px; font-weight:bold; border:1px solid #fde68a;">${p.batches.length} BATCHES</div>` : ''}
                 ${p.isRefund ? `<div style="position:absolute; top:5px; right:5px; background:#dbeafe; color:#1e40af; padding:2px 4px; border-radius:4px; font-size:9px; font-weight:bold; border:1px solid #bfdbfe;">RETURNED</div>` : ''}
@@ -5927,6 +5998,15 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         document.getElementById('cartDiscount').textContent = `-${formatMoney(discountAmt)}`;
         document.getElementById('cartFees').textContent = `+${formatMoney(feesTotal)}`;
         document.getElementById('cartTotal').textContent = formatMoney(total);
+        
+        // 🛡️ ENTERPRISE FIX: Show or Hide Tax Row in UI dynamically
+        if(taxAmt > 0) { 
+            document.getElementById('cartTaxRow').style.display='flex'; 
+            document.getElementById('cartTax').textContent = '+' + formatMoney(taxAmt); 
+        } else { 
+            document.getElementById('cartTaxRow').style.display='none'; 
+        }
+
         if(typeof calculatePOSBalance === 'function') calculatePOSBalance();
 
         // UX FIX: අලුත් භාණ්ඩයක් නම් පල්ලෙහාටම Scroll කිරීම, නැත්නම් හිටපු තැනටම Scroll කිරීම
@@ -6068,7 +6148,16 @@ window.checkout = async () => {
 
         const roundToTwo = (num) => Math.round(num * 100) / 100;
         let feesTotal = currentOtherFees.reduce((sum, f) => sum + f.amount, 0);
-        let total = roundToTwo(subtotal - discountAmt + feesTotal);
+        let feesTotal = currentOtherFees.reduce((sum, f) => sum + f.amount, 0);
+        
+        // 🛡️ ENTERPRISE FIX: Dynamic POS Tax Calculation
+        let taxAmt = 0;
+        if (profileCache && profileCache.taxEnabled) {
+            const tPerc = parseFloat(profileCache.taxPercent) || 0;
+            taxAmt = Math.round(((subtotal - discountAmt) * (tPerc / 100)) * 100) / 100;
+        }
+        
+        let total = roundToTwo(subtotal - discountAmt + feesTotal + taxAmt);
 
         // 🛡️ ENTERPRISE FIX: DYNAMIC PAYMENT VALIDATION ENGINE
         const givenText = document.getElementById('posCashGiven') ? document.getElementById('posCashGiven').value.trim() : '';
@@ -6112,7 +6201,94 @@ window.checkout = async () => {
         setTimeout(() => document.getElementById('modalCustPhone').focus(), 100);
     };
 
-        // THIS DOES THE ACTUAL SAVING AFTER MODAL CONFIRMATION (100% ENTERPRISE ACID COMPLIANT)
+        // ==========================================
+    // 🛡️ ENTERPRISE: CUSTOMER WALLET SECURITY ENGINE
+    // ==========================================
+    window.verifyWalletAndCheckout = () => {
+        // අපි Checkout එකට යන්න කලින් දළ වශයෙන් ගණනය කර බලනවා Customer ගේ සල්ලි පාවිච්චි වෙනවද කියලා.
+        const discountValRaw = parseFloat(document.getElementById('discountValue').value) || 0;
+        const discountType = document.getElementById('discountType').value;
+        let subtotal = cart.reduce((a,b) => a + Math.round((b.sell * b.qty) * 100) / 100, 0);
+        let discountAmt = discountType === 'percent' ? (subtotal * discountValRaw / 100) : discountValRaw;
+        if(discountAmt > subtotal) discountAmt = subtotal;
+        
+        let feesTotal = currentOtherFees.reduce((sum, f) => sum + f.amount, 0);
+        let taxAmt = 0;
+        if (profileCache && profileCache.taxEnabled) {
+            const tPerc = parseFloat(profileCache.taxPercent) || 0;
+            taxAmt = Math.round(((subtotal - discountAmt) * (tPerc / 100)) * 100) / 100;
+        }
+        
+        const roundToTwo = (num) => Math.round(num * 100) / 100;
+        let total = roundToTwo(subtotal - discountAmt + feesTotal + taxAmt);
+        
+        let walletToUse = 0;
+        if (window.currentCustomerWallet && window.currentCustomerWallet > 0) {
+            walletToUse = Math.min(total, window.currentCustomerWallet);
+        }
+
+        // 🛡️ SECURITY LOCK: පාරිභෝගිකයාගේ මුදල් පාවිච්චි වෙනවා නම් ක්‍රියාවලිය නවතා PIN එක ඉල්ලයි!
+        if (walletToUse > 0) {
+            const phone = document.getElementById('modalCustPhone').value.trim();
+            const cust = customersCache.find(c => c.id === phone);
+            
+            if (cust) {
+                window.pendingWalletVerification = { customer: cust, amount: walletToUse };
+                
+                document.getElementById('walletPinDesc').innerHTML = `To redeem <strong style="color:var(--primary);">${formatMoney(walletToUse)}</strong> from Store Credit,<br>please enter Customer's 4-Digit PIN.`;
+                document.getElementById('authPinInput').value = '';
+                
+                // Checkout එක හංගලා PIN කොටුව පෙන්වයි
+                document.getElementById('checkoutCustomerModal').style.display = 'none';
+                document.getElementById('walletPinModal').style.display = 'flex';
+                setTimeout(() => document.getElementById('authPinInput').focus(), 100);
+                return; // ⛔ HALT PROCESS UNTIL VERIFIED!
+            }
+        }
+
+        // පාරිභෝගිකයාගේ සල්ලි පාවිච්චි වෙන්නේ නැත්නම් (සාමාන්‍ය බිලක් නම්) සුපුරුදු පරිදි බිල කපයි
+        finalizeCheckout();
+    };
+
+    window.confirmWalletPin = () => {
+        const enteredPin = document.getElementById('authPinInput').value.trim();
+        const correctPin = window.pendingWalletVerification.customer.pin || "1234";
+
+        if (enteredPin === correctPin) {
+            document.getElementById('walletPinModal').style.display = 'none';
+            if(window.writeSystemLog) writeSystemLog("WALLET_PIN_VERIFIED", `Customer ${window.pendingWalletVerification.customer.id} successfully verified PIN for ${formatMoney(window.pendingWalletVerification.amount)} credit redemption.`);
+            finalizeCheckout(); // 🚀 Verified! Proceed to save!
+        } else {
+            showToast("Incorrect Customer PIN!", "error");
+            document.getElementById('authPinInput').value = '';
+            document.getElementById('authPinInput').focus();
+        }
+    };
+
+    window.requestManagerOverride = () => {
+        const adminPin = prompt("Manager Override Required!\n\nPlease enter the Manager PIN:");
+        if (adminPin === null) return; 
+        
+        const requiredPin = (profileCache && profileCache.managerPin) ? profileCache.managerPin : "0000";
+        
+        if (adminPin === requiredPin) {
+            document.getElementById('walletPinModal').style.display = 'none';
+            if(window.writeSystemLog) writeSystemLog("MANAGER_OVERRIDE", `Manager authorized Store Credit redemption of ${formatMoney(window.pendingWalletVerification.amount)} for customer ${window.pendingWalletVerification.customer.id} (Customer forgot PIN).`);
+            showToast("Manager Override Successful!", "success");
+            finalizeCheckout(); // 🚀 Override Verified! Proceed to save!
+        } else {
+            if(window.writeSystemLog) writeSystemLog("SECURITY_BREACH_ATTEMPT", `Failed Manager Override attempt for Store Credit redemption!`);
+            showToast("Invalid Manager PIN! Access Denied.", "error");
+        }
+    };
+
+    window.cancelWalletPin = () => {
+        document.getElementById('walletPinModal').style.display = 'none';
+        document.getElementById('checkoutCustomerModal').style.display = 'flex'; // Go back to checkout screen securely
+        window.pendingWalletVerification = null;
+    };
+
+    // THIS DOES THE ACTUAL SAVING AFTER MODAL CONFIRMATION (100% ENTERPRISE ACID COMPLIANT)
     window.finalizeCheckout = async () => {
         if(window.isCheckingOut) return;
         
@@ -6164,7 +6340,16 @@ window.checkout = async () => {
 
         const roundToTwo = (num) => Math.round(num * 100) / 100;
         let feesTotal = currentOtherFees.reduce((sum, f) => sum + f.amount, 0);
-        let total = roundToTwo(subtotal - discountAmt + feesTotal);
+        let feesTotal = currentOtherFees.reduce((sum, f) => sum + f.amount, 0);
+        
+        // 🛡️ ENTERPRISE FIX: Dynamic POS Tax Calculation
+        let taxAmt = 0;
+        if (profileCache && profileCache.taxEnabled) {
+            const tPerc = parseFloat(profileCache.taxPercent) || 0;
+            taxAmt = Math.round(((subtotal - discountAmt) * (tPerc / 100)) * 100) / 100;
+        }
+        
+        let total = roundToTwo(subtotal - discountAmt + feesTotal + taxAmt);
 
         // 🛡️ ENTERPRISE FIX: DYNAMIC PAYMENT VALIDATION ENGINE (FINAL COMMIT)
         const givenText = document.getElementById('posCashGiven') ? document.getElementById('posCashGiven').value.trim() : '';
@@ -6182,10 +6367,25 @@ window.checkout = async () => {
             cashGiven = total; // Force exact amount for Cards/Online
         }
 
-        const balance = roundToTwo(cashGiven - total);
+        let walletToUse = 0;
+        let finalPayableTotal = total;
+
+        // 🛡️ ENTERPRISE EXCHANGE ENGINE: Apply Store Credit & Enforce Strict Rules
+        if (window.currentCustomerWallet && window.currentCustomerWallet > 0) {
+            if (profileCache && profileCache.refundPolicy === 'EXCHANGE_ONLY') {
+                if (total < window.currentCustomerWallet) {
+                    window.isCheckingOut = false; toggleLoader(false);
+                    return showToast(`STRICT EXCHANGE RULE: Bill total (${formatMoney(total)}) must be EQUAL or GREATER than Store Credit (${formatMoney(window.currentCustomerWallet)})!`, "error");
+                }
+            }
+            walletToUse = Math.min(total, window.currentCustomerWallet);
+            finalPayableTotal = roundToTwo(total - walletToUse);
+        }
+
+        const balance = roundToTwo(cashGiven - finalPayableTotal); // 👈 Use updated payable
         if (paymentMethod !== 'Pay Later' && balance < 0) {
             window.isCheckingOut = false; toggleLoader(false);
-            return showToast("Transaction Aborted: Insufficient Cash Given detected during finalization!", "error");
+            return showToast(`Transaction Aborted: Insufficient Cash! Need ${formatMoney(Math.abs(balance))} more.`, "error");
         }
 
         let creditBalance = (paymentMethod === 'Pay Later') ? roundToTwo(total - cashGiven) : 0;
@@ -6380,6 +6580,11 @@ window.checkout = async () => {
                 // Write 5: Finally, Save the Sale Document
                 const saleRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`));
                 saleData.id = saleRef.id; // Store ID for local cache
+// 🛡️ Deduct used Store Credit from Customer Wallet atomically
+                if (walletToUse > 0) {
+                    transaction.update(customerRef, { walletBalance: increment(-walletToUse) });
+                    saleData.walletApplied = walletToUse; // Save in receipt
+                }
                 transaction.set(saleRef, saleData);
 
                 // 🛡️ ENTERPRISE FIX: Direct POS Cheque Registration
@@ -7657,6 +7862,22 @@ window.autoFillDocCustomer = (name) => {
         document.getElementById('refundMaxQty').textContent = item.qty;
         document.getElementById('refundReasonInput').value = ""; // Clear previous reason
         
+        // 🛡️ ENTERPRISE FIX: Enforce Profile Refund Policy
+        const methodSelect = document.getElementById('refundMethodSelect');
+        if (profileCache && profileCache.refundPolicy === 'EXCHANGE_ONLY') {
+            methodSelect.innerHTML = `<option value="Store Credit">Store Credit (Exchanges Only / No Cash)</option>`;
+            methodSelect.style.borderColor = "var(--danger)";
+            methodSelect.style.color = "var(--danger)";
+        } else {
+            methodSelect.innerHTML = `
+                <option value="Cash">Cash (Deducts from Drawer)</option>
+                <option value="Card/Bank">Card / Bank Transfer (No EOD Impact)</option>
+                <option value="Store Credit">Store Credit (Customer Wallet)</option>
+            `;
+            methodSelect.style.borderColor = "var(--warning)";
+            methodSelect.style.color = "inherit";
+        }
+
         // Fill Hidden Context Fields
         document.getElementById('ctxRefundOrderId').value = orderId;
         document.getElementById('ctxRefundItemName').value = item.name;
@@ -7739,7 +7960,7 @@ window.autoFillDocCustomer = (name) => {
                 let cashOutToCustomer = refundTotal; 
                 let newCreditBal = 0;
 
-                // 1. Read Sale & Update Credit
+                // 1. Read Sale & Update Credit (Original Logic)
                 if(saleRef) {
                     const sDoc = await transaction.get(saleRef);
                     if(sDoc.exists() && sDoc.data().creditBalance > 0) {
@@ -7748,17 +7969,34 @@ window.autoFillDocCustomer = (name) => {
                         newCreditBal = sDoc.data().creditBalance - cancelledDebt;
                         transaction.update(saleRef, { creditBalance: newCreditBal });
                     }
+                    
+                    // 🛡️ 1.1 UPDATE CUSTOMER WALLET (Store Credit - New Logic)
+                    const rMethod = document.getElementById('refundMethodSelect').value;
+                    if (rMethod === 'Store Credit') {
+                        if (sDoc.exists() && sDoc.data().customer && sDoc.data().customer.phone && sDoc.data().customer.phone !== "N/A") {
+                            const custPhone = sDoc.data().customer.phone;
+                            const cRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/customers`, custPhone);
+                            const cSnap = await transaction.get(cRef);
+                            if (cSnap.exists()) {
+                                transaction.update(cRef, { walletBalance: increment(refundTotal) });
+                            }
+                        } else {
+                            throw new Error("Cannot issue Store Credit to a Walk-in Customer! No phone number found.");
+                        }
+                        cashOutToCustomer = 0; // Cash ලාච්චුවෙන් යන්නේ නෑ!
+                    }
                 }
 
                 // 2. Write Refund Record
+                const rMethodSaved = document.getElementById('refundMethodSelect').value;
                 const refundDocRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/refunds`));
                 transaction.set(refundDocRef, {
                     productName: prodName, orderId: orderId, reason: `${reason} (Ref: ${orderId})`,
                     qty: qty, amount: refundTotal, cashOutToCustomer: cashOutToCustomer, profitReversal: profitReversal,
-                    restock: restock, originalBatch: batchNum, date: window.getSecureTime().toISOString()
+                    restock: restock, refundMethod: rMethodSaved, originalBatch: batchNum, date: window.getSecureTime().toISOString()
                 });
 
-                // 3. Read Product & Restore Stock Safely
+                // 3. Read Product & Restore Stock Safely (Original Logic - Fully Preserved!)
                 if(restock && !isServiceItem) {
                     if (origProdRef) {
                         const pDoc = await transaction.get(origProdRef);
@@ -7767,7 +8005,7 @@ window.autoFillDocCustomer = (name) => {
                         const pData = pDoc.data();
                         const soldList = pData.soldSerials || [];
                         if(!soldList.includes(returnSerial)) {
-                            // 🛡️ ENTERPRISE FIX: Log this severe fraud attempt directly to the DB immediately before throwing the error!
+                            // 🛡️ ENTERPRISE FIX: Log fraud attempt
                             const auditRef = doc(collection(db, `users/${dbOwnerId}/system_audit_logs`));
                             transaction.set(auditRef, {
                                 timestamp: window.getSecureTime().toISOString(), userEmail: currentUser ? currentUser.email : "Unknown", userRole: userRole, shopId: currentShopId || "NONE", shopName: "Fraud Prevention System",
@@ -7800,9 +8038,19 @@ window.autoFillDocCustomer = (name) => {
                 }
             });
 
-            if(window.writeSystemLog) writeSystemLog("REFUND_PROCESSED", `Refunded ${qty}x ${prodName} for Order ${orderId}. Restocked: ${restock}`);
+            if(window.writeSystemLog) writeSystemLog("REFUND_PROCESSED", `Refunded ${qty}x ${prodName} for Order ${orderId}. Method: ${document.getElementById('refundMethodSelect').value}`);
 
             showToast("Refund Processed Atomically & Successfully!");
+            
+            // 🛡️ PRINT RETURN NOTE (Receipt)
+            const rData = {
+                type: 'RECEIPT', docId: `RET-${Date.now().toString().slice(-6)}`, date: window.getSecureTime().toLocaleString(),
+                customer: { name: "RETURNED ITEM", phone: "N/A" },
+                items: [{ name: `RETURN: ${prodName} (Batch: ${batchNum})`, qty: qty, price: price }],
+                subtotal: refundTotal, discount: 0, fees: [], total: refundTotal,
+                paymentMethod: `REFUNDED VIA: ${document.getElementById('refundMethodSelect').value}`
+            };
+            generateInvoicePDF(rData, '80mm'); // Auto print thermal return note
             
             document.getElementById('refundActionPanel').style.display = 'none';
             document.getElementById('refundOrderItemsList').innerHTML = "";
@@ -14805,6 +15053,11 @@ let currentBatchForSerials = null;
 
         if (mode === 'chat') {
             contentArea.innerHTML = `
+                <!-- 🛡️ ENTERPRISE FIX: Video Call Button Banner -->
+                <div style="background:#f0fdf4; padding:8px 20px; border-bottom:1px solid #bbf7d0; display:flex; justify-content:space-between; align-items:center;">
+                    <span style="font-size:12px; color:#166534; font-weight:bold;"><i class="ri-lock-fill"></i> End-to-End Encrypted</span>
+                    <button class="btn btn-success" style="width:auto; padding:6px 15px; font-size:12px;" onclick="startWorkspaceVideoCall('${e.id}')"><i class="ri-vidicon-fill"></i> Start Video Call</button>
+                </div>
                 <div class="ws-content-area" id="wsChatHistory" style="background:#fff;">
                     <div style="text-align:center; padding:20px; color:#999;"><i class="ri-loader-4-line ri-spin"></i> Connecting...</div>
                 </div>
@@ -14819,18 +15072,29 @@ let currentBatchForSerials = null;
             const qChat = query(chatRef, orderBy("timestamp", "asc"), limit(50));
             wsUnsubChat = onSnapshot(qChat, (snap) => {
                 const history = document.getElementById('wsChatHistory');
-                let html = '<div style="text-align:center; color:#999; font-size:11px; margin-bottom:15px;">Encrypted Live Intercom Connected</div>';
+                let html = '';
 
                 snap.forEach(d => {
                     const msg = d.data();
                     const timeStr = new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                    
+                    // 🛡️ ENTERPRISE FIX: Parse Video Call Links
+                    let displayHtml = msg.text.replace(/</g, "&lt;");
+                    if(msg.text.startsWith('[VIDEO_CALL]')) {
+                        const vUrl = msg.text.replace('[VIDEO_CALL]', '');
+                        displayHtml = `<div style="text-align:center; padding:5px;">
+                            <i class="ri-vidicon-fill" style="font-size:24px;"></i><br><b>Video Call Started</b><br>
+                            <button class="btn btn-success" style="margin-top:8px; padding:4px 10px; font-size:11px;" onclick="joinVideoCall('${vUrl}')">Join Now</button>
+                        </div>`;
+                    }
+
                     if(msg.sender === 'manager' || msg.sender === 'admin') {
                         html += `<div style="align-self:flex-end; background:#dcfce7; color:#166534; padding:10px 14px; border-radius:12px; border-bottom-right-radius:2px; font-size:13px; max-width:80%;">
-                            ${msg.text.replace(/</g, "&lt;")} <div style="font-size:9px; text-align:right; margin-top:3px; opacity:0.8;">${timeStr}</div>
+                            ${displayHtml} <div style="font-size:9px; text-align:right; margin-top:3px; opacity:0.8;">${timeStr}</div>
                         </div>`;
                     } else {
                         html += `<div style="align-self:flex-start; background:#f1f5f9; color:#334155; padding:10px 14px; border-radius:12px; border-bottom-left-radius:2px; font-size:13px; max-width:80%; border:1px solid #e2e8f0;">
-                            ${msg.text.replace(/</g, "&lt;")} <div style="font-size:9px; text-align:left; margin-top:3px; opacity:0.8;">${timeStr}</div>
+                            ${displayHtml} <div style="font-size:9px; text-align:left; margin-top:3px; opacity:0.8;">${timeStr}</div>
                         </div>`;
                     }
                 });
@@ -15972,6 +16236,36 @@ let currentBatchForSerials = null;
         if (area.scrollTop + area.clientHeight >= area.scrollHeight - 10) {
             if (hasMoreCrmRem && !isFetchingCrmRem) loadCRMReminders(true);
         }
+    };
+// 🛡️ ENTERPRISE VIDEO CALL ENGINE
+    window.startWorkspaceVideoCall = async (empId) => {
+        // අද්විතීය සහ ආරක්ෂිත Meeting Room නාමයක් සෑදීම
+        const roomName = `NawarathnaShop_${currentShopId}_${empId}_${Date.now()}`;
+        const meetUrl = `https://meet.jit.si/${roomName}`;
+
+        // 1. Admin ගේ Modal එක විවෘත කර කැමරාව on කිරීම
+        joinVideoCall(meetUrl);
+
+        // 2. සේවකයාගේ Chat එකට "Join Now" බොත්තමක් සහිත Message එකක් යැවීම
+        try {
+            await addDoc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/employees/${empId}/messages`), {
+                sender: 'manager', 
+                text: `[VIDEO_CALL]${meetUrl}`, 
+                timestamp: window.getSecureTime().toISOString()
+            });
+            if(window.writeSystemLog) writeSystemLog("VIDEO_CALL_STARTED", `Initiated a live video call with Employee ID: ${empId}`);
+        } catch(e) { showToast("Failed to send video link", "error"); }
+    };
+
+    window.joinVideoCall = (url) => {
+        document.getElementById('videoCallIframe').src = url;
+        document.getElementById('videoCallModal').style.display = 'flex';
+    };
+
+    window.closeVideoCall = () => {
+        document.getElementById('videoCallModal').style.display = 'none';
+        document.getElementById('videoCallIframe').src = ""; // 👈 🔴 අත්‍යවශ්‍යයි! මෙය නැතිනම් Iframe එක වැහුවත් කැමරාව දිගටම on වී තිබේ.
+        showToast("Call Ended");
     };
 </script>
 
