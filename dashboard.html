@@ -5992,14 +5992,23 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         if(discountAmt > subtotal) discountAmt = subtotal;
 
         let feesTotal = currentOtherFees.reduce((sum, f) => sum + f.amount, 0);
-        let total = subtotal - discountAmt + feesTotal;
+        
+        // 🛡️ ENTERPRISE FIX: Calculate taxAmt inside renderCart before using it!
+        let taxAmt = 0;
+        if (profileCache && profileCache.taxEnabled) {
+            const tPerc = parseFloat(profileCache.taxPercent) || 0;
+            taxAmt = Math.round(((subtotal - discountAmt) * (tPerc / 100)) * 100) / 100;
+        }
+
+        // 🛡️ Add taxAmt to the Final Total
+        let total = subtotal - discountAmt + feesTotal + taxAmt;
 
         document.getElementById('cartSubtotal').textContent = formatMoney(subtotal);
         document.getElementById('cartDiscount').textContent = `-${formatMoney(discountAmt)}`;
         document.getElementById('cartFees').textContent = `+${formatMoney(feesTotal)}`;
         document.getElementById('cartTotal').textContent = formatMoney(total);
         
-        // 🛡️ ENTERPRISE FIX: Show or Hide Tax Row in UI dynamically
+        // Show or Hide Tax Row in UI dynamically
         if(taxAmt > 0) { 
             document.getElementById('cartTaxRow').style.display='flex'; 
             document.getElementById('cartTax').textContent = '+' + formatMoney(taxAmt); 
