@@ -6148,7 +6148,6 @@ window.checkout = async () => {
 
         const roundToTwo = (num) => Math.round(num * 100) / 100;
         let feesTotal = currentOtherFees.reduce((sum, f) => sum + f.amount, 0);
-        let feesTotal = currentOtherFees.reduce((sum, f) => sum + f.amount, 0);
         
         // 🛡️ ENTERPRISE FIX: Dynamic POS Tax Calculation
         let taxAmt = 0;
