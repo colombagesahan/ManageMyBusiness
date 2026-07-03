@@ -297,7 +297,8 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         <a class="nav-item" onclick="loadView('syslogs')" id="navSysLogs"><i class="ri-history-line"></i> Activity Logs</a>
         <a class="nav-item" onclick="loadView('payroll')"><i class="ri-calculator-line"></i> Payroll Processor</a>
         <a class="nav-item" onclick="loadView('customers')"><i class="ri-user-heart-line"></i> Customers</a>
-        <!-- 🛡️ ENTERPRISE FIX: Email Center -->
+        <!-- 🛡️ ENTERPRISE FIX: Loyalty & Email Center -->
+        <a class="nav-item" onclick="loadView('loyalty')"><i class="ri-medal-line"></i> Loyalty Rewards</a>
         <a class="nav-item" onclick="loadView('emailcenter')"><i class="ri-mail-send-line"></i> Email Center <span class="badge-dot" id="emailBadge"></span></a>
     </div>
     <div style="padding: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
@@ -553,8 +554,31 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                             <div style="font-size:10px; color:#d97706; margin-top:5px;">Keep this secret. Used to approve large cashier discounts.</div>
                         </div>
 
+                        <!-- 🚀 ENTERPRISE LOYALTY SETTINGS -->
+                        <div style="margin-top: 15px; padding: 15px; background: #faf5ff; border: 2px solid #a855f7; border-radius: 8px;">
+                            <h4 style="color:#7e22ce; margin-bottom:10px;"><i class="ri-medal-fill"></i> Customer Loyalty Program</h4>
+                            
+                            <div style="display:flex; gap:10px; margin-bottom:15px; align-items:center;">
+                                <input type="checkbox" id="profLoyaltyEnabled" style="width:20px; height:20px; cursor:pointer;">
+                                <span style="font-size:13px; font-weight:bold; color:#6b21a8;">Enable Loyalty Program</span>
+                            </div>
+
+                            <label style="font-size:12px; font-weight:bold;">Spend Amount to Earn Points (Rs) *</label>
+                            <input type="number" id="profLoyaltySpend" placeholder="e.g. 1000" style="margin-bottom:10px; font-weight:bold;">
+                            <div style="font-size:10px; color:#9333ea; margin-top:-5px; margin-bottom:10px;">පාරිභෝගිකයා කොපමණ මුදලක් වියදම් කළ යුතුද 1 Point එකක් ලබා ගැනීමට.</div>
+
+                            <label style="font-size:12px; font-weight:bold;">Value of 1 Point (Rs) *</label>
+                            <input type="number" id="profLoyaltyEarn" placeholder="e.g. 1" style="margin-bottom:0; font-weight:bold;">
+                        </div>
+
+                        <!-- 🛡️ ENTERPRISE FIX: EXPENSE APPROVAL LIMIT -->
+                        <div style="margin-top: 15px; padding: 10px; background: #fef2f2; border: 1px solid #fca5a5; border-radius: 8px;">
+                            <label style="font-size:12px; font-weight:bold; color:#b91c1c;"><i class="ri-shield-keyhole-line"></i> Petty Cash Approval Limit (රු.)</label>
+                            <input type="number" id="profExpenseLimit" placeholder="e.g. 5000" style="margin-bottom:0; margin-top:5px; border-color:#fca5a5; font-weight:bold;">
+                            <div style="font-size:10px; color:#b91c1c; margin-top:5px;">මීට වඩා වැඩි වියදමක් Cashier දැමුවහොත්, එය අනුමත (Approve) කරන තුරු ලාච්චුවෙන් සල්ලි අඩු නොවේ.</div>
+                        </div>
+
                         <!-- 🚀 ENTERPRISE POS POLICIES (Taxes & Refunds) -->
-                        <div style="margin-top: 15px; padding: 15px; background: #f0fdf4; border: 2px solid #22c55e; border-radius: 8px;">
                             <h4 style="color:#166534; margin-bottom:10px;"><i class="ri-government-line"></i> Tax & Refund Policies (බදු සහ ප්‍රතිලාභ නීති)</h4>
                             <div style="font-size:10px; color:#b91c1c; font-weight:bold; margin-bottom:15px; background:#fee2e2; padding:5px; border-radius:4px;">
                                 ⚠️ WARNING: මෙම නීති නිතර වෙනස් කිරීමෙන් මාසික මූල්‍ය වාර්තා සහ ගිණුම්කරණය ව්‍යාකූල විය හැක. වෙනස් කිරීමේදී සැලකිලිමත් වන්න!
@@ -673,6 +697,26 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                     </div>
                 </div>
 
+            </div>
+        </div>
+
+<!-- 🚀 NEW: ENTERPRISE LOYALTY REWARDS TAB -->
+        <div id="view-loyalty" class="view">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
+                 <h3><i class="ri-medal-fill" style="color:#a855f7;"></i> Customer Loyalty Program</h3>
+                 <button class="btn btn-primary" style="background:#9333ea;" onclick="loadLoyaltyUI()"><i class="ri-refresh-line"></i> Refresh Leaderboard</button>
+            </div>
+            <div class="note-box" style="background:#faf5ff; border-color:#e9d5ff; color:#7e22ce;">
+                <i class="ri-information-fill"></i> You can enable, disable, and configure point values from the <b>Profile Settings</b> tab. Below are your top loyal customers!
+            </div>
+            
+            <div class="card" id="loyaltyScrollArea" style="overflow-x:auto; max-height:65vh; overflow-y:auto; margin-bottom:0;">
+                <table id="loyaltyTable" style="position:relative;">
+                    <thead style="position:sticky; top:0; background:#f9fafb; z-index:10; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
+                        <tr><th>Rank</th><th>Customer Name</th><th>Phone (ID)</th><th>Loyalty Points (Rs)</th></tr>
+                    </thead>
+                    <tbody id="loyaltyTbody"></tbody>
+                </table>
             </div>
         </div>
 
@@ -2325,6 +2369,25 @@ body.pos-fullscreen-mode #view-pos > div > .card {
     </div>
 </div>
 
+<!-- 🚨 ENTERPRISE SECURITY: GLOBAL FRAUD ALERT MODAL -->
+<div id="fraudAlertModal" style="position:fixed; inset:0; background:rgba(220, 38, 38, 0.9); display:none; align-items:center; justify-content:center; z-index:9999; backdrop-filter:blur(5px);">
+    <div class="card" style="width:500px; margin:0; text-align:center; padding:40px; border:none; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5);">
+        <div style="width:80px; height:80px; background:#fef2f2; color:#dc2626; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:40px; margin:0 auto 20px auto; border:4px solid #f87171;">
+            <i class="ri-alarm-warning-fill"></i>
+        </div>
+        <h2 style="color:#b91c1c; margin-bottom:10px; font-weight:900; text-transform:uppercase; letter-spacing:1px;">Critical Fraud Detected!</h2>
+        <p style="font-size:14px; color:#4b5563; margin-bottom:20px;">The system has just blocked a malicious activity attempt at one of your counters.</p>
+        
+        <div style="background:#fef2f2; border:1px solid #fecaca; padding:15px; border-radius:8px; text-align:left; margin-bottom:25px;">
+            <div style="font-size:11px; color:#991b1b; font-weight:bold;">Time: <span id="faTime" style="color:#1f2937;"></span></div>
+            <div style="font-size:11px; color:#991b1b; font-weight:bold; margin-top:5px;">User/Cashier: <span id="faUser" style="color:#1f2937;"></span></div>
+            <div style="font-size:13px; color:#b91c1c; font-weight:900; margin-top:10px; line-height:1.4;" id="faDesc"></div>
+        </div>
+
+        <button class="btn btn-danger" style="width:100%; padding:15px; font-size:16px; justify-content:center; text-transform:uppercase; letter-spacing:1px; box-shadow:0 4px 6px rgba(0,0,0,0.1);" onclick="document.getElementById('fraudAlertModal').style.display='none'">Acknowledge & Close</button>
+    </div>
+</div>
+
 <!-- 🚀 NEW: EMPLOYEE JOB ROLES MODAL -->
 <div id="empRoleModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:2500;">
     <div class="card" style="width:400px; margin:0; border-top: 5px solid var(--primary);">
@@ -2605,6 +2668,12 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             <input type="text" id="posChequeNo" placeholder="Cheque No (e.g. 123456)" style="padding:8px; font-size:12px; width:100%; margin-bottom:5px; border-color:#fcd34d;">
             <input type="text" id="posChequeBank" placeholder="Bank & Branch (e.g. BOC)" style="padding:8px; font-size:12px; width:100%; margin-bottom:5px; border-color:#fcd34d;">
             <input type="date" id="posChequeDate" style="padding:8px; font-size:12px; width:100%; margin-bottom:0; border-color:#fcd34d;">
+        </div>
+
+        <!-- 🛡️ ENTERPRISE FIX: Loyalty Redemption Box -->
+        <div id="posLoyaltyDetails" style="display:none; background:#faf5ff; padding:10px; border-radius:8px; border:1px solid #e9d5ff; margin-bottom:15px; text-align:left;">
+            <label style="font-size:12px; font-weight:bold; color:#7e22ce;"><i class="ri-medal-fill"></i> Loyalty Points Available: <span id="posAvailablePoints" style="font-size:16px; font-weight:900;">0</span></label>
+            <input type="number" id="posRedeemPoints" placeholder="Points to Redeem as Discount (Rs)" style="padding:8px; font-size:12px; width:100%; margin-top:8px; border-color:#d8b4fe; font-weight:bold;">
         </div>
 
         <label id="modalCustAddrLabel" style="font-size:11px; color:#666; display:block; text-align:left; margin-bottom:5px;">Address (Optional)</label>
@@ -3209,6 +3278,29 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                 dbOwnerId = user.uid;
                 await setDoc(doc(db, `users`, user.uid), { role: 'admin', createdAt: window.getSecureTime().toISOString() }, { merge: true });
             }
+
+            // 🛡️ ENTERPRISE FIX: REAL-TIME FRAUD SIREN FOR ADMIN
+            // ලොග් වී සිටින්නේ Admin නම්, මුළු සිස්ටම් එකේම වෙන හොරකම් සජීවීව අල්ලා ගැනීමට කනක් (Listener) තබයි!
+            if (userRole === 'admin') {
+                const logsRef = collection(db, `users/${dbOwnerId}/system_audit_logs`);
+                // අදින් පසුව සිදුවන හොරකම් පමණක් ඇල්ලීමට
+                const qFraud = query(logsRef, where("timestamp", ">=", window.getSecureTime().toISOString()));
+                
+                onSnapshot(qFraud, (snap) => {
+                    snap.docChanges().forEach((change) => {
+                        if (change.type === "added") {
+                            const log = change.doc.data();
+                            if (log.action && log.action.includes("FRAUD")) {
+                                document.getElementById('faTime').textContent = new Date(log.timestamp).toLocaleString();
+                                document.getElementById('faUser').textContent = log.userEmail + ` (Shop: ${log.shopName})`;
+                                document.getElementById('faDesc').textContent = log.description;
+                                document.getElementById('fraudAlertModal').style.display = 'flex';
+                            }
+                        }
+                    });
+                });
+            }
+
         } catch (firebaseError) {
             console.warn("Firebase rules blocked user data fetch. Forcing Admin mode to prevent UI crash.", firebaseError);
             userRole = 'admin';
@@ -3733,6 +3825,23 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             const snapUnpaid = await getDocs(qUnpaid);
             snapUnpaid.forEach(d => { totalDebt += (d.data().creditBalance || 0); });
             
+            // 🛡️ Check Loyalty Points & Fraud Suspension
+            window.currentCustomerLoyalty = c.loyaltyPoints || 0;
+            
+            if (c.loyaltySuspended) {
+                showToast(`🚨 WALLET SUSPENDED! Fraudulent activity detected on this account. Points blocked.`, "error");
+                document.getElementById('posLoyaltyDetails').style.display = 'none';
+                window.currentCustomerLoyalty = 0; // Force to 0 for checkout
+                document.getElementById('modalCustName').style.color = 'var(--danger)';
+            } 
+            else if (profileCache && profileCache.loyaltyEnabled && window.currentCustomerLoyalty > 0) {
+                document.getElementById('posLoyaltyDetails').style.display = 'block';
+                document.getElementById('posAvailablePoints').textContent = window.currentCustomerLoyalty;
+                document.getElementById('posRedeemPoints').value = '';
+            } else {
+                document.getElementById('posLoyaltyDetails').style.display = 'none';
+            }
+
             // 🛡️ Check Store Credit (Wallet)
             window.currentCustomerWallet = c.walletBalance || 0;
             if (window.currentCustomerWallet > 0) {
@@ -3822,6 +3931,10 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         
         // Load the Manager PIN. If not set previously, default to 0000
         document.getElementById('profManagerPin').value = p.managerPin || '0000';
+        document.getElementById('profExpenseLimit').value = p.expenseLimit || '5000'; // 👈 Load Limit
+        document.getElementById('profLoyaltyEnabled').checked = p.loyaltyEnabled === true;
+document.getElementById('profLoyaltySpend').value = p.loyaltySpend || '1000';
+document.getElementById('profLoyaltyEarn').value = p.loyaltyEarn || '1';
         document.getElementById('profTaxEnabled').checked = p.taxEnabled === true;
         document.getElementById('profTaxName').value = p.taxName || '';
         document.getElementById('profTaxPercent').value = p.taxPercent || '';
@@ -3867,7 +3980,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 
     window.lockProfile = (lock) => {
         // 🛡️ ENTERPRISE FIX: Strict State Locking for all UI elements
-        document.querySelectorAll('#profFields input:not([type="checkbox"]), #profFields textarea, #profDefaultBillSize, #profLogoFont, #profLogoColor, #profLogoFile, #profScaleMode, #profScalePrefix, #profManagerPin, #profTaxName, #profTaxPercent, #profRefundPolicy, #profTermsThermal, #profTermsA4, #profTermsInvoice, #profTermsQuote').forEach(i => {
+        document.querySelectorAll('#profFields input:not([type="checkbox"]), #profFields textarea, #profDefaultBillSize, #profLogoFont, #profExpenseLimit, #profLogoColor, #profLogoFile, #profScaleMode, #profScalePrefix, #profManagerPin, #profTaxName, #profTaxPercent, #profRefundPolicy, #profTermsThermal, #profLoyaltySpend, #profLoyaltyEarn, #profLoyaltyEnabled, #profTermsA4, #profTermsInvoice, #profTermsQuote').forEach(i => {
             if (i) i.disabled = lock;
         });
         
@@ -3902,9 +4015,13 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             
             // Save the Manager PIN (Fallback to 0000 if left empty)
             managerPin: document.getElementById('profManagerPin').value.trim() || '0000',
+            expenseLimit: parseFloat(document.getElementById('profExpenseLimit').value) || 5000, // 👈 New Limit
             taxEnabled: document.getElementById('profTaxEnabled').checked,
             taxName: document.getElementById('profTaxName').value.trim() || 'TAX',
             taxPercent: parseFloat(document.getElementById('profTaxPercent').value) || 0,
+            loyaltyEnabled: document.getElementById('profLoyaltyEnabled').checked,
+loyaltySpend: parseFloat(document.getElementById('profLoyaltySpend').value) || 1000,
+loyaltyEarn: parseFloat(document.getElementById('profLoyaltyEarn').value) || 1,
             refundPolicy: document.getElementById('profRefundPolicy').value,
             logoFont: document.getElementById('profLogoFont').value,
             logoColor: document.getElementById('profLogoColor').value,
@@ -3996,6 +4113,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         // --- UPDATED PART IS HERE ---
         if(viewName === 'orders') loadOrders();
         if(viewName === 'alerts') renderAlertsTable();
+        if(viewName === 'loyalty') loadLoyaltyUI();
         if(viewName === 'customers') loadCustomers(); 
         if(viewName === 'workspace') loadWorkspaceUI();
         if(viewName === 'transfers') loadTransfersUI();
@@ -6227,8 +6345,22 @@ window.checkout = async () => {
             taxAmt = Math.round(((subtotal - discountAmt) * (tPerc / 100)) * 100) / 100;
         }
         
+        // 🛡️ LOYALTY REDEMPTION VALIDATION
+        let loyaltyRedeemed = 0;
+        const redeemInput = document.getElementById('posRedeemPoints');
+        if (redeemInput && redeemInput.parentElement.style.display !== 'none') {
+            loyaltyRedeemed = parseFloat(redeemInput.value) || 0;
+            if (loyaltyRedeemed < 0) return showToast("Invalid Loyalty Points!", "error");
+            if (loyaltyRedeemed > window.currentCustomerLoyalty) {
+                document.getElementById('posRedeemPoints').focus();
+                return showToast(`Cannot redeem more points than available! (Max: ${window.currentCustomerLoyalty})`, "error");
+            }
+        }
+        window.pendingLoyaltyRedeemed = loyaltyRedeemed;
+
         const roundToTwo = (num) => Math.round(num * 100) / 100;
-        let total = roundToTwo(subtotal - discountAmt + feesTotal + taxAmt);
+        let total = roundToTwo(subtotal - discountAmt + feesTotal + taxAmt - loyaltyRedeemed); // 👈 Deduct Loyalty!
+        if (total < 0) total = 0;
         
         let walletToUse = 0;
         if (window.currentCustomerWallet && window.currentCustomerWallet > 0) {
@@ -6356,7 +6488,21 @@ window.checkout = async () => {
             taxAmt = Math.round(((subtotal - discountAmt) * (tPerc / 100)) * 100) / 100;
         }
         
-        let total = roundToTwo(subtotal - discountAmt + feesTotal + taxAmt);
+        let loyaltyRedeemed = window.pendingLoyaltyRedeemed || 0;
+        let total = roundToTwo(subtotal - discountAmt + feesTotal + taxAmt - loyaltyRedeemed);
+        if (total < 0) total = 0;
+
+        // 🛡️ LOYALTY EARNING CALCULATION
+        let loyaltyEarned = 0;
+        let expectedLoyalty = 0; // 👈 වංචාව ඇල්ලීමට සැබෑ අගය මතක තියාගනී
+        if (profileCache && profileCache.loyaltyEnabled && finalCustPhone !== "N/A") {
+            const spendThresh = parseFloat(profileCache.loyaltySpend) || 1000;
+            const earnRate = parseFloat(profileCache.loyaltyEarn) || 1;
+            if (spendThresh > 0) {
+                expectedLoyalty = Math.floor(total / spendThresh) * earnRate;
+                loyaltyEarned = expectedLoyalty; 
+            }
+        }
 
         // 🛡️ ENTERPRISE FIX: DYNAMIC PAYMENT VALIDATION ENGINE (FINAL COMMIT)
         const givenText = document.getElementById('posCashGiven') ? document.getElementById('posCashGiven').value.trim() : '';
@@ -6426,7 +6572,9 @@ window.checkout = async () => {
             // පරිගණකයේ වෙලාව ඊයේට හැදුවත්, පද්ධතිය කිසිදිනෙක නොරැවටේ!
             date: window.getSecureTime().toISOString(),
             subtotal: roundToTwo(subtotal),
-            discountType: discountType, 
+            discountType: discountType,
+            loyaltyRedeemed: loyaltyRedeemed,
+            loyaltyEarned: loyaltyEarned, 
             discountValue: roundToTwo(discountVal), 
             discountAmt: roundToTwo(discountAmt), 
             fees: currentOtherFees, 
@@ -6440,6 +6588,9 @@ window.checkout = async () => {
             customer: { name: finalCustName, phone: finalCustPhone, address: custAddr || "" },
             notes: []
         };
+
+        // 🛡️ ENTERPRISE FIX: Cashier ගේ වංචාව එතැනදීම ඇල්ලීමට උගුලක් සැකසීම
+        let fraudCaughtLocally = false;
 
         try {
             // 🛡️ ENTERPRISE FIX: ATOMIC TRANSACTION (Read-Before-Write Strict Protocol)
@@ -6549,20 +6700,67 @@ window.checkout = async () => {
                 // Write 3: Create/Update Customer Profile safely
                 let generatedPinForBill = null;
                 if (customerRef) {
+                    // 🛡️ ENTERPRISE FRAUD DETECTION: Transaction-Level Audit Trap!
+                    let isFraud = false;
+                    if (loyaltyEarned > expectedLoyalty) {
+                        isFraud = true;
+                        fraudCaughtLocally = true; // 🚨 වංචාව Cashier ගේ යන්ත්‍රය තුළදීම තහවුරු විය!
+                        loyaltyEarned = 0; // වංචනික ලකුණු ක්ෂණිකව බිංදුව කර දමයි!
+                    }
+
+                    let pointDiff = loyaltyEarned - loyaltyRedeemed; 
+
                     if (!customerSnap.exists()) {
                         generatedPinForBill = Math.floor(1000 + Math.random() * 9000).toString();
                         transaction.set(customerRef, {
-                            name: finalCustName,
-                            phone: finalCustPhone,
-                            address: custAddr || "",
-                            pin: generatedPinForBill,
-                            lastUpdated: window.getSecureTime().toISOString()
+                            name: finalCustName, phone: finalCustPhone, address: custAddr || "",
+                            pin: generatedPinForBill, lastUpdated: window.getSecureTime().toISOString(),
+                            loyaltyPoints: Math.max(0, pointDiff),
+                            loyaltySuspended: isFraud // 👈 අනාගත හොරකම් වළක්වයි!
                         });
-                    } else if (custAddr && custAddr !== customerSnap.data().address) {
-                        // Keep old history, only update address
-                        transaction.update(customerRef, {
-                            address: custAddr,
-                            lastUpdated: window.getSecureTime().toISOString()
+                        saleData.initialPin = generatedPinForBill; 
+                    } else {
+                        let cUpdate = { lastUpdated: window.getSecureTime().toISOString() };
+                        if (custAddr && custAddr !== customerSnap.data().address) cUpdate.address = custAddr;
+                        if (pointDiff !== 0) cUpdate.loyaltyPoints = increment(pointDiff);
+                        if (isFraud) cUpdate.loyaltySuspended = true; // 👈 Auto-Quarantine the account!
+                        transaction.update(customerRef, cUpdate);
+                    }
+
+                    // 🚨 හොරයක් නම්, අකුණු සැරයක් මෙන් Audit Log එකට ලියා Admin ගේ රතු පාට Modal එක අවදි කරයි!
+                    if (isFraud) {
+                        const fraudDesc = `CRITICAL: Cashier attempted to inject fake loyalty points into Bill! Customer wallet is now suspended.`;
+                        const nowStr = window.getSecureTime().toISOString();
+                        const cashierEmail = currentUser ? currentUser.email : "Unknown";
+
+                        // 1. Immutable Audit Log (සජීවී Modal එක මේ හරහා ඔන්ලයින් සිටින Admin ට පෙන්වයි)
+                        const auditRef = doc(collection(db, `users/${dbOwnerId}/system_audit_logs`));
+                        transaction.set(auditRef, {
+                            timestamp: nowStr, userEmail: cashierEmail, userRole: userRole, shopId: currentShopId || "NONE", shopName: "Fraud Prevention System",
+                            action: "FRAUD_DETECTED_POINTS", description: fraudDesc
+                        });
+
+                        // 2. Persistent System Alert (Admin හෙට උදේ ලොග් වුණත් Alert Tab එකේ රතු පාටින් පෙන්වයි)
+                        const alertRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/alerts`));
+                        transaction.set(alertRef, {
+                            refId: cashierEmail, type: 'global', orderId: customOrderId,
+                            message: `🚨 FRAUD ALERT: ${fraudDesc}`,
+                            targetDate: nowStr, frequency: 'once', status: 'triggered', // කෙලින්ම Triggered ලෙස සේව් කරයි
+                            createdAt: nowStr
+                        });
+
+                        // 3. 🛡️ ENTERPRISE FIX: Auto-Email the Admin instantly! (Using our Outbox engine)
+                        // Admin Offline සිටියත්, තත්පර කිහිපයකින් ඔහුගේ දුරකථනයට ඊමේල් පණිවිඩයක් පැමිණේ!
+                        const outboxRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/outbox`));
+                        transaction.set(outboxRef, {
+                            to: "nadun.admin@gmail.com", // 👈 මෙතැනට Admin ගේ සැබෑ ඊමේල් එක දෙන්න
+                            message: {
+                                subject: "🚨 URGENT: Fraud Detected in POS System!",
+                                text: `Fraud Alert at Shop.\n\nCashier: ${cashierEmail}\nTime: ${new Date(nowStr).toLocaleString()}\nDetails: ${fraudDesc}`,
+                                html: `<h2 style="color:red;">🚨 Security Alert</h2><p><b>Cashier:</b> ${cashierEmail}</p><p><b>Time:</b> ${new Date(nowStr).toLocaleString()}</p><p><b>Details:</b> ${fraudDesc}</p><br><hr><p style="font-size:10px;color:#999;">Automated Security Message from ERP System</p>`
+                            },
+                            timestamp: nowStr,
+                            status: 'pending'
                         });
                     }
                 }
@@ -6633,12 +6831,46 @@ window.checkout = async () => {
 
             }); // ====== END OF ATOMIC TRANSACTION ======
 
+            // 🚨 ENTERPRISE CONFRONTATION: THE CASHIER IS CAUGHT RED-HANDED!
+            // Transaction එක (සාක්ෂි ලිවීම) සාර්ථක වූ වහාම, Cashier ගේ තිරයට පහර දෙයි.
+            if (fraudCaughtLocally) {
+                document.getElementById('checkoutCustomerModal').style.display = 'none';
+                
+                document.getElementById('faTime').textContent = window.getSecureTime().toLocaleString();
+                document.getElementById('faUser').textContent = currentUser ? currentUser.email : "System Officer";
+                
+                // Cashier ට පෙනෙන බිහිසුණු පණිවිඩය
+                document.getElementById('faDesc').innerHTML = `
+                    <span style="color:#7f1d1d; font-size:16px;">🚨 SYSTEM TAMPERING DETECTED! 🚨</span><br><br>
+                    ඔබ විසින් පද්ධතියේ Loyalty Points වංචා කිරීමට ගත් උත්සාහය පද්ධතිය විසින් සාර්ථකව පටිගත කර ඇත.<br>
+                    මෙම වංචාව පිළිබඳව <b>ආයතන ප්‍රධානියාට (Admin) ඊමේල් පණිවිඩයක් මගින් මේ මොහොතේම දැනුම් දී ඇත!</b><br><br>
+                    ඔබගේ ගිණුම තත්පර 10කින් පද්ධතියෙන් ඉවත් (Logout) කෙරේ.
+                `;
+                
+                document.getElementById('fraudAlertModal').style.display = 'flex';
+                toggleLoader(false);
+                
+                // බිල Print වීමට නොදී, තත්පර 10කින් ඔහුව පද්ධතියෙන් බලහත්කාරයෙන් පන්නා දමයි!
+                setTimeout(() => {
+                    logout();
+                }, 10000);
+                
+                return; // ⛔ පද්ධතියේ ඊළඟට ඇති සියලුම කේත (Print බිල්) ක්‍රියාත්මක වීම සම්පූර්ණයෙන්ම නවතී!
+            }
+
             // ==========================================
             // PHASE 3: POST-TRANSACTION CLEANUP (Only if successful)
             // ==========================================
 
             if(window.writeSystemLog) {
-                writeSystemLog("SALE_COMPLETED", `Order ${saleData.customOrderId} completed. Value: ${formatMoney(total)} via ${finalPaymentMethod}`);
+                // 🛡️ ENTERPRISE ANTI-FRAUD TRAP: Record exact Loyalty points in Immutable Audit Log!
+                // Cashier RAM එක හැක් කර Points වෙනස් කළද, ඔහුට මේ Log එක මැකීමට බැරිය. අයිතිකරුට වංචාව ක්ෂණිකව හසුවේ!
+                let loyaltyLogStr = "";
+                if (loyaltyEarned > 0 || loyaltyRedeemed > 0) {
+                    loyaltyLogStr = ` [Points Earned: ${loyaltyEarned} | Redeemed: ${loyaltyRedeemed}]`;
+                }
+
+                writeSystemLog("SALE_COMPLETED", `Order ${saleData.customOrderId} completed. Value: ${formatMoney(total)} via ${finalPaymentMethod}.${loyaltyLogStr}`);
                 
                 // 🛡️ ENTERPRISE FIX: Explicit Log for POS Cheques
                 if (finalPaymentMethod === 'Cheque') {
@@ -7562,6 +7794,10 @@ window.autoFillDocCustomer = (name) => {
 
             drawTotalLine("SUB TOTAL", formatMoney(docData.subtotal));
             if(docData.discount > 0) drawTotalLine("DISCOUNT", "-" + formatMoney(docData.discount));
+            
+            // 🛡️ ENTERPRISE FIX: Loyalty Discount Line for A4 Bills
+            if(docData.loyaltyRedeemed > 0) drawTotalLine("LOYALTY DISCOUNT", "-" + formatMoney(docData.loyaltyRedeemed)); 
+            
             if(docData.fees && docData.fees.length > 0) docData.fees.forEach(f => drawTotalLine(f.name, "+" + formatMoney(f.amount)));
             
             currentY += 2;
@@ -7715,6 +7951,10 @@ window.autoFillDocCustomer = (name) => {
                     <table style="margin-top: 10px;">
                         <tr><td style="text-align: left; padding: 2px 0;">Sub Total</td><td style="text-align: right; padding: 2px 0;">${formatMoney(docData.subtotal)}</td></tr>
                         ${docData.discount > 0 ? `<tr><td style="text-align: left; padding: 2px 0;">Discount</td><td style="text-align: right; padding: 2px 0;">-${formatMoney(docData.discount)}</td></tr>` : ''}
+                        
+                        <!-- 🛡️ ENTERPRISE FIX: Loyalty Discount Line for Thermal Bills -->
+                        ${docData.loyaltyRedeemed > 0 ? `<tr><td style="text-align: left; padding: 2px 0; color:#9333ea; font-weight:bold;">Loyalty Discount</td><td style="text-align: right; padding: 2px 0; color:#9333ea; font-weight:bold;">-${formatMoney(docData.loyaltyRedeemed)}</td></tr>` : ''}
+                        
                         ${feesHtml}
                         <tr>
                             <td class="bold fs-14 brand-text" style="text-align: left; padding: 5px 0; border-top: 1px solid #000; border-bottom: 2px solid #000;">NET TOTAL</td>
@@ -7743,6 +7983,9 @@ window.autoFillDocCustomer = (name) => {
                         <div class="bold fs-14">Portal PIN: ${docData.initialPin}</div>
                         <div style="font-size: 9px; margin-top: 3px;">(Please change PIN after 1st login)</div>
                     </div>` : ''}
+                    
+                    <!-- 🛡️ ENTERPRISE FIX: Star Points Earned Message -->
+                    ${docData.loyaltyEarned > 0 ? `<div class="center" style="font-weight:bold; font-size:11px; margin-top:8px; color:#9333ea; border:1px solid #9333ea; padding:4px; border-radius:4px;">⭐ You Earned ${docData.loyaltyEarned} Loyalty Points!</div>` : ''}
                     
                     <div class="center" style="font-size: 10px; margin-top: 10px; color: #666;">System by 070 315 0742</div>
                     
@@ -10016,6 +10259,8 @@ window.autoFillDocCustomer = (name) => {
             
             snapExp.forEach(d => {
                 const record = d.data();
+                if (record.isPending) return; // 🛡️ SKIP PENDING EXPENSES FOR PROFIT MATH!
+
                 if(record.isIncome) {
                     const desc = record.description ? record.description.toLowerCase() : "";
                     // 🛡️ ENTERPRISE ACCOUNTING FIX: Prevent Profit Inflation!
@@ -11364,24 +11609,41 @@ window.setQuickCash = (amount) => {
                     const color = exp.isIncome ? '#15803d' : '#b91c1c';
                     const bg = exp.isIncome ? '#dcfce7' : '#fee2e2';
                     
+                    // 🛡️ ENTERPRISE FIX: Pending Approval UI
+                    let statusBadge = exp.isPending 
+                        ? `<span style="background:#fefce8; color:#b45309; border:1px solid #fde047; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold; display:inline-block; margin-top:4px;"><i class="ri-time-line"></i> PENDING APPROVAL</span>`
+                        : `<span style="background:${bg}; color:${color}; padding:2px 6px; border-radius:4px; font-size:11px; font-weight:bold;">${typeText}</span>`;
+                    
+                    let actionHtml = '';
+                    if (exp.isPending) {
+                        if (userRole === 'admin') {
+                            actionHtml = `
+                            <div style="display:flex; gap:5px;">
+                                <button class="btn btn-success" style="padding:4px 8px; font-size:11px;" onclick="approveExpense('${exp.id}')" title="Approve"><i class="ri-check-line"></i></button>
+                                <button class="btn btn-danger" style="padding:4px 8px; font-size:11px;" onclick="deleteExpense('${exp.id}')" title="Reject"><i class="ri-close-line"></i></button>
+                            </div>`;
+                        } else {
+                            actionHtml = `<span style="font-size:10px; color:#9ca3af; font-weight:bold;">Waiting for Admin</span>`;
+                        }
+                    } else if (isSystemGen) {
+                        actionHtml = `<button class="btn btn-ghost" style="padding:4px 8px; font-size:11px; opacity:0.5;" disabled>Locked</button>`;
+                    } else {
+                        actionHtml = `<button class="btn btn-danger" style="padding:4px 8px; font-size:11px;" onclick="deleteExpense('${exp.id}')"><i class="ri-delete-bin-line"></i></button>`;
+                    }
+
                     newHtml += `
-                    <tr>
+                    <tr style="${exp.isPending ? 'background:#fffbeb; opacity:0.9;' : ''}">
                         <td style="font-size:12px;">
                             <div style="font-weight:bold;">${new Date(exp.date).toLocaleDateString()}</div>
                             <div style="color:#666;">${new Date(exp.date).toLocaleTimeString()}</div>
                         </td>
-                        <td><span style="background:${bg}; color:${color}; padding:2px 6px; border-radius:4px; font-size:11px; font-weight:bold;">${typeText}</span></td>
+                        <td>${statusBadge}</td>
                         <td>
-                            <div style="font-weight:600; font-size:13px;">${exp.description.replace(/</g, "&lt;")}</div>
+                            <div style="font-weight:600; font-size:13px; color:${exp.isPending ? '#b45309' : 'inherit'};">${exp.description.replace(/</g, "&lt;")}</div>
                             ${isSystemGen ? '<div style="font-size:10px; color:var(--primary);"><i class="ri-robot-2-line"></i> Auto-Generated by System</div>' : ''}
                         </td>
                         <td style="color:${color}; font-weight:800;">${exp.isIncome ? '+' : '-'}${formatMoney(exp.amount)}</td>
-                        <td>
-                            ${isSystemGen ? 
-                                `<button class="btn btn-ghost" style="padding:4px 8px; font-size:11px; opacity:0.5;" disabled title="System records cannot be deleted">Locked</button>` : 
-                                `<button class="btn btn-danger" style="padding:4px 8px; font-size:11px;" onclick="deleteExpense('${exp.id}')"><i class="ri-delete-bin-line"></i></button>`
-                            }
-                        </td>
+                        <td>${actionHtml}</td>
                     </tr>`;
                 });
                 tbody.insertAdjacentHTML('beforeend', newHtml);
@@ -11446,11 +11708,24 @@ window.setQuickCash = (amount) => {
         window.isSavingCashFlow = true;
         toggleLoader(true);
         try {
+            // 🛡️ ENTERPRISE ZERO-TRUST SECURITY: Fetch Limit Directly from DB (F12 Hack Proof!)
+            let isPendingApproval = false;
+            
+            if (userRole !== 'admin' && !isIncome) { // Admin ට සහ Incomes වලට අනුමැතිය අවශ්‍ය නැත
+                const profSnap = await getDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/settings`, 'profile'));
+                const expLimit = (profSnap.exists() && profSnap.data().expenseLimit) ? parseFloat(profSnap.data().expenseLimit) : 5000;
+                
+                if (amount >= expLimit) {
+                    isPendingApproval = true;
+                }
+            }
+
             const expData = {
                 description: desc,
                 amount: amount,
-                isIncome: isIncome, // Determines if it's adding to or removing from profit
-                date: window.getSecureTime().toISOString()
+                isIncome: isIncome,
+                date: window.getSecureTime().toISOString(),
+                isPending: isPendingApproval // 👈 The Magic Flag
             };
             
             const docRef = await addDoc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`), expData);
@@ -11516,6 +11791,29 @@ window.setQuickCash = (amount) => {
             showToast("Record Deleted");
         } catch(e) {
             showToast("Error deleting record", "error");
+        } finally {
+            toggleLoader(false);
+        }
+    };
+// 🛡️ ENTERPRISE FIX: Expense Approval Logic
+    window.approveExpense = async (id) => {
+        if (userRole !== 'admin') return showToast("Only Admin can approve expenses!", "error");
+        if (!confirm("Approve this expense? It will now be deducted from Profit and EOD Drawer.")) return;
+        
+        toggleLoader(true);
+        try {
+            await updateDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`, id), { isPending: false });
+            
+            // Update local cache
+            const exp = expensesCache.find(e => e.id === id);
+            if (exp) exp.isPending = false;
+
+            loadExpensesUI();
+            updateDashboard(); // Profit updates instantly!
+            if(window.writeSystemLog) writeSystemLog("EXPENSE_APPROVED", `Admin approved a pending expense of ${formatMoney(exp.amount)} (${exp.description})`);
+            showToast("Expense Approved Successfully!", "success");
+        } catch(e) {
+            showToast("Error approving expense", "error");
         } finally {
             toggleLoader(false);
         }
@@ -12126,10 +12424,8 @@ window.setQuickCash = (amount) => {
         snapExp.forEach(docSnap => {
             const e = docSnap.data();
             
-            // 🛡️ ENTERPRISE EOD FIX: Prevent Double-Deduction!
-            // Advances are already calculated separately via HR logs (staffAdvances variable). 
-            // So we strictly skip them here to keep the Cash Drawer math perfect!
-            if (e.isAdvanceEvent) return;
+            // 🛡️ ENTERPRISE EOD FIX: Skip Advances & Pending Expenses!
+            if (e.isAdvanceEvent || e.isPending) return;
 
             if(e.isIncome) {
                 if(!e.payMethod || e.payMethod === 'Cash') debtCollections += e.amount;
@@ -16273,6 +16569,37 @@ let currentBatchForSerials = null;
         document.getElementById('videoCallModal').style.display = 'none';
         document.getElementById('videoCallIframe').src = ""; // 👈 🔴 අත්‍යවශ්‍යයි! මෙය නැතිනම් Iframe එක වැහුවත් කැමරාව දිගටම on වී තිබේ.
         showToast("Call Ended");
+    };
+// ==========================================
+    // 🛡️ ENTERPRISE LOYALTY REWARDS ENGINE
+    // ==========================================
+    window.loadLoyaltyUI = () => {
+        const tbody = document.getElementById('loyaltyTbody');
+        if(!tbody) return;
+        
+        // CustomersCache එක පාවිච්චි කිරීමෙන් Database එකට අමතර බරක් නොපැමිණේ
+        const loyalCustomers = customersCache.filter(c => c.loyaltyPoints && c.loyaltyPoints > 0);
+        loyalCustomers.sort((a,b) => b.loyaltyPoints - a.loyaltyPoints); // වැඩියෙන්ම points ඇති අය උඩට
+
+        if(loyalCustomers.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px; color:#666;">No loyalty points issued yet.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = loyalCustomers.map((c, index) => {
+            let rankBadge = `${index + 1}`;
+            if(index === 0) rankBadge = `<span style="background:#fefce8; color:#b45309; padding:4px 8px; border-radius:50px; font-weight:900;"><i class="ri-vip-crown-fill"></i> 1</span>`;
+            else if(index === 1) rankBadge = `<span style="background:#f1f5f9; color:#475569; padding:4px 8px; border-radius:50px; font-weight:900;">2</span>`;
+            else if(index === 2) rankBadge = `<span style="background:#fff7ed; color:#c2410c; padding:4px 8px; border-radius:50px; font-weight:900;">3</span>`;
+
+            return `
+            <tr style="${index < 3 ? 'background:#faf5ff;' : ''}">
+                <td style="font-weight:bold; font-size:16px;">${rankBadge}</td>
+                <td style="font-weight:bold; color:var(--secondary);">${c.name}</td>
+                <td style="font-family:monospace; color:#64748b;">${c.id}</td>
+                <td style="font-weight:900; color:#9333ea; font-size:18px;">${c.loyaltyPoints} Pts</td>
+            </tr>`;
+        }).join('');
     };
 </script>
 
