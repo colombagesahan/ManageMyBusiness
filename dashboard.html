@@ -568,7 +568,13 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                             <div style="font-size:10px; color:#9333ea; margin-top:-5px; margin-bottom:10px;">පාරිභෝගිකයා කොපමණ මුදලක් වියදම් කළ යුතුද 1 Point එකක් ලබා ගැනීමට.</div>
 
                             <label style="font-size:12px; font-weight:bold;">Value of 1 Point (Rs) *</label>
-                            <input type="number" id="profLoyaltyEarn" placeholder="e.g. 1" style="margin-bottom:0; font-weight:bold;">
+                            <input type="number" id="profLoyaltyEarn" placeholder="e.g. 1" style="margin-bottom:10px; font-weight:bold;">
+                            
+                            <!-- 🛡️ ENTERPRISE FIX: Payment Mode Restriction for Loyalty -->
+                            <label style="display:flex; align-items:center; gap:5px; font-size:11px; font-weight:bold; color:#6b21a8; cursor:pointer;" title="ණයට හෝ චෙක්පත් මගින් බඩු ගන්නා අයට පක්ෂපාතී ලකුණු ලබා නොදීමට මෙය තෝරන්න">
+                                <input type="checkbox" id="profLoyaltyCashOnly" checked style="width:16px; height:16px; margin:0; accent-color:#9333ea;"> 
+                                අත්පිට මුදලට (Cash/Card) ගත් විට පමණක් ලකුණු ලබා දෙන්න (ණය සහ චෙක්පත් වලට නොදේ)
+                            </label>
                         </div>
 
                         <!-- 🛡️ ENTERPRISE FIX: EXPENSE APPROVAL LIMIT -->
@@ -710,13 +716,17 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                 <i class="ri-information-fill"></i> You can enable, disable, and configure point values from the <b>Profile Settings</b> tab. Below are your top loyal customers!
             </div>
             
-            <div class="card" id="loyaltyScrollArea" style="overflow-x:auto; max-height:65vh; overflow-y:auto; margin-bottom:0;">
+            <!-- 🛡️ ENTERPRISE FIX: Infinite Scroll Container for Loyalty -->
+            <div class="card" id="loyaltyScrollArea" style="overflow-x:auto; max-height:65vh; overflow-y:auto; margin-bottom:0;" onscroll="handleLoyaltyScroll()">
                 <table id="loyaltyTable" style="position:relative;">
                     <thead style="position:sticky; top:0; background:#f9fafb; z-index:10; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
                         <tr><th>Rank</th><th>Customer Name</th><th>Phone (ID)</th><th>Loyalty Points (Rs)</th></tr>
                     </thead>
                     <tbody id="loyaltyTbody"></tbody>
                 </table>
+                <div id="loyaltyLoadMoreLoader" style="text-align:center; padding:15px; display:none; color:var(--primary); font-weight:bold;">
+                    <i class="ri-loader-4-line ri-spin"></i> තවත් පාරිභෝගික දත්ත ගෙන එමින් පවතී...
+                </div>
             </div>
         </div>
 
@@ -1665,22 +1675,95 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             </div>
         </div>
 
-        <!-- NEW: SUPPLIERS TAB -->
+        <!-- 🛡️ ENTERPRISE FIX: SUPPLIERS & REVERSE LOGISTICS TAB -->
         <div id="view-suppliers" class="view">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
-                <h3><i class="ri-truck-fill"></i> Manage Suppliers</h3>
-                <!-- 🛡️ ENTERPRISE FIX: Deep Search for Suppliers -->
-                <input type="text" id="supplierSearchInput" placeholder="Search by Name or Phone..." style="margin:0; max-width:300px; border-color:var(--primary);" onkeyup="filterSuppliers()">
+                <h3><i class="ri-truck-fill" style="color:var(--primary);"></i> Suppliers & Returns (RTV)</h3>
+                <div style="display:flex; flex:1; max-width:300px;">
+                    <input type="text" id="supplierSearchInput" placeholder="Search Supplier..." style="margin:0; width:100%; border-color:var(--primary);" onkeyup="filterSuppliers()">
+                </div>
                 <div style="display:flex; gap:10px;">
-                    <button class="btn btn-warning" onclick="generateAutoPO()"><i class="ri-file-list-3-line"></i> Auto Generate PO (Low Stock)</button>
+                    <button class="btn btn-warning" onclick="generateAutoPO()"><i class="ri-file-list-3-line"></i> Auto PO</button>
+                    <button class="btn btn-danger" onclick="openDebitNoteModal()"><i class="ri-arrow-go-back-line"></i> Return Goods (Debit Note)</button>
                     <button class="btn btn-primary" onclick="openSupplierModal()">+ Add Supplier</button>
                 </div>
             </div>
-            <div class="card" style="overflow-x:auto;">
-                <table id="suppliersTable">
-                    <thead><tr><th>Company / Supplier Name</th><th>Contact Person</th><th>Phone</th><th>Action</th></tr></thead>
-                    <tbody></tbody>
-                </table>
+
+            <div style="display:grid; grid-template-columns: 1.5fr 1fr; gap:20px; align-items:start;">
+                <!-- Suppliers Registry -->
+                <div class="card" style="margin:0; padding:15px; border-top:4px solid var(--primary);">
+                    <h4 style="margin-bottom:10px;"><i class="ri-building-4-line"></i> Supplier Registry</h4>
+                    <!-- 🛡️ ENTERPRISE FIX: Infinite Scroll Container for Suppliers -->
+                    <div id="suppliersScrollArea" style="overflow-x:auto; max-height:400px; overflow-y:auto; padding-right:5px;" onscroll="handleSuppliersScroll()">
+                        <table id="suppliersTable" style="font-size:12px; position:relative;">
+                            <thead style="position:sticky; top:0; background:#f9fafb; z-index:10; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
+                                <tr><th>Company</th><th>Contact</th><th>Owes Us (Credit)</th><th>Action</th></tr>
+                            </thead>
+                            <tbody id="suppliersTbody"></tbody>
+                        </table>
+                        <div id="supLoadMoreLoader" style="text-align:center; padding:15px; display:none; color:var(--primary); font-weight:bold;">
+                            <i class="ri-loader-4-line ri-spin"></i> තවත් සැපයුම්කරුවන් ගෙන එමින් පවතී...
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Debit Notes History -->
+                <div class="card" style="margin:0; padding:15px; border-top:4px solid var(--danger);">
+                    <h4 style="margin-bottom:10px;"><i class="ri-file-paper-2-line"></i> Recent Debit Notes</h4>
+                    <div id="debitNotesList" style="display:flex; flex-direction:column; gap:10px; max-height:400px; overflow-y:auto; padding-right:5px;">
+                        <div style="text-align:center; padding:20px; color:#999;">Loading notes...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 🚀 NEW: DEBIT NOTE (RETURN TO SUPPLIER) MODAL -->
+        <div id="debitNoteModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.85); display:none; align-items:center; justify-content:center; z-index:5500; backdrop-filter:blur(4px);">
+            <div class="card" style="width:500px; margin:0; border-top:5px solid var(--danger); max-height:90vh; display:flex; flex-direction:column;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid #eee; padding-bottom:10px;">
+                    <h3 style="color:var(--danger); margin:0;"><i class="ri-arrow-go-back-fill"></i> Return to Supplier (RTV)</h3>
+                    <i class="ri-close-line" style="cursor:pointer; font-size:24px;" onclick="closeModal('debitNoteModal')"></i>
+                </div>
+                
+                <div style="overflow-y:auto; padding-right:5px;">
+                    <div class="note-box" style="margin-top:0;"><i class="ri-lock-fill"></i> Admin Only: This will deduct stock and generate a Debit Note PDF. The supplier's credit balance will increase.</div>
+                    
+                    <label style="font-size:12px; font-weight:bold;">1. Select Supplier *</label>
+                    <select id="dnSupplier" style="border-color:var(--primary); font-weight:bold;"></select>
+                    
+                    <label style="font-size:12px; font-weight:bold; margin-top:10px;">2. Search Product to Return *</label>
+                    <input type="text" id="dnProductSearch" placeholder="Type Name or SKU..." style="margin-bottom:5px;" onkeyup="searchDebitNoteProducts(this.value)">
+                    <select id="dnProductSelect" style="margin-bottom:15px;" onchange="checkDebitNoteItemType()">
+                        <option value="">-- Search above to load batches --</option>
+                    </select>
+
+                    <div style="display:flex; gap:10px;">
+                        <div style="flex:1;">
+                            <label style="font-size:12px; font-weight:bold; color:var(--danger);">3. Qty to Return *</label>
+                            <input type="number" id="dnQty" placeholder="e.g. 5" style="border-color:var(--danger); font-weight:bold; font-size:16px;">
+                        </div>
+                        <div style="flex:1;">
+                            <label style="font-size:12px; font-weight:bold;">Reason *</label>
+                            <select id="dnReason">
+                                <option value="Damaged / Expired">Damaged / Expired</option>
+                                <option value="Wrong Item Delivered">Wrong Item Delivered</option>
+                                <option value="Overstock Return">Overstock Return</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- 🛡️ ENTERPRISE FIX: Serial Numbers for strict tracking -->
+                    <div id="dnSerialArea" style="display:none; background:#fef2f2; padding:10px; border-radius:8px; border:1px solid #fecaca; margin-bottom:15px;">
+                        <label style="font-size:12px; font-weight:bold; color:#b91c1c;">Scan Serial Numbers to Return *</label>
+                        <div style="font-size:10px; color:#b91c1c; margin-bottom:5px;">You must scan EXACTLY the serials you are returning! Separate by comma.</div>
+                        <textarea id="dnSerials" rows="3" placeholder="e.g. ITM-B1-001, ITM-B1-002" style="margin:0; font-family:monospace;"></textarea>
+                    </div>
+                </div>
+
+                <div style="display:flex; gap:10px; margin-top:15px; padding-top:15px; border-top:1px solid #eee;">
+                    <button class="btn btn-danger" style="flex:1; justify-content:center;" onclick="submitDebitNote()">Process Return & Print</button>
+                    <button class="btn btn-ghost" onclick="closeModal('debitNoteModal')">Cancel</button>
+                </div>
             </div>
         </div>
 <!-- NEW: SERVICES TAB WITH CATEGORIES -->
@@ -3933,8 +4016,9 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         document.getElementById('profManagerPin').value = p.managerPin || '0000';
         document.getElementById('profExpenseLimit').value = p.expenseLimit || '5000'; // 👈 Load Limit
         document.getElementById('profLoyaltyEnabled').checked = p.loyaltyEnabled === true;
-document.getElementById('profLoyaltySpend').value = p.loyaltySpend || '1000';
-document.getElementById('profLoyaltyEarn').value = p.loyaltyEarn || '1';
+        document.getElementById('profLoyaltySpend').value = p.loyaltySpend || '1000';
+        document.getElementById('profLoyaltyEarn').value = p.loyaltyEarn || '1';
+        document.getElementById('profLoyaltyCashOnly').checked = p.loyaltyCashOnly !== false; // 👈 Load Rule
         document.getElementById('profTaxEnabled').checked = p.taxEnabled === true;
         document.getElementById('profTaxName').value = p.taxName || '';
         document.getElementById('profTaxPercent').value = p.taxPercent || '';
@@ -3980,7 +4064,7 @@ document.getElementById('profLoyaltyEarn').value = p.loyaltyEarn || '1';
 
     window.lockProfile = (lock) => {
         // 🛡️ ENTERPRISE FIX: Strict State Locking for all UI elements
-        document.querySelectorAll('#profFields input:not([type="checkbox"]), #profFields textarea, #profDefaultBillSize, #profLogoFont, #profExpenseLimit, #profLogoColor, #profLogoFile, #profScaleMode, #profScalePrefix, #profManagerPin, #profTaxName, #profTaxPercent, #profRefundPolicy, #profTermsThermal, #profLoyaltySpend, #profLoyaltyEarn, #profLoyaltyEnabled, #profTermsA4, #profTermsInvoice, #profTermsQuote').forEach(i => {
+        document.querySelectorAll('#profFields input:not([type="checkbox"]), #profFields textarea, #profDefaultBillSize, #profLogoFont, #profExpenseLimit, #profLogoColor, #profLogoFile, #profScaleMode, #profScalePrefix, #profManagerPin, #profTaxName, #profTaxPercent, #profRefundPolicy, #profTermsThermal, #profLoyaltySpend, #profLoyaltyEarn, #profLoyaltyEnabled, #profLoyaltyCashOnly, #profTermsA4, #profTermsInvoice, #profTermsQuote').forEach(i => {
             if (i) i.disabled = lock;
         });
         
@@ -4001,6 +4085,12 @@ document.getElementById('profLoyaltyEarn').value = p.loyaltyEarn || '1';
     window.unlockProfile = () => lockProfile(false);
 
     window.saveProfile = async () => {
+        // 🛡️ ENTERPRISE SECURITY: Block Developer Console Hacks (Profile Tampering)
+        if (userRole !== 'admin') {
+            if(window.writeSystemLog) writeSystemLog("HACK_ATTEMPT", "CRITICAL: System Officer attempted to execute saveProfile via Developer Console!");
+            return showToast("Security Alert: Access Denied! Only Admin can modify Business Profile.", "error");
+        }
+        
         const data = {
             bizName: document.getElementById('profBizName').value.trim(),
             ownerName: document.getElementById('profOwner').value.trim(),
@@ -4020,8 +4110,9 @@ document.getElementById('profLoyaltyEarn').value = p.loyaltyEarn || '1';
             taxName: document.getElementById('profTaxName').value.trim() || 'TAX',
             taxPercent: parseFloat(document.getElementById('profTaxPercent').value) || 0,
             loyaltyEnabled: document.getElementById('profLoyaltyEnabled').checked,
-loyaltySpend: parseFloat(document.getElementById('profLoyaltySpend').value) || 1000,
-loyaltyEarn: parseFloat(document.getElementById('profLoyaltyEarn').value) || 1,
+            loyaltySpend: parseFloat(document.getElementById('profLoyaltySpend').value) || 1000,
+            loyaltyEarn: parseFloat(document.getElementById('profLoyaltyEarn').value) || 1,
+            loyaltyCashOnly: document.getElementById('profLoyaltyCashOnly').checked, // 👈 New Rule
             refundPolicy: document.getElementById('profRefundPolicy').value,
             logoFont: document.getElementById('profLogoFont').value,
             logoColor: document.getElementById('profLogoColor').value,
@@ -4184,6 +4275,12 @@ loyaltyEarn: parseFloat(document.getElementById('profLoyaltyEarn').value) || 1,
     }
 
     window.saveCategory = async () => {
+        // 🛡️ ENTERPRISE SECURITY: Block Developer Console Hacks
+        if (userRole !== 'admin') {
+            if(window.writeSystemLog) writeSystemLog("HACK_ATTEMPT", "CRITICAL: System Officer attempted to execute saveCategory via Console!");
+            return showToast("Security Alert: Access Denied! Only Admin can manage Categories.", "error");
+        }
+
         const name = document.getElementById('catNameInput').value.trim();
         if(!name) return showToast("Category Name required", "error");
         
@@ -4203,6 +4300,12 @@ loyaltyEarn: parseFloat(document.getElementById('profLoyaltyEarn').value) || 1,
     };
 
     window.deleteCategory = async (id) => {
+        // 🛡️ ENTERPRISE SECURITY: Block Developer Console Hacks
+        if (userRole !== 'admin') {
+            if(window.writeSystemLog) writeSystemLog("HACK_ATTEMPT", `CRITICAL: System Officer attempted to execute deleteCategory (${id}) via Console!`);
+            return showToast("Security Alert: Access Denied! Only Admin can delete Categories.", "error");
+        }
+
         toggleLoader(true);
         // ENTERPRISE FIX: Strict Database validation to prevent Ghost Products! Bypassing local cache.
         const qCheck = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/base_products`), where("categoryId", "==", id), limit(1));
@@ -4510,6 +4613,12 @@ loyaltyEarn: parseFloat(document.getElementById('profLoyaltyEarn').value) || 1,
     };
 
     window.deleteBaseProduct = async (id) => {
+        // 🛡️ ENTERPRISE SECURITY: Block Base Product Deletion
+        if (userRole !== 'admin') {
+            if(window.writeSystemLog) writeSystemLog("HACK_ATTEMPT", `CRITICAL: System Officer attempted to DELETE base product via Console!`);
+            return showToast("Security Alert: Access Denied!", "error");
+        }
+
         // Prevent deletion if active stock exists (ENTERPRISE FIX: Check DB directly, not just Cache)
         const baseProduct = catalogCache.find(x => x.id === id);
         if(baseProduct) {
@@ -5044,6 +5153,12 @@ loyaltyEarn: parseFloat(document.getElementById('profLoyaltyEarn').value) || 1,
     }
 
     window.deleteProduct = async (id, name) => {
+        // 🛡️ ENTERPRISE SECURITY: Block Cashiers from deleting stock batches to hide shortages
+        if (userRole !== 'admin') {
+            if(window.writeSystemLog) writeSystemLog("HACK_ATTEMPT", `CRITICAL: System Officer attempted to DELETE stock batch (${name}) via Console!`);
+            return showToast("Security Alert: Access Denied!", "error");
+        }
+
         if(!confirm('Delete this stock batch?')) return;
         const p = productsCache.find(x => x.id === id);
         toggleLoader(true);
@@ -6494,8 +6609,18 @@ window.checkout = async () => {
 
         // 🛡️ LOYALTY EARNING CALCULATION
         let loyaltyEarned = 0;
-        let expectedLoyalty = 0; // 👈 වංචාව ඇල්ලීමට සැබෑ අගය මතක තියාගනී
-        if (profileCache && profileCache.loyaltyEnabled && finalCustPhone !== "N/A") {
+        let expectedLoyalty = 0; 
+        
+        // 🛡️ ENTERPRISE FIX: Strict Payment Mode Validation for Loyalty
+        let isEligibleForPoints = true;
+        if (profileCache && profileCache.loyaltyCashOnly !== false) {
+            // "Cash Only" නීතිය සක්‍රීය නම්, ණය (Pay Later) සහ චෙක්පත් (Cheque) වලට ලකුණු දීම ප්‍රතික්ෂේප කරයි!
+            if (finalPaymentMethod === 'Pay Later' || finalPaymentMethod === 'Cheque') {
+                isEligibleForPoints = false;
+            }
+        }
+
+        if (profileCache && profileCache.loyaltyEnabled && finalCustPhone !== "N/A" && isEligibleForPoints) {
             const spendThresh = parseFloat(profileCache.loyaltySpend) || 1000;
             const earnRate = parseFloat(profileCache.loyaltyEarn) || 1;
             if (spendThresh > 0) {
@@ -10051,6 +10176,12 @@ window.autoFillDocCustomer = (name) => {
     };
 
     window.saveDailyLog = async () => {
+        // 🛡️ ENTERPRISE SECURITY: Prevent Cashiers from modifying their own Attendance/Advances!
+        if (userRole !== 'admin') {
+            if(window.writeSystemLog) writeSystemLog("HACK_ATTEMPT", "CRITICAL: System Officer attempted to execute saveDailyLog via Console!");
+            return showToast("Security Alert: Access Denied!", "error");
+        }
+
         const empId = document.getElementById('payEmpSelect').value;
         const dateVal = document.getElementById('payDate').value;
         
@@ -11978,31 +12109,94 @@ window.setQuickCash = (amount) => {
         }
     };
 // ==========================================
-    // 1. SUPPLIER MANAGEMENT LOGIC
+    // 🛡️ ENTERPRISE INFINITE SCROLL: SUPPLIERS
     // ==========================================
-    // 🛡️ ENTERPRISE FIX: Added limit and UI rendering separation
-    window.loadSuppliers = () => {
-        const tbody = document.querySelector('#suppliersTable tbody');
-        
-        // Limit rendering to 100 to prevent DOM crash if suppliers > 500
-        const topResults = suppliersCache.slice(0, 100);
-        
-        let htmlStr = topResults.map(s => `
-            <tr>
-                <td style="font-weight:600;">${s.name}</td>
-                <td>${s.contact || '-'}</td>
-                <td>${s.phone}</td>
-                <td>
-                    <button class="btn btn-danger" style="padding:4px 8px; font-size:11px;" onclick="deleteSupplier('${s.id}')">Delete</button>
-                </td>
-            </tr>
-        `).join('');
+    let lastSupDoc = null;
+    let isFetchingSup = false;
+    let hasMoreSup = true;
 
-        if (suppliersCache.length > 100) {
-            htmlStr += `<tr><td colspan="4" style="text-align:center; color:var(--primary); font-weight:bold;">+ More suppliers hidden to maintain speed.</td></tr>`;
+    window.loadSuppliers = async (isLoadMore = false) => {
+        const tbody = document.getElementById('suppliersTbody');
+        const loaderUi = document.getElementById('supLoadMoreLoader');
+        if(!tbody) return;
+
+        if (!isLoadMore) {
+            lastSupDoc = null; hasMoreSup = true; suppliersCache = [];
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px; color:var(--primary); font-weight:bold;"><i class="ri-loader-4-line ri-spin"></i> Loading Suppliers...</td></tr>';
+        } else {
+            if(loaderUi) loaderUi.style.display = 'block';
         }
-        
-        tbody.innerHTML = htmlStr || '<tr><td colspan="4" style="text-align:center;">No Suppliers found.</td></tr>';
+
+        if (isFetchingSup || !hasMoreSup) return;
+        isFetchingSup = true;
+
+        try {
+            let q;
+            if (lastSupDoc) {
+                q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/suppliers`), orderBy('name'), startAfter(lastSupDoc), limit(30));
+            } else {
+                q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/suppliers`), orderBy('name'), limit(30));
+            }
+
+            const snap = await getDocs(q);
+            if (!isLoadMore) tbody.innerHTML = '';
+
+            if (snap.empty) {
+                if(!isLoadMore) tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#666;">No suppliers found.</td></tr>';
+                hasMoreSup = false;
+            } else {
+                lastSupDoc = snap.docs[snap.docs.length - 1];
+                if (snap.docs.length < 30) hasMoreSup = false;
+
+                let htmlStr = '';
+                snap.forEach(d => {
+                    const s = { id: d.id, ...d.data() };
+                    if(!suppliersCache.find(x => x.id === s.id)) suppliersCache.push(s);
+                    
+                    const creditBal = s.creditBalance || 0;
+                    const creditBadge = creditBal > 0 
+                        ? `<span style="background:#dcfce7; color:#15803d; padding:2px 6px; border-radius:4px; font-weight:900; font-size:14px;">${formatMoney(creditBal)}</span>` 
+                        : `<span style="color:#9ca3af; font-size:12px;">No Credit</span>`;
+
+                    htmlStr += `
+                    <tr style="transition:0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
+                        <td style="font-weight:bold; font-size:13px; color:var(--secondary);">${s.name}</td>
+                        <td style="font-size:12px;">${s.contact || '-'}<br><i class="ri-phone-line"></i> ${s.phone}</td>
+                        <td>${creditBadge}</td>
+                        <td>
+                            <button class="btn btn-danger" style="padding:4px 8px; font-size:11px;" onclick="deleteSupplier('${s.id}')"><i class="ri-delete-bin-line"></i></button>
+                        </td>
+                    </tr>`;
+                });
+                
+                tbody.insertAdjacentHTML('beforeend', htmlStr);
+                
+                // 🛡️ Update Add Stock & Debit Note Dropdowns Dynamically
+                const supOptions = '<option value="">-- No Supplier --</option>' + suppliersCache.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+                if(document.getElementById('mpSupplier')) document.getElementById('mpSupplier').innerHTML = supOptions;
+                if(document.getElementById('dnSupplier')) document.getElementById('dnSupplier').innerHTML = '<option value="">-- Select Supplier --</option>' + suppliersCache.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+            }
+
+            // Load Debit Notes only on initial load
+            if (!isLoadMore && document.getElementById('view-suppliers').classList.contains('active')) {
+                loadDebitNotesHistory();
+            }
+
+        } catch(e) {
+            console.error(e);
+            if(!isLoadMore) tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:red;">Failed to load suppliers.</td></tr>';
+        } finally {
+            isFetchingSup = false;
+            if(loaderUi) loaderUi.style.display = 'none';
+        }
+    };
+
+    window.handleSuppliersScroll = () => {
+        if(document.getElementById('supplierSearchInput').value.trim() !== '') return; 
+        const area = document.getElementById('suppliersScrollArea');
+        if (area.scrollTop + area.clientHeight >= area.scrollHeight - 10) {
+            if (hasMoreSup && !isFetchingSup) loadSuppliers(true);
+        }
     };
 
     window.openSupplierModal = () => {
@@ -12014,6 +12208,12 @@ window.setQuickCash = (amount) => {
     };
 
     window.saveSupplier = async () => {
+        // 🛡️ ENTERPRISE SECURITY: Block Developer Console Hacks
+        if (userRole !== 'admin') {
+            if(window.writeSystemLog) writeSystemLog("HACK_ATTEMPT", "CRITICAL: System Officer attempted to execute saveSupplier via Console!");
+            return showToast("Security Alert: Access Denied! Only Admin can manage Suppliers.", "error");
+        }
+
         const name = document.getElementById('supName').value.trim();
         const contact = document.getElementById('supContact').value.trim();
         const phone = document.getElementById('supPhone').value.trim();
@@ -12032,6 +12232,12 @@ window.setQuickCash = (amount) => {
     };
 
     window.deleteSupplier = async (id) => {
+        // 🛡️ ENTERPRISE SECURITY: Block Developer Console Hacks
+        if (userRole !== 'admin') {
+            if(window.writeSystemLog) writeSystemLog("HACK_ATTEMPT", `CRITICAL: System Officer attempted to execute deleteSupplier (${id}) via Console!`);
+            return showToast("Security Alert: Access Denied! Only Admin can delete Suppliers.", "error");
+        }
+
         toggleLoader(true);
         // ENTERPRISE FIX: Referential Integrity Check. Prevent deleting suppliers who have active stock!
         const qCheck = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`), where("supplierId", "==", id), where("qty", ">", 0), limit(1));
@@ -12056,17 +12262,19 @@ window.setQuickCash = (amount) => {
     // Note: To save Supplier with Stock, update saveStock() logic slightly if needed, but since we are modifying the DOM directly, we just need to read it.
     // In saveStock(), we just read document.getElementById('mpSupplier').value. Since this is advanced, I am assuming you add it to the 'stockData' object.
 
-// 🛡️ ENTERPRISE FIX: Deep Omni-Search for Suppliers (Bypasses UI Limits)
+// 🛡️ ENTERPRISE FIX: Deep Omni-Search for Suppliers
     window.filterSuppliers = debounceSearch(async () => {
         const originalTerm = document.getElementById('supplierSearchInput').value.trim();
+        if (originalTerm === '') return loadSuppliers(false); // 🛡️ Reset to pagination
+        
         const term = originalTerm.toLowerCase();
+        const tbody = document.getElementById('suppliersTbody');
         
         if (originalTerm.length >= 3) {
-            document.querySelector('#suppliersTable tbody').innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--primary); font-weight:bold;">Searching Database... <i class="ri-loader-4-line ri-spin"></i></td></tr>';
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:var(--primary); font-weight:bold;">Searching Database... <i class="ri-loader-4-line ri-spin"></i></td></tr>';
             
             try {
                 const capTerm = term.charAt(0).toUpperCase() + term.slice(1);
-                // Search by Phone or Name
                 const qPhone = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/suppliers`), where('phone', '>=', originalTerm), where('phone', '<=', originalTerm + '\uf8ff'), limit(15));
                 const qName = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/suppliers`), where('name', '>=', capTerm), where('name', '<=', capTerm + '\uf8ff'), limit(20));
 
@@ -12078,16 +12286,24 @@ window.setQuickCash = (amount) => {
             } catch (e) { console.error("Supplier Search Error:", e); }
         }
         
-        // Render from filtered cache
-        const tbody = document.querySelector('#suppliersTable tbody');
         const filtered = suppliersCache.filter(s => s.name.toLowerCase().includes(term) || (s.phone && s.phone.includes(originalTerm)));
         
-        tbody.innerHTML = filtered.slice(0, 100).map(s => `
-            <tr>
-                <td style="font-weight:600;">${s.name}</td><td>${s.contact || '-'}</td><td>${s.phone}</td>
-                <td><button class="btn btn-danger" style="padding:4px 8px; font-size:11px;" onclick="deleteSupplier('${s.id}')">Delete</button></td>
-            </tr>
-        `).join('') || '<tr><td colspan="4" style="text-align:center; color:#666;">No suppliers found.</td></tr>';
+        tbody.innerHTML = filtered.slice(0, 100).map(s => {
+            const creditBal = s.creditBalance || 0;
+            const creditBadge = creditBal > 0 
+                ? `<span style="background:#dcfce7; color:#15803d; padding:2px 6px; border-radius:4px; font-weight:900; font-size:14px;">${formatMoney(creditBal)}</span>` 
+                : `<span style="color:#9ca3af; font-size:12px;">No Credit</span>`;
+
+            return `
+            <tr style="transition:0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
+                <td style="font-weight:bold; font-size:13px; color:var(--secondary);">${s.name}</td>
+                <td style="font-size:12px;">${s.contact || '-'}<br><i class="ri-phone-line"></i> ${s.phone}</td>
+                <td>${creditBadge}</td>
+                <td>
+                    <button class="btn btn-danger" style="padding:4px 8px; font-size:11px;" onclick="deleteSupplier('${s.id}')"><i class="ri-delete-bin-line"></i></button>
+                </td>
+            </tr>`;
+        }).join('') || '<tr><td colspan="4" style="text-align:center; color:#666;">No suppliers found.</td></tr>';
     }, 400);
 
     // 🛡️ ENTERPRISE FIX: Deep Omni-Search for Services (Bypasses UI Limits)
@@ -14694,6 +14910,12 @@ let currentBatchForSerials = null;
     // 🛡️ ENTERPRISE PAYROLL-TO-LEDGER INTEGRATION
     // ==========================================
     window.processSalaryPayment = async (empId, empName, amount, year, month) => {
+        // 🛡️ ENTERPRISE SECURITY: Prevent Cashiers from initiating Salary Payouts
+        if (userRole !== 'admin') {
+            if(window.writeSystemLog) writeSystemLog("HACK_ATTEMPT", "CRITICAL: System Officer attempted to execute processSalaryPayment via Console!");
+            return showToast("Security Alert: Access Denied!", "error");
+        }
+
         if (amount <= 0) return showToast("Net salary is zero or negative!", "error");
         
         const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -16571,36 +16793,321 @@ let currentBatchForSerials = null;
         showToast("Call Ended");
     };
 // ==========================================
-    // 🛡️ ENTERPRISE LOYALTY REWARDS ENGINE
+    // 🛡️ ENTERPRISE LOYALTY REWARDS ENGINE (INFINITE SCROLL)
     // ==========================================
-    window.loadLoyaltyUI = () => {
+    let lastLoyaltyDoc = null;
+    let isFetchingLoyalty = false;
+    let hasMoreLoyalty = true;
+    let currentLoyaltyRank = 0; // Rank අංකය අඛණ්ඩව පවත්වා ගැනීමට
+
+    window.loadLoyaltyUI = async (isLoadMore = false) => {
         const tbody = document.getElementById('loyaltyTbody');
+        const loaderUi = document.getElementById('loyaltyLoadMoreLoader');
         if(!tbody) return;
         
-        // CustomersCache එක පාවිච්චි කිරීමෙන් Database එකට අමතර බරක් නොපැමිණේ
-        const loyalCustomers = customersCache.filter(c => c.loyaltyPoints && c.loyaltyPoints > 0);
-        loyalCustomers.sort((a,b) => b.loyaltyPoints - a.loyaltyPoints); // වැඩියෙන්ම points ඇති අය උඩට
-
-        if(loyalCustomers.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px; color:#666;">No loyalty points issued yet.</td></tr>';
-            return;
+        if (!isLoadMore) {
+            lastLoyaltyDoc = null; 
+            hasMoreLoyalty = true;
+            currentLoyaltyRank = 0; // Refresh කරන විට Rank එක නැවත 0 න් පටන් ගනී
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px; color:var(--primary); font-weight:bold;"><i class="ri-loader-4-line ri-spin"></i> Fetching Leaderboard...</td></tr>';
+        } else {
+            if(loaderUi) loaderUi.style.display = 'block';
         }
 
-        tbody.innerHTML = loyalCustomers.map((c, index) => {
-            let rankBadge = `${index + 1}`;
-            if(index === 0) rankBadge = `<span style="background:#fefce8; color:#b45309; padding:4px 8px; border-radius:50px; font-weight:900;"><i class="ri-vip-crown-fill"></i> 1</span>`;
-            else if(index === 1) rankBadge = `<span style="background:#f1f5f9; color:#475569; padding:4px 8px; border-radius:50px; font-weight:900;">2</span>`;
-            else if(index === 2) rankBadge = `<span style="background:#fff7ed; color:#c2410c; padding:4px 8px; border-radius:50px; font-weight:900;">3</span>`;
+        if (isFetchingLoyalty || !hasMoreLoyalty) return;
+        isFetchingLoyalty = true;
+        
+        try {
+            let q;
+            const collRef = collection(db, `users/${dbOwnerId}/shops/${currentShopId}/customers`);
+            
+            // 🛡️ Pagination Logic
+            if (lastLoyaltyDoc) {
+                q = query(collRef, where("loyaltyPoints", ">", 0), orderBy("loyaltyPoints", "desc"), startAfter(lastLoyaltyDoc), limit(30));
+            } else {
+                q = query(collRef, where("loyaltyPoints", ">", 0), orderBy("loyaltyPoints", "desc"), limit(30));
+            }
+            
+            const snap = await getDocs(q);
+            
+            if (!isLoadMore) tbody.innerHTML = ''; // අලුතින් නම් Clear කරයි
 
-            return `
-            <tr style="${index < 3 ? 'background:#faf5ff;' : ''}">
-                <td style="font-weight:bold; font-size:16px;">${rankBadge}</td>
-                <td style="font-weight:bold; color:var(--secondary);">${c.name}</td>
-                <td style="font-family:monospace; color:#64748b;">${c.id}</td>
-                <td style="font-weight:900; color:#9333ea; font-size:18px;">${c.loyaltyPoints} Pts</td>
-            </tr>`;
-        }).join('');
+            if (snap.empty) {
+                if(!isLoadMore) tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px; color:#666;">No loyalty points issued yet.</td></tr>';
+                hasMoreLoyalty = false;
+            } else {
+                lastLoyaltyDoc = snap.docs[snap.docs.length - 1];
+                if (snap.docs.length < 30) hasMoreLoyalty = false;
+
+                let html = '';
+                
+                snap.forEach(d => {
+                    const c = d.data();
+                    const cId = d.id;
+                    currentLoyaltyRank++; // Rank එක එකින් එක වැඩි වේ
+                    
+                    let rankBadge = `${currentLoyaltyRank}`;
+                    if(currentLoyaltyRank === 1) rankBadge = `<span style="background:#fefce8; color:#b45309; padding:4px 8px; border-radius:50px; font-weight:900;"><i class="ri-vip-crown-fill"></i> 1</span>`;
+                    else if(currentLoyaltyRank === 2) rankBadge = `<span style="background:#f1f5f9; color:#475569; padding:4px 8px; border-radius:50px; font-weight:900;">2</span>`;
+                    else if(currentLoyaltyRank === 3) rankBadge = `<span style="background:#fff7ed; color:#c2410c; padding:4px 8px; border-radius:50px; font-weight:900;">3</span>`;
+
+                    html += `
+                    <tr style="${currentLoyaltyRank <= 3 ? 'background:#faf5ff;' : ''}">
+                        <td style="font-weight:bold; font-size:16px;">${rankBadge}</td>
+                        <td style="font-weight:bold; color:var(--secondary);">${c.name}</td>
+                        <td style="font-family:monospace; color:#64748b;">${cId}</td>
+                        <td style="font-weight:900; color:#9333ea; font-size:18px;">${c.loyaltyPoints} Pts</td>
+                    </tr>`;
+                });
+                
+                tbody.insertAdjacentHTML('beforeend', html);
+            }
+        } catch (e) {
+            console.error("Loyalty Leaderboard Error:", e);
+            if(!isLoadMore) tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px; color:red;">Error loading leaderboard data.</td></tr>';
+        } finally {
+            isFetchingLoyalty = false;
+            if(loaderUi) loaderUi.style.display = 'none';
+        }
     };
+
+    // 🚀 SCROLL LISTENER (The Magic Trigger)
+    window.handleLoyaltyScroll = () => {
+        const area = document.getElementById('loyaltyScrollArea');
+        if (area.scrollTop + area.clientHeight >= area.scrollHeight - 10) {
+            if (hasMoreLoyalty && !isFetchingLoyalty) {
+                loadLoyaltyUI(true); // isLoadMore = true ලෙස යවයි
+            }
+        }
+    };
+// ==========================================
+    // 🛡️ ENTERPRISE: REVERSE LOGISTICS (DEBIT NOTES)
+    // ==========================================
+
+    window.openDebitNoteModal = () => {
+        if(userRole !== 'admin') return showToast("SECURITY ALERT: Only Admin can process Returns to Suppliers!", "error");
+        
+        const supSel = document.getElementById('dnSupplier');
+        supSel.innerHTML = '<option value="">-- Select Supplier --</option>' + suppliersCache.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+        
+        document.getElementById('dnProductSearch').value = '';
+        document.getElementById('dnProductSelect').innerHTML = '<option value="">-- Search product --</option>';
+        document.getElementById('dnQty').value = '';
+        document.getElementById('dnSerials').value = '';
+        document.getElementById('dnSerialArea').style.display = 'none';
+        openModal('debitNoteModal');
+    };
+
+    window.searchDebitNoteProducts = debounceSearch(async (term) => {
+        if (term.length < 2) return;
+        const prodSel = document.getElementById('dnProductSelect');
+        prodSel.innerHTML = '<option value="">Searching Database...</option>';
+        
+        try {
+            const capTerm = term.charAt(0).toUpperCase() + term.slice(1);
+            const qSku = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`), where('sku', '==', term), where('qty', '>', 0), limit(10));
+            const qName = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`), where('name', '>=', capTerm), where('name', '<=', capTerm + '\uf8ff'), where('qty', '>', 0), limit(20));
+
+            const [snapSku, snapName] = await Promise.all([getDocs(qSku), getDocs(qName)]);
+            let foundMap = new Map();
+            snapSku.forEach(d => foundMap.set(d.id, d.data()));
+            snapName.forEach(d => foundMap.set(d.id, d.data()));
+
+            if(foundMap.size === 0) {
+                prodSel.innerHTML = '<option value="">No stock available to return.</option>';
+                return;
+            }
+
+            prodSel.innerHTML = '<option value="">-- Select Batch to Return --</option>';
+            foundMap.forEach((p, id) => {
+                if(!productsCache.find(x => x.id === id)) productsCache.unshift({id, ...p});
+                const batchNum = p.batchNumber ? formatBatch(p.batchNumber) : '0000';
+                prodSel.innerHTML += `<option value="${id}" data-type="${p.itemType || 'serialized'}" data-buy="${p.buy}" data-max="${p.qty}">
+                    ${p.name} (Batch: ${batchNum} | Cost: ${formatMoney(p.buy)} | Avail: ${p.qty})
+                </option>`;
+            });
+        } catch (e) { prodSel.innerHTML = '<option value="">Search Failed.</option>'; }
+    }, 400);
+
+    window.checkDebitNoteItemType = () => {
+        const sel = document.getElementById('dnProductSelect');
+        const opt = sel.options[sel.selectedIndex];
+        if(!opt || !opt.value) return;
+        
+        const type = opt.dataset.type;
+        document.getElementById('dnSerialArea').style.display = type === 'serialized' ? 'block' : 'none';
+        document.getElementById('dnQty').placeholder = `Max: ${opt.dataset.max}`;
+    };
+
+    window.submitDebitNote = async () => {
+        // 🛡️ ENTERPRISE SECURITY: Advanced Hacker Trap for RTV
+        if (userRole !== 'admin') {
+            if(window.writeSystemLog) writeSystemLog("HACK_ATTEMPT", "CRITICAL: System Officer attempted to execute submitDebitNote (RTV) via Console!");
+            return showToast("Security Alert: Access Denied! Only Admin can return goods.", "error");
+        }
+
+        const supId = document.getElementById('dnSupplier').value;
+        const prodId = document.getElementById('dnProductSelect').value;
+        const qty = parseFloat(document.getElementById('dnQty').value);
+        const reason = document.getElementById('dnReason').value;
+        const serialsRaw = document.getElementById('dnSerials').value;
+
+        if(!supId || !prodId) return showToast("Select Supplier and Product", "error");
+        if(isNaN(qty) || qty <= 0) return showToast("Invalid Quantity", "error");
+
+        const sel = document.getElementById('dnProductSelect');
+        const opt = sel.options[sel.selectedIndex];
+        const itemType = opt.dataset.type;
+        const buyPrice = parseFloat(opt.dataset.buy) || 0;
+        const maxQty = parseFloat(opt.dataset.max) || 0;
+
+        if(qty > maxQty) return showToast(`Cannot return more than available stock (${maxQty})!`, "error");
+
+        let serialsToReturn = [];
+        if(itemType === 'serialized') {
+            serialsToReturn = serialsRaw.split(',').map(s => s.trim()).filter(s => s !== "");
+            if(serialsToReturn.length !== qty) return showToast(`You entered ${serialsToReturn.length} serials but Qty is ${qty}! Must match exactly.`, "error");
+        }
+
+        const supplierName = document.getElementById('dnSupplier').options[document.getElementById('dnSupplier').selectedIndex].text;
+        const prodName = opt.text.split(' (')[0];
+        const totalCredit = buyPrice * qty;
+
+        if(!confirm(`Return ${qty}x ${prodName} to ${supplierName}?\n\nThis will generate a Debit Note for ${formatMoney(totalCredit)} and deduct stock.`)) return;
+
+        toggleLoader(true);
+        try {
+            // 🛡️ ENTERPRISE FIX: Atomic Transaction for RTV (Return to Vendor)
+            const dnId = `DN-${Date.now().toString().slice(-6)}`;
+            
+            await runTransaction(db, async (t) => {
+                const prodRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/products`, prodId);
+                const pSnap = await t.get(prodRef);
+                if(!pSnap.exists() || pSnap.data().qty < qty) throw new Error("Stock insufficient during transaction!");
+                
+                const pData = pSnap.data();
+                let updatePayload = { qty: increment(-qty) };
+
+                // Handle Serials Safely
+                if (itemType === 'serialized') {
+                    const currentAvailable = pData.availableSerials || [];
+                    for(let s of serialsToReturn) {
+                        if(!currentAvailable.includes(s)) throw new Error(`Serial ${s} is NOT available in this batch!`);
+                    }
+                    updatePayload.availableSerials = arrayRemove(...serialsToReturn);
+                    updatePayload.returnedToSupplierSerials = arrayUnion(...serialsToReturn); // Audit Trail
+                }
+
+                // 1. Deduct Stock
+                t.update(prodRef, updatePayload);
+
+                // 2. Add Supplier Credit
+                const supRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/suppliers`, supId);
+                t.update(supRef, { creditBalance: increment(totalCredit) });
+
+                // 3. Save Debit Note Document
+                const dnRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/debit_notes`));
+                t.set(dnRef, {
+                    dnId: dnId, supplierId: supId, supplierName: supplierName,
+                    productName: prodName, batchNumber: pData.batchNumber || 1,
+                    qty: qty, unitPrice: buyPrice, totalCredit: totalCredit, reason: reason,
+                    serials: serialsToReturn, date: window.getSecureTime().toISOString()
+                });
+
+                // 4. Inventory Log
+                const logRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/inventory_logs`));
+                t.set(logRef, {
+                    date: window.getSecureTime().toISOString(), productName: prodName, action: 'RTV_DEBIT',
+                    description: `Returned to ${supplierName} (DN: ${dnId})`, quantityChange: -qty,
+                    finalQty: pData.qty - qty, batchNumber: pData.batchNumber || 1, initialQty: pData.qty
+                });
+            });
+
+            closeModal('debitNoteModal');
+            if(window.writeSystemLog) writeSystemLog("RTV_DEBIT_NOTE", `Generated Debit Note ${dnId} for ${supplierName}. Credit: ${formatMoney(totalCredit)}`);
+            showToast("Debit Note Generated Successfully!");
+            
+            // Print the PDF securely
+            generateDebitNotePDF(dnId, supplierName, prodName, qty, buyPrice, totalCredit, reason, serialsToReturn);
+            
+            loadSuppliers(); // Refresh UI
+            loadProducts();
+            updateDashboard();
+
+        } catch(e) {
+            console.error(e);
+            showToast(e.message || "Error processing return", "error");
+        } finally {
+            toggleLoader(false);
+        }
+    };
+
+    window.generateDebitNotePDF = (dnId, supplierName, prodName, qty, unitPrice, totalCredit, reason, serials) => {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        const shop = profileCache || {};
+        
+        doc.setFontSize(22); doc.setTextColor(220, 38, 38); doc.setFont("helvetica", "bold");
+        doc.text("DEBIT NOTE (RETURN TO SUPPLIER)", 14, 20);
+        
+        doc.setFontSize(10); doc.setTextColor(0); doc.setFont("helvetica", "normal");
+        doc.text(`From: ${(shop.bizName || "Our Shop")}`, 14, 30);
+        doc.text(`Contact: ${(shop.phone1 || "")}`, 14, 35);
+        
+        doc.setFont("helvetica", "bold");
+        doc.text(`Debit Note No: ${dnId}`, 130, 30);
+        doc.text(`Date: ${new Date().toLocaleDateString()}`, 130, 35);
+        doc.text(`To Supplier: ${supplierName}`, 130, 42);
+
+        doc.setFont("helvetica", "normal");
+        doc.text(`We have debited your account for the return of the following goods:`, 14, 50);
+
+        let serialsText = serials.length > 0 ? `\nS/N: ${serials.join(', ')}` : '';
+        const tableData = [[ prodName + serialsText, reason, qty, formatMoney(unitPrice).replace(currentCurrency,''), formatMoney(totalCredit).replace(currentCurrency,'') ]];
+
+        doc.autoTable({
+            startY: 55,
+            head: [['Product Description', 'Reason for Return', 'Qty', 'Unit Cost', 'Total Credit']],
+            body: tableData, theme: 'grid',
+            headStyles: { fillColor: [220, 38, 38] }, // Red header
+            columnStyles: { 2: {halign:'center'}, 3: {halign:'right'}, 4: {halign:'right', fontStyle:'bold'} }
+        });
+
+        const finalY = doc.lastAutoTable.finalY;
+        doc.setFontSize(12); doc.setFont("helvetica", "bold");
+        doc.text(`Total Amount Debited to your Account: ${formatMoney(totalCredit)}`, 14, finalY + 15);
+
+        doc.setFontSize(10); doc.setFont("helvetica", "normal");
+        doc.text("Authorized Signature: ....................................", 14, finalY + 40);
+        doc.text("Supplier Acknowledgment: ....................................", 110, finalY + 40);
+
+        doc.save(`${dnId}_Debit_Note.pdf`);
+    };
+
+    async function loadDebitNotesHistory() {
+        const list = document.getElementById('debitNotesList');
+        try {
+            const q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/debit_notes`), orderBy('date', 'desc'), limit(20));
+            const snap = await getDocs(q);
+            if(snap.empty) return list.innerHTML = '<div style="text-align:center; padding:20px; color:#999;">No debit notes generated.</div>';
+            
+            let html = '';
+            snap.forEach(d => {
+                const dn = d.data();
+                html += `
+                <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:12px; margin-bottom:10px;">
+                    <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:5px;">
+                        <strong style="color:#b91c1c;">${dn.dnId}</strong>
+                        <span style="font-size:10px; color:#666;">${new Date(dn.date).toLocaleDateString()}</span>
+                    </div>
+                    <div style="font-weight:bold; font-size:13px;">${dn.supplierName}</div>
+                    <div style="font-size:11px; color:#4b5563; margin-top:2px;">Returned: ${dn.qty}x ${dn.productName}</div>
+                    <div style="font-size:14px; font-weight:900; color:var(--danger); margin-top:5px; text-align:right;">${formatMoney(dn.totalCredit)}</div>
+                </div>`;
+            });
+            list.innerHTML = html;
+        } catch(e) { console.error(e); }
+    }
 </script>
 
 </body>
