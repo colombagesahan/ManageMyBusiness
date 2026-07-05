@@ -200,6 +200,13 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 .b-mid { background: #fef3c7; color: #d97706; }
 .b-low { background: #fee2e2; color: #b91c1c; }
 
+/* --- POS RESPONSIVE LAYOUT --- */
+.pos-layout-wrapper { display: grid; grid-template-columns: 1.6fr 1fr 1.2fr; gap: 15px; }
+@media(max-width: 1024px) {
+    .pos-layout-wrapper { grid-template-columns: 1fr; }
+    .pos-layout-wrapper > .card { height: auto !important; min-height: 400px; }
+}
+
 /* --- POS FULLSCREEN MODE --- */
 body.pos-fullscreen-mode .sidebar { display: none !important; }
 body.pos-fullscreen-mode .header { display: none !important; }
@@ -1120,12 +1127,21 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                     <input type="text" id="transferSearchInput" placeholder="Type here to search database..." style="border-color:var(--primary); margin-bottom:5px;" onkeyup="searchTransferProducts(this.value)">
                     
                     <label style="font-size:12px; font-weight:600; margin-top:5px;">2. Select Batch to Transfer *</label>
-                    <select id="transferProduct">
+                    <select id="transferProduct" onchange="onTransferProductSelect()">
                         <option value="">-- Search above to load batches --</option>
                     </select>
 
                     <label style="font-size:12px; font-weight:600; margin-top:10px;">Quantity to Transfer</label>
                     <input type="number" id="transferQty" placeholder="Enter quantity" style="margin-bottom:0;">
+
+                    <!-- 🛡️ ENTERPRISE FIX: Serial Selection Area for Transfers -->
+                    <div id="transferSerialArea" style="display:none; background:#fef2f2; padding:10px; border-radius:8px; border:1px solid #fecaca; margin-top:15px;">
+                        <label style="font-size:12px; font-weight:bold; color:#b91c1c;"><i class="ri-barcode-box-line"></i> Select Exact Serials to Transfer *</label>
+                        <div style="font-size:10px; color:#b91c1c; margin-bottom:8px;">ඔබ Qty එකට ගැසූ ගණනට සමාන සීරියල් අංක ප්‍රමාණයක් පහතින් අනිවාර්යයෙන්ම තෝරන්න.</div>
+                        <div id="transferSerialCheckboxes" style="max-height:150px; overflow-y:auto; display:flex; flex-direction:column; gap:5px; background:white; padding:8px; border:1px solid #fca5a5; border-radius:4px;">
+                            <!-- Checkboxes will load here -->
+                        </div>
+                    </div>
 
                     <button class="btn btn-primary" style="width:100%; margin-top:15px; justify-content:center;" onclick="submitTransfer()">Submit Transfer</button>
                 </div>
@@ -1205,7 +1221,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         <!-- 3. SMART POS -->
         <div id="view-pos" class="view">
             <!-- ENTERPRISE FIX: 3-Column Layout (Products | Cart | Payment) -->
-            <div style="display:grid; grid-template-columns: 1.6fr 1fr 1.2fr; gap:15px;">
+            <div class="pos-layout-wrapper">
                 <!-- Left: Product Grid -->
                 <div class="card" style="display:flex; flex-direction:column;">
                     <div style="display:flex; gap:10px; margin-bottom:10px; flex-wrap:wrap; align-items:center;">
@@ -2094,6 +2110,20 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             <button class="btn btn-primary" onclick="saveBaseProduct()">Save Product</button>
             <button class="btn btn-ghost" onclick="closeModal('baseProductModal')">Cancel</button>
         </div>
+    </div>
+</div>
+
+<!-- 🚀 100% PERFECT LOGIC: SELECT EXACT SERIAL TO REMOVE MODAL -->
+<div id="posRemoveSerialModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.85); display:none; align-items:center; justify-content:center; z-index:4800; backdrop-filter: blur(3px);">
+    <div class="card" style="width:380px; text-align:center; padding:20px; border-top: 5px solid var(--danger); margin:0;">
+        <h3 style="color:var(--danger); margin-bottom:5px;"><i class="ri-barcode-box-line"></i> ඉවත් කළ යුතු Barcode එක තෝරන්න</h3>
+        <p style="font-size:12px; color:#666; margin-bottom:15px; line-height:1.4;">
+            මෙය Serialized (සීරියල් අංකිත) භාණ්ඩයක් බැවින්, පාරිභෝගිකයා එපා යැයි පවසන භාණ්ඩයේ <b>නියමිත Barcode අංකයම</b> ලැයිස්තුවෙන් ඉවත් කරන්න.
+        </p>
+        <div id="removeSerialListContainer" style="max-height:250px; overflow-y:auto; border:1px solid #e5e7eb; border-radius:8px; padding:5px;">
+            <!-- List will be populated here -->
+        </div>
+        <button class="btn btn-ghost" style="margin-top:15px; width:100%; justify-content:center;" onclick="closeModal('posRemoveSerialModal')">Cancel / ආපසු</button>
     </div>
 </div>
 
@@ -3723,6 +3753,10 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         // මෙය සිදු නොකළහොත් පරණ කඩේ දත්ත අලුත් කඩේ තිරයට රිංගා පැමිණේ (Memory Leak & Ghost Data).
         if (window.unsubCRMReqs) { window.unsubCRMReqs(); window.unsubCRMReqs = null; }
         if (window.unsubCustomers) { window.unsubCustomers(); window.unsubCustomers = null; }
+        if (window.unsubEmails) { window.unsubEmails(); window.unsubEmails = null; }
+        if (window.wsUnsubChat) { window.wsUnsubChat(); window.wsUnsubChat = null; }
+        if (window.wsUnsubTasks) { window.wsUnsubTasks(); window.wsUnsubTasks = null; }
+        if (window.activeEmpChatUnsub) { window.activeEmpChatUnsub(); window.activeEmpChatUnsub = null; }
         crmRequestsCache = [];
         
         refreshData();
@@ -3803,8 +3837,9 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                     if(document.getElementById('view-documents').classList.contains('active')) loadDocumentsHistory();
                     if(document.getElementById('view-transfers').classList.contains('active')) loadTransfersUI();
                     
-                    // 🛡️ ENTERPRISE FIX: Auto-refresh CRM tab on branch switch to prevent Stale State
+                    // 🛡️ ENTERPRISE FIX: Auto-refresh CRM & Emails on branch switch to prevent Stale State
                     if(document.getElementById('view-crm').classList.contains('active')) loadCRM(); 
+                    if(document.getElementById('view-emailcenter').classList.contains('active')) loadEmails('inbox');
                     
                     // Populate Customer Datalists for Docs
                     updateCustomerDatalist();
@@ -5039,7 +5074,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         if (itemType === 'serialized' && (!Number.isInteger(qty))) {
             return showToast("Quantity must be a whole number for Serialized items!", "error");
         }
-        if(isNaN(qty) || qty <= 0) return showToast("Enter a valid quantity", "error");
+        if(isNaN(qty) || qty <= 0 || qty === 0) return showToast("Enter a valid quantity greater than 0", "error");
 
         if(!id && !expiryDate) return showToast("Expiry Date is REQUIRED to secure the inventory!", "error");
 
@@ -5323,6 +5358,39 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:red;">Failed to load transfers securely.</td></tr>';
         }
     };
+window.onTransferProductSelect = () => {
+        const prodId = document.getElementById('transferProduct').value;
+        const serialArea = document.getElementById('transferSerialArea');
+        const cbContainer = document.getElementById('transferSerialCheckboxes');
+        
+        if (!prodId) {
+            serialArea.style.display = 'none';
+            return;
+        }
+
+        const sourceProd = productsCache.find(p => p.id === prodId);
+        
+        // භාණ්ඩය Serialized නම් විතරක් කොටුව පෙන්වනවා
+        if (sourceProd && sourceProd.itemType === 'serialized') {
+            serialArea.style.display = 'block';
+            
+            if (sourceProd.availableSerials && sourceProd.availableSerials.length > 0) {
+                cbContainer.innerHTML = sourceProd.availableSerials.map(s => {
+                    const shortSerial = s.split('-').pop(); // අග කෑල්ල විතරක් පෙන්වන්න
+                    return `
+                    <label style="display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer; padding:4px; border-bottom:1px solid #f3f4f6;">
+                        <input type="checkbox" class="transfer-serial-chk" value="${s}" style="width:18px; height:18px; cursor:pointer; accent-color:var(--danger);">
+                        <span style="font-family:monospace; font-weight:bold; color:var(--primary);">${shortSerial}</span> 
+                        <span style="font-size:10px; color:#9ca3af;">(${s})</span>
+                    </label>`;
+                }).join('');
+            } else {
+                cbContainer.innerHTML = '<div style="color:red; font-size:12px;">No serials found for this batch!</div>';
+            }
+        } else {
+            serialArea.style.display = 'none';
+        }
+    };
 
     window.submitTransfer = async () => {
         const targetShopId = document.getElementById('transferTargetShop').value;
@@ -5331,13 +5399,24 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 
         if (!targetShopId) return showToast("Please select a destination branch", "error");
         if (!sourceProdId) return showToast("Please select a product", "error");
-        if (isNaN(qty) || qty <= 0) return showToast("Invalid quantity", "error");
+        if (isNaN(qty) || qty <= 0 || !Number.isInteger(qty)) return showToast("Valid whole number quantity is required", "error");
 
         const sourceShop = shopsCache.find(s => s.id === currentShopId);
         const targetShop = shopsCache.find(s => s.id === targetShopId);
         const sourceProd = productsCache.find(p => p.id === sourceProdId);
 
         if (qty > sourceProd.qty) return showToast(`Not enough stock. Available: ${sourceProd.qty}`, "error");
+
+        // 🛡️ 100% LOGICAL FIX: Validate Selected Serials BEFORE confirming!
+        let selectedSerials = [];
+        if (sourceProd.itemType === 'serialized') {
+            const checkboxes = document.querySelectorAll('.transfer-serial-chk:checked');
+            checkboxes.forEach(chk => selectedSerials.push(chk.value));
+
+            if (selectedSerials.length !== qty) {
+                return showToast(`Qty එක ${qty}යි, නමුත් ඔබ සීරියල් අංක ${selectedSerials.length} ක් තෝරා ඇත! ගණන් සමාන විය යුතුයි.`, "error");
+            }
+        }
         if (!confirm(`Are you sure you want to transfer ${qty}x ${sourceProd.name} to ${targetShop.name}?`)) return;
 
         toggleLoader(true);
@@ -5371,8 +5450,19 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                 let transferredSerials = [];
                 let updatePayload = { qty: increment(-qty) };
 
-                // Slice the exact amount of serials to transfer
-                if (sData.availableSerials && sData.availableSerials.length >= qty) {
+                // 🛡️ ENTERPRISE FIX: Use EXACTLY the selected serials instead of blindly slicing!
+                if (sData.itemType === 'serialized') {
+                    // Double check if selected serials are STILL available in Database (Concurrency Check)
+                    for(let s of selectedSerials) {
+                        if (!sData.availableSerials || !sData.availableSerials.includes(s)) {
+                            throw new Error(`CRITICAL: Serial ${s} was just sold or moved! Please refresh and try again.`);
+                        }
+                    }
+                    transferredSerials = selectedSerials;
+                    updatePayload.availableSerials = arrayRemove(...transferredSerials);
+                    // Optional: You can save 'transferredOutSerials' in source branch for auditing
+                } else if (sData.itemType !== 'serialized' && sData.availableSerials && sData.availableSerials.length >= qty) {
+                    // Fallback for old items without explicit type tracking
                     transferredSerials = sData.availableSerials.slice(0, qty);
                     updatePayload.availableSerials = arrayRemove(...transferredSerials);
                 }
@@ -6211,7 +6301,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             return `<div style="display:flex; justify-content:space-between; margin-bottom:12px; font-size:13px; align-items:flex-start; border-bottom:1px dashed #e5e7eb; padding-bottom:8px;">
                 <div style="flex:1; padding-right:10px;">
                    <div style="font-weight:600; display:flex; align-items:center; gap:5px;">
-                        ${i.name} 
+                        ${String(i.name).replace(/</g, "&lt;").replace(/>/g, "&gt;")} 
                         ${priceInfo.isPromo ? `<span style="background:var(--danger); color:white; padding:1px 4px; border-radius:3px; font-size:8px;">PROMO</span>` : ''}
                    </div>
                    
@@ -6951,6 +7041,12 @@ window.checkout = async () => {
                     transaction.update(customerRef, { walletBalance: increment(-walletToUse) });
                     saleData.walletApplied = walletToUse; // Save in receipt
                 }
+                
+                // 🚨 BUG FIX 1: Add ANY overpaid amount (Advance) securely to the Customer's Wallet!
+                if (overpaidAmount > 0 && customerRef) {
+                    transaction.update(customerRef, { walletBalance: increment(overpaidAmount) });
+                }
+                
                 transaction.set(saleRef, saleData);
 
                 // 🛡️ ENTERPRISE FIX: Direct POS Cheque Registration
@@ -8342,7 +8438,7 @@ window.autoFillDocCustomer = (name) => {
             return showToast("This is a Serialized item! You must scan the returned item's sticker to restock it.", "error");
         }
 
-        const refundTotal = qty * price;
+        const refundTotal = Math.round((qty * price) * 100) / 100;
         toggleLoader(true);
 
         try {
@@ -8389,7 +8485,11 @@ window.autoFillDocCustomer = (name) => {
                             const cRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/customers`, custPhone);
                             const cSnap = await transaction.get(cRef);
                             if (cSnap.exists()) {
-                                transaction.update(cRef, { walletBalance: increment(refundTotal) });
+                                // 🚨 BUG FIX 2: Only add the ACTUAL Cash-Out value to the wallet!
+                                // Refund එකෙන් ණය කැපුවා නම්, ඉතුරු වුණු ගාණ (cashOutToCustomer) විතරයි Wallet එකට දාන්න ඕනේ!
+                                if (cashOutToCustomer > 0) {
+                                    transaction.update(cRef, { walletBalance: increment(cashOutToCustomer) });
+                                }
                             }
                         } else {
                             throw new Error("Cannot issue Store Credit to a Walk-in Customer! No phone number found.");
@@ -10171,7 +10271,8 @@ window.autoFillDocCustomer = (name) => {
         toggleLoader(true);
         // ENTERPRISE FIX: Strictly prevent deletion of employees who have historical financial/HR logs!
         const logsRef = collection(db, `users/${dbOwnerId}/shops/${currentShopId}/employees/${id}/logs`);
-        const snapLogs = await getDocs(logsRef);
+        const qLogs = query(logsRef, limit(1)); // 🛡️ Limit 1 added to prevent massive DB read cost!
+        const snapLogs = await getDocs(qLogs);
         
         if (!snapLogs.empty) {
             toggleLoader(false);
@@ -10595,13 +10696,12 @@ window.updateCartQty = (cartIndex, newQtyVal, productId) => {
                 addToCart(itemInCart.id); // Re-trigger the main flow elegantly
                 return;
             } else if (newQty < itemInCart.qty) {
-                // 🚨 2. CRITICAL BUG FIX: User clicked '-' -> Must safely remove the LAST scanned serial from memory!
-                if (itemInCart.serials && itemInCart.serials.length > 0) {
-                    const removedSerial = itemInCart.serials.pop(); // Remove the last barcode from item array
-                    // Remove from global memory so it can be scanned again if needed
-                    currentCartSerials = currentCartSerials.filter(s => s !== removedSerial); 
-                }
-                itemInCart.qty = newQty;
+                // 🛡️ 100% PERFECT BUSINESS LOGIC FIX (As requested):
+                // We CANNOT blindly remove the last serial in the array. We must force the cashier 
+                // to specify EXACTLY which physical item (Barcode) is being returned to the shelf!
+                openRemoveSerialModal(cartIndex);
+                
+                // We revert the input box value visually to the current qty until they pick a serial to remove
                 renderCart();
                 return;
             }
@@ -12707,7 +12807,7 @@ window.setQuickCash = (amount) => {
             } catch (e) { console.error("EOD Advance fetch error", e); }
         }
 
-        window.currentEodBaseCash = cashSales + debtCollections - refunds - expenses - staffAdvances;
+        window.currentEodBaseCash = Math.round((cashSales + debtCollections - refunds - expenses - staffAdvances) * 100) / 100;
 
         // Update UI
         document.getElementById('eodCashSales').textContent = formatMoney(cashSales);
@@ -14263,8 +14363,9 @@ window.openReplyModal = (id) => {
             const currentReplies = r.replies || [];
             
             if(text) {
-                currentReplies.push({ sender: 'admin', text: text, date: window.getSecureTime().toISOString() });
-                updateData.replies = currentReplies;
+                const newReply = { sender: 'admin', text: text, date: window.getSecureTime().toISOString() };
+                currentReplies.push(newReply); // Update Local UI Array
+                updateData.replies = arrayUnion(newReply); // 🛡️ ENTERPRISE FIX: Atomic Array Union to prevent overwrites by other admins
                 updateData.lastUpdatedAt = window.getSecureTime().toISOString();
             }
             
@@ -15037,8 +15138,14 @@ let currentBatchForSerials = null;
 
         for (let i = 1; i <= daysInMonth; i++) {
             const dateStr = `${year}-${month}-${String(i).padStart(2, '0')}`;
-            const dateObj = new Date(dateStr);
-            const dayName = dateObj.toLocaleDateString('si-LK', { weekday: 'short' }); // සිංහලෙන් දවසේ නම
+            // 🛡️ ENTERPRISE FIX: Absolute Timezone Immunity! (Forces Asia/Colombo)
+            const dateObj = new Date(parseInt(year), parseInt(month) - 1, i);
+            
+            // පරිගණකයේ OS එක මොකක් වුණත්, ශ්‍රී ලංකාවේ (Asia/Colombo) දවසේ නමම පමණක් බලහත්කාරයෙන් ගනී.
+            const dayName = new Intl.DateTimeFormat('si-LK', {
+                timeZone: 'Asia/Colombo',
+                weekday: 'short'
+            }).format(dateObj);
             const isSunday = dateObj.getDay() === 0; // ඉරිදා නම් ස්වයංක්‍රීයව Highlight වේ
             
             const existing = savedData[dateStr] || {};
@@ -17144,6 +17251,63 @@ let currentBatchForSerials = null;
             list.innerHTML = html;
         } catch(e) { console.error(e); }
     }
+// ==========================================
+    // 🛡️ STRICT SERIALIZED QTY REDUCTION ENGINE
+    // ==========================================
+    window.openRemoveSerialModal = (cartIndex) => {
+        const item = cart[cartIndex];
+        const container = document.getElementById('removeSerialListContainer');
+        
+        let html = '';
+        if(item.serials && item.serials.length > 0) {
+            item.serials.forEach(serial => {
+                // Show the full serial but emphasize the last digits
+                const parts = serial.split('-');
+                const shortSerial = parts.pop();
+                const prefix = parts.join('-');
+                
+                html += `
+                <div style="display:flex; justify-content:space-between; align-items:center; background:#f9fafb; padding:10px; margin-bottom:5px; border-radius:6px; border:1px solid #e5e7eb;">
+                    <div style="font-family:monospace; text-align:left;">
+                        <div style="font-size:10px; color:#9ca3af;">${prefix}-</div>
+                        <div style="font-weight:900; font-size:16px; color:var(--primary);">${shortSerial}</div>
+                    </div>
+                    <button class="btn btn-danger" style="padding:6px 12px; font-size:12px; font-weight:bold;" onclick="removeSpecificSerialFromCart(${cartIndex}, '${serial}')">ඉවත් කරන්න</button>
+                </div>`;
+            });
+        }
+        container.innerHTML = html;
+        openModal('posRemoveSerialModal');
+    };
+
+    window.removeSpecificSerialFromCart = (cartIndex, serialToRemove) => {
+        const item = cart[cartIndex];
+        
+        // 1. අදාළ Item එකේ Serials Array එකෙන් එය අයින් කිරීම
+        item.serials = item.serials.filter(s => s !== serialToRemove);
+        
+        // 2. Global Memory එකෙන් අයින් කිරීම (එවිට Cashier ට එය නැවත ස්කෑන් කළ හැක)
+        currentCartSerials = currentCartSerials.filter(s => s !== serialToRemove);
+        
+        // 3. ඉතිරිව ඇති Serials ගණනට සමානව Item එකේ Qty එක Auto හැදීම
+        item.qty = item.serials.length;
+        
+        if(window.writeSystemLog) {
+            writeSystemLog("SERIAL_REMOVED_FROM_CART", `Cashier specifically removed Barcode: ${serialToRemove} from the cart.`);
+        }
+
+        // 4. Quantity එක 0 වුණොත් මුළු භාණ්ඩයම Cart එකෙන් අයින් කිරීම
+        if(item.qty === 0) {
+            cart.splice(cartIndex, 1);
+            closeModal('posRemoveSerialModal');
+        } else {
+            // නැත්නම් ඉතිරි අංක ටික පෙන්වන්න Modal එක යළිත් Load කිරීම
+            openRemoveSerialModal(cartIndex);
+        }
+        
+        renderCart();
+        showToast(`Barcode ${serialToRemove.split('-').pop()} cart එකෙන් ඉවත් කරන ලදී.`, "success");
+    };
 </script>
 
 </body>
