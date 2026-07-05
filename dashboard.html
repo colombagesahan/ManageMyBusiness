@@ -325,7 +325,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             <!-- STAFF ATTENDANCE SCANNER -->
             <div style="background:#f1f5f9; padding:0 10px; border-radius:8px; display:flex; align-items:center; gap:5px; border:1px solid #cbd5e1; height: 36px; box-sizing: border-box;">
                 <i class="ri-fingerprint-line" style="color:var(--primary); font-size:16px;"></i>
-                <input id="staffAttendanceScanner" placeholder="Scan Staff ID..." style="margin:0; width:120px; height:100%; font-size:12px; border:none; background:transparent; outline:none; font-weight:bold;" onkeypress="handleStaffAttendance(event)">
+                <input id="staffAttendanceScanner" type="text" autocomplete="off" spellcheck="false" placeholder="Scan Staff ID..." style="margin:0; width:120px; height:100%; font-size:12px; border:none; background:transparent; outline:none; font-weight:bold;" onkeypress="handleStaffAttendance(event)">
             </div>
             
             <select class="shop-select" id="shopSelector" onchange="changeShop()" style="height: 36px; box-sizing: border-box; margin:0; padding: 0 10px; font-weight:bold; border-color:#cbd5e1;">
@@ -6615,7 +6615,7 @@ window.checkout = async () => {
         let isEligibleForPoints = true;
         if (profileCache && profileCache.loyaltyCashOnly !== false) {
             // "Cash Only" නීතිය සක්‍රීය නම්, ණය (Pay Later) සහ චෙක්පත් (Cheque) වලට ලකුණු දීම ප්‍රතික්ෂේප කරයි!
-            if (finalPaymentMethod === 'Pay Later' || finalPaymentMethod === 'Cheque') {
+            if (paymentMethod === 'Pay Later' || paymentMethod === 'Cheque') {
                 isEligibleForPoints = false;
             }
         }
@@ -14364,7 +14364,7 @@ window.openReplyModal = (id) => {
                 }
             });
 
-            // Print Window එක 
+            // Print Window එක සෑදීම
             const printWindow = window.open('', '', 'height=800,width=800');
             printWindow.document.write(`
                 <html><head><title>Print Batch Barcodes</title>
