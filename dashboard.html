@@ -3032,6 +3032,42 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         const slTime = new Date(secureNow.getTime() + (5.5 * 60 * 60 * 1000));
         return slTime.toISOString().split('T')[0];
     };
+
+// ==========================================
+    // 🛡️ ENTERPRISE: ONLINE / OFFLINE DETECTOR
+    // ==========================================
+    window.addEventListener('offline', () => {
+        showToast("⚠️ Internet Connection Lost! Please use 'Hold Cart' to save bills.", "error");
+        
+        // Live Clock එකේ තැන රතු පාටින් OFFLINE කියලා පෙන්වීම
+        const clockEl = document.getElementById('secureLiveClockText');
+        if(clockEl) {
+            clockEl.style.color = "#ef4444"; // Red color
+            clockEl.innerHTML = "<i class='ri-wifi-off-line'></i> SYSTEM OFFLINE";
+        }
+        
+        // Checkout බොත්තම තාවකාලිකව අක්‍රීය කිරීම හෝ අවවාදයක් දැමීම (Optional)
+        const checkoutBtn = document.querySelector('button[onclick="checkout()"]');
+        if(checkoutBtn) {
+            checkoutBtn.innerHTML = "INTERNET OFFLINE (USE HOLD)";
+            checkoutBtn.style.background = "var(--danger)";
+        }
+    });
+
+    window.addEventListener('online', () => {
+        showToast("🌐 Back Online! You can now Recall and Checkout bills.", "success");
+        
+        // Clock එක නැවත සාමාන්‍ය තත්ත්වයට පත් කිරීම
+        const clockEl = document.getElementById('secureLiveClockText');
+        if(clockEl) clockEl.style.color = "#10b981"; // Green color
+        
+        // Checkout බොත්තම සාමාන්‍ය තත්ත්වයට පත් කිරීම
+        const checkoutBtn = document.querySelector('button[onclick="checkout()"]');
+        if(checkoutBtn) {
+            checkoutBtn.innerHTML = "COMPLETE SALE (F9)";
+            checkoutBtn.style.background = "var(--primary)";
+        }
+    });
     // ==========================================
 
     // 🔴 RE-PASTE FIREBASE CONFIG HERE
