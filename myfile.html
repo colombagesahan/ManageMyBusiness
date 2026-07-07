@@ -561,11 +561,32 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                             <div style="font-size:10px; color:#d97706; margin-top:5px;">Keep this secret. Used to approve large cashier discounts.</div>
                         </div>
 
-                        <!-- 🛡️ ENTERPRISE FIX: CASHIER DISCOUNT LIMIT -->
-                        <div style="margin-top: 15px; padding: 10px; background: #fef2f2; border: 1px solid #fca5a5; border-radius: 8px;">
-                            <label style="font-size:12px; font-weight:bold; color:#b91c1c;"><i class="ri-percent-line"></i> Max Cashier Discount Limit (%)</label>
-                            <input type="number" id="profMaxDiscountLimit" placeholder="e.g. 10" style="margin-bottom:0; margin-top:5px; border-color:#fca5a5; font-weight:bold;">
-                            <div style="font-size:10px; color:#b91c1c; margin-top:5px;">Cashier කෙනෙකුට Manager PIN එක නොමැතිව ලබාදිය හැකි උපරිම වට්ටම් ප්‍රතිශතය.</div>
+                        <!-- 🛡️ ENTERPRISE FIX: AUTOMATED BILL DISCOUNT ENGINE -->
+                        <div style="margin-top: 15px; padding: 15px; background: #f0fdf4; border: 2px solid #22c55e; border-radius: 8px;">
+                            <h4 style="color:#166534; margin-bottom:10px;"><i class="ri-magic-line"></i> Automated Bill Discount Rule</h4>
+                            
+                            <div style="display:flex; gap:10px; margin-bottom:10px; align-items:center;">
+                                <input type="checkbox" id="profAutoDiscEnabled" style="width:20px; height:20px; cursor:pointer;">
+                                <span style="font-size:13px; font-weight:bold; color:#166534;">Enable Auto Discount for Bills</span>
+                            </div>
+
+                            <label style="font-size:12px; font-weight:bold; color:#15803d;">Minimum Bill Amount to trigger discount (Rs) *</label>
+                            <input type="number" id="profAutoDiscThreshold" placeholder="e.g. 5000" style="margin-bottom:10px; font-weight:bold; border-color:#86efac;">
+                            
+                            <div style="display:flex; gap:10px;">
+                                <div style="flex:1;">
+                                    <label style="font-size:12px; font-weight:bold; color:#15803d;">Discount Type</label>
+                                    <select id="profAutoDiscType" style="margin-bottom:0; font-weight:bold; border-color:#86efac;">
+                                        <option value="percent">Percentage (%)</option>
+                                        <option value="amount">Fixed Amount (Rs)</option>
+                                    </select>
+                                </div>
+                                <div style="flex:1;">
+                                    <label style="font-size:12px; font-weight:bold; color:#15803d;">Discount Value</label>
+                                    <input type="number" id="profAutoDiscValue" placeholder="e.g. 5 or 500" style="margin-bottom:0; font-weight:bold; border-color:#86efac;">
+                                </div>
+                            </div>
+                            <div style="font-size:10px; color:#166534; margin-top:8px;">උදා: බිල රු. 5000 ට වැඩි නම් 5% ක වට්ටමක් දෙන්න. Cashier ට අතින් වට්ටම් දිය නොහැක.</div>
                         </div>
 
                         <!-- 🚀 ENTERPRISE LOYALTY SETTINGS -->
@@ -1301,15 +1322,9 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                         </div>
                     </div>
 
-                    <div style="margin-bottom:15px; display:flex; gap:8px; position:relative;">
-                        <select id="discountType" style="margin:0; width:120px; font-size:13px; font-weight:bold; padding:10px; background:#f3f4f6;" disabled>
-                            <option value="amount">Disc (Amt)</option>
-                            <option value="percent">Disc (%)</option>
-                        </select>
-                        <div style="position:relative; flex:1;">
-                            <input id="discountValue" type="number" placeholder="Manager Discount Only" style="margin:0; width:100%; font-size:14px; font-weight:bold; padding:10px; background:#f3f4f6; color:#9ca3af; cursor:not-allowed;" disabled onkeyup="renderCart()">
-                            <button id="btnUnlockDiscount" class="btn btn-warning" style="position:absolute; right:5px; top:5px; padding:4px 8px; font-size:11px;" onclick="unlockPosDiscount()"><i class="ri-lock-fill"></i> Unlock</button>
-                        </div>
+                    <!-- 🛡️ DYNAMIC DISCOUNT STATUS BOX -->
+                    <div id="posDiscountStatusBox" style="margin-bottom:15px; background:#f9fafb; border:1px solid #d1d5db; padding:12px; border-radius:8px; text-align:center; font-weight:bold; font-size:13px; color:#6b7280; transition: 0.3s;">
+                        <i class="ri-forbid-line"></i> No Discounts Applicable
                     </div>
 
                     <!-- Totals Calculation (Moved Up) -->
@@ -4109,8 +4124,13 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         
         // Load the Manager PIN. If not set previously, default to 0000
         document.getElementById('profManagerPin').value = p.managerPin || '0000';
-        document.getElementById('profMaxDiscountLimit').value = p.maxDiscountLimit !== undefined ? p.maxDiscountLimit : '10'; // 👈 Load Discount Limit
-        document.getElementById('profExpenseLimit').value = p.expenseLimit || '5000'; // 👈 Load Limit
+        document.getElementById('profExpenseLimit').value = p.expenseLimit || '5000'; 
+        
+        // Load Auto Discount Rules
+        document.getElementById('profAutoDiscEnabled').checked = p.autoDiscEnabled === true;
+        document.getElementById('profAutoDiscThreshold').value = p.autoDiscThreshold || '';
+        document.getElementById('profAutoDiscType').value = p.autoDiscType || 'percent';
+        document.getElementById('profAutoDiscValue').value = p.autoDiscValue || '';
         document.getElementById('profLoyaltyEnabled').checked = p.loyaltyEnabled === true;
         document.getElementById('profLoyaltySpend').value = p.loyaltySpend || '1000';
         document.getElementById('profLoyaltyEarn').value = p.loyaltyEarn || '1';
@@ -4160,7 +4180,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 
     window.lockProfile = (lock) => {
         // 🛡️ ENTERPRISE FIX: Strict State Locking for all UI elements
-        document.querySelectorAll('#profFields input:not([type="checkbox"]), #profFields textarea, #profDefaultBillSize, #profLogoFont, #profExpenseLimit, #profLogoColor, #profLogoFile, #profScaleMode, #profScalePrefix, #profManagerPin, #profTaxName, #profTaxPercent, #profRefundPolicy, #profTermsThermal, #profLoyaltySpend, #profLoyaltyEarn, #profLoyaltyEnabled, #profLoyaltyCashOnly, #profTermsA4, #profTermsInvoice, #profTermsQuote').forEach(i => {
+        document.querySelectorAll('#profFields input:not([type="checkbox"]), #profFields textarea, #profDefaultBillSize, #profLogoFont, #profExpenseLimit, #profLogoColor, #profLogoFile, #profScaleMode, #profScalePrefix, #profManagerPin, #profTaxName, #profTaxPercent, #profRefundPolicy, #profTermsThermal, #profLoyaltySpend, #profLoyaltyEarn, #profLoyaltyEnabled, #profAutoDiscThreshold, #profAutoDiscType, #profAutoDiscValue, #profLoyaltyCashOnly, #profTermsA4, #profTermsInvoice, #profTermsQuote').forEach(i => {
             if (i) i.disabled = lock;
         });
         
@@ -4201,8 +4221,13 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             
             // Save the Manager PIN (Fallback to 0000 if left empty)
             managerPin: document.getElementById('profManagerPin').value.trim() || '0000',
-            maxDiscountLimit: parseFloat(document.getElementById('profMaxDiscountLimit').value) || 0, // 👈 Save Discount Limit
-            expenseLimit: parseFloat(document.getElementById('profExpenseLimit').value) || 5000, // 👈 New Limit
+            expenseLimit: parseFloat(document.getElementById('profExpenseLimit').value) || 5000,
+            
+            // Save Auto Discount Rules
+            autoDiscEnabled: document.getElementById('profAutoDiscEnabled').checked,
+            autoDiscThreshold: parseFloat(document.getElementById('profAutoDiscThreshold').value) || 0,
+            autoDiscType: document.getElementById('profAutoDiscType').value,
+            autoDiscValue: parseFloat(document.getElementById('profAutoDiscValue').value) || 0,
             taxEnabled: document.getElementById('profTaxEnabled').checked,
             taxName: document.getElementById('profTaxName').value.trim() || 'TAX',
             taxPercent: parseFloat(document.getElementById('profTaxPercent').value) || 0,
@@ -6329,8 +6354,11 @@ window.onTransferProductSelect = () => {
         const con = document.getElementById('cartItems');
         let subtotal = 0;
         
+        let hasPromoItem = false;
+        let hasItemDiscount = false;
+        
         // UX FIX: දැනට ඇති Scroll ස්ථානය සටහන් කර ගැනීම
-        const currentScrollPos = con.scrollTop; 
+        const currentScrollPos = con.scrollTop;
         
         // 🚀 ENTERPRISE POS ITEM NOTES LOGIC (Elegant Modal)
         let noteIndexToUpdate = -1; // To remember which item we are editing
@@ -6357,6 +6385,9 @@ window.onTransferProductSelect = () => {
                 // Apply Live Promo Pricing directly in the cart
                 const priceInfo = window.getEffectivePrice(i);
                 i.effectiveSell = priceInfo.price; // Save for checkout
+                
+                if (priceInfo.isPromo) hasPromoItem = true;
+                if (priceInfo.hasAdminDisc) hasItemDiscount = true;
                 
                 // 🛡️ ENTERPRISE ACCOUNTING FIX: Strictly round each cart item
                 const itemTotalRounded = Math.round((i.effectiveSell * i.qty) * 100) / 100;
@@ -6401,19 +6432,48 @@ window.onTransferProductSelect = () => {
             </div>`;
         }).join('');
 
-        // Calculations
-        let discountVal = parseFloat(document.getElementById('discountValue').value) || 0;
-        if(discountVal < 0) discountVal = 0; // Prevent negative inputs
+        // 🛡️ ENTERPRISE FIX: ZERO-TRUST AUTOMATED DISCOUNT (F12 Hack Proof)
+        let discountAmt = 0;
         
-        const discountType = document.getElementById('discountType').value;
+        // 🛡️ ENTERPRISE FIX: ZERO-TRUST AUTOMATED DISCOUNT (F12 Hack Proof)
+        let discountAmt = 0;
         
-        // Prevent typing more than 100%
-        if(discountType === 'percent' && discountVal > 100) discountVal = 100;
+        if (profileCache && profileCache.autoDiscEnabled) {
+            const thresh = parseFloat(profileCache.autoDiscThreshold) || 0;
+            const dVal = parseFloat(profileCache.autoDiscValue) || 0;
+            
+            // Check if cart subtotal meets the Admin's condition
+            if (subtotal >= thresh && thresh > 0 && dVal > 0) {
+                if (profileCache.autoDiscType === 'percent') {
+                    discountAmt = (subtotal * dVal) / 100;
+                } else {
+                    discountAmt = dVal;
+                }
+            }
+        }
         
-        let discountAmt = discountType === 'percent' ? (subtotal * discountVal / 100) : discountVal;
-        
-        // Final safety check: Discount cannot be more than Subtotal
-        if(discountAmt > subtotal) discountAmt = subtotal;
+        // Failsafe
+        if (discountAmt > subtotal) discountAmt = subtotal;
+
+        // 🛡️ UPDATE DYNAMIC UI STATUS BOX
+        const statusBox = document.getElementById('posDiscountStatusBox');
+        if (discountAmt > 0) {
+            // Priority 1: Auto Bill Discount takes precedence in the main box
+            statusBox.innerHTML = `<span style="color:#15803d;"><i class="ri-magic-line"></i> Auto Bill Discount: -${formatMoney(discountAmt)}</span>`;
+            statusBox.style.background = '#f0fdf4'; // Light Green
+            statusBox.style.borderColor = '#22c55e';
+        } else if (hasPromoItem || hasItemDiscount) {
+            // Priority 2: Individual Promos or Batch Discounts applied
+            let text = hasPromoItem ? "Promotions Applied!" : "Batch Discounts Applied!";
+            statusBox.innerHTML = `<span style="color:#b45309;"><i class="ri-discount-percent-fill"></i> ${text}</span>`;
+            statusBox.style.background = '#fffbeb'; // Light Yellow/Orange
+            statusBox.style.borderColor = '#fde047';
+        } else {
+            // Default: No Discounts
+            statusBox.innerHTML = `<span style="color:#6b7280;"><i class="ri-forbid-line"></i> No Discounts Applicable</span>`;
+            statusBox.style.background = '#f9fafb'; // Grey
+            statusBox.style.borderColor = '#d1d5db';
+        }
 
         let feesTotal = currentOtherFees.reduce((sum, f) => sum + f.amount, 0);
         
@@ -6559,28 +6619,30 @@ window.checkout = async () => {
             return showToast("Discount cannot be a negative value!", "error");
         }
         
-        const discountVal = discountValRaw;
         // 🛡️ ENTERPRISE ACCOUNTING FIX: Sum rounded values only
         let subtotal = cart.reduce((a,b) => a + Math.round((b.sell * b.qty) * 100) / 100, 0);
-        let discountAmt = discountType === 'percent' ? (subtotal * discountVal / 100) : discountVal;
-        if(discountAmt > subtotal) discountAmt = subtotal;
+        
+        // 🛡️ ZERO-TRUST AUTOMATED DISCOUNT (DB RULE)
+        let discountAmt = 0;
+        let discountType = 'none';
+        let discountVal = 0;
 
-        // 🛡️ ENTERPRISE FRAUD PROTECTION & MANAGER OVERRIDE (DYNAMIC LIMIT)
-        const maxAllowedDiscountPerc = (profileCache && profileCache.maxDiscountLimit !== undefined) ? parseFloat(profileCache.maxDiscountLimit) : 10;
-        const actualDiscountPerc = subtotal > 0 ? (discountAmt / subtotal) * 100 : 0;
-
-        if (userRole === 'cashier' && actualDiscountPerc > maxAllowedDiscountPerc) {
-            const adminPin = prompt(`⚠️ Discount exceeds your limit of ${maxAllowedDiscountPerc}%!\n\n(You are trying to give ${actualDiscountPerc.toFixed(1)}%)\n\nPlease ask the Manager to enter their Override PIN:`);
+        if (profileCache && profileCache.autoDiscEnabled) {
+            const thresh = parseFloat(profileCache.autoDiscThreshold) || 0;
+            const dVal = parseFloat(profileCache.autoDiscValue) || 0;
             
-            // Database එකෙන් Load වූ Profile එකෙහි ඇති සැබෑ Manager PIN එක ලබා ගැනීම (නැතිනම් 0000 ලෙස ගනී)
-            const requiredPin = (profileCache && profileCache.managerPin) ? profileCache.managerPin : "0000";
-            
-            if (adminPin !== requiredPin) { 
-                if(window.writeSystemLog) writeSystemLog("SECURITY_BREACH_ATTEMPT", `CRITICAL: Cashier attempted to bypass discount limit but entered an INVALID Manager PIN! (Tried to discount ${formatMoney(discountAmt)})`);
-                return showToast("Authorization Denied! Invalid Manager PIN.", "error");
+            if (subtotal >= thresh && thresh > 0 && dVal > 0) {
+                discountType = profileCache.autoDiscType;
+                discountVal = dVal;
+                
+                if (discountType === 'percent') {
+                    discountAmt = (subtotal * dVal) / 100;
+                } else {
+                    discountAmt = dVal;
+                }
             }
-            if(window.writeSystemLog) writeSystemLog("MANAGER_OVERRIDE", `Approved ${(discountAmt/subtotal*100).toFixed(1)}% discount for Cart Value ${formatMoney(subtotal)}`);
         }
+        if(discountAmt > subtotal) discountAmt = subtotal;
 
         const roundToTwo = (num) => Math.round(num * 100) / 100;
         let feesTotal = currentOtherFees.reduce((sum, f) => sum + f.amount, 0);
@@ -6641,10 +6703,29 @@ window.checkout = async () => {
     // ==========================================
     window.verifyWalletAndCheckout = () => {
         // අපි Checkout එකට යන්න කලින් දළ වශයෙන් ගණනය කර බලනවා Customer ගේ සල්ලි පාවිච්චි වෙනවද කියලා.
-        const discountValRaw = parseFloat(document.getElementById('discountValue').value) || 0;
-        const discountType = document.getElementById('discountType').value;
+        // 🛡️ ENTERPRISE ACCOUNTING FIX: Sum rounded values only
         let subtotal = cart.reduce((a,b) => a + Math.round((b.sell * b.qty) * 100) / 100, 0);
-        let discountAmt = discountType === 'percent' ? (subtotal * discountValRaw / 100) : discountValRaw;
+        
+        // 🛡️ ZERO-TRUST AUTOMATED DISCOUNT (DB RULE)
+        let discountAmt = 0;
+        let discountType = 'none';
+        let discountVal = 0;
+
+        if (profileCache && profileCache.autoDiscEnabled) {
+            const thresh = parseFloat(profileCache.autoDiscThreshold) || 0;
+            const dVal = parseFloat(profileCache.autoDiscValue) || 0;
+            
+            if (subtotal >= thresh && thresh > 0 && dVal > 0) {
+                discountType = profileCache.autoDiscType;
+                discountVal = dVal;
+                
+                if (discountType === 'percent') {
+                    discountAmt = (subtotal * dVal) / 100;
+                } else {
+                    discountAmt = dVal;
+                }
+            }
+        }
         if(discountAmt > subtotal) discountAmt = subtotal;
         
         let feesTotal = currentOtherFees.reduce((sum, f) => sum + f.amount, 0);
@@ -6780,11 +6861,29 @@ window.checkout = async () => {
         const finalCustName = custName || "Walk-in Customer";
         const finalCustPhone = custPhone || "N/A";
 
-        const discountType = document.getElementById('discountType').value;
-        const discountVal = parseFloat(document.getElementById('discountValue').value) || 0;
         // 🛡️ ENTERPRISE ACCOUNTING FIX: Sum rounded values only
         let subtotal = cart.reduce((a,b) => a + Math.round((b.sell * b.qty) * 100) / 100, 0);
-        let discountAmt = discountType === 'percent' ? (subtotal * discountVal / 100) : discountVal;
+        
+        // 🛡️ ZERO-TRUST AUTOMATED DISCOUNT (DB RULE)
+        let discountAmt = 0;
+        let discountType = 'none';
+        let discountVal = 0;
+
+        if (profileCache && profileCache.autoDiscEnabled) {
+            const thresh = parseFloat(profileCache.autoDiscThreshold) || 0;
+            const dVal = parseFloat(profileCache.autoDiscValue) || 0;
+            
+            if (subtotal >= thresh && thresh > 0 && dVal > 0) {
+                discountType = profileCache.autoDiscType;
+                discountVal = dVal;
+                
+                if (discountType === 'percent') {
+                    discountAmt = (subtotal * dVal) / 100;
+                } else {
+                    discountAmt = dVal;
+                }
+            }
+        }
         if(discountAmt > subtotal) discountAmt = subtotal;
 
         const roundToTwo = (num) => Math.round(num * 100) / 100;
@@ -6958,8 +7057,17 @@ window.checkout = async () => {
                     }
                     
                     // 🛡️ ENTERPRISE ZERO-TRUST SECURITY & TEMPORAL VALIDATION
-                    // Re-verify Live Promo Price. If promo expired 1 second ago, this blocks the sale!
                     const livePriceInfo = window.getEffectivePrice(pData);
+                    
+                    // 🚨 CRITICAL FIX A: Prevent "Double-Dipping Below Cost"
+                    // Check if Cart Discount brings this specific item below its Cost (Buy Price)
+                    const cartDiscountRatio = subtotal > 0 ? (discountAmt / subtotal) : 0;
+                    const netFinalItemPrice = livePriceInfo.price - (livePriceInfo.price * cartDiscountRatio);
+                    
+                    if (netFinalItemPrice < pData.buy) {
+                        if(window.writeSystemLog) writeSystemLog("BELOW_COST_FRAUD_PREVENTED", `Blocked checkout. Cart discount pushed ${item.name} below cost! Cost: ${pData.buy}, Net Sell: ${netFinalItemPrice.toFixed(2)}`);
+                        throw new Error(`Loss Alert: Applying this Cart Discount makes '${item.name}' sell below cost! (Cost: ${formatMoney(pData.buy)} | Net Sell: ${formatMoney(netFinalItemPrice)})`);
+                    }
                     if (Math.abs(livePriceInfo.price - item.effectiveSell) > 0.01) {
                         if(window.writeSystemLog) writeSystemLog("TIME_SHIFT_FRAUD_PREVENTED", `CRITICAL: Blocked checkout. Promo expired while items were in cart for ${item.name}!`);
                         throw new Error(`SECURITY ALERT: Price mismatch or Promo EXPIRED for '${item.name}'! Live Price: ${formatMoney(livePriceInfo.price)}, Cart: ${formatMoney(item.effectiveSell)}`);
@@ -8593,11 +8701,26 @@ window.autoFillDocCustomer = (name) => {
                 // 1. Read Sale & Update Credit (Original Logic)
                 if(saleRef) {
                     const sDoc = await transaction.get(saleRef);
+                    
+                    // --- 1. පරණ කේතය (ණය කපා දැමීම - මෙය මැකිය යුතු නැත) ---
                     if(sDoc.exists() && sDoc.data().creditBalance > 0) {
                         const cancelledDebt = Math.min(sDoc.data().creditBalance, refundTotal);
                         cashOutToCustomer = refundTotal - cancelledDebt;
                         newCreditBal = sDoc.data().creditBalance - cancelledDebt;
                         transaction.update(saleRef, { creditBalance: newCreditBal });
+                    }
+
+                    // --- 2. අලුත් කේතය (ලෝයල්ටි ලකුණු ආපසු ගැනීම) ---
+                    if (sDoc.exists() && sDoc.data().loyaltyEarned > 0 && sDoc.data().subtotal > 0 && sDoc.data().customer && sDoc.data().customer.phone) {
+                        const originalOrder = sDoc.data();
+                        // පාරිභෝගිකයා එදා මුළු බිලෙන් ගත්තු ලකුණු වලින්, මේ Refund කරන බඩුවට අදාළ ලකුණු ගාණ අනුපාතයකින් හොයාගැනීම
+                        const pointsToReverse = Math.floor((refundTotal / originalOrder.subtotal) * originalOrder.loyaltyEarned);
+                        
+                        if (pointsToReverse > 0 && originalOrder.customer.phone !== "N/A") {
+                            const cRefForPoints = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/customers`, originalOrder.customer.phone);
+                            // පාරිභෝගිකයාගේ ගිණුමෙන් අදාළ Points ප්‍රමාණය කපා හැරීම (සෘණ වීම වුවද නිවැරදියි, මන්ද ඔහු පද්ධතියට ලකුණු ණය වේ)
+                            transaction.update(cRefForPoints, { loyaltyPoints: increment(-pointsToReverse) });
+                        }
                     }
                     
                     // 🛡️ 1.1 UPDATE CUSTOMER WALLET (Store Credit - New Logic)
@@ -8609,7 +8732,6 @@ window.autoFillDocCustomer = (name) => {
                             const cSnap = await transaction.get(cRef);
                             if (cSnap.exists()) {
                                 // 🚨 BUG FIX 2: Only add the ACTUAL Cash-Out value to the wallet!
-                                // Refund එකෙන් ණය කැපුවා නම්, ඉතුරු වුණු ගාණ (cashOutToCustomer) විතරයි Wallet එකට දාන්න ඕනේ!
                                 if (cashOutToCustomer > 0) {
                                     transaction.update(cRef, { walletBalance: increment(cashOutToCustomer) });
                                 }
@@ -17455,27 +17577,7 @@ let currentBatchForSerials = null;
         renderCart();
         showToast(`Barcode ${serialToRemove.split('-').pop()} cart එකෙන් ඉවත් කරන ලදී.`, "success");
     };
-window.unlockPosDiscount = () => {
-        const adminPin = prompt("⚠️ Global Cart Discount is Locked!\n\nPlease enter Manager PIN to unlock:");
-        const requiredPin = (profileCache && profileCache.managerPin) ? profileCache.managerPin : "0000";
-        
-        if (adminPin === requiredPin) {
-            document.getElementById('discountValue').disabled = false;
-            document.getElementById('discountType').disabled = false;
-            document.getElementById('discountValue').style.background = '#fff';
-            document.getElementById('discountValue').style.color = '#000';
-            document.getElementById('discountValue').style.cursor = 'text';
-            document.getElementById('discountValue').placeholder = "0";
-            document.getElementById('btnUnlockDiscount').style.display = 'none'; // Hide lock button
-            
-            if(window.writeSystemLog) writeSystemLog("MANAGER_OVERRIDE", `Manager unlocked the Global Cart Discount field in POS.`);
-            showToast("Discount Field Unlocked!", "success");
-            document.getElementById('discountValue').focus();
-        } else {
-            if(window.writeSystemLog) writeSystemLog("SECURITY_BREACH_ATTEMPT", `Failed attempt to unlock POS Discount Field!`);
-            showToast("Invalid PIN! Access Denied.", "error");
-        }
-    };
+
 </script>
 
 </body>
@@ -17700,9 +17802,32 @@ Keells හෝ Cargills වල Cashier බිල ගහද්දී, පාරි
 කේතය මුළුමනින්ම විකෘති කර, එකදු හිස්තැනක්වත් නැති තනි පේළියක (One-line) අලුත් ගොනුවක් සාදා දෙයි!
 පසුව ඔබ අර අලුතින් හැදුණු (විකෘති වූ) අතිශය සුරක්ෂිත ෆයිල් එක පමණක් Firebase එකට Upload (Deploy) කරයි.
 
+####################
+පියවර 1: භාණ්ඩ මට්ටමේ වට්ටම් (Item-Level Discounts)
+මෙය සිදු කළ හැක්කේ Admin කෙනෙකුට පමණි. භාණ්ඩයකට වට්ටමක් දිය හැකි ක්‍රම 2ක් පද්ධතියේ ඇත.
+A. කාලීන ප්‍රවර්ධන (Time-Bound Promotions):
+ක්‍රියාවලිය: කඩේ තියෙන භාණ්ඩයකට Admin විසින් නිශ්චිත කාලයක් දක්වා පමණක් වලංගු වන වට්ටමක් දීමයි (උදා: "සිංහල අවුරුදු සේල් - අප්‍රේල් 15 දක්වා රු. 200ක වට්ටමක්"). මේ සඳහා % හෝ Rs. භාවිතා කළ හැක.
+ආරක්ෂාව: අප්‍රේල් 15 වැනිදා මධ්‍යම රාත්‍රිය පසුවූ සැණින්, Cashier මොනවා කළත් පද්ධතිය ස්වයංක්‍රීයව අදාළ වට්ටම මකා දමා භාණ්ඩය මුල් මිලටම පත් කරයි (Expired).
+B. ස්ථිර වට්ටම් (Admin Fixed Discounts):
+ක්‍රියාවලිය: Add Stock හෝ Edit Stock හිදී Admin විසින් අදාළ Batch එකටම ස්ථිර වට්ටමක් සකසයි.
+ආරක්ෂාව (Loss Prevention Engine): Admin අතින් වැරදීමකින් හෝ ගැණුම් මිලටත් (Cost/Buy Price) වඩා අඩුවෙන් විකිණෙන පරිදි වට්ටමක් Type කළහොත්, එම තත්පරයේදීම තිරයේ රතු පාටින් "⚠️ DANGER: You are losing X amount per item!" ලෙස Warning එකක් එයි.
+💡 Logic එකේ ප්‍රමුඛතාව (Priority):
+භාණ්ඩයකට ඉහත A සහ B කියන වට්ටම් දෙකම දීලා තිබුණොත්, පද්ධතිය මුලින්ම බලන්නේ Promo එක අද දවසට වලංගුද කියාය. වලංගු නම් Promo එක පමණක් බිලට වැටේ. එය කල් ඉකුත් වී (Expired) ඇත්නම් පමණක් Fixed Discount එක බිලට වැටේ. මේ නිසා වට්ටම් දෙකක් එකට එකතු වී ආයතනයට පාඩු වීම කිසිසේත් සිදු නොවේ!
+පියවර 2: මුළු බිලටම දෙන ස්වයංක්‍රීය වට්ටම් (Smart POS Auto-Discounts)
+Cashier කෙනෙකුට Smart POS එකේදී මුළු බිලටම අතින් වට්ටම් දීමට තිබූ හැකියාව දැන් 100% ක්ම ගලවා ඉවත් කර ඇත.
+ක්‍රියාවලිය: Admin විසින් Profile Settings වලට ගොස් නීතියක් (Rule) හදයි. උදාහරණයක් ලෙස: "බිල රු. 10,000 ට වැඩි නම් 5% ක වට්ටමක් දෙන්න".
+ක්‍රියාත්මක වීම: Cashier බඩු ස්කෑන් කරගෙන යද්දී Cart එකේ එකතුව රු. 10,000 පන්නපු ගමන්, සිස්ටම් එක කිසිම කෙනෙක්ගෙන් අහන්නේ නැතුව අදාල 5% වට්ටම හදලා, බිලේ යටින් කොළ පාටින් "✨ Auto Discount Applied!" කියා පෙන්වයි.
+ආරක්ෂාව (F12 Hack-Proof): Cashier ට අතින් වට්ටම් ගහන්න කොටුවක් UI එකේ නැත. ඔහු F12 (Developer Tools) ගසා හොරෙන් JavaScript Code එකක් මගින් discountAmt = 5000 ලෙස හැක් කර යැව්වත් එය වැඩ කරන්නේ නැත. මන්ද, Checkout බොත්තම එබූ සැණින් පද්ධතිය Cashier එවන දත්ත විශ්වාස නොකර, කෙලින්ම Database එකේ තියෙන Admin ගේ නීතිය කියවා අලුතින්ම Discount එක ගණනය කරන බැවිනි.
+පියවර 3: Document Builder වට්ටම් (Invoice / Quotation)
+Corporate Invoices හදද්දී පාරිභෝගිකයා එක්ක කතා කරලා ගණන් වෙනස් කරන්න වෙන නිසා, එතනදී Cashier ට Discounted Price එක (වට්ටම් කළ මිල) අතින් Type කරන්න පද්ධතිය ඉඩ දෙනවා. හැබැයි එතනත් ලොකු ආරක්ෂක දැලක් තියෙනවා.
+ක්‍රියාවලිය: Admin විසින් Profile එකේ "Max Cashier Discount Limit" එකක් හදලා තියෙනවා (උදා: 10%).
+ආරක්ෂාව (Manager Override): රු. 1000 බඩුව Cashier රු. 800 ට (20% වට්ටමක්) දෙන්න හැදුවොත්, "Save Document" එබූ සැණින් පද්ධතිය එය අල්ලාගෙන මුළු ක්‍රියාවලියම අත්හිටුවයි! තිරයට Popup එකක් ගෙනැවිත් "Cashier Limit Reached! Manager PIN Required" ලෙස පෙන්වයි. Manager ඇවිත් රහස් PIN එක ගැසුවොත් පමණක් එය අනුමත වේ. වැරදි PIN ගැසුවොත් එය System Log එකේ "Hack Attempt" එකක් ලෙස රතු පාටින් සටහන් වේ!
+########
 
 
-###################
+SAMASTHA PADDATHIYE DISCONT,PROMOTIONS,LOYALITY,TAX/VAT KRIYAWALIYE GANITHAMAYA SUTHRA NIWARADIDA? PATAIMAK THIYENAWADA?
+
+###########
 4. 💉 Decimal Injection in Standard Items (දශම සංඛ්‍යා වංචාව)
 nawarathnacool@gmail.com
 
