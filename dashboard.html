@@ -273,6 +273,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         <div class="nav-group">Sales & POS</div>
         <a class="nav-item" onclick="loadView('pos')"><i class="ri-shopping-cart-2-line"></i> Smart POS</a>
         <a class="nav-item" onclick="loadView('orders')"><i class="ri-file-list-3-line"></i> Sales</a>
+        <a class="nav-item" onclick="loadView('taxreports')"><i class="ri-file-paper-2-fill"></i> Tax & VAT Reports</a>
         <!-- NEW: SERVICE CRM TAB -->
         <a class="nav-item" onclick="loadView('crm')"><i class="ri-calendar-check-line"></i> Service CRM</a>
         <a class="nav-item" onclick="loadView('refunds')"><i class="ri-arrow-go-back-line"></i> Refunds</a>
@@ -561,6 +562,34 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                             <div style="font-size:10px; color:#d97706; margin-top:5px;">Keep this secret. Used to approve large cashier discounts.</div>
                         </div>
 
+                        <!-- 🛡️ ENTERPRISE FIX: AUTOMATED BILL DISCOUNT ENGINE -->
+                        <div style="margin-top: 15px; padding: 15px; background: #f0fdf4; border: 2px solid #22c55e; border-radius: 8px;">
+                            <h4 style="color:#166534; margin-bottom:10px;"><i class="ri-magic-line"></i> Automated Bill Discount Rule</h4>
+                            
+                            <div style="display:flex; gap:10px; margin-bottom:10px; align-items:center;">
+                                <input type="checkbox" id="profAutoDiscEnabled" style="width:20px; height:20px; cursor:pointer;">
+                                <span style="font-size:13px; font-weight:bold; color:#166534;">Enable Auto Discount for Bills</span>
+                            </div>
+
+                            <label style="font-size:12px; font-weight:bold; color:#15803d;">Minimum Bill Amount to trigger discount (Rs) *</label>
+                            <input type="number" id="profAutoDiscThreshold" placeholder="e.g. 5000" style="margin-bottom:10px; font-weight:bold; border-color:#86efac;">
+                            
+                            <div style="display:flex; gap:10px;">
+                                <div style="flex:1;">
+                                    <label style="font-size:12px; font-weight:bold; color:#15803d;">Discount Type</label>
+                                    <select id="profAutoDiscType" style="margin-bottom:0; font-weight:bold; border-color:#86efac;">
+                                        <option value="percent">Percentage (%)</option>
+                                        <option value="amount">Fixed Amount (Rs)</option>
+                                    </select>
+                                </div>
+                                <div style="flex:1;">
+                                    <label style="font-size:12px; font-weight:bold; color:#15803d;">Discount Value</label>
+                                    <input type="number" id="profAutoDiscValue" placeholder="e.g. 5 or 500" style="margin-bottom:0; font-weight:bold; border-color:#86efac;">
+                                </div>
+                            </div>
+                            <div style="font-size:10px; color:#166534; margin-top:8px;">උදා: බිල රු. 5000 ට වැඩි නම් 5% ක වට්ටමක් දෙන්න. Cashier ට අතින් වට්ටම් දිය නොහැක.</div>
+                        </div>
+
                         <!-- 🚀 ENTERPRISE LOYALTY SETTINGS -->
                         <div style="margin-top: 15px; padding: 15px; background: #faf5ff; border: 2px solid #a855f7; border-radius: 8px;">
                             <h4 style="color:#7e22ce; margin-bottom:10px;"><i class="ri-medal-fill"></i> Customer Loyalty Program</h4>
@@ -595,6 +624,22 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                             <h4 style="color:#166534; margin-bottom:10px;"><i class="ri-government-line"></i> Tax & Refund Policies (බදු සහ ප්‍රතිලාභ නීති)</h4>
                             <div style="font-size:10px; color:#b91c1c; font-weight:bold; margin-bottom:15px; background:#fee2e2; padding:5px; border-radius:4px;">
                                 ⚠️ WARNING: මෙම නීති නිතර වෙනස් කිරීමෙන් මාසික මූල්‍ය වාර්තා සහ ගිණුම්කරණය ව්‍යාකූල විය හැක. වෙනස් කිරීමේදී සැලකිලිමත් වන්න!
+                            </div>
+
+                            <!-- 🛡️ TAX HELP TEXT (Sinhala) -->
+                            <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:8px; padding:15px; margin-bottom:20px; font-size:12px; color:#334155; line-height:1.6;">
+                                <strong style="color:var(--primary); font-size:14px;"><i class="ri-information-fill"></i> Tax සහ VAT යනු මොනවාද? අප පාවිච්චි කළ යුත්තේ කුමන වචනයද?</strong>
+                                <ul style="margin-left:20px; margin-top:10px; margin-bottom:10px;">
+                                    <li><b>VAT (Value Added Tax):</b> මෙය රජය විසින් අයකෙරෙන ප්‍රධාන බද්දකි (දැනට 18%). <span style="color:#b91c1c; font-weight:bold;">නීතිය:</span> බිල්පතක "VAT" යන වචනය ගසා පාරිභෝගිකයාගෙන් මුදල් අයකරගත හැක්කේ, ඔබ IRD හි VAT ලියාපදිංචි වී ඇත්නම් පමණි! එසේ නොමැතිව VAT ගැසීම නීති විරෝධී වේ.</li>
+                                    <li><b>TAX (බද්ද):</b> මෙය පොදු වචනයකි. (උදා: SSCL 2.5%, සංචාරක බදු).</li>
+                                </ul>
+                                <strong>භාවිතා කළ යුතු වචනය කුමක්ද?</strong><br>
+                                අප පද්ධතිය මේ සඳහා 100% ක් නිවැරදි (Dynamic) විසඳුමක් ලබා දී ඇත.
+                                <ul style="margin-left:20px; margin-top:5px;">
+                                    <li><b>ඔබ VAT Registered නම්:</b> Tax Name එකට <b>VAT</b> යැයි ගසා, Percent එක <b>18</b> දෙන්න.</li>
+                                    <li><b>ඔබ VAT ගෙවන්නේ නැති, නමුත් SSCL ගෙවන අයෙක් නම්:</b> Name එකට <b>SSCL Tax</b> යැයි ගසා, Percent එක <b>2.5</b> දෙන්න.</li>
+                                    <li><b>ඔබට කිසිදු බද්දක් නැතිනම්:</b> පහත Checkbox එකෙන් එය සම්පූර්ණයෙන්ම Off කර දමන්න.</li>
+                                </ul>
                             </div>
 
                             <label style="font-size:12px; font-weight:bold;">1. Smart POS Tax / VAT Engine</label>
@@ -1026,10 +1071,12 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                         <label>Quantity Returning (Max: <span id="refundMaxQty"></span>)</label>
                         <input type="number" id="refundQtyInput" placeholder="1" style="margin:0;">
                     </div>
-<div>
-        <label style="color:var(--danger); font-weight:bold;">Scan the Returned Item's Barcode *</label>
-        <input id="refundSerialScan" placeholder="Scan the physical sticker here..." style="margin:0; border:2px solid var(--danger);">
-    </div>
+                    <!-- 🚨 ULTIMATE BUG FIX 1: Multi-Serial Support for Refunds -->
+                    <div>
+                        <label style="color:var(--danger); font-weight:bold;">Scan Returned Barcode(s) *</label>
+                        <div style="font-size:9px; color:#b91c1c; margin-bottom:5px;">Qty එකට වඩා වැඩිනම් කමා (,) යොදා සියලුම සීරියල් අංක ස්කෑන් කරන්න.</div>
+                        <textarea id="refundSerialScan" rows="2" placeholder="e.g. ITM-B1-001, ITM-B1-002" style="margin:0; border:2px solid var(--danger); font-family:monospace;"></textarea>
+                    </div>
                     <div>
                         <label>Reason</label>
                         <input id="refundReasonInput" placeholder="Reason for return..." style="margin:0;">
@@ -1294,12 +1341,9 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                         </div>
                     </div>
 
-                    <div style="margin-bottom:15px; display:flex; gap:8px;">
-                        <select id="discountType" style="margin:0; width:120px; font-size:13px; font-weight:bold; padding:10px;">
-                            <option value="amount">Disc (Amt)</option>
-                            <option value="percent">Disc (%)</option>
-                        </select>
-                        <input id="discountValue" type="number" placeholder="0" style="margin:0; font-size:14px; font-weight:bold; padding:10px;" onkeyup="renderCart()">
+                    <!-- 🛡️ DYNAMIC DISCOUNT STATUS BOX -->
+                    <div id="posDiscountStatusBox" style="margin-bottom:15px; background:#f9fafb; border:1px solid #d1d5db; padding:12px; border-radius:8px; text-align:center; font-weight:bold; font-size:13px; color:#6b7280; transition: 0.3s;">
+                        <i class="ri-forbid-line"></i> No Discounts Applicable
                     </div>
 
                     <!-- Totals Calculation (Moved Up) -->
@@ -1658,10 +1702,20 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         <div id="view-eod" class="view">
             <h3><i class="ri-file-chart-line"></i> End of Day (Shift Summary)</h3>
             <div class="note-box"><i class="ri-information-fill"></i> Generate this report before closing the shop to balance your Cash Drawer.</div>
-            <div style="display:flex; gap:10px; margin-bottom:15px;">
-                <input type="date" id="eodDate" style="width:auto; margin:0;">
-                <button class="btn btn-primary" onclick="generateEOD()"><i class="ri-refresh-line"></i> Generate Report</button>
-                <button class="btn btn-ghost" onclick="printEOD()"><i class="ri-printer-line"></i> Print</button>
+            <!-- 🚨 ULTIMATE BUG FIX 2: Shift-based EOD Time Selector -->
+            <div style="background:#f8fafc; padding:15px; border-radius:8px; border:1px solid #e2e8f0; margin-bottom:15px; display:flex; flex-wrap:wrap; gap:15px; align-items:center;">
+                <div>
+                    <label style="font-size:11px; font-weight:bold; color:#475569;">Shift Start:</label><br>
+                    <input type="datetime-local" id="eodStartDateTime" style="margin:0; width:auto; border-color:var(--primary);">
+                </div>
+                <div>
+                    <label style="font-size:11px; font-weight:bold; color:#475569;">Shift End:</label><br>
+                    <input type="datetime-local" id="eodEndDateTime" style="margin:0; width:auto; border-color:var(--primary);">
+                </div>
+                <div style="margin-top:15px;">
+                    <button class="btn btn-primary" onclick="generateEOD()"><i class="ri-refresh-line"></i> Calculate Shift</button>
+                    <button class="btn btn-ghost" onclick="printEOD()"><i class="ri-printer-line"></i> Print</button>
+                </div>
             </div>
             <div class="card" id="eodReportArea" style="max-width:600px; display:none;">
                 <h4 style="text-align:center; border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:15px;">Cash Drawer Summary</h4>
@@ -1866,9 +1920,73 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 </div>
 
     </div>
+<!-- 🚀 NEW: TAX & VAT REPORTS TAB -->
+        <div id="view-taxreports" class="view">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
+                <h3><i class="ri-file-paper-2-fill" style="color:var(--primary);"></i> Tax & VAT Liability Report</h3>
+                <div style="display:flex; gap:10px; align-items:center;">
+                    <label style="font-size:12px; font-weight:bold;">Select Month:</label>
+                    <input type="month" id="taxReportMonth" style="margin:0; width:150px; font-weight:bold; border-color:var(--primary);">
+                    <button class="btn btn-primary" onclick="generateTaxReport()"><i class="ri-refresh-line"></i> Generate Report</button>
+                    <button class="btn btn-ghost" onclick="printElement('taxReportArea', 'Monthly Tax & VAT Report')"><i class="ri-printer-line"></i> Print</button>
+                </div>
+            </div>
+            
+            <div class="note-box"><i class="ri-information-fill"></i> මෙම වාර්තාව මගින් අදාළ මාසය තුළ පාරිභෝගිකයින්ගෙන් අයකරගත් මුළු බදු ප්‍රමාණයත්, Refund (මුදල් හෝ Store Credit මගින්) හරහා අවලංගු වූ බදු ප්‍රමාණයත් ගණනය කර, අවසානයේ රජයට ගෙවිය යුතු ශුද්ධ බදු මුදල (Net Tax Payable) පෙන්වයි.</div>
+
+            <div id="taxReportArea" style="display:none;">
+                <!-- Summary Cards -->
+                <div class="grid-4" style="margin-bottom:20px;">
+                    <div class="card" style="border-top:4px solid #3b82f6; margin-bottom:0;">
+                        <div style="font-size:12px; color:#666;">Total Taxable Sales (Gross)</div>
+                        <div id="taxRepGrossSales" style="font-size:24px; font-weight:900; color:#1e3a8a;">0.00</div>
+                    </div>
+                    <div class="card" style="border-top:4px solid #10b981; margin-bottom:0;">
+                        <div style="font-size:12px; color:#666;">Tax/VAT Collected (+)</div>
+                        <div id="taxRepCollected" style="font-size:24px; font-weight:900; color:#166534;">0.00</div>
+                    </div>
+                    <div class="card" style="border-top:4px solid #f59e0b; margin-bottom:0;">
+                        <div style="font-size:12px; color:#666;">Tax Reversed via Refunds (-)</div>
+                        <div id="taxRepRefunded" style="font-size:24px; font-weight:900; color:#b45309;">0.00</div>
+                    </div>
+                    <div class="card" style="border-top:4px solid #ef4444; margin-bottom:0; background:#fef2f2;">
+                        <div style="font-size:12px; color:#b91c1c; font-weight:bold;">Net Tax Payable (=)</div>
+                        <div id="taxRepPayable" style="font-size:26px; font-weight:900; color:#dc2626;">0.00</div>
+                    </div>
+                </div>
+
+                <!-- 🛡️ ENTERPRISE FIX: DOM Paginated Table -->
+                <div class="card" id="taxScrollArea" style="max-height:50vh; overflow-y:auto; padding-right:5px;" onscroll="handleTaxReportScroll()">
+                    <table id="taxReportTable" style="width:100%;">
+                        <thead style="position:sticky; top:0; background:#f9fafb; z-index:10; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
+                            <tr>
+                                <th>Date & Time</th>
+                                <th>Transaction Ref</th>
+                                <th>Type</th>
+                                <th>Gross Value</th>
+                                <th style="text-align:right;">Tax Applied / Reversed</th>
+                            </tr>
+                        </thead>
+                        <tbody id="taxReportBody"></tbody>
+                    </table>
+                    <div id="taxLoaderUI" style="display:none; text-align:center; padding:10px; color:var(--primary); font-weight:bold;"><i class="ri-loader-4-line ri-spin"></i> තවත් වාර්තා ගෙන එමින්...</div>
+                </div>
+            </div>
+        </div>
 </main>
 
 <!-- MODALS -->
+
+<!-- 🚨 ENTERPRISE ROSTER LOCK OVERLAY -->
+<div id="rosterLockOverlay" style="position:fixed; inset:0; background:rgba(15, 23, 42, 0.98); z-index:4900; display:none; flex-direction:column; align-items:center; justify-content:center; color:white; backdrop-filter:blur(15px);">
+    <i class="ri-lock-2-fill" style="font-size:70px; color:var(--danger); margin-bottom:15px; animation: pulse 2s infinite;"></i>
+    <h1 style="margin-bottom:10px; font-weight:900; letter-spacing:1px;">SYSTEM LOCKED!</h1>
+    <p id="rosterLockMsg" style="color:#cbd5e1; font-size:15px; margin-bottom:30px; text-align:center; max-width:500px; line-height:1.6;"></p>
+    
+    <button id="btnUnlockRoster" class="btn btn-primary" style="display:none; padding:15px 30px; font-size:16px; font-weight:800; border-radius:30px; box-shadow:0 10px 25px rgba(59, 130, 246, 0.5);" onclick="openRosterFromLock()">
+        <i class="ri-calendar-settings-line"></i> Configure Monthly Roster Now
+    </button>
+</div>
 
 <!-- 🚀 NEW: MONTHLY HR ROSTER CALENDAR MODAL -->
 <div id="rosterModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.8); display:none; align-items:center; justify-content:center; z-index:5000; backdrop-filter:blur(3px);">
@@ -2157,9 +2275,23 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             <div id="mpNameDisplay" style="font-weight:600; font-size:14px;"></div>
         </div>
 
-        <input id="mpBuy" type="number" placeholder="Buy Price (>= 0)">
-        <input id="mpSell" type="number" placeholder="Sell Price (> 0)">
+        <input id="mpBuy" type="number" placeholder="Buy Price (Cost) (>= 0)" onkeyup="checkLossWarning()">
+        <input id="mpSell" type="number" placeholder="Sell Price (> 0)" onkeyup="checkLossWarning()">
         
+        <!-- 🛡️ ENTERPRISE FIX: Admin Fixed Item Discount -->
+        <div style="background:#f8fafc; padding:10px; border-radius:8px; border:1px solid #e2e8f0; margin-bottom:10px;">
+            <label style="font-size:11px; font-weight:bold; color:var(--primary);"><i class="ri-discount-percent-line"></i> Admin Fixed Discount (Optional)</label>
+            <div style="display:flex; gap:10px; margin-top:5px;">
+                <select id="mpAdminDiscType" style="flex:1; margin:0;" onchange="checkLossWarning()">
+                    <option value="percent">Percentage (%)</option>
+                    <option value="amount">Fixed Amount (Rs)</option>
+                </select>
+                <input id="mpAdminDiscValue" type="number" placeholder="Value (e.g. 5)" style="flex:1; margin:0;" onkeyup="checkLossWarning()">
+            </div>
+            <!-- 🚨 LOSS WARNING DISPLAY -->
+            <div id="stockLossWarning" style="display:none; color:#b91c1c; font-size:11px; font-weight:bold; margin-top:8px; padding:5px; background:#fee2e2; border-radius:4px; border:1px dashed #ef4444;"></div>
+        </div>
+
         <div style="display:flex; gap:10px; margin-bottom:10px;">
             <input id="mpQty" type="number" placeholder="Stock Qty (> 0)" style="flex:1; margin-bottom:0;">
             <select id="mpUnit" style="flex:1; margin-bottom:0;">
@@ -2498,6 +2630,34 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         </div>
 
         <button class="btn btn-danger" style="width:100%; padding:15px; font-size:16px; justify-content:center; text-transform:uppercase; letter-spacing:1px; box-shadow:0 4px 6px rgba(0,0,0,0.1);" onclick="document.getElementById('fraudAlertModal').style.display='none'">Acknowledge & Close</button>
+    </div>
+</div>
+
+<!-- 🚀 ENTERPRISE: REMOTE APPROVAL MODAL (LIVE CHAT) -->
+<div id="remoteApprovalModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.9); display:none; align-items:center; justify-content:center; z-index:9999; backdrop-filter: blur(5px);">
+    <div class="card" style="width:450px; margin:0; border-top: 5px solid var(--warning); display:flex; flex-direction:column; max-height:90vh; padding:0; overflow:hidden;">
+        <div style="text-align:center; padding:20px; border-bottom:1px solid #e2e8f0; background:#fffbeb;">
+            <i class="ri-shield-keyhole-fill ri-spin" style="font-size:40px; color:#d97706;"></i>
+            <h3 style="margin-top:10px; color:#b45309;">Waiting for Manager...</h3>
+            <p style="font-size:12px; color:#92400e; margin-top:5px;" id="raDescription">Requesting authorization from Admin. Please do not close this window.</p>
+        </div>
+        
+        <!-- Live Chat Area -->
+        <div style="flex:1; background:#f8fafc; padding:15px; overflow-y:auto; display:flex; flex-direction:column; gap:10px; min-height:250px;" id="raChatHistory">
+            <div style="text-align:center; font-size:11px; color:#94a3b8;">Secure link established. Waiting for Admin...</div>
+        </div>
+        
+        <div style="display:flex; padding:10px; border-top:1px solid #e2e8f0; background:#fff;">
+            <input type="text" id="raChatInput" placeholder="Send a message to Manager..." style="margin:0; border-radius:4px 0 0 4px; border-color:var(--primary);" onkeypress="if(event.key==='Enter') sendRaChat()">
+            <button class="btn btn-primary" style="border-radius:0 4px 4px 0; padding:10px 15px;" onclick="sendRaChat()"><i class="ri-send-plane-fill"></i></button>
+        </div>
+        
+        <div style="padding:15px; background:#fff; text-align:center; border-top:1px solid #e2e8f0; display:flex; gap:10px; flex-direction:column;">
+            <button class="btn btn-danger" style="width:100%; justify-content:center; padding:12px;" onclick="cancelRemoteApproval()"><i class="ri-close-circle-line"></i> Abort Request</button>
+            
+            <!-- 🚨 ULTIMATE BUG FIX 3: Emergency Fallback -->
+            <button class="btn btn-warning" style="width:100%; justify-content:center; background:#fefce8; color:#b45309; border:1px solid #fde047;" onclick="emergencyLocalOverride()"><i class="ri-admin-fill"></i> Admin Offline? Emergency Override</button>
+        </div>
     </div>
 </div>
 
@@ -3772,6 +3932,9 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                 loadProfile(), loadCategories(), loadServiceCategories(), loadCatalog(), loadProducts(), loadServices(), loadEmpRoles() // 🛡️ Added loadEmpRoles
             ]);
 
+// 🚨 SYSTEM LOCK CHECK: Roster සකසා ඇත්දැයි බැලීම
+            await window.verifyCurrentMonthRoster();
+
             // ENTERPRISE FIX: Set Default View to POS on Initial Boot
             // අත්‍යවශ්‍ය දත්ත ආ සැණින් ලෝඩරය නවත්වා POS එක විවෘත කරයි
             if(!window.initialLoadDone) {
@@ -4085,7 +4248,13 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         
         // Load the Manager PIN. If not set previously, default to 0000
         document.getElementById('profManagerPin').value = p.managerPin || '0000';
-        document.getElementById('profExpenseLimit').value = p.expenseLimit || '5000'; // 👈 Load Limit
+        document.getElementById('profExpenseLimit').value = p.expenseLimit || '5000'; 
+        
+        // Load Auto Discount Rules
+        document.getElementById('profAutoDiscEnabled').checked = p.autoDiscEnabled === true;
+        document.getElementById('profAutoDiscThreshold').value = p.autoDiscThreshold || '';
+        document.getElementById('profAutoDiscType').value = p.autoDiscType || 'percent';
+        document.getElementById('profAutoDiscValue').value = p.autoDiscValue || '';
         document.getElementById('profLoyaltyEnabled').checked = p.loyaltyEnabled === true;
         document.getElementById('profLoyaltySpend').value = p.loyaltySpend || '1000';
         document.getElementById('profLoyaltyEarn').value = p.loyaltyEarn || '1';
@@ -4135,7 +4304,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 
     window.lockProfile = (lock) => {
         // 🛡️ ENTERPRISE FIX: Strict State Locking for all UI elements
-        document.querySelectorAll('#profFields input:not([type="checkbox"]), #profFields textarea, #profDefaultBillSize, #profLogoFont, #profExpenseLimit, #profLogoColor, #profLogoFile, #profScaleMode, #profScalePrefix, #profManagerPin, #profTaxName, #profTaxPercent, #profRefundPolicy, #profTermsThermal, #profLoyaltySpend, #profLoyaltyEarn, #profLoyaltyEnabled, #profLoyaltyCashOnly, #profTermsA4, #profTermsInvoice, #profTermsQuote').forEach(i => {
+        document.querySelectorAll('#profFields input:not([type="checkbox"]), #profFields textarea, #profDefaultBillSize, #profLogoFont, #profExpenseLimit, #profLogoColor, #profLogoFile, #profScaleMode, #profScalePrefix, #profManagerPin, #profTaxName, #profTaxPercent, #profRefundPolicy, #profTermsThermal, #profLoyaltySpend, #profLoyaltyEarn, #profLoyaltyEnabled, #profAutoDiscThreshold, #profAutoDiscType, #profAutoDiscValue, #profLoyaltyCashOnly, #profTermsA4, #profTermsInvoice, #profTermsQuote').forEach(i => {
             if (i) i.disabled = lock;
         });
         
@@ -4176,7 +4345,13 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             
             // Save the Manager PIN (Fallback to 0000 if left empty)
             managerPin: document.getElementById('profManagerPin').value.trim() || '0000',
-            expenseLimit: parseFloat(document.getElementById('profExpenseLimit').value) || 5000, // 👈 New Limit
+            expenseLimit: parseFloat(document.getElementById('profExpenseLimit').value) || 5000,
+            
+            // Save Auto Discount Rules
+            autoDiscEnabled: document.getElementById('profAutoDiscEnabled').checked,
+            autoDiscThreshold: parseFloat(document.getElementById('profAutoDiscThreshold').value) || 0,
+            autoDiscType: document.getElementById('profAutoDiscType').value,
+            autoDiscValue: parseFloat(document.getElementById('profAutoDiscValue').value) || 0,
             taxEnabled: document.getElementById('profTaxEnabled').checked,
             taxName: document.getElementById('profTaxName').value.trim() || 'TAX',
             taxPercent: parseFloat(document.getElementById('profTaxPercent').value) || 0,
@@ -4274,6 +4449,11 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 
         // --- UPDATED PART IS HERE ---
         if(viewName === 'orders') loadOrders();
+        if(viewName === 'taxreports') {
+            const tInput = document.getElementById('taxReportMonth');
+            if (!tInput.value) tInput.value = window.getSecureLocalDateStr().slice(0, 7);
+            generateTaxReport();
+        }
         if(viewName === 'alerts') renderAlertsTable();
         if(viewName === 'loyalty') loadLoyaltyUI();
         if(viewName === 'customers') loadCustomers(); 
@@ -4291,7 +4471,17 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         // 🛡️ ENTERPRISE FIX: Fleet Management
         if(viewName === 'fleet') loadFleetUI();
         if(viewName === 'eod') {
-            document.getElementById('eodDate').value = window.getSecureLocalDateStr();
+            // 🚨 ULTIMATE BUG FIX 2 (UI): Auto-fill Shift Times when entering EOD Tab
+            const today = window.getSecureLocalDateStr();
+            
+            // 1. Start Time = අද උදේ 08:00 ලෙස සකසයි
+            document.getElementById('eodStartDateTime').value = today + "T08:00";
+            
+            // 2. End Time = මේ දැන් පවතින වෙලාව ලෙස සකසයි (YYYY-MM-DDThh:mm format)
+            const now = window.getSecureTime();
+            const nowLocalStr = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
+            document.getElementById('eodEndDateTime').value = nowLocalStr;
+
             generateEOD();
         }
         if(viewName === 'documents') {
@@ -4938,12 +5128,37 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         renderProducts();
     }, 400);
 
+// 🚨 Loss Prevention Engine
+    window.checkLossWarning = () => {
+        const buy = parseFloat(document.getElementById('mpBuy').value) || 0;
+        const sell = parseFloat(document.getElementById('mpSell').value) || 0;
+        const discType = document.getElementById('mpAdminDiscType').value;
+        const discVal = parseFloat(document.getElementById('mpAdminDiscValue').value) || 0;
+        
+        const warningDiv = document.getElementById('stockLossWarning');
+        
+        if (sell <= 0) { warningDiv.style.display = 'none'; return; }
+
+        let finalPrice = sell;
+        if (discType === 'percent') finalPrice = sell - (sell * discVal / 100);
+        else if (discType === 'amount') finalPrice = sell - discVal;
+
+        if (finalPrice < buy) {
+            warningDiv.innerHTML = `⚠️ DANGER: Final Price (${formatMoney(finalPrice)}) is LOWER than Cost (${formatMoney(buy)})! You are losing ${formatMoney(buy - finalPrice)} per item.`;
+            warningDiv.style.display = 'block';
+        } else {
+            warningDiv.style.display = 'none';
+        }
+    };
+
     window.prepareAddStock = () => {
         document.getElementById('mpId').value = '';
         document.getElementById('prodModalTitle').textContent = 'Add Stock';
         
         document.getElementById('mpBuy').value = '';
         document.getElementById('mpSell').value = '';
+        document.getElementById('mpAdminDiscValue').value = ''; // Reset Discount
+        document.getElementById('stockLossWarning').style.display = 'none';
         document.getElementById('mpQty').value = '';
         document.getElementById('mpUnit').value = '';
         document.getElementById('mpName').value = '';
@@ -5002,6 +5217,10 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         
         document.getElementById('mpBuy').value = p.buy;
         document.getElementById('mpSell').value = p.sell;
+        document.getElementById('mpAdminDiscType').value = p.adminDiscType || 'percent';
+        document.getElementById('mpAdminDiscValue').value = p.adminDiscValue || '';
+        document.getElementById('stockLossWarning').style.display = 'none';
+        window.checkLossWarning(); // Trigger warning check on load
         document.getElementById('mpQty').value = p.qty;
         document.getElementById('mpUnit').value = p.unit || '';
         document.getElementById('mpName').value = p.name;
@@ -5048,6 +5267,9 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         const image = document.getElementById('mpImage').value;
         const categoryId = document.getElementById('mpCategory').value;
         const expiryDate = document.getElementById('mpExpiry').value; 
+        // Admin Discount
+        const adminDiscType = document.getElementById('mpAdminDiscType').value;
+        const adminDiscValue = parseFloat(document.getElementById('mpAdminDiscValue').value) || 0;
         
         let sku = "";
         let itemType = 'serialized'; // 🚀 Default fallback
@@ -5081,7 +5303,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         const supplierId = document.getElementById('mpSupplier') ? document.getElementById('mpSupplier').value : "";
 
         // 🚀 Pass itemType down to transaction
-        const stockData = { name, buy, sell, qty, unit, image, sku, categoryId, supplierId, expiryDate, itemType };
+        const stockData = { name, buy, sell, qty, unit, image, sku, categoryId, supplierId, expiryDate, itemType, adminDiscType, adminDiscValue };
 
         if (sell < buy) {
             document.getElementById('priceWarningMsg').innerHTML = `Loss: ${formatMoney(sell - buy)} per unit`;
@@ -5238,7 +5460,13 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             writeSystemLog("DELETE_STOCK", `Deleted stock batch for ${name} (Qty: ${p.qty})`);
             // Properly pass batchNumber and initialQty to the log
             await logInventory(name, 'DELETE', 'Batch Deleted manually', -p.qty, 0, p.batchNumber, p.qty);
-            await loadProducts(); // Added 'await' so UI waits until data is fetched
+            
+            // 🚨 BUG FIX 4.3: Force dashboard to recalculate actual stock value after Deletion!
+            window.cachedStockValue = undefined; 
+            window.cachedLowCount = undefined;
+            if(document.getElementById('view-dashboard').classList.contains('active')) updateDashboard();
+
+            await loadProducts(); 
             showToast("Batch deleted");
         } catch (error) {
             console.error(error);
@@ -6265,8 +6493,11 @@ window.onTransferProductSelect = () => {
         const con = document.getElementById('cartItems');
         let subtotal = 0;
         
+        let hasPromoItem = false;
+        let hasItemDiscount = false;
+        
         // UX FIX: දැනට ඇති Scroll ස්ථානය සටහන් කර ගැනීම
-        const currentScrollPos = con.scrollTop; 
+        const currentScrollPos = con.scrollTop;
         
         // 🚀 ENTERPRISE POS ITEM NOTES LOGIC (Elegant Modal)
         let noteIndexToUpdate = -1; // To remember which item we are editing
@@ -6294,6 +6525,9 @@ window.onTransferProductSelect = () => {
                 const priceInfo = window.getEffectivePrice(i);
                 i.effectiveSell = priceInfo.price; // Save for checkout
                 
+                if (priceInfo.isPromo) hasPromoItem = true;
+                if (priceInfo.hasAdminDisc) hasItemDiscount = true;
+                
                 // 🛡️ ENTERPRISE ACCOUNTING FIX: Strictly round each cart item
                 const itemTotalRounded = Math.round((i.effectiveSell * i.qty) * 100) / 100;
                 subtotal += itemTotalRounded;
@@ -6303,6 +6537,7 @@ window.onTransferProductSelect = () => {
                    <div style="font-weight:600; display:flex; align-items:center; gap:5px;">
                         ${String(i.name).replace(/</g, "&lt;").replace(/>/g, "&gt;")} 
                         ${priceInfo.isPromo ? `<span style="background:var(--danger); color:white; padding:1px 4px; border-radius:3px; font-size:8px;">PROMO</span>` : ''}
+                        ${priceInfo.hasAdminDisc ? `<span style="background:var(--primary); color:white; padding:1px 4px; border-radius:3px; font-size:8px;">DISCOUNTED</span>` : ''}
                    </div>
                    
                    <!-- POS Item Notes Indicator -->
@@ -6336,27 +6571,58 @@ window.onTransferProductSelect = () => {
             </div>`;
         }).join('');
 
-        // Calculations
-        let discountVal = parseFloat(document.getElementById('discountValue').value) || 0;
-        if(discountVal < 0) discountVal = 0; // Prevent negative inputs
+        // 🛡️ ENTERPRISE FIX: ZERO-TRUST AUTOMATED DISCOUNT (F12 Hack Proof)
+        let discountAmt = 0;
         
-        const discountType = document.getElementById('discountType').value;
+        // 🛡️ ENTERPRISE FIX: ZERO-TRUST AUTOMATED DISCOUNT (F12 Hack Proof)
+        let discountAmt = 0;
         
-        // Prevent typing more than 100%
-        if(discountType === 'percent' && discountVal > 100) discountVal = 100;
+        if (profileCache && profileCache.autoDiscEnabled) {
+            const thresh = parseFloat(profileCache.autoDiscThreshold) || 0;
+            const dVal = parseFloat(profileCache.autoDiscValue) || 0;
+            
+            // Check if cart subtotal meets the Admin's condition
+            if (subtotal >= thresh && thresh > 0 && dVal > 0) {
+                if (profileCache.autoDiscType === 'percent') {
+                    discountAmt = (subtotal * dVal) / 100;
+                } else {
+                    discountAmt = dVal;
+                }
+            }
+        }
         
-        let discountAmt = discountType === 'percent' ? (subtotal * discountVal / 100) : discountVal;
-        
-        // Final safety check: Discount cannot be more than Subtotal
-        if(discountAmt > subtotal) discountAmt = subtotal;
+        // Failsafe
+        if (discountAmt > subtotal) discountAmt = subtotal;
+
+        // 🛡️ UPDATE DYNAMIC UI STATUS BOX
+        const statusBox = document.getElementById('posDiscountStatusBox');
+        if (discountAmt > 0) {
+            // Priority 1: Auto Bill Discount takes precedence in the main box
+            statusBox.innerHTML = `<span style="color:#15803d;"><i class="ri-magic-line"></i> Auto Bill Discount: -${formatMoney(discountAmt)}</span>`;
+            statusBox.style.background = '#f0fdf4'; // Light Green
+            statusBox.style.borderColor = '#22c55e';
+        } else if (hasPromoItem || hasItemDiscount) {
+            // Priority 2: Individual Promos or Batch Discounts applied
+            let text = hasPromoItem ? "Promotions Applied!" : "Batch Discounts Applied!";
+            statusBox.innerHTML = `<span style="color:#b45309;"><i class="ri-discount-percent-fill"></i> ${text}</span>`;
+            statusBox.style.background = '#fffbeb'; // Light Yellow/Orange
+            statusBox.style.borderColor = '#fde047';
+        } else {
+            // Default: No Discounts
+            statusBox.innerHTML = `<span style="color:#6b7280;"><i class="ri-forbid-line"></i> No Discounts Applicable</span>`;
+            statusBox.style.background = '#f9fafb'; // Grey
+            statusBox.style.borderColor = '#d1d5db';
+        }
 
         let feesTotal = currentOtherFees.reduce((sum, f) => sum + f.amount, 0);
         
-        // 🛡️ ENTERPRISE FIX: Calculate taxAmt inside renderCart before using it!
+        // 🛡️ ENTERPRISE MATH FIX: Tax Base must include Other Fees!
         let taxAmt = 0;
+        let taxPercentSaved = 0;
         if (profileCache && profileCache.taxEnabled) {
-            const tPerc = parseFloat(profileCache.taxPercent) || 0;
-            taxAmt = Math.round(((subtotal - discountAmt) * (tPerc / 100)) * 100) / 100;
+            taxPercentSaved = parseFloat(profileCache.taxPercent) || 0;
+            const taxableBase = subtotal - discountAmt + feesTotal; // 👈 Fees එකතු කර ඇත
+            taxAmt = Math.round((taxableBase * (taxPercentSaved / 100)) * 100) / 100;
         }
 
         // 🛡️ Add taxAmt to the Final Total
@@ -6494,34 +6760,41 @@ window.checkout = async () => {
             return showToast("Discount cannot be a negative value!", "error");
         }
         
-        const discountVal = discountValRaw;
         // 🛡️ ENTERPRISE ACCOUNTING FIX: Sum rounded values only
         let subtotal = cart.reduce((a,b) => a + Math.round((b.sell * b.qty) * 100) / 100, 0);
-        let discountAmt = discountType === 'percent' ? (subtotal * discountVal / 100) : discountVal;
-        if(discountAmt > subtotal) discountAmt = subtotal;
+        
+        // 🛡️ ZERO-TRUST AUTOMATED DISCOUNT (DB RULE)
+        let discountAmt = 0;
+        let discountType = 'none';
+        let discountVal = 0;
 
-        // 🛡️ ENTERPRISE FRAUD PROTECTION & MANAGER OVERRIDE
-        if (userRole === 'cashier' && discountAmt > (subtotal * 0.10)) {
-            const adminPin = prompt("⚠️ Discount exceeds 10%!\nCashier Limit Reached. Please ask the Manager to enter their Override PIN:");
+        if (profileCache && profileCache.autoDiscEnabled) {
+            const thresh = parseFloat(profileCache.autoDiscThreshold) || 0;
+            const dVal = parseFloat(profileCache.autoDiscValue) || 0;
             
-            // Database එකෙන් Load වූ Profile එකෙහි ඇති සැබෑ Manager PIN එක ලබා ගැනීම (නැතිනම් 0000 ලෙස ගනී)
-            const requiredPin = (profileCache && profileCache.managerPin) ? profileCache.managerPin : "0000";
-            
-            if (adminPin !== requiredPin) { 
-                if(window.writeSystemLog) writeSystemLog("SECURITY_BREACH_ATTEMPT", `CRITICAL: Cashier attempted to bypass discount limit but entered an INVALID Manager PIN! (Tried to discount ${formatMoney(discountAmt)})`);
-                return showToast("Authorization Denied! Invalid Manager PIN.", "error");
+            if (subtotal >= thresh && thresh > 0 && dVal > 0) {
+                discountType = profileCache.autoDiscType;
+                discountVal = dVal;
+                
+                if (discountType === 'percent') {
+                    discountAmt = (subtotal * dVal) / 100;
+                } else {
+                    discountAmt = dVal;
+                }
             }
-            if(window.writeSystemLog) writeSystemLog("MANAGER_OVERRIDE", `Approved ${(discountAmt/subtotal*100).toFixed(1)}% discount for Cart Value ${formatMoney(subtotal)}`);
         }
+        if(discountAmt > subtotal) discountAmt = subtotal;
 
         const roundToTwo = (num) => Math.round(num * 100) / 100;
         let feesTotal = currentOtherFees.reduce((sum, f) => sum + f.amount, 0);
         
-        // 🛡️ ENTERPRISE FIX: Dynamic POS Tax Calculation
+        // 🛡️ ENTERPRISE MATH FIX: Tax Base must include Other Fees!
         let taxAmt = 0;
+        let taxPercentSaved = 0;
         if (profileCache && profileCache.taxEnabled) {
-            const tPerc = parseFloat(profileCache.taxPercent) || 0;
-            taxAmt = Math.round(((subtotal - discountAmt) * (tPerc / 100)) * 100) / 100;
+            taxPercentSaved = parseFloat(profileCache.taxPercent) || 0;
+            const taxableBase = subtotal - discountAmt + feesTotal; // 👈 Fees එකතු කර ඇත
+            taxAmt = Math.round((taxableBase * (taxPercentSaved / 100)) * 100) / 100;
         }
         
         let total = roundToTwo(subtotal - discountAmt + feesTotal + taxAmt);
@@ -6573,17 +6846,39 @@ window.checkout = async () => {
     // ==========================================
     window.verifyWalletAndCheckout = () => {
         // අපි Checkout එකට යන්න කලින් දළ වශයෙන් ගණනය කර බලනවා Customer ගේ සල්ලි පාවිච්චි වෙනවද කියලා.
-        const discountValRaw = parseFloat(document.getElementById('discountValue').value) || 0;
-        const discountType = document.getElementById('discountType').value;
+        // 🛡️ ENTERPRISE ACCOUNTING FIX: Sum rounded values only
         let subtotal = cart.reduce((a,b) => a + Math.round((b.sell * b.qty) * 100) / 100, 0);
-        let discountAmt = discountType === 'percent' ? (subtotal * discountValRaw / 100) : discountValRaw;
+        
+        // 🛡️ ZERO-TRUST AUTOMATED DISCOUNT (DB RULE)
+        let discountAmt = 0;
+        let discountType = 'none';
+        let discountVal = 0;
+
+        if (profileCache && profileCache.autoDiscEnabled) {
+            const thresh = parseFloat(profileCache.autoDiscThreshold) || 0;
+            const dVal = parseFloat(profileCache.autoDiscValue) || 0;
+            
+            if (subtotal >= thresh && thresh > 0 && dVal > 0) {
+                discountType = profileCache.autoDiscType;
+                discountVal = dVal;
+                
+                if (discountType === 'percent') {
+                    discountAmt = (subtotal * dVal) / 100;
+                } else {
+                    discountAmt = dVal;
+                }
+            }
+        }
         if(discountAmt > subtotal) discountAmt = subtotal;
         
         let feesTotal = currentOtherFees.reduce((sum, f) => sum + f.amount, 0);
+        // 🛡️ ENTERPRISE MATH FIX: Tax Base must include Other Fees!
         let taxAmt = 0;
+        let taxPercentSaved = 0;
         if (profileCache && profileCache.taxEnabled) {
-            const tPerc = parseFloat(profileCache.taxPercent) || 0;
-            taxAmt = Math.round(((subtotal - discountAmt) * (tPerc / 100)) * 100) / 100;
+            taxPercentSaved = parseFloat(profileCache.taxPercent) || 0;
+            const taxableBase = subtotal - discountAmt + feesTotal; // 👈 Fees එකතු කර ඇත
+            taxAmt = Math.round((taxableBase * (taxPercentSaved / 100)) * 100) / 100;
         }
         
         // 🛡️ LOYALTY REDEMPTION VALIDATION
@@ -6646,20 +6941,21 @@ window.checkout = async () => {
         }
     };
 
-    window.requestManagerOverride = () => {
-        const adminPin = prompt("Manager Override Required!\n\nPlease enter the Manager PIN:");
-        if (adminPin === null) return; 
+    window.requestManagerOverride = async () => {
+        const isApproved = await requestRemoteApproval(
+            "WALLET_PIN", 
+            "Bypass Customer Wallet PIN", 
+            { 
+                "Customer Phone": window.pendingWalletVerification.customer.id,
+                "Amount to Redeem": formatMoney(window.pendingWalletVerification.amount),
+                "Reason": "Customer forgot PIN. Need override."
+            }
+        );
         
-        const requiredPin = (profileCache && profileCache.managerPin) ? profileCache.managerPin : "0000";
-        
-        if (adminPin === requiredPin) {
+        if (isApproved) {
             document.getElementById('walletPinModal').style.display = 'none';
-            if(window.writeSystemLog) writeSystemLog("MANAGER_OVERRIDE", `Manager authorized Store Credit redemption of ${formatMoney(window.pendingWalletVerification.amount)} for customer ${window.pendingWalletVerification.customer.id} (Customer forgot PIN).`);
-            showToast("Manager Override Successful!", "success");
-            finalizeCheckout(); // 🚀 Override Verified! Proceed to save!
-        } else {
-            if(window.writeSystemLog) writeSystemLog("SECURITY_BREACH_ATTEMPT", `Failed Manager Override attempt for Store Credit redemption!`);
-            showToast("Invalid Manager PIN! Access Denied.", "error");
+            if(window.writeSystemLog) writeSystemLog("MANAGER_OVERRIDE", `Manager remotely authorized Store Credit redemption.`);
+            finalizeCheckout(); // 🚀 Proceed!
         }
     };
 
@@ -6712,26 +7008,54 @@ window.checkout = async () => {
         const finalCustName = custName || "Walk-in Customer";
         const finalCustPhone = custPhone || "N/A";
 
-        const discountType = document.getElementById('discountType').value;
-        const discountVal = parseFloat(document.getElementById('discountValue').value) || 0;
         // 🛡️ ENTERPRISE ACCOUNTING FIX: Sum rounded values only
         let subtotal = cart.reduce((a,b) => a + Math.round((b.sell * b.qty) * 100) / 100, 0);
-        let discountAmt = discountType === 'percent' ? (subtotal * discountVal / 100) : discountVal;
+        
+        // 🛡️ ZERO-TRUST AUTOMATED DISCOUNT (DB RULE)
+        let discountAmt = 0;
+        let discountType = 'none';
+        let discountVal = 0;
+
+        if (profileCache && profileCache.autoDiscEnabled) {
+            const thresh = parseFloat(profileCache.autoDiscThreshold) || 0;
+            const dVal = parseFloat(profileCache.autoDiscValue) || 0;
+            
+            if (subtotal >= thresh && thresh > 0 && dVal > 0) {
+                discountType = profileCache.autoDiscType;
+                discountVal = dVal;
+                
+                if (discountType === 'percent') {
+                    discountAmt = (subtotal * dVal) / 100;
+                } else {
+                    discountAmt = dVal;
+                }
+            }
+        }
         if(discountAmt > subtotal) discountAmt = subtotal;
 
         const roundToTwo = (num) => Math.round(num * 100) / 100;
         let feesTotal = currentOtherFees.reduce((sum, f) => sum + f.amount, 0);
         
-        // 🛡️ ENTERPRISE FIX: Dynamic POS Tax Calculation
+        // 🛡️ ENTERPRISE MATH FIX: Tax Base must include Other Fees!
         let taxAmt = 0;
+        let taxPercentSaved = 0;
         if (profileCache && profileCache.taxEnabled) {
-            const tPerc = parseFloat(profileCache.taxPercent) || 0;
-            taxAmt = Math.round(((subtotal - discountAmt) * (tPerc / 100)) * 100) / 100;
+            taxPercentSaved = parseFloat(profileCache.taxPercent) || 0;
+            const taxableBase = subtotal - discountAmt + feesTotal; // 👈 Fees එකතු කර ඇත
+            taxAmt = Math.round((taxableBase * (taxPercentSaved / 100)) * 100) / 100;
         }
         
         let loyaltyRedeemed = window.pendingLoyaltyRedeemed || 0;
-        let total = roundToTwo(subtotal - discountAmt + feesTotal + taxAmt - loyaltyRedeemed);
-        if (total < 0) total = 0;
+        
+        // 🛡️ ENTERPRISE BUG FIX: Loyalty Blackhole Prevention!
+        const totalBeforeLoyalty = roundToTwo(subtotal - discountAmt + feesTotal + taxAmt);
+        if (loyaltyRedeemed > totalBeforeLoyalty) {
+            loyaltyRedeemed = totalBeforeLoyalty; // බිලේ ගාණට වඩා Points කැපීමට නොදෙයි!
+            window.pendingLoyaltyRedeemed = loyaltyRedeemed; // Update the global state
+        }
+        
+        let total = roundToTwo(totalBeforeLoyalty - loyaltyRedeemed);
+        if (total < 0) total = 0; // Fallback failsafe
 
         // 🛡️ LOYALTY EARNING CALCULATION
         let loyaltyEarned = 0;
@@ -6746,11 +7070,19 @@ window.checkout = async () => {
             }
         }
 
+        // 🛡️ ENTERPRISE FIX: Calculate Store Credit (Wallet) usage BEFORE earning points!
+        let walletToUse = 0;
+        if (window.currentCustomerWallet && window.currentCustomerWallet > 0) {
+            walletToUse = Math.min(total, window.currentCustomerWallet);
+        }
+        const finalPayableTotalForLoyalty = roundToTwo(total - walletToUse); // මේක තමයි අතින් දෙන සැබෑ මුදල!
+
         if (profileCache && profileCache.loyaltyEnabled && finalCustPhone !== "N/A" && isEligibleForPoints) {
             const spendThresh = parseFloat(profileCache.loyaltySpend) || 1000;
             const earnRate = parseFloat(profileCache.loyaltyEarn) || 1;
             if (spendThresh > 0) {
-                expectedLoyalty = Math.floor(total / spendThresh) * earnRate;
+                // 🚨 BUG FIX: Only award points for the ACTUAL NEW MONEY paid, excluding Store Credit usage!
+                expectedLoyalty = Math.floor(finalPayableTotalForLoyalty / spendThresh) * earnRate;
                 loyaltyEarned = expectedLoyalty; 
             }
         }
@@ -6829,7 +7161,9 @@ window.checkout = async () => {
             discountValue: roundToTwo(discountVal), 
             discountAmt: roundToTwo(discountAmt), 
             fees: currentOtherFees, 
-            feesTotal: roundToTwo(feesTotal), 
+            feesTotal: roundToTwo(feesTotal),
+            taxPercent: taxPercentSaved,
+            taxAmt: roundToTwo(taxAmt), 
             total: roundToTwo(total),
             paymentMethod: finalPaymentMethod, 
             cashGiven: roundToTwo(cashGiven), 
@@ -6874,8 +7208,17 @@ window.checkout = async () => {
                     }
                     
                     // 🛡️ ENTERPRISE ZERO-TRUST SECURITY & TEMPORAL VALIDATION
-                    // Re-verify Live Promo Price. If promo expired 1 second ago, this blocks the sale!
                     const livePriceInfo = window.getEffectivePrice(pData);
+                    
+                    // 🚨 CRITICAL FIX A: Prevent "Double-Dipping Below Cost"
+                    // Check if Cart Discount brings this specific item below its Cost (Buy Price)
+                    const cartDiscountRatio = subtotal > 0 ? (discountAmt / subtotal) : 0;
+                    const netFinalItemPrice = livePriceInfo.price - (livePriceInfo.price * cartDiscountRatio);
+                    
+                    if (netFinalItemPrice < pData.buy) {
+                        if(window.writeSystemLog) writeSystemLog("BELOW_COST_FRAUD_PREVENTED", `Blocked checkout. Cart discount pushed ${item.name} below cost! Cost: ${pData.buy}, Net Sell: ${netFinalItemPrice.toFixed(2)}`);
+                        throw new Error(`Loss Alert: Applying this Cart Discount makes '${item.name}' sell below cost! (Cost: ${formatMoney(pData.buy)} | Net Sell: ${formatMoney(netFinalItemPrice)})`);
+                    }
                     if (Math.abs(livePriceInfo.price - item.effectiveSell) > 0.01) {
                         if(window.writeSystemLog) writeSystemLog("TIME_SHIFT_FRAUD_PREVENTED", `CRITICAL: Blocked checkout. Promo expired while items were in cart for ${item.name}!`);
                         throw new Error(`SECURITY ALERT: Price mismatch or Promo EXPIRED for '${item.name}'! Live Price: ${formatMoney(livePriceInfo.price)}, Cart: ${formatMoney(item.effectiveSell)}`);
@@ -7383,6 +7726,11 @@ window.checkout = async () => {
         // 🚀 ENTERPRISE DOCUMENT DATA EXTRACTOR
         const optionsData = [];
         let validationError = null; // 🛡️ ENTERPRISE SECURITY: Exploit prevention flag
+        let requiresManagerOverride = false;
+        let highestDiscountAttempted = 0;
+
+        // F12 Hack Proof: Database එකෙන්ම සීමාව ගනී
+        const maxAllowedDiscount = (profileCache && profileCache.maxDiscountLimit !== undefined) ? parseFloat(profileCache.maxDiscountLimit) : 10;
 
         document.querySelectorAll('.doc-option-block').forEach(block => {
             const optTitle = block.querySelector('.opt-title').value.trim();
@@ -7395,24 +7743,37 @@ window.checkout = async () => {
                 const name = tr.querySelector('.item-name').value.trim();
                 const uPrice = parseFloat(tr.querySelector('.item-uprice').value) || 0;
                 
-                // Allow empty discounted price safely
                 const dPriceStr = tr.querySelector('.item-dprice').value;
-                const dPrice = dPriceStr !== '' ? parseFloat(dPriceStr) : 0; 
+                const dPrice = dPriceStr !== '' ? parseFloat(dPriceStr) : uPrice; 
                 
                 const qty = parseFloat(tr.querySelector('.item-qty').value) || 0;
                 
                 if (name) {
-                    // 🛡️ SECURITY FIX: Block Negative Injection Exploits!
                     if (uPrice < 0 || dPrice < 0) {
                         validationError = `SECURITY ALERT: Unit prices for '${name}' cannot be negative!`;
-                        return; // Halt inner loop
+                        return; 
                     }
                     if (qty <= 0) {
                         validationError = `Invalid Quantity: Quantity for '${name}' must be greater than zero!`;
-                        return; // Halt inner loop
+                        return; 
                     }
 
-                    const activePrice = dPrice > 0 ? dPrice : uPrice;
+                    // 🛡️ ENTERPRISE DISCOUNT & PROMO VALIDATION
+                    // වට්ටම් ප්‍රතිශතය ගණනය කිරීම (Unit Price එකට සාපේක්ෂව)
+                    let itemDiscountPerc = 0;
+                    if (uPrice > 0) {
+                        itemDiscountPerc = ((uPrice - dPrice) / uPrice) * 100;
+                    } else if (uPrice === 0 && dPrice === 0) {
+                        // Base price එකම 0 නම්, එය 100% Free Item එකකි!
+                        itemDiscountPerc = 100;
+                    }
+
+                    if (itemDiscountPerc > maxAllowedDiscount) {
+                        requiresManagerOverride = true;
+                        if (itemDiscountPerc > highestDiscountAttempted) highestDiscountAttempted = itemDiscountPerc;
+                    }
+
+                    const activePrice = dPrice; // The cashier's exact typed price is honored (if authorized)
                     const lineTot = Math.round((qty * activePrice) * 100) / 100;
                     
                     optItems.push({ brand, name, uPrice, dPrice, qty, total: lineTot });
@@ -7422,7 +7783,25 @@ window.checkout = async () => {
             if(optItems.length > 0) optionsData.push({ title: optTitle, description: optDesc, items: optItems, total: optTotal });
         });
 
-        if (validationError) return showToast(validationError, "error"); // ⛔ Stop execution if exploited
+        if (validationError) return showToast(validationError, "error");
+
+        // 🛡️ ENTERPRISE FRAUD PROTECTION: LIVE REMOTE APPROVAL
+        if (userRole === 'cashier' && requiresManagerOverride) {
+            const isApproved = await requestRemoteApproval(
+                "DISCOUNT", 
+                "Document Builder High Discount", 
+                { 
+                    "Attempted Discount": highestDiscountAttempted.toFixed(1) + "%", 
+                    "Allowed Limit": maxAllowedDiscount + "%",
+                    "Bill Subtotal": formatMoney(subtotal)
+                }
+            );
+            if (!isApproved) {
+                if(window.writeSystemLog) writeSystemLog("SECURITY_BREACH_ATTEMPT", `Cashier remote discount request denied by Manager.`);
+                return; // Stop saving document!
+            }
+            if(window.writeSystemLog) writeSystemLog("MANAGER_OVERRIDE", `Manager remotely approved a ${highestDiscountAttempted.toFixed(1)}% discount override.`);
+        }
 
         const extrasData = [];
         document.querySelectorAll('.extra-charge-row').forEach(row => {
@@ -7445,8 +7824,14 @@ window.checkout = async () => {
         if(optionsData.length === 0) return showToast("Please add at least one Option block with valid items", "error");
 
         const subtotal = parseFloat(document.getElementById('docSubtotal').textContent.replace(/,/g, ''));
-        const discount = parseFloat(document.getElementById('docDiscount').value) || 0;
-        const tax = parseFloat(document.getElementById('docTax').value) || 0;
+        const discountVal = parseFloat(document.getElementById('docDiscount').value) || 0;
+        const discount = discountVal > subtotal ? subtotal : discountVal; // Failsafe
+        
+        // 🚨 BUG FIX: Calculate ACTUAL Tax Amount, not just the percentage
+        const taxPercent = parseFloat(document.getElementById('docTax').value) || 0;
+        const taxableAmount = Math.max(0, subtotal - discount);
+        const taxAmt = Math.round((taxableAmount * (taxPercent / 100)) * 100) / 100;
+        
         const total = parseFloat(document.getElementById('docTotal').textContent.replace(/[^0-9.-]+/g,"")); 
 
         // 🛡️ FINAL FAILSAFE: Grand Total cannot be negative
@@ -7461,7 +7846,7 @@ window.checkout = async () => {
             options: optionsData,      
             extras: extrasData,        
             items: [],                 
-            subtotal, discount, tax, total,
+            subtotal, discount, tax: taxAmt, taxPercent: taxPercent, total,
             createdAt: window.getSecureTime().toISOString(),
             linkedQuoteId: convertedQuoteId // 🛡️ ENTERPRISE FIX: Link back to quote
         };
@@ -8037,8 +8422,11 @@ window.autoFillDocCustomer = (name) => {
                 styles: { lineColor: [200, 200, 200], lineWidth: 0.1, cellPadding: 4 }, margin: { left: margin, right: margin }
             });
             currentY = doc.lastAutoTable.finalY + 5;
-            
-            // POS TOTALS BLOCK
+        }
+
+        // 🚨 BUG FIX: GRAND TOTALS BLOCK (Now applies to BOTH POS A4 and Document Builder A4!)
+        // මුලින් මේ කොටස තිබුණේ POS එකට විතරයි. දැන් Invoice/Quote දෙකටමත් මේක මුද්‍රණය වෙනවා.
+        if (docData.subtotal !== undefined) {
             const totalBoxWidth = 85;
             const totalBoxX = pageWidth - margin - totalBoxWidth;
             
@@ -8054,6 +8442,13 @@ window.autoFillDocCustomer = (name) => {
             
             // 🛡️ ENTERPRISE FIX: Loyalty Discount Line for A4 Bills
             if(docData.loyaltyRedeemed > 0) drawTotalLine("LOYALTY DISCOUNT", "-" + formatMoney(docData.loyaltyRedeemed)); 
+            
+            // 🚨 BUG FIX: Print TAX / VAT dynamically based on Admin Profile!
+            if(docData.tax > 0) {
+                const taxNameStr = shop.taxName || 'TAX';
+                const taxPercStr = docData.taxPercent ? `(${docData.taxPercent}%)` : '';
+                drawTotalLine(`${taxNameStr} ${taxPercStr}`, "+" + formatMoney(docData.tax));
+            }
             
             if(docData.fees && docData.fees.length > 0) docData.fees.forEach(f => drawTotalLine(f.name, "+" + formatMoney(f.amount)));
             
@@ -8076,7 +8471,7 @@ window.autoFillDocCustomer = (name) => {
                     drawTotalLine("BALANCE", formatMoney(docData.balance || 0), true);
                 }
             }
-        }
+        
 
         // --- TERMS & CONDITIONS ---
         currentY += 10;
@@ -8206,11 +8601,14 @@ window.autoFillDocCustomer = (name) => {
                     <div class="divider"></div>
                     <table><tbody>${itemsHtml}</tbody></table>
                     <table style="margin-top: 10px;">
-                        <tr><td style="text-align: left; padding: 2px 0;">Sub Total</td><td style="text-align: right; padding: 2px 0;">${formatMoney(docData.subtotal)}</td></tr>
-                        ${docData.discount > 0 ? `<tr><td style="text-align: left; padding: 2px 0;">Discount</td><td style="text-align: right; padding: 2px 0;">-${formatMoney(docData.discount)}</td></tr>` : ''}
+                        <tr><td style="text-align: left; padding: 2px 0;">Sub Total</td><td style="text-align: right; padding: 2px 0;">${formatMoney(order.subtotal)}</td></tr>
+                        ${order.discountAmt > 0 ? `<tr><td style="text-align: left; padding: 2px 0;">Discount</td><td style="text-align: right; padding: 2px 0;">-${formatMoney(order.discountAmt)}</td></tr>` : ''}
                         
                         <!-- 🛡️ ENTERPRISE FIX: Loyalty Discount Line for Thermal Bills -->
-                        ${docData.loyaltyRedeemed > 0 ? `<tr><td style="text-align: left; padding: 2px 0; color:#9333ea; font-weight:bold;">Loyalty Discount</td><td style="text-align: right; padding: 2px 0; color:#9333ea; font-weight:bold;">-${formatMoney(docData.loyaltyRedeemed)}</td></tr>` : ''}
+                        ${order.loyaltyRedeemed > 0 ? `<tr><td style="text-align: left; padding: 2px 0; color:#9333ea; font-weight:bold;">Loyalty Discount</td><td style="text-align: right; padding: 2px 0; color:#9333ea; font-weight:bold;">-${formatMoney(order.loyaltyRedeemed)}</td></tr>` : ''}
+                        
+                        <!-- 🚨 BUG FIX: Print TAX / VAT dynamically on Thermal Bills -->
+                        ${order.taxAmt > 0 ? `<tr><td style="text-align: left; padding: 2px 0;">${shop.taxName || 'TAX'} (${order.taxPercent || 0}%)</td><td style="text-align: right; padding: 2px 0;">+${formatMoney(order.taxAmt)}</td></tr>` : ''}
                         
                         ${feesHtml}
                         <tr>
@@ -8351,13 +8749,28 @@ window.autoFillDocCustomer = (name) => {
         // If the whole bill had a 10% discount, the refund value of an item MUST be 10% less!
         let effectivePrice = item.sell;
         try {
-            // Retrieve the full order object from cache to find the total discount
             const parentOrder = salesCache.find(s => s.customOrderId === orderId) || salesCache.find(s => s.id === orderId);
-            if (parentOrder && parentOrder.discountAmt > 0 && parentOrder.subtotal > 0) {
-                const discountRatio = parentOrder.discountAmt / parentOrder.subtotal;
-                effectivePrice = item.sell - (item.sell * discountRatio);
+            
+            if (parentOrder && parentOrder.subtotal > 0) {
+                // 1. Deduct Pro-rata Discounts & Loyalty
+                const totalDiscountsInBill = (parentOrder.discountAmt || 0) + (parentOrder.loyaltyRedeemed || 0);
+                if (totalDiscountsInBill > 0) {
+                    const discountRatio = totalDiscountsInBill / parentOrder.subtotal;
+                    effectivePrice = item.sell - (item.sell * discountRatio);
+                }
+
+                // 2. 🚨 CRITICAL MATH FIX: ADD BACK PRO-RATA TAX!
+                // If the original bill had tax, the customer must get their tax refunded too!
+                if (parentOrder.taxPercent > 0) {
+                    const taxToAdd = effectivePrice * (parentOrder.taxPercent / 100);
+                    effectivePrice += taxToAdd;
+                }
+
                 effectivePrice = Math.round(effectivePrice * 100) / 100;
-                showToast(`System Applied Pro-rata Discount: Item price reduced by ${(discountRatio*100).toFixed(1)}% to match original bill discount.`, "info");
+                
+                if (totalDiscountsInBill > 0 || parentOrder.taxPercent > 0) {
+                    showToast(`System Math Applied: Item refund value adjusted for original Discounts, Loyalty, and ${parentOrder.taxPercent || 0}% Tax.`, "info");
+                }
             }
         } catch(e) { console.error("Pro-rata calc error", e); }
 
@@ -8399,6 +8812,23 @@ window.autoFillDocCustomer = (name) => {
 
     window.submitStrictRefund = async () => {
         if (window.isRefundingProcessing) return; 
+        
+        // 🚨 ZERO-TRUST ENTERPRISE FIX: REMOTE REFUND APPROVAL
+        if (userRole === 'cashier') {
+            const isApproved = await requestRemoteApproval(
+                "REFUND", 
+                "Process Cash Refund", 
+                { 
+                    "Order Ref": document.getElementById('ctxRefundOrderId').value,
+                    "Item Name": document.getElementById('ctxRefundItemName').value,
+                    "Refund Value": formatMoney(parseFloat(document.getElementById('refundPriceDisplay').value))
+                }
+            );
+            if (!isApproved) return; // Stop refund!
+            
+            if(window.writeSystemLog) writeSystemLog("MANAGER_OVERRIDE", `Manager remotely authorized a Refund process.`);
+        }
+
         window.isRefundingProcessing = true;
         
         const orderId = document.getElementById('ctxRefundOrderId').value;
@@ -8414,7 +8844,7 @@ window.autoFillDocCustomer = (name) => {
         const restock = document.getElementById('refundRestockCheck').checked;
 
         const returnSerialElement = document.getElementById('refundSerialScan');
-        const returnSerial = returnSerialElement ? returnSerialElement.value.trim() : "";
+        const serialsRaw = returnSerialElement ? returnSerialElement.value.trim() : "";
 
         // Validations
         if(isNaN(price) || price < 0) { window.isRefundingProcessing = false; return showToast("Invalid Refund Price", "error"); }
@@ -8432,16 +8862,44 @@ window.autoFillDocCustomer = (name) => {
         // 🚀 ENTERPRISE FIX: Fetch original product to check its type
         const origProd = productsCache.find(p => p.name === prodName) || catalogCache.find(c => c.name === prodName) || {};
         const isSerialized = origProd.itemType === 'serialized';
-
-        if(restock && !isServiceItem && isSerialized && !returnSerial) {
-            window.isRefundingProcessing = false;
-            return showToast("This is a Serialized item! You must scan the returned item's sticker to restock it.", "error");
+        
+        let serialsToReturn = [];
+        
+        if(restock && !isServiceItem && isSerialized) {
+            if (!Number.isInteger(qty)) {
+                window.isRefundingProcessing = false;
+                return showToast("Serialized items cannot be refunded in decimals!", "error");
+            }
+            if (!serialsRaw) {
+                window.isRefundingProcessing = false;
+                return showToast("This is a Serialized item! You must scan the returned item's sticker to restock it.", "error");
+            }
+            
+            // 🚨 ULTIMATE BUG FIX 2: Validate exact number of serials
+            serialsToReturn = serialsRaw.split(',').map(s => s.trim()).filter(s => s !== "");
+            if(serialsToReturn.length !== qty) {
+                window.isRefundingProcessing = false;
+                return showToast(`You are refunding ${qty} items, but scanned ${serialsToReturn.length} serials! Must match exactly.`, "error");
+            }
         }
 
         const refundTotal = Math.round((qty * price) * 100) / 100;
         toggleLoader(true);
 
         try {
+            // 🚨 ULTIMATE BUG FIX 1: Prevent "Cheque + Refund" Fraud Collision!
+            // මෙම බිලට අදාළව මාරු නොවූ (PENDING) චෙක්පතක් ඇත්නම් Refund කිරීම සම්පූර්ණයෙන්ම තහනම් කරයි!
+            const qPendingCheque = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/cheques`),
+                where("linkedOrders", "array-contains", orderId),
+                where("status", "==", "PENDING")
+            );
+            const snapPendingCheque = await getDocs(qPendingCheque);
+            if (!snapPendingCheque.empty) {
+                window.isRefundingProcessing = false;
+                toggleLoader(false);
+                return showToast("SECURITY ALERT: Cannot process refund! A Cheque payment for this order is currently PENDING clearance in the bank.", "error");
+            }
+
             // ENTERPRISE FIX: Run all external queries before the transaction
             const qSale = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`), where("customOrderId", "==", orderId));
             const snapSale = await getDocs(qSale);
@@ -8466,15 +8924,41 @@ window.autoFillDocCustomer = (name) => {
             await runTransaction(db, async (transaction) => {
                 let cashOutToCustomer = refundTotal; 
                 let newCreditBal = 0;
+                let taxReversedAmt = 0; // 🛡️ NEW: Track Tax Reversal
 
                 // 1. Read Sale & Update Credit (Original Logic)
                 if(saleRef) {
                     const sDoc = await transaction.get(saleRef);
+                    
+                    // 🚨 CRITICAL MATH FIX: Calculate exact Tax Reversed for this item!
+                    if (sDoc.exists() && sDoc.data().taxPercent > 0) {
+                        const taxPerc = sDoc.data().taxPercent;
+                        // price (Refund Price) currently includes Tax from our previous fix.
+                        // We must extract the tax portion from it: Tax = Price - (Price / (1 + Tax%))
+                        const netPriceWithoutTax = price / (1 + (taxPerc / 100));
+                        const exactTaxPerItem = price - netPriceWithoutTax;
+                        taxReversedAmt = Math.round((exactTaxPerItem * qty) * 100) / 100;
+                    }
+                    
+                    // --- 1. පරණ කේතය (ණය කපා දැමීම - මෙය මැකිය යුතු නැත) ---
                     if(sDoc.exists() && sDoc.data().creditBalance > 0) {
                         const cancelledDebt = Math.min(sDoc.data().creditBalance, refundTotal);
                         cashOutToCustomer = refundTotal - cancelledDebt;
                         newCreditBal = sDoc.data().creditBalance - cancelledDebt;
                         transaction.update(saleRef, { creditBalance: newCreditBal });
+                    }
+
+                    // --- 2. අලුත් කේතය (ලෝයල්ටි ලකුණු ආපසු ගැනීම) ---
+                    if (sDoc.exists() && sDoc.data().loyaltyEarned > 0 && sDoc.data().subtotal > 0 && sDoc.data().customer && sDoc.data().customer.phone) {
+                        const originalOrder = sDoc.data();
+                        // පාරිභෝගිකයා එදා මුළු බිලෙන් ගත්තු ලකුණු වලින්, මේ Refund කරන බඩුවට අදාළ ලකුණු ගාණ අනුපාතයකින් හොයාගැනීම
+                        const pointsToReverse = Math.floor((refundTotal / originalOrder.subtotal) * originalOrder.loyaltyEarned);
+                        
+                        if (pointsToReverse > 0 && originalOrder.customer.phone !== "N/A") {
+                            const cRefForPoints = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/customers`, originalOrder.customer.phone);
+                            // පාරිභෝගිකයාගේ ගිණුමෙන් අදාළ Points ප්‍රමාණය කපා හැරීම (සෘණ වීම වුවද නිවැරදියි, මන්ද ඔහු පද්ධතියට ලකුණු ණය වේ)
+                            transaction.update(cRefForPoints, { loyaltyPoints: increment(-pointsToReverse) });
+                        }
                     }
                     
                     // 🛡️ 1.1 UPDATE CUSTOMER WALLET (Store Credit - New Logic)
@@ -8486,7 +8970,6 @@ window.autoFillDocCustomer = (name) => {
                             const cSnap = await transaction.get(cRef);
                             if (cSnap.exists()) {
                                 // 🚨 BUG FIX 2: Only add the ACTUAL Cash-Out value to the wallet!
-                                // Refund එකෙන් ණය කැපුවා නම්, ඉතුරු වුණු ගාණ (cashOutToCustomer) විතරයි Wallet එකට දාන්න ඕනේ!
                                 if (cashOutToCustomer > 0) {
                                     transaction.update(cRef, { walletBalance: increment(cashOutToCustomer) });
                                 }
@@ -8504,6 +8987,10 @@ window.autoFillDocCustomer = (name) => {
                 transaction.set(refundDocRef, {
                     productName: prodName, orderId: orderId, reason: `${reason} (Ref: ${orderId})`,
                     qty: qty, amount: refundTotal, cashOutToCustomer: cashOutToCustomer, profitReversal: profitReversal,
+                    
+                    // 🚨 CRITICAL DB FIX: Save Tax Reversed Amount for accurate Tax Reports!
+                    taxReversed: taxReversedAmt, 
+                    
                     restock: restock, refundMethod: rMethodSaved, originalBatch: batchNum, date: window.getSecureTime().toISOString()
                 });
 
@@ -8514,25 +9001,32 @@ window.autoFillDocCustomer = (name) => {
                         if (!pDoc.exists()) throw new Error("Product data corrupted during refund.");
                         
                         const pData = pDoc.data();
-                        const soldList = pData.soldSerials || [];
-                        if(!soldList.includes(returnSerial)) {
-                            // 🛡️ ENTERPRISE FIX: Log fraud attempt
-                            const auditRef = doc(collection(db, `users/${dbOwnerId}/system_audit_logs`));
-                            transaction.set(auditRef, {
-                                timestamp: window.getSecureTime().toISOString(), userEmail: currentUser ? currentUser.email : "Unknown", userRole: userRole, shopId: currentShopId || "NONE", shopName: "Fraud Prevention System",
-                                action: "FRAUD_ATTEMPT_DETECTED", description: `CRITICAL: Attempted to refund a FAKE/UNSOLD Serial Barcode (${returnSerial}) for product ${prodName}!`
+                        
+                        // 🚨 ULTIMATE BUG FIX 3: Atomic Array Restore for Multiple Serials!
+                        if (isSerialized) {
+                            const soldList = pData.soldSerials || [];
+                            for(let s of serialsToReturn) {
+                                if(!soldList.includes(s)) {
+                                    const auditRef = doc(collection(db, `users/${dbOwnerId}/system_audit_logs`));
+                                    transaction.set(auditRef, {
+                                        timestamp: window.getSecureTime().toISOString(), userEmail: currentUser ? currentUser.email : "Unknown", userRole: userRole, shopId: currentShopId || "NONE", shopName: "Fraud Prevention System",
+                                        action: "FRAUD_ATTEMPT_DETECTED", description: `CRITICAL: Attempted to refund FAKE/UNSOLD Serial (${s}) for ${prodName}!`
+                                    });
+                                    throw new Error(`Fraud Alert: Barcode ${s} is NOT recorded as sold from this batch! Cannot refund.`);
+                                }
+                            }
+                            transaction.update(origProdRef, { 
+                                qty: increment(qty),
+                                soldSerials: arrayRemove(...serialsToReturn),     
+                                availableSerials: arrayUnion(...serialsToReturn)  
                             });
-                            throw new Error(`Fraud Alert: Barcode ${returnSerial} is NOT recorded as sold from this batch! Cannot refund.`);
+                        } else {
+                            transaction.update(origProdRef, { qty: increment(qty) });
                         }
 
-                        transaction.update(origProdRef, { 
-                            qty: increment(qty),
-                            soldSerials: arrayRemove(returnSerial),     
-                            availableSerials: arrayUnion(returnSerial)  
-                        });
-
                         const logRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/inventory_logs`));
-                        transaction.set(logRef, { date: window.getSecureTime().toISOString(), productName: prodName, action: 'REFUND', description: `Restocked Serial ${returnSerial} to Batch ${batchNum}`, quantityChange: qty, finalQty: pData.qty + qty, batchNumber: batchNum, initialQty: pData.qty });
+                        const serDesc = isSerialized ? `(S/N: ${serialsToReturn.join(', ')})` : '';
+                        transaction.set(logRef, { date: window.getSecureTime().toISOString(), productName: prodName, action: 'REFUND', description: `Restocked ${qty} to Batch ${batchNum} ${serDesc}`, quantityChange: qty, finalQty: pData.qty + qty, batchNumber: batchNum, initialQty: pData.qty });
                     } else if (needsRecreation) {
                         const existing = productsCache.find(p => p.name === prodName) || {}; 
                         const newProdRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`));
@@ -8540,11 +9034,13 @@ window.autoFillDocCustomer = (name) => {
                             name: prodName, sku: existing.sku || "", image: existing.image || null, categoryId: existing.categoryId || null,
                             qty: qty, buy: buyPrice, sell: price, unit: existing.unit || '',
                             dateAdded: window.getSecureTime().toISOString(), batchNumber: batchNum, isRefund: true,
-                            availableSerials: [returnSerial], soldSerials: []
+                            availableSerials: isSerialized ? serialsToReturn : [], 
+                            soldSerials: []
                         });
 
                         const logRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/inventory_logs`));
-                        transaction.set(logRef, { date: window.getSecureTime().toISOString(), productName: prodName, action: 'REFUND', description: `Recreated Batch ${batchNum} from return (${returnSerial})`, quantityChange: qty, finalQty: qty, batchNumber: batchNum, initialQty: 0 });
+                        const serDesc = isSerialized ? `(S/N: ${serialsToReturn.join(', ')})` : '';
+                        transaction.set(logRef, { date: window.getSecureTime().toISOString(), productName: prodName, action: 'REFUND', description: `Recreated Batch ${batchNum} from return ${serDesc}`, quantityChange: qty, finalQty: qty, batchNumber: batchNum, initialQty: 0 });
                     }
                 }
             });
@@ -8568,8 +9064,12 @@ window.autoFillDocCustomer = (name) => {
             document.getElementById('refundOrderIdSearch').value = "";
             if(returnSerialElement) returnSerialElement.value = "";
             
+            // 🚨 BUG FIX 4.1: Force dashboard to recalculate actual stock value after a Refund!
+            window.cachedStockValue = undefined; 
+            window.cachedLowCount = undefined;
+            
             updateDashboard();
-            await loadProducts(); 
+            await loadProducts();
 
         } catch(e) {
             console.error(e);
@@ -9696,12 +10196,15 @@ window.autoFillDocCustomer = (name) => {
                 type: 'RECEIPT', // Custom type to hide due dates etc.
                 docId: order.customOrderId || order.id.substring(0,8),
                 date: order.date,
-                dueDate: new Date(order.date).toLocaleTimeString(), // Put time in Due Date field
+                dueDate: new Date(order.date).toLocaleTimeString(), 
                 customer: order.customer && order.customer.name !== "Walk-in Customer" ? order.customer : { name: "Cash Customer", address: "" },
                 items: order.items,
                 subtotal: order.subtotal,
                 discount: order.discountAmt,
-                tax: 0,
+                
+                // 🚨 PDF FIX: Pass actual Tax to A4 Receipt
+                tax: order.taxAmt || 0, 
+                
                 fees: order.fees ||[],
                 total: order.total,
                 paymentMethod: order.paymentMethod,
@@ -10673,6 +11176,13 @@ window.updateCartQty = (cartIndex, newQtyVal, productId) => {
             return;
         }
 
+        // 🚨 BUG FIX: Block decimal injection for Standard items directly in the Cart!
+        if (itemInCart.itemType === 'standard' && !Number.isInteger(newQty)) {
+            // Restore previous whole number in UI
+            renderCart(); 
+            return showToast("Standard items (e.g. Soap, Bottles) cannot have decimal quantities!", "error");
+        }
+
         // 🚀 ENTERPRISE FIX: Weighable items cannot be +1 or -1 incrementally via buttons!
         if (itemInCart.itemType === 'weighable') {
             window.pendingWeighableProduct = productsCache.find(x => x.id === productId);
@@ -11480,10 +11990,14 @@ window.setQuickCash = (amount) => {
         if(inputName === null) return; 
         
         const custName = inputName.trim() || "Walk-in";
+        // 🚨 ULTIMATE BUG FIX 1: Prevent LocalStorage Crash (Image Stripping)
+        // පින්තූර (Base64) දත්ත ගබඩාවේ ඉඩ කන බැවින්, ඒවා ගලවා ඉවත් කර Cart එක සේව් කිරීම.
+        const safeCartToHold = cart.map(item => ({ ...item, image: null }));
+
         const holdData = {
             id: Date.now(),
             time: new Date().toLocaleTimeString(),
-            cart: [ ...cart ],
+            cart: safeCartToHold,
             fees:[ ...currentOtherFees ],
             discountVal: document.getElementById('discountValue').value,
             discountType: document.getElementById('discountType').value,
@@ -11975,24 +12489,37 @@ window.setQuickCash = (amount) => {
         window.isSavingCashFlow = true;
         toggleLoader(true);
         try {
-            // 🛡️ ENTERPRISE ZERO-TRUST SECURITY: Fetch Limit Directly from DB (F12 Hack Proof!)
-            let isPendingApproval = false;
-            
-            if (userRole !== 'admin' && !isIncome) { // Admin ට සහ Incomes වලට අනුමැතිය අවශ්‍ය නැත
+            // 🛡️ ENTERPRISE ZERO-TRUST SECURITY: LIVE REMOTE EXPENSE APPROVAL
+            if (userRole !== 'admin' && !isIncome) {
                 const profSnap = await getDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/settings`, 'profile'));
                 const expLimit = (profSnap.exists() && profSnap.data().expenseLimit) ? parseFloat(profSnap.data().expenseLimit) : 5000;
                 
                 if (amount >= expLimit) {
-                    isPendingApproval = true;
+                    const isApproved = await requestRemoteApproval(
+                        "EXPENSE", 
+                        "High Petty Cash Request", 
+                        { 
+                            "Description": desc,
+                            "Requested Amount": formatMoney(amount),
+                            "Allowed Limit": formatMoney(expLimit)
+                        }
+                    );
+                    
+                    if (!isApproved) {
+                        window.isSavingCashFlow = false;
+                        toggleLoader(false);
+                        return; // ⛔ Stop saving!
+                    }
                 }
             }
 
+            // 🚀 If approved (or below limit), save directly as Authorized!
             const expData = {
                 description: desc,
                 amount: amount,
                 isIncome: isIncome,
                 date: window.getSecureTime().toISOString(),
-                isPending: isPendingApproval // 👈 The Magic Flag
+                isPending: false // Live Approved!
             };
             
             const docRef = await addDoc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`), expData);
@@ -12670,8 +13197,16 @@ window.setQuickCash = (amount) => {
                 }
             }
 
+            // 🚨 ULTIMATE BUG FIX 2 (Part A): Do NOT add overpayments to Wallet if paid via Cheque!
             const payMethod = document.getElementById('dsPayMethod').value;
             const secureNow = window.getSecureTime().toISOString();
+
+            // චෙක්පතකින් වැඩිපුර ගෙව්වොත්, එම මුදල Wallet එකට එකතු වන්නේ චෙක්පත Cleared වූ පසු පමණි!
+            if (payAmount > 0 && payMethod !== 'Cheque') {
+                const cRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/customers`, currentActivePhone);
+                batch.update(cRef, { walletBalance: increment(payAmount) });
+                if(window.writeSystemLog) writeSystemLog("DEBT_OVERPAYMENT_WALLET", `Customer overpaid debt by ${formatMoney(payAmount)} via ${payMethod}. Added to Store Credit.`);
+            }
             
             // 🛡️ ENTERPRISE FIX: Route Cheques to Registry instead of Cash Flow!
             if (payMethod === 'Cheque') {
@@ -12736,20 +13271,16 @@ window.setQuickCash = (amount) => {
     // 3. END OF DAY (EOD) SHIFT REPORT LOGIC
     // ==========================================
     window.generateEOD = async () => {
-        const dateInput = document.getElementById('eodDate').value;
-        if(!dateInput) return;
+        const startInput = document.getElementById('eodStartDateTime').value;
+        const endInput = document.getElementById('eodEndDateTime').value;
+        if(!startInput || !endInput) return showToast("Please select Shift Start and End times!", "error");
         
         toggleLoader(true);
         let cashSales = 0, cardSales = 0, newCredit = 0, refunds = 0, expenses = 0, debtCollections = 0, otherSales = 0, staffAdvances = 0;
 
-        // 🛡️ ENTERPRISE FIX: Absolute Timezone-Immune UTC Boundaries (Sri Lanka +05:30)
-        // OS එකේ Timezone එක වෙනස් කළත්, EOD එක රැවටෙන්නේ නැත. මධ්‍යම රාත්‍රී දත්ත අතුරුදහන් වීම 100% ක් නවතී!
-        const utcMid = new Date(dateInput + "T00:00:00.000Z");
-        const startMs = utcMid.getTime() - (5.5 * 60 * 60 * 1000); // 00:00:00 SL Time in exact UTC
-        const endMs = startMs + (24 * 60 * 60 * 1000) - 1;         // 23:59:59 SL Time in exact UTC
-
-        const startDate = new Date(startMs).toISOString();
-        const endDate = new Date(endMs).toISOString();
+        // 🚨 ULTIMATE BUG FIX 2 (JS): Use exact selected timestamps for accurate Shift EOD
+        const startDate = new Date(startInput).toISOString();
+        const endDate = new Date(endInput).toISOString();
 
         // 1. Process Sales from Server
         const qSales = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`), where("date", ">=", startDate), where("date", "<=", endDate));
@@ -12759,7 +13290,9 @@ window.setQuickCash = (amount) => {
             const s = docSnap.data();
             // Database Query එක 100% ක් නිවැරදි බැවින් අමතර OS-Dependent Date Check කිරීම් අවශ්‍ය නැත!
             if(s.paymentMethod.includes('Cash') && s.paymentMethod !== 'Cash (Settled)') {
-                cashSales += s.total;
+                // 🚨 BUG FIX 2: Only count ACTUAL Cash received into the drawer!
+                // Store Credit (Wallet) වලින් ගෙවූ ගාණ ලාච්චුවට එන්නේ නැති බැවින් එය අඩු කළ යුතුමය.
+                cashSales += (s.total - (s.walletApplied || 0));
             } else if(s.paymentMethod.includes('Card')) {
                 cardSales += s.total;
             } else if(s.paymentMethod === 'Pay Later') {
@@ -12776,8 +13309,8 @@ window.setQuickCash = (amount) => {
         snapExp.forEach(docSnap => {
             const e = docSnap.data();
             
-            // 🛡️ ENTERPRISE EOD FIX: Skip Advances & Pending Expenses!
-            if (e.isAdvanceEvent || e.isPending) return;
+            // 🚨 BUG FIX 3 (Part B): Skip Advances, Pending, AND Non-Cash Expenses (like Write-offs)!
+            if (e.isAdvanceEvent || e.isPending || e.isNonCashExpense) return;
 
             if(e.isIncome) {
                 if(!e.payMethod || e.payMethod === 'Cash') debtCollections += e.amount;
@@ -13000,22 +13533,27 @@ window.setQuickCash = (amount) => {
 
                         // 🛡️ ENTERPRISE HR: DYNAMIC ROSTER LOGIC
                         if (todayRoster.isClosed || todayRoster.isHolidayOT) {
-                            // පෝය, නිවාඩු හෝ Closed දවසක් නම් -> වැඩ කරන හැම තත්පරයම OT (Double Pay)! කෑම පැය අදාළ නෑ!
+                            // පෝය, නිවාඩු හෝ Closed දවසක් නම් -> වැඩ කරන හැම තත්පරයම OT (Double Pay)!
                             calculatedOT = grossHrs;
-                            netWorkedHrs = 0; // සාමාන්‍ය පඩියට යන පැය ගාණ බිංදුවයි, ඔක්කොම යන්නේ OT වලට.
+                            netWorkedHrs = 0; 
                         } else {
                             // සාමාන්‍ය දවසක් නම්: Calendar එකෙන් Shift එකේ දිග (Duration) හොයාගන්නවා
                             const startD = new Date(`1970-01-01T${todayRoster.shiftStart}:00`);
                             const endD = new Date(`1970-01-01T${todayRoster.shiftEnd}:00`);
-                            // උදා: 17:00 - 08:00 = පැය 9යි. මේ පැය 9 ඇතුළේ කෑම පැය ස්වභාවිකවම (Implicitly) අඩංගුයි!
-                            const shiftDurationHrs = (endD - startD) / (1000 * 60 * 60); 
+                            
+                            let shiftDurationHrs = (endD - startD) / (1000 * 60 * 60); 
+                            
+                            // 🚨 ULTIMATE BUG FIX: Handle Overnight Shifts (උදා: රෑ 10 ඉඳන් පාන්දර 6 වෙනකම්)
+                            if (shiftDurationHrs < 0) {
+                                shiftDurationHrs += 24; // සෘණ නම් පැය 24ක් එකතු කර සැබෑ පැය ගණන සාදා ගනී!
+                            }
 
                             // 24 Hour Ghost Check
                             if (grossHrs > 16) {
                                 netWorkedHrs = shiftDurationHrs;
                                 showToast(`Warning: Abnormal shift. Capped to ${shiftDurationHrs} hrs. Manager must verify!`, "warning");
                             } else {
-                                // OT හැදෙන්නේ Shift Duration එකට (උදා: පැය 9ට) වඩා වැඩිපුර හිටියොත් විතරයි!
+                                // OT හැදෙන්නේ Shift Duration එකට වඩා වැඩිපුර හිටියොත් විතරයි
                                 if (grossHrs > shiftDurationHrs) {
                                     calculatedOT = grossHrs - shiftDurationHrs;
                                     netWorkedHrs = shiftDurationHrs; // Net එක සාමාන්‍ය ගාණට අගුලු වැටේ
@@ -14094,12 +14632,17 @@ window.setQuickCash = (amount) => {
                         description: `Inventory Write-Off Loss [${reason}]: ${pData.name} x${qty}`,
                         amount: costLoss,
                         isIncome: false,
-                        date: window.getSecureTime().toISOString()
+                        date: window.getSecureTime().toISOString(),
+                        // 🚨 BUG FIX 3 (Part A): Flag as Non-Cash Expense so EOD doesn't deduct from Drawer!
+                        isNonCashExpense: true 
                     });
                 }
             });
 
             closeModal('writeoffModal');
+            // 🚨 BUG FIX 4.2: Force dashboard to recalculate actual stock value after a Write-Off!
+            window.cachedStockValue = undefined; 
+            window.cachedLowCount = undefined;
             await loadProducts();
             updateDashboard();
             showToast("Stock Adjusted & Serials Cleared Successfully!");
@@ -14791,6 +15334,11 @@ let currentBatchForSerials = null;
                     const phyInput = document.getElementById(`phyQty_${idx}`).value;
                     const phy = phyInput === '' ? 0 : parseFloat(phyInput);
                     
+                    // 🚨 ULTIMATE BUG FIX 3: Prevent Negative Physical Counts (Data Corruption Protection)
+                    if (phy < 0) {
+                        throw new Error(`CRITICAL: Physical stock count cannot be negative for Batch ${b.batchNumber || 1}!`);
+                    }
+                    
                     const ref = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/products`, b.id);
                     const snap = await t.get(ref);
                     
@@ -15031,17 +15579,27 @@ let currentBatchForSerials = null;
 
     // 🚀 Core Calculator: Get Effective Price checking the Exact Current Time
     window.getEffectivePrice = (batch) => {
+        let finalPrice = batch.sell;
+
+        // 1. Time-bound Promo Takes Highest Priority
         if (batch.promoEnd && batch.promoValue > 0) {
             const now = window.getSecureTime();
             const endDate = new Date(batch.promoEnd);
             if (endDate > now) { // 🛡️ STRICT TIME VALIDATION
-                let newPrice = batch.sell;
-                if (batch.promoType === 'percent') newPrice = batch.sell - (batch.sell * batch.promoValue / 100);
-                if (batch.promoType === 'amount') newPrice = Math.max(0, batch.sell - batch.promoValue);
-                return { isPromo: true, price: Math.round(newPrice * 100) / 100 };
+                if (batch.promoType === 'percent') finalPrice = batch.sell - (batch.sell * batch.promoValue / 100);
+                if (batch.promoType === 'amount') finalPrice = Math.max(0, batch.sell - batch.promoValue);
+                return { isPromo: true, hasAdminDisc: false, price: Math.round(finalPrice * 100) / 100 };
             }
         }
-        return { isPromo: false, price: batch.sell };
+
+        // 2. Admin Fixed Discount (Falls back to this if no active promo)
+        if (batch.adminDiscValue > 0) {
+            if (batch.adminDiscType === 'percent') finalPrice = batch.sell - (batch.sell * batch.adminDiscValue / 100);
+            if (batch.adminDiscType === 'amount') finalPrice = Math.max(0, batch.sell - batch.adminDiscValue);
+            return { isPromo: false, hasAdminDisc: true, price: Math.round(finalPrice * 100) / 100 };
+        }
+
+        return { isPromo: false, hasAdminDisc: false, price: Math.round(finalPrice * 100) / 100 };
     };
 // ==========================================
     // 🛡️ ENTERPRISE PAYROLL-TO-LEDGER INTEGRATION
@@ -15229,6 +15787,10 @@ let currentBatchForSerials = null;
             if(window.writeSystemLog) writeSystemLog("ROSTER_SAVED", `Admin saved monthly roster for ${monthVal}`);
             closeModal('rosterModal');
             showToast("Roster Settings Saved Successfully!");
+            
+            // 🚨 AUTO-UNLOCK: Save කළ සැණින් Lock තිරය ඉබේම අතුරුදහන් වීම!
+            await window.verifyCurrentMonthRoster();
+            
         } catch(e) {
             showToast("Error saving roster", "error");
         }
@@ -15309,6 +15871,17 @@ let currentBatchForSerials = null;
                 if (action === 'CLEARED') {
                     t.update(chqRef, { status: 'CLEARED', clearedDate: secureNow });
                     
+                    // 🚨 ULTIMATE BUG FIX 2 (Part B): If cheque was an overpayment, add the extra to Wallet NOW!
+                    let totalDebtSettled = 0;
+                    Object.values(cData.breakdown).forEach(amt => totalDebtSettled += amt);
+                    const overpaidAmt = cData.amount - totalDebtSettled;
+
+                    if (overpaidAmt > 0) {
+                        const cRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/customers`, cData.customerPhone);
+                        t.update(cRef, { walletBalance: increment(overpaidAmt) });
+                        if(window.writeSystemLog) writeSystemLog("CHEQUE_OVERPAYMENT_CLEARED", `Cheque cleared! Added overpaid ${formatMoney(overpaidAmt)} to Wallet of ${cData.customerPhone}.`);
+                    }
+
                     // Add to Cash Flow as Income (Online/Bank Transfer)
                     const expRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`));
                     t.set(expRef, {
@@ -17307,6 +17880,322 @@ let currentBatchForSerials = null;
         
         renderCart();
         showToast(`Barcode ${serialToRemove.split('-').pop()} cart එකෙන් ඉවත් කරන ලදී.`, "success");
+    };
+// ==========================================
+    // 🛡️ ENTERPRISE TAX & VAT REPORTING ENGINE
+    // ==========================================
+    
+    let taxReportDataCache = [];
+    let taxReportRenderedCount = 0;
+    const TAX_CHUNK_SIZE = 50;
+
+    window.generateTaxReport = async () => {
+        const monthVal = document.getElementById('taxReportMonth').value;
+        if (!monthVal) {
+            document.getElementById('taxReportMonth').value = window.getSecureLocalDateStr().slice(0, 7);
+            return showToast("Please select a month first!", "warning");
+        }
+
+        toggleLoader(true);
+        document.getElementById('taxReportArea').style.display = 'none';
+        taxReportDataCache = [];
+        taxReportRenderedCount = 0;
+
+        try {
+            const y = parseInt(monthVal.split('-')[0]);
+            const m = parseInt(monthVal.split('-')[1]);
+            const startIso = new Date(monthVal + "-01T00:00:00.000Z").toISOString();
+            const endIso = new Date(y, m, 0, 23, 59, 59, 999).toISOString();
+
+            let grossSales = 0, taxCollected = 0, taxRefunded = 0;
+
+            // 1. Fetch Sales with Tax
+            const qSales = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`), where("date", ">=", startIso), where("date", "<=", endIso));
+            const snapSales = await getDocs(qSales);
+            
+            snapSales.forEach(d => {
+                const s = d.data();
+                if (s.taxAmt > 0) {
+                    const taxableGross = s.subtotal - (s.discountAmt || 0) + (s.feesTotal || 0); // Net Taxable Base
+                    grossSales += taxableGross;
+                    taxCollected += s.taxAmt;
+                    
+                    taxReportDataCache.push({
+                        date: s.date,
+                        ref: s.customOrderId || d.id.substring(0,8),
+                        type: 'SALE',
+                        gross: taxableGross,
+                        tax: s.taxAmt
+                    });
+                }
+            });
+
+            // 2. Fetch Refunds that reversed Tax
+            const qRef = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/refunds`), where("date", ">=", startIso), where("date", "<=", endIso));
+            const snapRef = await getDocs(qRef);
+
+            snapRef.forEach(d => {
+                const r = d.data();
+                // We check taxReversed field we just added!
+                if (r.taxReversed > 0) {
+                    const taxFreeRefundGross = r.amount - r.taxReversed;
+                    // Note: Refunds don't reduce Gross Sales in standard reporting, but they do reduce Tax Payable.
+                    // We only sum the tax reversed.
+                    taxRefunded += r.taxReversed;
+                    
+                    taxReportDataCache.push({
+                        date: r.date,
+                        ref: `RET: ${r.orderId}`,
+                        type: 'REFUND',
+                        gross: taxFreeRefundGross,
+                        tax: -Math.abs(r.taxReversed) // Negative for UI
+                    });
+                }
+            });
+
+            // 3. Sort Chronologically (RAM Sort)
+            taxReportDataCache.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            // 4. Update Summary Cards
+            document.getElementById('taxRepGrossSales').textContent = formatMoney(grossSales);
+            document.getElementById('taxRepCollected').textContent = formatMoney(taxCollected);
+            document.getElementById('taxRepRefunded').textContent = formatMoney(taxRefunded);
+            document.getElementById('taxRepPayable').textContent = formatMoney(taxCollected - taxRefunded);
+
+            // 5. Render Initial Chunk
+            document.getElementById('taxReportBody').innerHTML = '';
+            if (taxReportDataCache.length === 0) {
+                document.getElementById('taxReportBody').innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:#666;">No taxable transactions found for this month.</td></tr>';
+            } else {
+                renderTaxReportChunk();
+            }
+
+            document.getElementById('taxReportArea').style.display = 'block';
+            if(window.writeSystemLog) writeSystemLog("TAX_REPORT_GENERATED", `Generated Tax & VAT Report for month: ${monthVal}`);
+
+        } catch (e) {
+            console.error("Tax Report Error:", e);
+            showToast("Error generating Tax Report", "error");
+        } finally {
+            toggleLoader(false);
+        }
+    };
+
+    // 🛡️ DOM Pagination for Tax Report Table
+    function renderTaxReportChunk() {
+        const tbody = document.getElementById('taxReportBody');
+        const limit = Math.min(taxReportRenderedCount + TAX_CHUNK_SIZE, taxReportDataCache.length);
+        let html = '';
+
+        for (let i = taxReportRenderedCount; i < limit; i++) {
+            const r = taxReportDataCache[i];
+            const isSale = r.type === 'SALE';
+            const badgeBg = isSale ? '#dcfce7' : '#fee2e2';
+            const badgeCol = isSale ? '#15803d' : '#b91c1c';
+            
+            html += `
+            <tr style="border-bottom:1px solid #f3f4f6; ${!isSale ? 'background:#fef2f2;' : ''}">
+                <td style="font-size:12px;">${new Date(r.date).toLocaleString()}</td>
+                <td style="font-family:monospace; font-weight:bold; color:var(--primary);">${r.ref}</td>
+                <td><span style="background:${badgeBg}; color:${badgeCol}; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold;">${r.type}</span></td>
+                <td>${formatMoney(r.gross)}</td>
+                <td style="text-align:right; font-weight:900; color:${isSale ? '#166534' : '#dc2626'};">${isSale ? '+' : ''}${formatMoney(r.tax)}</td>
+            </tr>`;
+        }
+
+        tbody.insertAdjacentHTML('beforeend', html);
+        taxReportRenderedCount = limit;
+        document.getElementById('taxLoaderUI').style.display = 'none';
+    }
+
+    window.handleTaxReportScroll = () => {
+        const area = document.getElementById('taxScrollArea');
+        if (area.scrollTop + area.clientHeight >= area.scrollHeight - 10) {
+            if (taxReportRenderedCount < taxReportDataCache.length) {
+                document.getElementById('taxLoaderUI').style.display = 'block';
+                setTimeout(renderTaxReportChunk, 200); // Small delay for UI smoothness
+            }
+        }
+    };
+// ==========================================
+    // 🚀 ENTERPRISE REMOTE AUTHORIZATION ENGINE
+    // ==========================================
+    let activeRemoteReqId = null;
+    let raChatUnsub = null;
+    let raStatusUnsub = null;
+
+    // මෙම Function එක Promise එකක් ලෙස ක්‍රියා කරයි (ඔව්/නැත ලෙස පිළිතුර එනතෙක් කේතය නවතා තබාගනී)
+    window.requestRemoteApproval = (type, title, details) => {
+        return new Promise(async (resolve, reject) => {
+            
+            // 🚨 මෙන්න මේ පේළියයි අලුතින් එකතු වුණේ!
+            // අන්තර්ජාලය නැති වෙලාවක Emergency PIN එක ගැහුවම, කේතය Unfreeze කරන්න මේක උදව් වෙනවා.
+            window.pendingRemoteResolve = resolve; 
+
+            toggleLoader(true);
+            try {
+                // 1. Manager ගේ තිරයට පණිවිඩය යැවීම (Database Document Creation)
+                const reqRef = doc(collection(db, `users/${dbOwnerId}/remote_approvals`));
+                await setDoc(reqRef, {
+                    type: type,
+                    title: title,
+                    details: details,
+                    status: 'PENDING',
+                    shopId: currentShopId,
+                    shopName: shopsCache.find(s => s.id === currentShopId)?.name || 'Unknown',
+                    officerEmail: currentUser.email,
+                    createdAt: window.getSecureTime().toISOString()
+                });
+
+                activeRemoteReqId = reqRef.id;
+                document.getElementById('remoteApprovalModal').style.display = 'flex';
+                document.getElementById('raChatHistory').innerHTML = '<div style="text-align:center; font-size:11px; color:#9ca3af; font-weight:bold;"><i class="ri-radar-line"></i> Calling Admin...</div>';
+                
+                // 2. F12 HACK-PROOF: Database එකේ Status එක වෙනස් වෙනකම් සජීවීව බලා සිටීම!
+                raStatusUnsub = onSnapshot(reqRef, (docSnap) => {
+                    if (docSnap.exists()) {
+                        const data = docSnap.data();
+                        if (data.status === 'APPROVED') {
+                            closeRemoteApproval();
+                            showToast("✅ Manager Approved the Request!", "success");
+                            resolve(true); // ކේතයට ඉදිරියට යන්න අවසර දෙනවා
+                        } else if (data.status === 'DECLINED') {
+                            closeRemoteApproval();
+                            showToast("❌ Manager Declined the Request.", "error");
+                            resolve(false); // කේතය එතනින් නවත්වනවා
+                        }
+                    }
+                });
+
+                // 3. Live Chat Synchronization
+                const chatRef = collection(db, `users/${dbOwnerId}/remote_approvals/${activeRemoteReqId}/chat`);
+                raChatUnsub = onSnapshot(query(chatRef, orderBy("timestamp", "asc")), (snap) => {
+                    const cb = document.getElementById('raChatHistory');
+                    let html = '';
+                    snap.forEach(c => {
+                        const msg = c.data();
+                        const isMe = msg.sender === 'officer';
+                        const isSystem = msg.sender === 'system';
+                        const time = new Date(msg.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+                        
+                        if (isSystem) {
+                            html += `<div style="text-align:center; font-size:11px; color:var(--primary); margin:8px 0; font-weight:bold;">${msg.text}</div>`;
+                        } else if (isMe) {
+                            html += `<div style="align-self:flex-end; background:#e0e7ff; color:#3730a3; padding:8px 12px; border-radius:8px; border-bottom-right-radius:0; font-size:12px; max-width:85%;"><b>You:</b><br>${msg.text} <div style="font-size:9px; text-align:right; margin-top:2px; opacity:0.7;">${time}</div></div>`;
+                        } else {
+                            html += `<div style="align-self:flex-start; background:#dcfce7; color:#166534; padding:8px 12px; border-radius:8px; border-bottom-left-radius:0; font-size:12px; max-width:85%;"><b>Manager:</b><br>${msg.text} <div style="font-size:9px; text-align:left; margin-top:2px; opacity:0.7;">${time}</div></div>`;
+                        }
+                    });
+                    if(html) { cb.innerHTML = html; cb.scrollTop = cb.scrollHeight; }
+                });
+
+                toggleLoader(false);
+
+            } catch (e) {
+                toggleLoader(false); console.error(e);
+                showToast("Connection to Manager failed.", "error");
+                resolve(false);
+            }
+        });
+    };
+
+    window.sendRaChat = async () => {
+        const inp = document.getElementById('raChatInput');
+        const text = inp.value.trim();
+        if(!text || !activeRemoteReqId) return;
+        inp.value = '';
+        await addDoc(collection(db, `users/${dbOwnerId}/remote_approvals/${activeRemoteReqId}/chat`), {
+            sender: 'officer', text: text, timestamp: window.getSecureTime().toISOString()
+        });
+    };
+
+    window.cancelRemoteApproval = async () => {
+        if(!activeRemoteReqId) return;
+        try { await updateDoc(doc(db, `users/${dbOwnerId}/remote_approvals`, activeRemoteReqId), { status: 'CANCELLED_BY_CASHIER' }); } catch(e){}
+        closeRemoteApproval();
+        showToast("Request Cancelled.", "warning");
+    };
+
+    function closeRemoteApproval() {
+        if(raStatusUnsub) { raStatusUnsub(); raStatusUnsub = null; }
+        if(raChatUnsub) { raChatUnsub(); raChatUnsub = null; }
+        document.getElementById('remoteApprovalModal').style.display = 'none';
+        activeRemoteReqId = null;
+    }
+
+window.emergencyLocalOverride = async () => {
+        if (!activeRemoteReqId) return;
+        
+        // F12 වලින් බලන්න බැරි වෙන්න, Local Storage/Profile එකේ තියෙන PIN එක බලනවා.
+        // හැබැයි මේක System Log එකේ "Emergency Bypass" කියලා රතු පාටින් ලියවෙනවා!
+        const emergencyPin = prompt("⚠️ EMERGENCY OVERRIDE!\n\nUse this ONLY if the Admin is completely unreachable.\n\nEnter Local Manager PIN:");
+        const requiredPin = (profileCache && profileCache.managerPin) ? profileCache.managerPin : "0000";
+
+        if (emergencyPin === requiredPin) {
+            // Cancel the remote request in DB so Manager Room clears it
+            try { await updateDoc(doc(db, `users/${dbOwnerId}/remote_approvals`, activeRemoteReqId), { status: 'EMERGENCY_LOCAL_APPROVED' }); } catch(e){}
+            
+            if(window.writeSystemLog) writeSystemLog("EMERGENCY_OVERRIDE", `CRITICAL: Cashier used LOCAL PIN to bypass Remote Approval because Admin was unreachable!`);
+            
+            closeRemoteApproval();
+            showToast("Emergency Local Override Applied!", "success");
+            
+            // Promise එක Resolves True කරනවා (ඒ කියන්නේ Code එකට ඉස්සරහට යන්න දෙනවා)
+            // මේක අල්ලගන්න අපිට මුල් Promise එකේ Resolve function එක ගබඩා කරගන්න වෙනවා.
+            if (window.pendingRemoteResolve) window.pendingRemoteResolve(true);
+            
+        } else {
+            if(window.writeSystemLog) writeSystemLog("SECURITY_BREACH_ATTEMPT", `Failed Emergency Override attempt!`);
+            showToast("Invalid Emergency PIN!", "error");
+        }
+    };
+
+// ==========================================
+    // 🛡️ ENTERPRISE SYSTEM LOCK (ROSTER ENFORCEMENT)
+    // ==========================================
+    window.verifyCurrentMonthRoster = async () => {
+        // 1. Secure Time එක හරහා අද සැබෑ මාසය සහ අවුරුද්ද ලබා ගැනීම!
+        const now = window.getSecureTime();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        
+        // මාසයේ නම ලස්සනට පෙන්වීමට
+        const monthLabel = now.toLocaleString('en-US', { month: 'long', timeZone: 'Asia/Colombo' });
+
+        const rosterRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/settings`, `roster_${year}_${month}`);
+        
+        try {
+            const snap = await getDoc(rosterRef);
+            const lockOverlay = document.getElementById('rosterLockOverlay');
+            const btnUnlock = document.getElementById('btnUnlockRoster');
+            const msg = document.getElementById('rosterLockMsg');
+
+            if (!snap.exists()) {
+                // Roster එක Save කරලා නෑ! සිස්ටම් එක Lock කරන්න!
+                lockOverlay.style.display = 'flex';
+                
+                if (userRole === 'admin') {
+                    msg.innerHTML = `The Monthly Roster for <b style="color:var(--warning);">${monthLabel} ${year}</b> has not been configured yet.<br><br>You must set up the working hours and holidays before you or your staff can use the system.`;
+                    btnUnlock.style.display = 'inline-flex';
+                } else {
+                    msg.innerHTML = `The Monthly Roster for <b style="color:var(--warning);">${monthLabel} ${year}</b> has not been set up.<br><br><span style="color:var(--danger); font-weight:bold;">Please contact your Administrator to configure it.</span>`;
+                    btnUnlock.style.display = 'none';
+                }
+            } else {
+                // Roster එක තියෙනවා, Lock එක අරින්න!
+                lockOverlay.style.display = 'none';
+            }
+        } catch(e) {
+            console.error("Roster Verification Error:", e);
+        }
+    };
+
+    window.openRosterFromLock = () => {
+        // Lock එක උඩ තියෙන බොත්තම එබුවම කෙලින්ම මේ මාසෙට අදාළව Roster Modal එක විවෘත වෙනවා
+        const currentYearMonth = window.getSecureLocalDateStr().slice(0, 7); // "YYYY-MM"
+        document.getElementById('rosterMonthSelect').value = currentYearMonth;
+        generateRosterTable();
+        openModal('rosterModal');
     };
 </script>
 
