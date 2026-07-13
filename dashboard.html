@@ -6727,8 +6727,6 @@ window.checkout = async () => {
         }
 
         const paymentMethod = document.getElementById('posPaymentMethod').value;
-        const discountType = document.getElementById('discountType').value;
-        const discountValRaw = parseFloat(document.getElementById('discountValue').value) || 0;
         
         // ENTERPRISE FIX: Stale Price Validation (Ensure checkout uses LIVE prices for BOTH Products and Services)
         let priceChanged = false;
@@ -6750,11 +6748,6 @@ window.checkout = async () => {
         if (priceChanged) {
             renderCart(); 
             return showToast("Prices were updated in the backend! Cart refreshed. Please verify the new total.", "warning");
-        }
-        
-        // ENTERPRISE SECURITY FIX: Block negative discounts to prevent total manipulation hacks!
-        if (discountValRaw < 0) {
-            return showToast("Discount cannot be a negative value!", "error");
         }
         
         // 🛡️ ENTERPRISE ACCOUNTING FIX: Sum rounded values only
