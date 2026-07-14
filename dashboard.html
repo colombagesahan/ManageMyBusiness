@@ -7093,7 +7093,7 @@ window.checkout = async () => {
             cashGiven = total; // Force exact amount for Cards/Online
         }
 
-        let walletToUse = 0;
+        // walletToUse variable is already declared above securely for loyalty calc.
         let finalPayableTotal = total;
 
         // 🛡️ ENTERPRISE EXCHANGE ENGINE: Apply Store Credit & Enforce Strict Rules
