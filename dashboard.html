@@ -2057,7 +2057,16 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         <label style="font-size:12px;">Description / Reason *</label>
         <input id="expDesc" placeholder="e.g. Lunch for staff, or Selling Scrap">
         
-        <label style="font-size:12px;">Amount *</label>
+        <!-- 🚨 CA FIX: Expense Category to prevent Double Deduction -->
+        <div id="expCategoryWrapper" style="display:none;">
+            <label style="font-size:12px; font-weight:bold; color:var(--primary); margin-top:10px; display:block;">Expense Type (Accounting) *</label>
+            <select id="expCategory" style="margin-bottom:10px; border-color:var(--primary); font-weight:bold;">
+                <option value="OPEX">Business Expense (Bills, Fuel) - Reduces Profit</option>
+                <option value="CAPEX">Supplier Payment / Stock Buy - DOES NOT reduce Profit</option>
+            </select>
+        </div>
+        
+        <label style="font-size:12px; margin-top:10px; display:block;">Amount *</label>
         <input id="expAmount" type="number" placeholder="0.00">
         
         <div style="display:flex; gap:10px; margin-top:15px;">
@@ -7114,7 +7123,9 @@ window.checkout = async () => {
             return showToast(`Transaction Aborted: Insufficient Cash! Need ${formatMoney(Math.abs(balance))} more.`, "error");
         }
 
-        let creditBalance = (paymentMethod === 'Pay Later') ? roundToTwo(total - cashGiven) : 0;
+        // 🚨 CHARTERED ACCOUNTANT FIX: Debt must be calculated from finalPayableTotal, NOT total, 
+        // to prevent Double Billing when Store Credit (Wallet) is used!
+        let creditBalance = (paymentMethod === 'Pay Later') ? roundToTwo(finalPayableTotal - cashGiven) : 0;
         let finalPaymentMethod = paymentMethod;
 
         let overpaidAmount = 0;
@@ -8461,7 +8472,8 @@ window.autoFillDocCustomer = (name) => {
                     drawTotalLine("BALANCE", formatMoney(docData.balance || 0), true);
                 }
             }
-        } 
+}
+        
 
         // --- TERMS & CONDITIONS ---
         currentY += 10;
@@ -11024,13 +11036,19 @@ window.autoFillDocCustomer = (name) => {
 
                 if(record.isIncome) {
                     const desc = record.description ? record.description.toLowerCase() : "";
-                    // 🛡️ ENTERPRISE ACCOUNTING FIX: Prevent Profit Inflation!
-                    // ණය ගෙවීම් (debt) සහ පාරිභෝගික අත්තිකාරම්/වගකීම් (liability/advance) ලාභයට එකතු නොකරයි.
-                    if (!desc.includes('debt') && !desc.includes('liability') && !desc.includes('advance') && !record.isLiability) {
-                        otherIncomes += record.amount; // ඇත්තම අමතර ලාභ පමණක් (උදා: ටින් විකිණීම)
+                    // 🚨 CHARTERED ACCOUNTANT FIX 1: Prevent Artificial Profit Inflation BUT Allow Staff Advance Corrections!
+                    // 'record.isAdvanceEvent' is TRUE for Staff Advance Corrections. They MUST be added back to restore profit.
+                    const isCustomerLiability = desc.includes('debt') || desc.includes('cheque') || desc.includes('liability') || (desc.includes('advance') && !record.isAdvanceEvent) || record.isLiability;
+                    
+                    if (!isCustomerLiability) {
+                        otherIncomes += record.amount; // ඇත්තම අමතර ලාභ සහ Staff Advance Corrections පමණක්
                     }
                 } else {
-                    totalExpenses += record.amount; // Track expenses
+                    // 🚨 CA FIX: Exclude Owner Drawings & Supplier Payments (CAPEX) from P&L
+                    const desc = record.description ? record.description.toLowerCase() : "";
+                    if (!desc.includes('[owner_drawing]') && !record.isCapex) {
+                        totalExpenses += record.amount; // ඇත්තම මෙහෙයුම් වියදම් (OPEX) පමණක් ලාභයෙන් අඩු කරයි
+                    }
                 }
             });
 
@@ -12462,6 +12480,10 @@ window.setQuickCash = (amount) => {
 
         document.getElementById('expDesc').value = '';
         document.getElementById('expAmount').value = '';
+        // 🚨 CA FIX: Show dropdown only for Expenses
+        const catWrap = document.getElementById('expCategoryWrapper');
+        if(catWrap) catWrap.style.display = isIncome ? 'none' : 'block';
+        if(document.getElementById('expCategory')) document.getElementById('expCategory').value = 'OPEX';
         openModal('expenseModal');
     };
 
@@ -12504,12 +12526,16 @@ window.setQuickCash = (amount) => {
             }
 
             // 🚀 If approved (or below limit), save directly as Authorized!
+            const expCatEl = document.getElementById('expCategory');
+            const isCapex = (!isIncome && expCatEl && expCatEl.value === 'CAPEX');
+
             const expData = {
-                description: desc,
+                description: isCapex ? `[SUPPLIER PAY] ${desc}` : desc,
                 amount: amount,
                 isIncome: isIncome,
                 date: window.getSecureTime().toISOString(),
-                isPending: false // Live Approved!
+                isPending: false, // Live Approved!
+                isCapex: isCapex // 🚨 CA FIX: Flag for Dashboard Math
             };
             
             const docRef = await addDoc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`), expData);
@@ -13293,20 +13319,29 @@ window.setQuickCash = (amount) => {
             }
         });
 
-        // 2. Process Expenses & Incomes
+        // 2. Process Expenses, Incomes & Staff Advances via General Ledger
         const qExp = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`), where("date", ">=", startDate), where("date", "<=", endDate));
         const snapExp = await getDocs(qExp);
         snapExp.forEach(docSnap => {
             const e = docSnap.data();
             
-            // 🚨 BUG FIX 3 (Part B): Skip Advances, Pending, AND Non-Cash Expenses (like Write-offs)!
-            if (e.isAdvanceEvent || e.isPending || e.isNonCashExpense) return;
+            // 🚨 CA FIX: Removed `e.isAdvanceEvent` from the exclusion list!
+            // Advances are physically given from the Cash Drawer, so they MUST be calculated in EOD.
+            if (e.isPending || e.isNonCashExpense) return;
 
             if(e.isIncome) {
+                // e.g., Cash Debt Settlements, Advance Corrections
                 if(!e.payMethod || e.payMethod === 'Cash') debtCollections += e.amount;
                 else otherSales += e.amount;
             } else {
-                expenses += e.amount;
+                // e.g., General Expenses, Staff Advances, Salary Payouts
+                if(!e.payMethod || e.payMethod === 'Cash') {
+                    if (e.isAdvanceEvent) {
+                        staffAdvances += e.amount; // Categorize purely for UI display
+                    } else {
+                        expenses += e.amount;
+                    }
+                }
             }
         });
 
@@ -13320,16 +13355,8 @@ window.setQuickCash = (amount) => {
             }
         });
 
-        // 4. Process Staff Advances
-        for (let emp of employeesCache) {
-            try {
-                // Daily logs use strict date strings (YYYY-MM-DD), unaffected by Timezones
-                const qAdv = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/employees/${emp.id}/logs`), where("date", "==", dateInput));
-                const snapAdv = await getDocs(qAdv);
-                snapAdv.forEach(d => { staffAdvances += (Number(d.data().advance) || 0); });
-            } catch (e) { console.error("EOD Advance fetch error", e); }
-        }
-
+        // 4. Staff Advances are now securely processed through the Unified Cash Flow (Expenses) Ledger above!
+        // This eliminates the 'dateInput' crash and securely tracks overnight shifts correctly.
         window.currentEodBaseCash = Math.round((cashSales + debtCollections - refunds - expenses - staffAdvances) * 100) / 100;
 
         // Update UI
@@ -13357,7 +13384,10 @@ window.setQuickCash = (amount) => {
 
     window.printEOD = () => {
         const area = document.getElementById('eodReportArea').innerHTML;
-        const date = document.getElementById('eodDate').value;
+        // 🚨 CA FIX: Dynamically construct print label from actual shift timestamps
+        const startStr = document.getElementById('eodStartDateTime').value;
+        const endStr = document.getElementById('eodEndDateTime').value;
+        const date = `${startStr.replace('T', ' ')} TO ${endStr.replace('T', ' ')}`;
         if(window.writeSystemLog) writeSystemLog("EOD_REPORT_PRINTED", `Printed EOD Shift Summary for Date: ${date}`);
         const win = window.open('', '', 'height=600,width=400');
         win.document.write(`
@@ -13806,6 +13836,9 @@ window.setQuickCash = (amount) => {
                     ? `<button class="btn btn-ghost" style="padding:4px 8px; font-size:11px; color:#10b981; border-color:#bbf7d0; background:#f0fdf4; width:100%; cursor:default;" disabled><i class="ri-check-double-line"></i> Salary Paid</button>`
                     : `<button class="btn btn-success" style="padding:4px 8px; font-size:11px; width:100%;" onclick="processSalaryPayment('${emp.id}', '${safeEmpName}', ${netSalary}, ${year}, ${month})"><i class="ri-wallet-3-line"></i> Pay Salary</button>`;
 
+                // 🚨 CA FIX: Carry Forward Button for Negative Salaries
+                const deficitActionHtml = `<button class="btn btn-danger" style="padding:4px 8px; font-size:11px; width:100%;" onclick="carryForwardDeficit('${emp.id}', '${safeEmpName}', ${Math.abs(netSalary)}, ${year}, ${month})"><i class="ri-arrow-right-circle-line"></i> Carry Deficit Forward</button>`;
+
                 html += `
                 <tr>
                     <td style="font-family:monospace;">${emp.id}</td>
@@ -13816,11 +13849,11 @@ window.setQuickCash = (amount) => {
                     <td>${totExtra.toFixed(1)} h</td>
                     <td><span style="color:var(--success);">+${formatMoney(otPay)}</span></td>
                     <td><span style="color:var(--danger);">-${formatMoney(deficitDeduction + totAdvance)}</span></td>
-                    <td style="font-weight:900; font-size:16px; color:${netSalary <= 0 ? 'red' : 'inherit'}">${formatMoney(netSalary)}</td>
+                    <td style="font-weight:900; font-size:16px; color:${netSalary < 0 ? 'red' : 'inherit'}">${formatMoney(netSalary)}</td>
                     <td>
                         <div style="display:flex; flex-direction:column; gap:5px;">
                             <button class="btn btn-info" style="padding:4px 8px; font-size:11px; width:100%;" onclick="viewEmployeeTimesheet('${emp.id}')">View Details</button>
-                            ${netSalary > 0 ? payActionHtml : `<button class="btn btn-ghost" style="padding:4px 8px; font-size:11px; color:#ef4444; border-color:#fecaca; background:#fef2f2; width:100%; cursor:default;" disabled>No Payable</button>`}
+                            ${netSalary > 0 ? payActionHtml : (netSalary < 0 ? deficitActionHtml : `<button class="btn btn-ghost" style="padding:4px 8px; font-size:11px; color:#10b981; border-color:#bbf7d0; background:#f0fdf4; width:100%; cursor:default;" disabled><i class="ri-check-line"></i> Settled (Zero)</button>`)}
                         </div>
                     </td>
                 </tr>`;
@@ -15354,6 +15387,20 @@ let currentBatchForSerials = null;
                             action: 'RECONCILIATION', description: `Audit Adj: ${variance>0?'+':''}${variance}. Note: ${note || 'Perfect Match Validation'}`,
                             quantityChange: variance, finalQty: phy, batchNumber: b.batchNumber || 1, initialQty: liveSys
                         });
+
+                        // 🚨 CHARTERED ACCOUNTANT FIX 2: Log Financial Impact of Stock Shrinkage/Gain!
+                        // If items are missing (shrinkage), it MUST reflect as a loss on the Profit Dashboard.
+                        const costImpact = Math.round(Math.abs(variance) * (parseFloat(pData.buy) || 0) * 100) / 100;
+                        if (costImpact > 0) {
+                            const expRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`));
+                            t.set(expRef, {
+                                description: `Inventory Audit ${variance > 0 ? 'Gain' : 'Shrinkage'}: ${pName} (Qty: ${variance})`,
+                                amount: costImpact,
+                                isIncome: variance > 0, // Gain = Income, Shrinkage = Expense
+                                date: window.getSecureTime().toISOString(),
+                                isNonCashExpense: true // Prevents this from incorrectly deducting from the physical Cash Drawer
+                            });
+                        }
                     }
 
                     netVarianceTotal += variance;
@@ -15649,6 +15696,64 @@ let currentBatchForSerials = null;
         } catch (e) {
             console.error("Salary Payout Error:", e);
             showToast("Error processing salary. Check connection.", "error");
+        } finally {
+            toggleLoader(false);
+        }
+    };
+// 🚨 CA FIX: Safely carry forward employee debts to the next month's payroll
+    window.carryForwardDeficit = async (empId, empName, deficitAmt, year, month) => {
+        if (!confirm(`Employee '${empName}' owes the company ${formatMoney(deficitAmt)}.\n\nDo you want to automatically carry this forward as a Cash Advance deduction for NEXT month?`)) return;
+        
+        toggleLoader(true);
+        try {
+            // ඊළඟ මාසය සහ වර්ෂය නිවැරදිව ගණනය කිරීම
+            let nextMonth = month + 1;
+            let nextYear = year;
+            if (nextMonth > 11) { nextMonth = 0; nextYear++; }
+            
+            const nextMonthDateStr = `${nextYear}-${String(nextMonth + 1).padStart(2, '0')}-01`;
+            const logsRef = collection(db, `users/${dbOwnerId}/shops/${currentShopId}/employees/${empId}/logs`);
+            const now = window.getSecureTime().toISOString();
+            
+            const batch = writeBatch(db);
+
+            // 1. ඊළඟ මාසයේ පළමුවැනිදාට අදාළව Advance එකක් සටහන් කිරීම
+            const newLogRef = doc(logsRef);
+            batch.set(newLogRef, {
+                date: nextMonthDateStr,
+                status: 'P',
+                clockInTime: now,
+                clockOutTime: now,
+                workedHours: 0,
+                ot: 0,
+                advance: deficitAmt,
+                timestamp: now,
+                systemNote: `Auto Carry-Forward of unpaid debt from previous month (${month+1}/${year})`
+            });
+
+            // 2. මෙම මාසයේ "Payable" තත්ත්වය වසා දැමීම (Double Entry වළක්වයි)
+            const expRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`));
+            batch.set(expRef, {
+                description: `Salary Deficit Carried Forward: ${empName}`,
+                amount: 0,
+                isIncome: false,
+                payMethod: 'None',
+                date: now,
+                isPayroll: true,
+                payrollPeriod: `${year}_${month}`,
+                empId: empId
+            });
+
+            await batch.commit();
+
+            if(window.writeSystemLog) writeSystemLog("PAYROLL_DEFICIT_CARRIED", `Carried forward ${formatMoney(deficitAmt)} deficit for ${empName} to next month (${nextMonth+1}/${nextYear}).`);
+            
+            showToast("Deficit carried forward successfully!", "success");
+            await loadMasterPayroll(); // UI එක අලුත් කිරීම
+
+        } catch(e) {
+            console.error(e);
+            showToast("Error carrying forward deficit", "error");
         } finally {
             toggleLoader(false);
         }
