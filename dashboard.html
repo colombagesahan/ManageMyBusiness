@@ -7096,8 +7096,20 @@ window.checkout = async () => {
                 return showToast("Cash Given amount is REQUIRED for Cash payments!", "error");
             }
             cashGiven = roundToTwo(parseFloat(givenText));
+            // 🚨 CA FIX: Block Negative Cash Theft (Fraud Prevention)
+            if (cashGiven < 0) {
+                window.isCheckingOut = false; toggleLoader(false);
+                if(window.writeSystemLog) writeSystemLog("FRAUD_ATTEMPT_BLOCKED", `CRITICAL: Cashier attempted to enter a negative cash amount (${cashGiven}) during a Cash sale!`);
+                return showToast("Security Alert: Cash Given CANNOT be a negative number!", "error");
+            }
         } else if (paymentMethod === 'Pay Later') {
             cashGiven = (givenText === '') ? 0 : roundToTwo(parseFloat(givenText));
+            // 🚨 CA FIX: Block Negative Advance Theft (The Ultimate Backdoor Fix)
+            if (cashGiven < 0) {
+                window.isCheckingOut = false; toggleLoader(false);
+                if(window.writeSystemLog) writeSystemLog("FRAUD_ATTEMPT_BLOCKED", `CRITICAL: Cashier attempted to enter a negative advance (${cashGiven}) during a Pay Later sale!`);
+                return showToast("Security Alert: Advance Paid CANNOT be a negative number!", "error");
+            }
         } else {
             cashGiven = total; // Force exact amount for Cards/Online
         }
@@ -7192,6 +7204,12 @@ window.checkout = async () => {
 
                 // Read 1: Products
                 for (let item of cart) {
+                    // 🚨 CA FIX: Block Dev-Console Negative Qty Hack (Zero-Trust Validation)
+                    if (item.qty <= 0) {
+                        if(window.writeSystemLog) writeSystemLog("HACK_ATTEMPT_BLOCKED", `CRITICAL: Cashier attempted to inject Negative/Zero Qty (${item.qty}) for ${item.name} via Console!`);
+                        throw new Error(`SECURITY ALERT: Invalid quantity (${item.qty}) detected for '${item.name}'! Transaction aborted.`);
+                    }
+
                     if (item.isService) continue; // සේවා සඳහා තොග පරීක්ෂාවක් අවශ්‍ය නැත
 
                     const prodRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/products`, item.id);
@@ -7241,10 +7259,20 @@ window.checkout = async () => {
                     productRefs.push({ ref: prodRef, snapData: pData, cartItem: item });
                 }
 
-                // Read 2: Customer Profile
+                // Read 2: Customer Profile & Strict Wallet Validation
                 if (finalCustPhone && finalCustPhone !== "N/A") {
                     customerRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/customers`, finalCustPhone);
                     customerSnap = await transaction.get(customerRef);
+                    
+                    // 🚨 CA FIX: Concurrent Wallet Drain Prevention!
+                    // පාරිභෝගිකයා වෙනත් කවුන්ටරයකින්ද මේ මොහොතේම සල්ලි ගෙව්වාදැයි සජීවීව පරීක්ෂා කිරීම.
+                    if (walletToUse > 0) {
+                        if (!customerSnap.exists()) throw new Error("Customer profile missing for Wallet transaction!");
+                        const liveWalletBalance = customerSnap.data().walletBalance || 0;
+                        if (liveWalletBalance < walletToUse) {
+                            throw new Error(`CRITICAL: Store Credit unavailable! Customer's live balance is only ${formatMoney(liveWalletBalance)}. They might have just used it at another counter.`);
+                        }
+                    }
                 }
 
                 // ==========================================
@@ -15702,8 +15730,10 @@ let currentBatchForSerials = null;
     };
 // 🚨 CA FIX: Safely carry forward employee debts to the next month's payroll
     window.carryForwardDeficit = async (empId, empName, deficitAmt, year, month) => {
+        if (window.isCarryingForward) return; // 🚨 Block Double-Clicks
         if (!confirm(`Employee '${empName}' owes the company ${formatMoney(deficitAmt)}.\n\nDo you want to automatically carry this forward as a Cash Advance deduction for NEXT month?`)) return;
         
+        window.isCarryingForward = true;
         toggleLoader(true);
         try {
             // ඊළඟ මාසය සහ වර්ෂය නිවැරදිව ගණනය කිරීම
@@ -15756,6 +15786,7 @@ let currentBatchForSerials = null;
             showToast("Error carrying forward deficit", "error");
         } finally {
             toggleLoader(false);
+            window.isCarryingForward = false; // 🚨 CA FIX: ක්‍රියාවලිය අවසන් වූ පසු Lock එක නිදහස් කිරීම
         }
     };
 // ✅ ADD THIS NEW FUNCTION:
