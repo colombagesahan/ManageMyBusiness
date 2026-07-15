@@ -4053,13 +4053,14 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         toggleLoader(true);
         
         try {
+            // 🚨 CA & AUDITOR FIX: Absolute Top Priority Execution!
+            // Roster Lock එක අනිවාර්යයෙන්ම පළමුව දුවවා තහවුරු කරගත යුතුමය. වෙනත් කිසිදු කේතයක් ඊට පෙර නොදුවයි!
+            await window.verifyCurrentMonthRoster();
+
             // PERFORMANCE FIX: Parallel Loading (Promise.all) - Phase 1: Critical Path
             await Promise.all([
-                loadProfile(), loadCategories(), loadServiceCategories(), loadCatalog(), loadProducts(), loadServices(), loadEmpRoles() // 🛡️ Added loadEmpRoles
+                loadProfile(), loadCategories(), loadServiceCategories(), loadCatalog(), loadProducts(), loadServices(), loadEmpRoles()
             ]);
-
-// 🚨 SYSTEM LOCK CHECK: Roster සකසා ඇත්දැයි බැලීම
-            await window.verifyCurrentMonthRoster();
 
             // ENTERPRISE FIX: Set Default View to POS on Initial Boot
             // අත්‍යවශ්‍ය දත්ත ආ සැණින් ලෝඩරය නවත්වා POS එක විවෘත කරයි
@@ -4540,6 +4541,13 @@ body.pos-fullscreen-mode #view-pos > div > .card {
     });
 
    window.loadView = (viewName) => {
+        // 🚨 AUDITOR FIX: Impenetrable Navigation Lock!
+        // හැකර්වරයෙක් F12 මගින් කළු පාට Lock තිරය මකා දැමුවද, ඔහුට කිසිදු Tab එකකට ඇතුළු විය නොහැක!
+        if (window.isSystemRosterLocked) {
+            showToast("🚨 SYSTEM LOCKED: You must configure the Monthly Roster before accessing the system!", "error");
+            return; // ⛔ සම්පූර්ණයෙන්ම කේතය නැවැත්වීම
+        }
+
         // 🛡️ ENTERPRISE SECURITY FIX: Admin Crash Prevention & Dynamic Hard-Block
         // Cashier කෙනෙක් නම් පමණක් මේ Array එක පරීක්ෂා කරයි. Admin ගේ කේතය කඩා වැටීම 100% ක් නතර වේ.
         if (userRole === 'cashier') {
@@ -18540,14 +18548,17 @@ window.emergencyLocalOverride = async () => {
         const rosterRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/settings`, `roster_${year}_${month}`);
         
         try {
-            const snap = await getDoc(rosterRef);
-            const lockOverlay = document.getElementById('rosterLockOverlay');
-            const btnUnlock = document.getElementById('btnUnlockRoster');
-            const msg = document.getElementById('rosterLockMsg');
+                const snap = await getDoc(rosterRef);
+                const lockOverlay = document.getElementById('rosterLockOverlay');
+                const btnUnlock = document.getElementById('btnUnlockRoster');
+                const msg = document.getElementById('rosterLockMsg');
 
-            if (!snap.exists()) {
-                // Roster එක Save කරලා නෑ! සිස්ටම් එක Lock කරන්න!
-                lockOverlay.style.display = 'flex';
+                if (!snap.exists()) {
+                    // 🚨 AUDITOR FIX: Global Memory Lock (Prevents F12 Hacks)
+                    window.isSystemRosterLocked = true; 
+                    
+                    // Roster එක Save කරලා නෑ! සිස්ටම් එක Lock කරන්න!
+                    lockOverlay.style.display = 'flex';
                 
                 if (userRole === 'admin') {
                     msg.innerHTML = `The Monthly Roster for <b style="color:var(--warning);">${monthLabel} ${year}</b> has not been configured yet.<br><br>You must set up the working hours and holidays before you or your staff can use the system.`;
@@ -18557,10 +18568,13 @@ window.emergencyLocalOverride = async () => {
                     btnUnlock.style.display = 'none';
                 }
             } else {
-                // Roster එක තියෙනවා, Lock එක අරින්න!
-                lockOverlay.style.display = 'none';
-            }
-        } catch(e) {
+                    // 🚨 AUDITOR FIX: Global Memory Unlock
+                    window.isSystemRosterLocked = false; 
+                    
+                    // Roster එක තියෙනවා, Lock එක අරින්න!
+                    lockOverlay.style.display = 'none';
+                }
+            } catch(e) {
             console.error("Roster Verification Error:", e);
         }
     };
