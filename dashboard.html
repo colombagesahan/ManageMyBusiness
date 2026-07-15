@@ -1978,7 +1978,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             </div>
         </div>
 <!-- 🚀 NEW: ENTERPRISE FINANCIAL ACCOUNTING & AI AUDITOR -->
-        <div id="view-accounts" class="view">
+        <div id="view-accounts" class="view" style="height:100%; overflow-y:auto; padding-bottom:80px; padding-right:10px;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
                 <h3><i class="ri-bank-fill" style="color:var(--primary);"></i> Automated Financial Ledger & Reports</h3>
                 
@@ -13642,7 +13642,8 @@ window.setQuickCash = (amount) => {
         
         window.recalculateEODTotal(); 
         document.getElementById('eodReportArea').style.display = 'block';
-        if(window.writeSystemLog) writeSystemLog("EOD_REPORT_VIEWED", `Generated and viewed EOD Shift Summary on screen for Date: ${dateInput}`);
+        // 🚨 CA FIX: Fixed legacy dateInput variable crash!
+        if(window.writeSystemLog) writeSystemLog("EOD_REPORT_VIEWED", `Generated and viewed EOD Shift Summary on screen from: ${startInput} to ${endInput}`);
         toggleLoader(false);
     };
 
@@ -18628,27 +18629,25 @@ window.emergencyLocalOverride = async () => {
             let storeCredits = 0; // Customer Advances
             let inventoryAsset = 0;
 
-            // Calculate Accounts Receivable (Debts from Sales) - Unlimited fetch using RAM aggregation
-            const qAR = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`), where("creditBalance", ">", 0));
-            const snapAR = await getDocs(qAR);
-            snapAR.forEach(d => totalReceivables += d.data().creditBalance);
+            // 🚨 CA FIX: RAM-Aggregation Engine (Bypasses all Firebase Index Errors instantly!)
+            
+            // Calculate Accounts Receivable (Debts from Sales)
+            const snapAR = await getDocs(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`));
+            snapAR.forEach(d => { if(d.data().creditBalance > 0) totalReceivables += d.data().creditBalance; });
 
             // Calculate Accounts Payable (Supplier Debts)
-            const qAP = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/suppliers`), where("creditBalance", ">", 0));
-            const snapAP = await getDocs(qAP);
-            snapAP.forEach(d => totalPayables += d.data().creditBalance);
+            const snapAP = await getDocs(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/suppliers`));
+            snapAP.forEach(d => { if(d.data().creditBalance > 0) totalPayables += d.data().creditBalance; });
 
             // Calculate Customer Wallet Liability
-            const qC = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/customers`), where("walletBalance", ">", 0));
-            const snapC = await getDocs(qC);
-            snapC.forEach(d => storeCredits += d.data().walletBalance);
+            const snapC = await getDocs(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/customers`));
+            snapC.forEach(d => { if(d.data().walletBalance > 0) storeCredits += d.data().walletBalance; });
 
             // Calculate Inventory Value
-            const qInv = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`), where("qty", ">", 0));
-            const snapInv = await getDocs(qInv);
+            const snapInv = await getDocs(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`));
             snapInv.forEach(d => {
                 const p = d.data();
-                inventoryAsset += (parseFloat(p.buy) || 0) * p.qty;
+                if(p.qty > 0) inventoryAsset += (parseFloat(p.buy) || 0) * p.qty;
             });
 
             // Update Balance Sheet UI
