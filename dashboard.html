@@ -5721,13 +5721,28 @@ window.onTransferProductSelect = () => {
                     transaction.set(newBpRef, { name: sourceProd.name, image: sourceProd.image || null, sku: sourceProd.sku || "", categoryId: "", created: window.getSecureTime().toISOString() });
                 }
 
-                // 3. Add to Target Branch with the transferred Serials!
+                // 3. Add to Target Branch with ALL Critical Metadata Preserved!
                 const targetProdRef = doc(collection(db, `users/${dbOwnerId}/shops/${targetShopId}/products`));
                 transaction.set(targetProdRef, {
-                    name: sourceProd.name, sku: sourceProd.sku || "", image: sourceProd.image || null, categoryId: "",
-                    qty: qty, buy: sourceProd.buy, sell: sourceProd.sell, unit: sourceProd.unit || '',
-                    dateAdded: window.getSecureTime().toISOString(), batchNumber: newTargetBatch, isTransfer: true,
-                    availableSerials: transferredSerials, // SECURE: Sent exact barcodes!
+                    name: sourceProd.name, 
+                    sku: sourceProd.sku || "", 
+                    image: sourceProd.image || null, 
+                    categoryId: "", // Requires manual recategorization in target shop
+                    qty: qty, 
+                    buy: sourceProd.buy, 
+                    sell: sourceProd.sell, 
+                    unit: sourceProd.unit || '',
+                    dateAdded: window.getSecureTime().toISOString(), 
+                    batchNumber: newTargetBatch, 
+                    isTransfer: true,
+                    // 🚨 CA FIX: Preserve Exact Identity & Financial Math of the Product
+                    itemType: sourceProd.itemType || 'serialized',
+                    expiryDate: sourceProd.expiryDate || '',
+                    adminDiscType: sourceProd.adminDiscType || 'percent',
+                    adminDiscValue: sourceProd.adminDiscValue || 0,
+                    supplierId: sourceProd.supplierId || '',
+                    // Barcodes
+                    availableSerials: transferredSerials, 
                     soldSerials: []
                 });
 
@@ -6748,9 +6763,13 @@ window.checkout = async () => {
                 }
             } else {
                 const liveProduct = productsCache.find(p => p.id === item.id);
-                if (liveProduct && liveProduct.sell !== item.sell) {
-                    item.sell = liveProduct.sell; // Auto-update to latest Product price
-                    priceChanged = true;
+                if (liveProduct) {
+                    // 🚨 CA FIX: Check the dynamically calculated LIVE EFFECTIVE PRICE (including Promos), not just the base sell price!
+                    const liveEffectivePrice = window.getEffectivePrice(liveProduct).price;
+                    if (Math.abs(liveEffectivePrice - item.effectiveSell) > 0.01) {
+                        item.sell = liveProduct.sell; // Force update to latest base price (renderCart will re-apply promos visually)
+                        priceChanged = true;
+                    }
                 }
             }
         }
@@ -7640,9 +7659,13 @@ window.checkout = async () => {
     window.addDocItemRow = (btn) => {
         const tbody = btn.previousElementSibling.previousElementSibling.querySelector('tbody');
         const tr = document.createElement('tr');
+        // 🚨 CA FIX: Added Hidden Textarea for Serials Tracking in Document Builder
         tr.innerHTML = `
             <td style="padding:4px;"><input class="item-brand" placeholder="Brand" style="margin:0; padding:6px; font-size:12px;"></td>
-            <td style="padding:4px;"><input class="item-name" placeholder="Item Name / Capacity" list="docProductList" onchange="fillDocPrice(this)" style="margin:0; padding:6px; font-size:12px;"></td>
+            <td style="padding:4px;">
+                <input class="item-name" placeholder="Item Name / Capacity" list="docProductList" onchange="fillDocPrice(this)" style="margin:0; padding:6px; font-size:12px;">
+                <textarea class="item-serials" placeholder="S/N: (Comma separated)" rows="2" style="display:none; margin-top:4px; font-size:10px; width:100%; border:1px dashed var(--danger);"></textarea>
+            </td>
             <td style="padding:4px;"><input class="item-uprice" type="number" placeholder="0.00" onkeyup="calcDocTotals()" style="margin:0; padding:6px; font-size:12px;"></td>
             <td style="padding:4px;"><input class="item-dprice" type="number" placeholder="0.00" onkeyup="calcDocTotals()" style="margin:0; padding:6px; font-size:12px;"></td>
             <td style="padding:4px;"><input class="item-qty" type="number" value="1" onkeyup="calcDocTotals()" onchange="calcDocTotals()" style="margin:0; padding:6px; font-size:12px; width:50px;"></td>
@@ -7685,6 +7708,17 @@ window.checkout = async () => {
             const price = stockP.sell || stockP.price || 0;
             row.querySelector('.item-uprice').value = price;
             row.querySelector('.item-dprice').value = price; // Default discounted price to unit price
+            
+            // 🚨 CA FIX: Dynamically show Serial Input Box for strict items!
+            const serialArea = row.querySelector('.item-serials');
+            if (serialArea) {
+                if (stockP.itemType === 'serialized' || (stockP.availableSerials && stockP.availableSerials.length > 0)) {
+                    serialArea.style.display = 'block';
+                } else {
+                    serialArea.style.display = 'none';
+                    serialArea.value = '';
+                }
+            }
         } 
         calcDocTotals();
     };
@@ -7776,15 +7810,33 @@ window.checkout = async () => {
                 const dPrice = dPriceStr !== '' ? parseFloat(dPriceStr) : uPrice; 
                 
                 const qty = parseFloat(tr.querySelector('.item-qty').value) || 0;
+                const serialsRaw = tr.querySelector('.item-serials') ? tr.querySelector('.item-serials').value.trim() : "";
                 
                 if (name) {
                     if (uPrice < 0 || dPrice < 0) {
                         validationError = `SECURITY ALERT: Unit prices for '${name}' cannot be negative!`;
                         return; 
                     }
-                    if (qty <= 0) {
-                        validationError = `Invalid Quantity: Quantity for '${name}' must be greater than zero!`;
+                    if (qty <= 0 || !Number.isInteger(qty)) {
+                        validationError = `Invalid Quantity: Quantity for '${name}' must be a valid whole number!`;
                         return; 
+                    }
+
+                    // 🚨 CA FIX: Strict Serial Validation in Document Builder
+                    let serialsToDeduct = [];
+                    const pCacheObj = productsCache.find(p => p.name === name) || catalogCache.find(p => p.name === name);
+                    const isSerItem = pCacheObj && (pCacheObj.itemType === 'serialized' || (pCacheObj.availableSerials && pCacheObj.availableSerials.length > 0));
+
+                    if (isSerItem) {
+                        if (!serialsRaw) {
+                            validationError = `INVENTORY ALERT: '${name}' is a Serialized item. You MUST enter ${qty} serial number(s) in the box below it!`;
+                            return;
+                        }
+                        serialsToDeduct = serialsRaw.split(',').map(s => s.trim()).filter(s => s !== "");
+                        if (serialsToDeduct.length !== qty) {
+                            validationError = `INVENTORY ALERT: For '${name}', you entered ${serialsToDeduct.length} serials but Qty is ${qty}! They must match exactly.`;
+                            return;
+                        }
                     }
 
                     // 🛡️ ENTERPRISE DISCOUNT & PROMO VALIDATION
@@ -7805,7 +7857,7 @@ window.checkout = async () => {
                     const activePrice = dPrice; // The cashier's exact typed price is honored (if authorized)
                     const lineTot = Math.round((qty * activePrice) * 100) / 100;
                     
-                    optItems.push({ brand, name, uPrice, dPrice, qty, total: lineTot });
+                    optItems.push({ brand, name, uPrice, dPrice, qty, total: lineTot, serials: serialsToDeduct });
                     optTotal += lineTot;
                 }
             });
@@ -7953,12 +8005,29 @@ window.autoFillDocCustomer = (name) => {
                         
                         let updatePayload = { qty: currentQty - take };
                         
-                        // ENTERPRISE FIX: Slice and register Serials as sold when Invoicing!
+                        // 🚨 CA FIX: Zero-Trust Serial Validation for Invoices
                         const pData = data.snap.data();
-                        if (pData.availableSerials && pData.availableSerials.length >= take) {
-                            const slicedSerials = pData.availableSerials.slice(0, take);
-                            updatePayload.availableSerials = arrayRemove(...slicedSerials);
-                            updatePayload.soldSerials = arrayUnion(...slicedSerials);
+                        const isSerialized = pData.itemType === 'serialized' || (pData.availableSerials && pData.availableSerials.length > 0);
+                        
+                        if (isSerialized) {
+                            const requiredSerials = data.item.serials || [];
+                            
+                            // 1. Double check count
+                            if (requiredSerials.length !== take) {
+                                throw new Error(`CRITICAL INVENTORY ALERT: Missing serials for ${data.item.name}. Expected ${take}, got ${requiredSerials.length}.`);
+                            }
+                            
+                            // 2. Security Check: Are these serials ACTUALLY in the database?
+                            const currentAvail = pData.availableSerials || [];
+                            for(let s of requiredSerials) {
+                                if(!currentAvail.includes(s)) {
+                                    throw new Error(`FRAUD/INVENTORY ALERT: Serial '${s}' for '${data.item.name}' is NOT available in stock! It may have been sold or typed incorrectly.`);
+                                }
+                            }
+                            
+                            // 3. Process Atomic Update
+                            updatePayload.availableSerials = arrayRemove(...requiredSerials);
+                            updatePayload.soldSerials = arrayUnion(...requiredSerials);
                         }
 
                         transaction.update(data.ref, updatePayload);
@@ -8034,14 +8103,18 @@ window.autoFillDocCustomer = (name) => {
             generateDocumentPDF(tempDocData);
             showToast(`${tempDocData.type.toUpperCase()} Saved!`);
             
-            // Reset Form properly
-            document.getElementById('docItemsBody').innerHTML = '';
+            // 🚨 CA FIX: Reset Enterprise Document Builder Form properly (Prevents Crash & Duplicate Saves)
+            document.getElementById('docOptionsContainer').innerHTML = '';
+            document.getElementById('docExtrasContainer').innerHTML = '';
+            optionBlockCount = 0;
+            addDocOptionBlock(); // Add default option block
+            
             document.getElementById('docCustName').value = '';
             document.getElementById('docCustAddr').value = ''; // Address cleared
             document.getElementById('docId').value = '';
             document.getElementById('docDiscount').value = ''; // Discount cleared
             document.getElementById('docTax').value = '';      // Tax cleared
-            addDocRow(); // Add an initial empty row back for the next document
+            
             calcDocTotals();
             loadDocumentsHistory();
 
@@ -8181,57 +8254,76 @@ window.autoFillDocCustomer = (name) => {
         document.getElementById('docTypeToggle').value = 'invoice';
         toggleDocType();
         document.getElementById('docCustName').value = quote.customer.name;
-        document.getElementById('docCustAddr').value = quote.customer.address;
-        document.getElementById('docDate').valueAsDate = new Date();
-            // Clear ID so user generates new one
-            document.getElementById('docId').value = ''; 
-            
-            // 🛡️ ENTERPRISE FIX: Remember the original Quotation ID in the hidden field
-            const hiddenQuoteIdInput = document.getElementById('convertedFromQuoteId');
-            if(hiddenQuoteIdInput) hiddenQuoteIdInput.value = quote.id;
+        document.getElementById('docCustAddr').value = quote.customer.address || '';
+        document.getElementById('docDate').valueAsDate = window.getSecureTime();
+        document.getElementById('docId').value = ''; 
         
-        const tbody = document.getElementById('docItemsBody');
-        tbody.innerHTML = '';
+        const hiddenQuoteIdInput = document.getElementById('convertedFromQuoteId');
+        if(hiddenQuoteIdInput) hiddenQuoteIdInput.value = quote.id;
+        
+        // 🚨 CA FIX: Enterprise Document Builder DOM Regeneration!
+        const optsContainer = document.getElementById('docOptionsContainer');
+        const extContainer = document.getElementById('docExtrasContainer');
+        optsContainer.innerHTML = '';
+        extContainer.innerHTML = '';
+        optionBlockCount = 0;
         let priceChangedAlert = false;
 
-        quote.items.forEach(i => {
-            // ENTERPRISE FIX: Check LIVE prices against Quoted prices to prevent massive losses!
-            let livePrice = i.price;
-            const liveProd = productsCache.find(p => p.name === i.name);
-            const liveSrv = servicesCache.find(s => s.name === i.name);
-            
-            if (liveProd && liveProd.sell !== i.price) { livePrice = liveProd.sell; priceChangedAlert = true; }
-            else if (liveSrv && liveSrv.price !== i.price) { livePrice = liveSrv.price; priceChangedAlert = true; }
+        if (quote.options && quote.options.length > 0) {
+            quote.options.forEach(opt => {
+                addDocOptionBlock(); // Add a block
+                const currentBlock = optsContainer.lastElementChild;
+                currentBlock.querySelector('.opt-title').value = opt.title || '';
+                currentBlock.querySelector('.opt-desc').value = opt.description || '';
+                
+                const tbody = currentBlock.querySelector('.opt-tbody');
+                tbody.innerHTML = ''; // Clear default empty row
 
-            const newTotal = livePrice * i.qty;
-            const safeDesc = i.description ? i.description.replace(/</g, "&lt;").replace(/>/g, "&gt;") : '';
+                opt.items.forEach(i => {
+                    let livePrice = i.uPrice;
+                    const liveProd = productsCache.find(p => p.name === i.name);
+                    const liveSrv = servicesCache.find(s => s.name === i.name);
+                    
+                    if (liveProd && liveProd.sell !== i.uPrice) { livePrice = liveProd.sell; priceChangedAlert = true; }
+                    else if (liveSrv && liveSrv.price !== i.uPrice) { livePrice = liveSrv.price; priceChangedAlert = true; }
 
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td>
-                    <input class="doc-item-name" value="${i.name.replace(/"/g, '&quot;')}" list="docProductList" onchange="fillDocPrice(this)" style="margin-bottom:5px;">
-                    <textarea class="doc-item-desc" rows="1" style="margin-bottom:0; font-size:11px; padding:6px; background:#f9fafb; resize:vertical;">${safeDesc}</textarea>
-                </td>
-                <td style="vertical-align:top;"><input class="doc-item-qty" type="number" value="${i.qty}" style="width:60px;" onchange="calcDocTotals()"></td>
-                <!-- Use LIVE price and highlight in orange if changed -->
-                <td><input class="doc-item-price" type="number" value="${livePrice}" style="${livePrice !== i.price ? 'border: 2px solid orange;' : ''}" onchange="calcDocTotals()"></td>
-                <td class="doc-item-total" style="font-weight:bold;">${newTotal.toFixed(2)}</td>
-                <td><button class="btn btn-danger" style="padding:2px 6px;" onclick="this.closest('tr').remove(); calcDocTotals()">x</button></td>
-            `;
-            tbody.appendChild(tr);
-        });
-        document.getElementById('docDiscount').value = quote.discount;
-        document.getElementById('docTax').value = quote.tax;
+                    const newTotal = livePrice * i.qty;
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td style="padding:4px;"><input class="item-brand" value="${i.brand || ''}" style="margin:0; padding:6px; font-size:12px;"></td>
+                        <td style="padding:4px;"><input class="item-name" value="${i.name.replace(/"/g, '&quot;')}" list="docProductList" onchange="fillDocPrice(this)" style="margin:0; padding:6px; font-size:12px;"></td>
+                        <td style="padding:4px;"><input class="item-uprice" type="number" value="${livePrice}" onkeyup="calcDocTotals()" style="margin:0; padding:6px; font-size:12px; ${livePrice !== i.uPrice ? 'border: 2px solid orange;' : ''}"></td>
+                        <td style="padding:4px;"><input class="item-dprice" type="number" value="${livePrice}" onkeyup="calcDocTotals()" style="margin:0; padding:6px; font-size:12px;"></td>
+                        <td style="padding:4px;"><input class="item-qty" type="number" value="${i.qty}" onkeyup="calcDocTotals()" onchange="calcDocTotals()" style="margin:0; padding:6px; font-size:12px; width:50px;"></td>
+                        <td class="item-total" style="padding:4px; font-weight:bold; font-size:12px; text-align:right;">${newTotal.toFixed(2)}</td>
+                        <td style="padding:4px;"><i class="ri-close-circle-fill" style="color:red; cursor:pointer; font-size:18px;" onclick="this.closest('tr').remove(); calcDocTotals();"></i></td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            });
+        } else {
+            addDocOptionBlock(); // Fallback if quote has no options
+        }
+
+        if (quote.extras && quote.extras.length > 0) {
+            quote.extras.forEach(ext => {
+                addDocExtraRow();
+                const currentRow = extContainer.lastElementChild;
+                currentRow.querySelector('.ext-cap').value = ext.cap || '';
+                currentRow.querySelector('.ext-type').value = ext.type || '';
+                currentRow.querySelector('.ext-rate').value = ext.rate || 0;
+            });
+        }
+
+        document.getElementById('docDiscount').value = quote.discount || 0;
+        document.getElementById('docTax').value = quote.taxPercent || 0;
         calcDocTotals();
         
         if(window.writeSystemLog) writeSystemLog("QUOTE_CONVERTED", `Converted Quotation into an Invoice for customer: ${quote.customer.name}`);
         
-        if (priceChangedAlert) {
-            showToast("Warning: Some market prices have changed since this quotation! Prices updated to LIVE rates.", "warning");
-        } else {
-            showToast("Converted to Invoice Mode. Please set new ID and Save.");
-        }
-};
+        if (priceChangedAlert) showToast("Warning: Some market prices have changed since this quotation! Prices updated to LIVE rates.", "warning");
+        else showToast("Converted to Invoice Mode. Please set new ID and Save.");
+    };
 
    // ==========================================
     // 🚀 ENTERPRISE HYBRID PDF & THERMAL PRINT GENERATOR 
@@ -9910,6 +10002,13 @@ window.autoFillDocCustomer = (name) => {
             toggleLoader(false);
             return showToast("Cannot Delete: This customer has pending unpaid debts!", "error");
         }
+        
+        // 🚨 CA FIX: Block deletion if customer has Store Credit (Wallet) to prevent Liability Loss!
+        const c = customersCache.find(x => x.id === id);
+        if (c && c.walletBalance && c.walletBalance > 0) {
+            toggleLoader(false);
+            return showToast(`Cannot Delete: Customer has ${formatMoney(c.walletBalance)} in Store Credit! Refund or Settle it first.`, "error");
+        }
         toggleLoader(false);
 
         if(!confirm(`Are you sure you want to delete customer ${id}?\nTheir past sales history will be archived securely.`)) return;
@@ -11499,10 +11598,16 @@ window.handlePosSearchEnter = async (e) => {
                 } 
                 
                 // 🚀 4. GLOBAL SKU (COMPANY BARCODE) FALLBACK
-                const qSku = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`), where('sku', '==', term), limit(1));
+                // 🚨 CA FIX: Removed limit(1) to fetch ALL batches! Prevents false "Out of Stock" alerts.
+                const qSku = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`), where('sku', '==', term), where('qty', '>', 0));
                 const snapSku = await getDocs(qSku);
 
                 if (!snapSku.empty) {
+                    // Push ALL available batches to Cache so AutoSplit (Waterfall) can use them seamlessly!
+                    snapSku.forEach(d => { 
+                        if(!productsCache.find(p => p.id === d.id)) productsCache.push({id: d.id, ...d.data()}); 
+                    });
+                    
                     const matchedProd = snapSku.docs[0].data();
                     const iType = matchedProd.itemType || 'serialized';
 
@@ -11874,8 +11979,11 @@ window.setQuickCash = (amount) => {
     };
 
     window.deleteServiceCategory = async (id) => {
+        // 🚨 AUDITOR FIX: Block Cashier Deletions
+        if (userRole !== 'admin') return showToast("Security Alert: Access Denied!", "error");
+        
         toggleLoader(true);
-        // ENTERPRISE FIX: Strict Database validation to prevent Ghost Services! Bypassing local cache.
+        // ENTERPRISE FIX: Strict Database validation to prevent Ghost Services!
         const qCheck = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/services`), where("categoryId", "==", id), limit(1));
         const snapCheck = await getDocs(qCheck);
         
@@ -11989,6 +12097,12 @@ window.setQuickCash = (amount) => {
     };
 
     window.deleteService = async (id) => {
+        // 🚨 AUDITOR FIX: Block Cashier Deletions
+        if (userRole !== 'admin') {
+            if(window.writeSystemLog) writeSystemLog("HACK_ATTEMPT", `CRITICAL: Cashier attempted to DELETE a Service via Console!`);
+            return showToast("Security Alert: Access Denied!", "error");
+        }
+
         if(!confirm("Delete this service?")) return;
         toggleLoader(true);
         await deleteDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/services`, id));
@@ -12598,6 +12712,13 @@ window.setQuickCash = (amount) => {
     };
 
     window.deleteExpense = async (id) => {
+        // 🚨 CA & AUDITOR FIX: Ultimate Cash Flow Protection!
+        // Cashiers MUST NEVER be allowed to delete Ledger entries. This prevents EOD manipulation & theft.
+        if (userRole !== 'admin') {
+            if(window.writeSystemLog) writeSystemLog("HACK_ATTEMPT", "CRITICAL: Cashier attempted to delete a Cash Flow Ledger record!");
+            return showToast("Security Alert: Only Admins can delete financial ledger records!", "error");
+        }
+
         const exp = expensesCache.find(e => e.id === id);
         
         // 🛡️ ENTERPRISE FAILSAFE: Prevent Application Crash
@@ -13249,6 +13370,11 @@ window.setQuickCash = (amount) => {
             if (payAmount > 0 && payMethod !== 'Cheque') {
                 const cRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/customers`, currentActivePhone);
                 batch.update(cRef, { walletBalance: increment(payAmount) });
+                
+                // 🚨 CA FIX: Instantly sync the local RAM cache so Cashier can use this Store Credit immediately in POS!
+                const cachedCust = customersCache.find(c => c.id === currentActivePhone);
+                if (cachedCust) cachedCust.walletBalance = (cachedCust.walletBalance || 0) + payAmount;
+                
                 if(window.writeSystemLog) writeSystemLog("DEBT_OVERPAYMENT_WALLET", `Customer overpaid debt by ${formatMoney(payAmount)} via ${payMethod}. Added to Store Credit.`);
             }
             
@@ -14676,7 +14802,8 @@ window.setQuickCash = (amount) => {
                 });
 
                 // 🛡️ ENTERPRISE P&L FIX: Log the actual cost as an Expense so it reduces the Dashboard Profit!
-                const costLoss = (parseFloat(pData.buy) || 0) * qty;
+                // 🚨 CA FIX: Enforce Banker's Rounding to prevent floating-point leaks in Expenses
+                const costLoss = Math.round(((parseFloat(pData.buy) || 0) * qty) * 100) / 100;
                 if (costLoss > 0) {
                     const expRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`));
                     t.set(expRef, {
@@ -16555,6 +16682,8 @@ let currentBatchForSerials = null;
             });
             document.getElementById('wsTaskTitle').value = '';
             document.getElementById('wsTaskDesc').value = '';
+            // 🚨 SYSTEM AUDITOR FIX: Ensure Workspace task assignments are securely logged!
+            if(window.writeSystemLog) writeSystemLog("TASK_ASSIGNED", `Assigned task '${title}' to Employee ID: ${wsActiveEmpId} via Team Workspace`);
             showToast("Task Assigned!");
         } catch(e) { showToast("Error assigning task", "error"); }
     };
@@ -16563,6 +16692,8 @@ let currentBatchForSerials = null;
         if(!confirm("Cancel and delete this task?")) return;
         try {
             await deleteDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/tasks`, taskId));
+            // 🚨 SYSTEM AUDITOR FIX: Ensure Workspace task deletions are securely logged!
+            if(window.writeSystemLog) writeSystemLog("TASK_DELETED", `Deleted a workspace task (ID: ${taskId})`);
             showToast("Task Deleted");
         } catch(e) { showToast("Error deleting task", "error"); }
     };
