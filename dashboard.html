@@ -272,6 +272,10 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         
         <div class="nav-group">Sales & POS</div>
         <a class="nav-item" onclick="loadView('pos')"><i class="ri-shopping-cart-2-line"></i> Smart POS</a>
+        
+        <!-- 🚨 අලුත් ගිණුම් අංශය -->
+        <div class="nav-group">Accounting & Finance</div>
+        <a class="nav-item" onclick="loadView('accounts')" id="navAccounts"><i class="ri-bank-fill"></i> Financial Accounts <span style="background:var(--success); color:white; font-size:9px; padding:2px 6px; border-radius:10px; margin-left:5px;">AI</span></a>
         <a class="nav-item" onclick="loadView('orders')"><i class="ri-file-list-3-line"></i> Sales</a>
         <a class="nav-item" onclick="loadView('taxreports')"><i class="ri-file-paper-2-fill"></i> Tax & VAT Reports</a>
         <!-- NEW: SERVICE CRM TAB -->
@@ -1973,6 +1977,123 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                 </div>
             </div>
         </div>
+<!-- 🚀 NEW: ENTERPRISE FINANCIAL ACCOUNTING & AI AUDITOR -->
+        <div id="view-accounts" class="view">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
+                <h3><i class="ri-bank-fill" style="color:var(--primary);"></i> Automated Financial Ledger & Reports</h3>
+                
+                <div style="display:flex; gap:10px; align-items:center; background:#f9fafb; padding:8px 12px; border-radius:8px; border:1px solid #e5e7eb;">
+                    <select id="accFilterType" onchange="toggleAccInputs()" style="margin:0; width:130px; font-weight:bold;">
+                        <option value="daily">Specific Day</option>
+                        <option value="monthly" selected>Monthly</option>
+                        <option value="yearly">Yearly</option>
+                    </select>
+                    <input type="date" id="accDateInput" style="margin:0; width:auto; display:none;">
+                    <input type="month" id="accMonthInput" style="margin:0; width:auto;">
+                    <select id="accYearInput" style="margin:0; width:100px; display:none;"></select>
+                    
+                    <button class="btn btn-primary" onclick="generateFinancials()"><i class="ri-refresh-line"></i> Process Ledger</button>
+                    <button class="btn btn-danger" onclick="downloadFinancialPDF()"><i class="ri-file-pdf-line"></i> Export PDF</button>
+                </div>
+            </div>
+
+            <!-- Financial Layout -->
+            <div style="display:grid; grid-template-columns: 2fr 1fr; gap:20px; align-items:start;">
+                
+                <!-- Left: P&L and Balance Sheet -->
+                <div id="financialReportArea" style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:20px; box-shadow:0 4px 6px -1px rgba(0,0,0,0.05);">
+                    <div style="text-align:center; margin-bottom:20px; border-bottom:2px solid var(--primary); padding-bottom:10px;">
+                        <h2 style="margin:0; color:var(--primary);">STATEMENT OF COMPREHENSIVE INCOME (P&L)</h2>
+                        <div id="accReportPeriod" style="font-size:12px; color:#64748b; font-weight:bold;">Please select a period and click Process Ledger.</div>
+                    </div>
+                    
+                    <!-- Virtual P&L Engine -->
+                    <table style="width:100%; font-size:14px;">
+                        <tbody>
+                            <!-- Revenue -->
+                            <tr><td colspan="2" style="font-weight:900; color:#1e40af; padding-top:10px;">1. REVENUE (ආදායම් ගිණුම්)</td></tr>
+                            <tr><td style="padding-left:20px;">Gross Sales (අලෙවි ආදායම)</td><td style="text-align:right; font-weight:bold;" id="accSales">0.00</td></tr>
+                            <tr><td style="padding-left:20px;">Other Operating Incomes (වෙනත් ආදායම්)</td><td style="text-align:right; font-weight:bold;" id="accOtherInc">0.00</td></tr>
+                            <tr><td style="padding-left:20px; color:#b91c1c;">Less: Sales Returns & Refunds</td><td style="text-align:right; font-weight:bold; color:#b91c1c;" id="accRefunds">0.00</td></tr>
+                            <tr style="border-top:1px solid #ccc; border-bottom:2px solid #ccc;"><td style="font-weight:bold;">Net Revenue</td><td style="text-align:right; font-weight:900; color:var(--success);" id="accNetRev">0.00</td></tr>
+                            
+                            <!-- COGS -->
+                            <tr><td colspan="2" style="font-weight:900; color:#1e40af; padding-top:15px;">2. COST OF SALES (විකිණූ භාණ්ඩවල පිරිවැය)</td></tr>
+                            <tr><td style="padding-left:20px;">Cost of Goods Sold (COGS)</td><td style="text-align:right; font-weight:bold; color:#b91c1c;" id="accCogs">0.00</td></tr>
+                            <tr style="border-top:1px solid #ccc; border-bottom:2px solid #ccc;"><td style="font-weight:bold;">Gross Profit (දළ ලාභය)</td><td style="text-align:right; font-weight:900; font-size:16px; color:#047857;" id="accGp">0.00</td></tr>
+                            
+                            <!-- OPEX -->
+                            <tr><td colspan="2" style="font-weight:900; color:#1e40af; padding-top:15px;">3. OPERATING EXPENSES (මෙහෙයුම් වියදම්)</td></tr>
+                            <tr><td style="padding-left:20px;">Staff Payroll & Advances (වැටුප්)</td><td style="text-align:right; font-weight:bold;" id="accPayroll">0.00</td></tr>
+                            <tr><td style="padding-left:20px;">General Expenses & Utility (සාමාන්‍ය වියදම්)</td><td style="text-align:right; font-weight:bold;" id="accOpex">0.00</td></tr>
+                            <tr><td style="padding-left:20px;">Fleet & Logistics (ප්‍රවාහන)</td><td style="text-align:right; font-weight:bold;" id="accFleet">0.00</td></tr>
+                            <tr><td style="padding-left:20px;">Inventory Write-offs / Shrinkage (අලාභ)</td><td style="text-align:right; font-weight:bold;" id="accWriteoff">0.00</td></tr>
+                            <tr style="border-top:1px solid #ccc; border-bottom:2px solid #ccc;"><td style="font-weight:bold;">Total Operating Expenses</td><td style="text-align:right; font-weight:900; color:#b91c1c;" id="accTotOpex">0.00</td></tr>
+                            
+                            <!-- NET PROFIT -->
+                            <tr style="background:#f0fdf4;"><td style="font-weight:900; font-size:16px; padding:10px 5px; color:#166534;">NET PROFIT FOR THE PERIOD (ශුද්ධ ලාභය)</td><td style="text-align:right; font-weight:900; font-size:20px; padding:10px 5px; color:#166534;" id="accNp">0.00</td></tr>
+                        </tbody>
+                    </table>
+
+                    <div style="text-align:center; margin-top:40px; margin-bottom:20px; border-bottom:2px solid var(--primary); padding-bottom:10px;">
+                        <h2 style="margin:0; color:var(--primary);">FINANCIAL POSITION (Balance Sheet Overview)</h2>
+                        <div style="font-size:12px; color:#64748b; font-weight:bold;">As of <span id="accBsDate">Today</span></div>
+                    </div>
+
+                    <table style="width:100%; font-size:14px;">
+                        <tbody>
+                            <tr><td colspan="2" style="font-weight:900; color:#1e40af;">ASSETS (වත්කම්)</td></tr>
+                            <tr><td style="padding-left:20px;">Current Inventory Value (තොග වටිනාකම)</td><td style="text-align:right; font-weight:bold;" id="accBsInv">0.00</td></tr>
+                            <tr><td style="padding-left:20px;">Accounts Receivable (පාරිභෝගික ණය)</td><td style="text-align:right; font-weight:bold;" id="accBsAr">0.00</td></tr>
+                            <tr style="border-top:1px solid #ccc; border-bottom:2px solid #ccc;"><td style="font-weight:bold;">Total Operational Assets</td><td style="text-align:right; font-weight:900; color:var(--primary);" id="accBsTotAssets">0.00</td></tr>
+
+                            <tr><td colspan="2" style="font-weight:900; color:#1e40af; padding-top:15px;">LIABILITIES (වගකීම්)</td></tr>
+                            <tr><td style="padding-left:20px;">Accounts Payable (සැපයුම්කරු ණය)</td><td style="text-align:right; font-weight:bold; color:#b91c1c;" id="accBsAp">0.00</td></tr>
+                            <tr><td style="padding-left:20px;">Customer Advance / Store Credit</td><td style="text-align:right; font-weight:bold; color:#b91c1c;" id="accBsStoreCredit">0.00</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Right: AI Auditor Console -->
+                <div style="background:#111827; border-radius:12px; display:flex; flex-direction:column; height:800px; box-shadow:0 10px 15px -3px rgba(0,0,0,0.1); overflow:hidden;">
+                    <div style="padding:15px; background:#1f2937; border-bottom:1px solid #374151; display:flex; align-items:center; gap:10px;">
+                        <div style="width:40px; height:40px; border-radius:50%; background:var(--primary); display:flex; align-items:center; justify-content:center; font-size:24px; color:white; box-shadow:0 0 15px rgba(79, 70, 229, 0.5);"><i class="ri-robot-2-fill"></i></div>
+                        <div>
+                            <div style="color:white; font-weight:900; font-size:15px; letter-spacing:1px;">AI CHARTERED AUDITOR</div>
+                            <div style="color:#10b981; font-size:11px; font-weight:bold;"><i class="ri-lock-fill"></i> Secure Financial Analysis</div>
+                        </div>
+                    </div>
+                    
+                    <div id="aiAuditorChat" style="flex:1; padding:20px; overflow-y:auto; display:flex; flex-direction:column; gap:15px; background:#111827;">
+                        <div style="align-self:flex-start; background:#374151; color:white; padding:12px 15px; border-radius:12px; border-bottom-left-radius:2px; font-size:13px; max-width:90%; line-height:1.5;">
+                            ආයුබෝවන්! මම ඔබගේ AI ගණකාධිකාරීවරයා. වම් පසින් කාලසීමාවක් තෝරා 'Process Ledger' බොත්තම ඔබන්න. ඉන්පසු පහත බොත්තම එබීමෙන් මා එම මූල්‍ය වාර්තාව ගැඹුරින් කියවා, සිංහලෙන් හෝ ඉංග්‍රීසියෙන් ඔබට ව්‍යාපාරික උපදෙස් (Audit Report) ලබා දෙන්නම්.
+                        </div>
+                    </div>
+
+                    <div style="padding:15px; background:#1f2937; border-top:1px solid #374151;">
+                        <button class="btn btn-primary" style="width:100%; justify-content:center; padding:12px; font-size:14px; font-weight:900; background:linear-gradient(90deg, #4f46e5, #9333ea);" onclick="requestAIAudit()" id="btnAIAuditor">
+                            <i class="ri-magic-line"></i> GENERATE AI AUDIT REPORT
+                        </button>
+                        <div style="font-size:10px; color:#6b7280; text-align:center; margin-top:8px;">Powered by Firebase Cloud Functions & Advanced LLM</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- General Ledger List (Paginated) -->
+            <div class="card" style="margin-top:20px;">
+                <h4 style="margin-bottom:10px; color:var(--primary);">General Ledger (Transactions Journal)</h4>
+                <div id="ledgerScrollArea" style="max-height:400px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px;">
+                    <table style="width:100%; font-size:12px; text-align:left;">
+                        <thead style="background:#f1f5f9; position:sticky; top:0;">
+                            <tr><th style="padding:8px;">Date</th><th style="padding:8px;">Ref ID</th><th style="padding:8px;">Account / Description</th><th style="padding:8px; text-align:right;">Debit (In)</th><th style="padding:8px; text-align:right;">Credit (Out)</th></tr>
+                        </thead>
+                        <tbody id="ledgerTbody">
+                            <tr><td colspan="5" style="text-align:center; padding:20px; color:#94a3b8;">Click 'Process Ledger' to load transactions.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
 </main>
 
 <!-- MODALS -->
@@ -3190,8 +3311,8 @@ body.pos-fullscreen-mode #view-pos > div > .card {
     import { initializeApp, deleteApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
     import { getAuth, signOut, onAuthStateChanged, createUserWithEmailAndPassword, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
     
-    // 🛡️ ENTERPRISE FIX: Imported arrayUnion and arrayRemove for lightning-fast Serial operations
-    import { getFirestore, collection, addDoc, getDocs, doc, deleteDoc, updateDoc, query, where, orderBy, setDoc, getDoc, runTransaction, limit, startAfter, writeBatch, enableIndexedDbPersistence, increment, onSnapshot, collectionGroup, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+    // 🛡️ ENTERPRISE FIX: Modernized Firebase v9.23.0 Imports with Persistent Cache Engine
+    import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, addDoc, getDocs, doc, deleteDoc, updateDoc, query, where, orderBy, setDoc, getDoc, runTransaction, limit, startAfter, writeBatch, increment, onSnapshot, collectionGroup, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
     // ENTERPRISE FIX: Import Firebase Functions to securely call Gemini AI backend
     import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-functions.js";
 
@@ -3281,16 +3402,12 @@ body.pos-fullscreen-mode #view-pos > div > .card {
     };
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
-    const db = getFirestore(app);
     const functions = getFunctions(app); // NEW: Initialize Functions
 
-    // --- ENABLE OFFLINE MODE (PWA Persistence) ---
-    enableIndexedDbPersistence(db).catch((err) => {
-        if (err.code == 'failed-precondition') {
-            console.warn("Offline mode works only in one tab at a time.");
-        } else if (err.code == 'unimplemented') {
-            console.warn("Current browser doesn't support offline mode.");
-        }
+    // --- 🚨 CA FIX: MODERN OFFLINE MODE (No more Warnings!) ---
+    // Initialize Firestore with the modern persistent cache (Supports Multiple Tabs!)
+    const db = initializeFirestore(app, {
+        localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
     });
 
     let userRole = 'cashier'; // Default role
@@ -18453,6 +18570,284 @@ window.emergencyLocalOverride = async () => {
         document.getElementById('rosterMonthSelect').value = currentYearMonth;
         generateRosterTable();
         openModal('rosterModal');
+    };
+
+// ==========================================
+    // 🏛️ ENTERPRISE ACCOUNTING & FINANCIAL ENGINE
+    // ==========================================
+
+    window.toggleAccInputs = () => {
+        const type = document.getElementById('accFilterType').value;
+        document.getElementById('accDateInput').style.display = type === 'daily' ? 'block' : 'none';
+        document.getElementById('accMonthInput').style.display = type === 'monthly' ? 'block' : 'none';
+        document.getElementById('accYearInput').style.display = type === 'yearly' ? 'block' : 'none';
+    };
+
+    // Populate Year Dropdown automatically
+    const accYearSel = document.getElementById('accYearInput');
+    if(accYearSel) {
+        const currentY = new Date().getFullYear();
+        for(let y = currentY; y >= 2020; y--) accYearSel.innerHTML += `<option value="${y}">${y}</option>`;
+    }
+
+    let currentFinancialData = null; // Holds JSON for PDF and AI
+
+    window.generateFinancials = async () => {
+        if (userRole !== 'admin') return showToast("Security Alert: Only Admin can view Financial Accounts!", "error");
+
+        const filterType = document.getElementById('accFilterType').value;
+        let startIso = "", endIso = "", periodText = "";
+        
+        if (filterType === 'daily') {
+            const val = document.getElementById('accDateInput').value;
+            if(!val) return showToast("Please select a date", "error");
+            startIso = new Date(val + "T00:00:00.000Z").toISOString();
+            endIso = new Date(val + "T23:59:59.999Z").toISOString();
+            periodText = `For the day ended ${val}`;
+        } else if (filterType === 'monthly') {
+            const val = document.getElementById('accMonthInput').value;
+            if(!val) return showToast("Please select a month", "error");
+            startIso = new Date(val + "-01T00:00:00.000Z").toISOString();
+            const y = parseInt(val.split('-')[0]), m = parseInt(val.split('-')[1]);
+            endIso = new Date(y, m, 0, 23, 59, 59, 999).toISOString();
+            periodText = `For the month ended ${val}`;
+        } else if (filterType === 'yearly') {
+            const val = document.getElementById('accYearInput').value;
+            startIso = new Date(val + "-01-01T00:00:00.000Z").toISOString();
+            endIso = new Date(val + "-12-31T23:59:59.999").toISOString();
+            periodText = `For the financial year ${val}`;
+        }
+
+        document.getElementById('accReportPeriod').textContent = periodText;
+        toggleLoader(true);
+
+        try {
+            // --- 1. DOUBLE ENTRY: ASSETS & LIABILITIES (LIVE SNAPSHOT) ---
+            let totalReceivables = 0; // Debtors
+            let totalPayables = 0; // Creditors
+            let storeCredits = 0; // Customer Advances
+            let inventoryAsset = 0;
+
+            // Calculate Accounts Receivable (Debts from Sales) - Unlimited fetch using RAM aggregation
+            const qAR = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`), where("creditBalance", ">", 0));
+            const snapAR = await getDocs(qAR);
+            snapAR.forEach(d => totalReceivables += d.data().creditBalance);
+
+            // Calculate Accounts Payable (Supplier Debts)
+            const qAP = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/suppliers`), where("creditBalance", ">", 0));
+            const snapAP = await getDocs(qAP);
+            snapAP.forEach(d => totalPayables += d.data().creditBalance);
+
+            // Calculate Customer Wallet Liability
+            const qC = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/customers`), where("walletBalance", ">", 0));
+            const snapC = await getDocs(qC);
+            snapC.forEach(d => storeCredits += d.data().walletBalance);
+
+            // Calculate Inventory Value
+            const qInv = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`), where("qty", ">", 0));
+            const snapInv = await getDocs(qInv);
+            snapInv.forEach(d => {
+                const p = d.data();
+                inventoryAsset += (parseFloat(p.buy) || 0) * p.qty;
+            });
+
+            // Update Balance Sheet UI
+            document.getElementById('accBsDate').textContent = new Date().toLocaleDateString();
+            document.getElementById('accBsInv').textContent = formatMoney(inventoryAsset);
+            document.getElementById('accBsAr').textContent = formatMoney(totalReceivables);
+            document.getElementById('accBsTotAssets').textContent = formatMoney(inventoryAsset + totalReceivables);
+            document.getElementById('accBsAp').textContent = formatMoney(totalPayables);
+            document.getElementById('accBsStoreCredit').textContent = formatMoney(storeCredits);
+
+
+            // --- 2. INCOME STATEMENT (P&L FOR PERIOD) ---
+            let grossSales = 0, cogs = 0, salesReturns = 0;
+            let otherIncome = 0, payroll = 0, fleetOpex = 0, generalOpex = 0, writeOffLoss = 0;
+            let ledgerHtml = '';
+
+            // Fetch Sales
+            const qSales = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`), where("date", ">=", startIso), where("date", "<=", endIso));
+            const snapSales = await getDocs(qSales);
+            snapSales.forEach(d => {
+                const s = d.data();
+                grossSales += s.total;
+                let itemCogs = 0;
+                s.items.forEach(i => { itemCogs += (parseFloat(i.buy) || 0) * (parseFloat(i.qty) || 1); });
+                cogs += itemCogs;
+
+                ledgerHtml += `<tr><td>${new Date(s.date).toLocaleDateString()}</td><td>${s.customOrderId || d.id.substring(0,8)}</td><td>Sales Revenue</td><td style="text-align:right;">${formatMoney(s.total)}</td><td>-</td></tr>`;
+            });
+
+            // Fetch Refunds
+            const qRef = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/refunds`), where("date", ">=", startIso), where("date", "<=", endIso));
+            const snapRef = await getDocs(qRef);
+            snapRef.forEach(d => {
+                const r = d.data();
+                salesReturns += r.amount;
+                if (r.restock !== false) {
+                    const refundedCost = (parseFloat(r.amount) - (parseFloat(r.profitReversal) || 0));
+                    cogs -= refundedCost; // Reduce COGS because item is back in asset
+                }
+                ledgerHtml += `<tr><td>${new Date(r.date).toLocaleDateString()}</td><td>RET-${r.orderId}</td><td style="color:#b91c1c;">Sales Return / Refund</td><td>-</td><td style="text-align:right; color:#b91c1c;">${formatMoney(r.amount)}</td></tr>`;
+            });
+
+            // Fetch Expenses & Incomes
+            const qExp = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`), where("date", ">=", startIso), where("date", "<=", endIso));
+            const snapExp = await getDocs(qExp);
+            snapExp.forEach(d => {
+                const e = d.data();
+                if (e.isPending) return;
+
+                const desc = e.description ? e.description.toLowerCase() : "";
+                const dateStr = new Date(e.date).toLocaleDateString();
+
+                if (e.isIncome) {
+                    const isCustomerLiability = desc.includes('debt') || desc.includes('cheque') || desc.includes('liability') || (desc.includes('advance') && !e.isAdvanceEvent) || e.isLiability;
+                    if (!isCustomerLiability) {
+                        otherIncome += e.amount;
+                        ledgerHtml += `<tr><td>${dateStr}</td><td>INC</td><td>${e.description}</td><td style="text-align:right;">${formatMoney(e.amount)}</td><td>-</td></tr>`;
+                    }
+                } else {
+                    const isCapex = e.isCapex || desc.includes('[owner_drawing]');
+                    if (!isCapex) {
+                        if (e.isPayroll) payroll += e.amount;
+                        else if (e.isFleetExpense) fleetOpex += e.amount;
+                        else if (e.isNonCashExpense && desc.includes('write-off')) writeOffLoss += e.amount;
+                        else generalOpex += e.amount;
+                        
+                        ledgerHtml += `<tr><td>${dateStr}</td><td>EXP</td><td>${e.description}</td><td>-</td><td style="text-align:right; color:#b91c1c;">${formatMoney(e.amount)}</td></tr>`;
+                    }
+                }
+            });
+
+            // Math execution
+            const netRev = grossSales - salesReturns;
+            const grossProfit = netRev - cogs;
+            const totalOpex = payroll + generalOpex + fleetOpex + writeOffLoss;
+            const netProfit = grossProfit + otherIncome - totalOpex;
+
+            // Update UI
+            document.getElementById('accSales').textContent = formatMoney(grossSales);
+            document.getElementById('accOtherInc').textContent = formatMoney(otherIncome);
+            document.getElementById('accRefunds').textContent = formatMoney(salesReturns);
+            document.getElementById('accNetRev').textContent = formatMoney(netRev);
+            document.getElementById('accCogs').textContent = formatMoney(cogs);
+            document.getElementById('accGp').textContent = formatMoney(grossProfit);
+            
+            document.getElementById('accPayroll').textContent = formatMoney(payroll);
+            document.getElementById('accOpex').textContent = formatMoney(generalOpex);
+            document.getElementById('accFleet').textContent = formatMoney(fleetOpex);
+            document.getElementById('accWriteoff').textContent = formatMoney(writeOffLoss);
+            document.getElementById('accTotOpex').textContent = formatMoney(totalOpex);
+            document.getElementById('accNp').textContent = formatMoney(netProfit);
+
+            document.getElementById('ledgerTbody').innerHTML = ledgerHtml || '<tr><td colspan="5" style="text-align:center;">No transactions found for this period.</td></tr>';
+
+            // Store JSON for PDF and AI Export
+            currentFinancialData = {
+                period: periodText,
+                revenue: { grossSales, otherIncome, salesReturns, netRev },
+                costOfSales: { cogs, grossProfit },
+                expenses: { payroll, generalOpex, fleetOpex, writeOffLoss, totalOpex },
+                netProfit: netProfit,
+                balanceSheet: { inventoryAsset, totalReceivables, totalPayables, storeCredits }
+            };
+
+            if(window.writeSystemLog) writeSystemLog("ACCOUNTS_PROCESSED", `Admin generated Financial Statements ${periodText}`);
+            showToast("Financial Ledger Processed Successfully!", "success");
+
+        } catch(e) {
+            console.error("Accounting Engine Error:", e);
+            showToast("Error processing accounts. Check connection.", "error");
+        } finally {
+            toggleLoader(false);
+        }
+    };
+
+    // 🚀 PDF EXPORT ENGINE
+    window.downloadFinancialPDF = () => {
+        if (!currentFinancialData) return showToast("Please process the ledger first!", "warning");
+        if(window.writeSystemLog) writeSystemLog("ACCOUNTS_PDF_EXPORTED", `Admin exported Financial PDF ${currentFinancialData.period}`);
+        
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        const shop = profileCache || {};
+        
+        doc.setFontSize(16); doc.setTextColor(0, 0, 150); doc.text("FINANCIAL STATEMENT & LEDGER", 14, 20);
+        doc.setFontSize(10); doc.setTextColor(0);
+        doc.text(`Company: ${(shop.bizName || "Our Shop")}`, 14, 30);
+        doc.text(`Period: ${currentFinancialData.period}`, 14, 35);
+        doc.text(`Generated on: ${window.getSecureTime().toLocaleString()}`, 14, 40);
+
+        doc.autoTable({
+            html: '#financialReportArea table', 
+            startY: 50,
+            theme: 'grid',
+            styles: { fontSize: 10 }
+        });
+
+        doc.save(`Financial_Report_${Date.now()}.pdf`);
+    };
+
+    // 🤖 AI AUDITOR INTEGRATION
+    window.requestAIAudit = async () => {
+        if (!currentFinancialData) return showToast("Please process the ledger first!", "warning");
+
+        const btn = document.getElementById('btnAIAuditor');
+        const chatBox = document.getElementById('aiAuditorChat');
+        
+        btn.innerHTML = '<i class="ri-loader-4-line ri-spin"></i> ANALYZING FINANCES...';
+        btn.disabled = true;
+
+        const loaderHtml = `<div style="align-self:flex-start; background:#374151; color:#10b981; padding:12px 15px; border-radius:12px; font-size:13px; max-width:90%;"><i class="ri-loader-4-line ri-spin"></i> දත්ත විශ්ලේෂණය කරමින් පවතී... කරුණාකර රැඳී සිටින්න.</div>`;
+        chatBox.innerHTML += loaderHtml;
+        chatBox.scrollTop = chatBox.scrollHeight;
+
+        try {
+            // 1. Convert Financial JSON to a prompt string
+            const promptData = `
+                I am the business owner. Act as an expert Chartered Accountant and Business Auditor. Analyze the following financial data and provide a highly professional, easy-to-understand Audit Report in Sinhala. Tell me where I am losing money, how to improve profit, and if my inventory/debt is risky.
+                
+                Financial Data:
+                Period: ${currentFinancialData.period}
+                Gross Sales: Rs. ${currentFinancialData.revenue.grossSales}
+                Net Revenue: Rs. ${currentFinancialData.revenue.netRev}
+                COGS: Rs. ${currentFinancialData.costOfSales.cogs}
+                Gross Profit: Rs. ${currentFinancialData.costOfSales.grossProfit}
+                Total OPEX: Rs. ${currentFinancialData.expenses.totalOpex}
+                NET PROFIT: Rs. ${currentFinancialData.netProfit}
+                
+                Assets/Liabilities:
+                Stock Value: Rs. ${currentFinancialData.balanceSheet.inventoryAsset}
+                Debtors (Owe us): Rs. ${currentFinancialData.balanceSheet.totalReceivables}
+                Creditors (We owe): Rs. ${currentFinancialData.balanceSheet.totalPayables}
+            `;
+
+            // 2. Call Secure Backend Function
+            const askSystemAssistant = httpsCallable(functions, 'askSystemAssistant');
+            const result = await askSystemAssistant({ question: promptData });
+
+            // 3. Remove loader and display response
+            chatBox.removeChild(chatBox.lastElementChild);
+            
+            let cleanResponse = result.data.answer.replace(/[*#]/g, '').replace(/\n/g, '<br>');
+            
+            chatBox.innerHTML += `<div style="align-self:flex-start; background:#1e293b; color:white; padding:15px; border-radius:12px; border:1px solid #4f46e5; font-size:13px; max-width:95%; line-height:1.6; box-shadow:0 4px 6px rgba(0,0,0,0.3);">
+                <div style="color:#10b981; font-weight:bold; margin-bottom:10px;"><i class="ri-checkbox-circle-fill"></i> AUDIT COMPLETE</div>
+                ${cleanResponse}
+            </div>`;
+
+            if(window.writeSystemLog) writeSystemLog("AI_AUDIT_GENERATED", `Admin ran an AI Financial Audit for ${currentFinancialData.period}`);
+
+        } catch(e) {
+            console.error("AI Error:", e);
+            chatBox.removeChild(chatBox.lastElementChild);
+            chatBox.innerHTML += `<div style="color:red; font-size:12px;">Error connecting to AI Server. Ensure Firebase Functions are deployed.</div>`;
+        } finally {
+            btn.innerHTML = '<i class="ri-magic-line"></i> GENERATE AI AUDIT REPORT';
+            btn.disabled = false;
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
     };
 </script>
 
