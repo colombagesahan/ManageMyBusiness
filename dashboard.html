@@ -2074,7 +2074,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                         <button class="btn btn-primary" style="width:100%; justify-content:center; padding:12px; font-size:14px; font-weight:900; background:linear-gradient(90deg, #4f46e5, #9333ea);" onclick="requestAIAudit()" id="btnAIAuditor">
                             <i class="ri-magic-line"></i> GENERATE AI AUDIT REPORT
                         </button>
-                        <div style="font-size:10px; color:#6b7280; text-align:center; margin-top:8px;">Powered by Firebase Cloud Functions & Advanced LLM</div>
+                   
                     </div>
                 </div>
             </div>
@@ -14540,7 +14540,7 @@ window.setQuickCash = (amount) => {
     };
 
 // ==========================================
-    // ENTERPRISE AI ASSISTANT (FRONTEND LOGIC)
+    // ENTERPRISE AI ASSISTANT (DIRECT FRONTEND LOGIC - NO BANK CARD REQ)
     // ==========================================
     window.submitAiQuestion = async () => {
         const inputField = document.getElementById('aiUserInput');
@@ -14549,37 +14549,72 @@ window.setQuickCash = (amount) => {
 
         const history = document.getElementById('aiChatHistory');
 
-        // 1. User ගේ ප්‍රශ්නය අලංකාරව පෙන්වීම (HTML Injection වලක්වා ඇත)
+        // 1. User ගේ ප්‍රශ්නය අලංකාරව පෙන්වීම
         history.innerHTML += `<div class="ai-msg user">${text.replace(/</g, "&lt;")}</div>`;
-        
-        inputField.value = ''; // Input එක හිස් කිරීම
-        inputField.style.height = '50px'; // Textarea එකේ උස Reset කිරීම
-        history.scrollTop = history.scrollHeight; // පහළටම Scroll කිරීම
+        inputField.value = ''; 
+        inputField.style.height = '50px'; 
+        history.scrollTop = history.scrollHeight; 
 
         // 2. ලෝඩරය පෙන්වීම
         const loaderId = 'ai_loader_' + Date.now();
-        history.innerHTML += `<div id="${loaderId}" class="ai-msg bot" style="color:var(--primary); font-weight:bold;"><i class="ri-loader-4-line ri-spin"></i> තත්පරයක් රැඳී සිටින්න...</div>`;
+        history.innerHTML += `<div id="${loaderId}" class="ai-msg bot" style="color:var(--primary); font-weight:bold;"><i class="ri-loader-4-line ri-spin"></i> දත්ත විශ්ලේෂණය කරමින් පවතී...</div>`;
         history.scrollTop = history.scrollHeight;
 
         try {
             if(window.writeSystemLog) writeSystemLog("AI_QUERY", `Asked System AI Assistant: "${text}"`);
-            // 3. Firebase Backend Function එකට කතා කිරීම
-            const askSystemAssistant = httpsCallable(functions, 'askSystemAssistant');
-            const result = await askSystemAssistant({ question: text });
 
-            document.getElementById(loaderId).remove(); // ලෝඩරය අයින් කිරීම
+            // 3. 🚨 FETCH API KEY DIRECTLY FROM FIRESTORE (NO CLOUD FUNCTIONS)
+            const keyDocRef = doc(db, `users/${dbOwnerId}/settings/api_keys`);
+            const keySnap = await getDoc(keyDocRef);
+            
+            if (!keySnap.exists() || !keySnap.data().gemini) {
+                throw new Error("API Key Missing in Database!");
+            }
+            const apiKey = keySnap.data().gemini;
 
-            // 4. අකුරු පිරිසිදු කිරීම (Sanitization): * සහ # සලකුණු සම්පූර්ණයෙන්ම කපා හැරේ
-            let cleanResponse = result.data.answer;
-            cleanResponse = cleanResponse.replace(/[*#]/g, ''); // Remove markdown characters
-            cleanResponse = cleanResponse.replace(/\n/g, '<br>'); // Convert line breaks gracefully
+            // 4. INJECTING THE HIDDEN "KNOWLEDGE BASE"
+            let contextStr = `You are the Support AI for 'Nawarathna Cool Engineering ERP'. The current user is logged in as: ${userRole.toUpperCase()}. `;
+            contextStr += `Strict Rules: Cashiers CANNOT delete sales, products, expenses, or suppliers. Only Admins can. `;
+            contextStr += `System Manual:
+            - Hold Cart: Click 'Hold' (F8) in Smart POS. Held carts can be opened via 'Recall' button.
+            - Search Product: Press F2 or click the search bar in Smart POS.
+            - Complete Sale: Press F9 or click 'Complete Sale' button.
+            - Refunds/Returns: MUST be done from the 'Refunds' tab using the Exact Sale ID. Cannot be done from POS.
+            - Add New Stock: Go to 'Add Stock' tab -> Click '+ Add Stock'. Do not use 'Edit' for new stock, 'Edit' is only for price changes.
+            - Expenses/Cash Flow: Go to 'Cash Flow' tab. OPEX reduces profit, CAPEX (Supplier payments) do not reduce profit.
+            - EOD (End of Day): Go to 'End of Day (EOD)' tab. Select shift start/end times and click 'Calculate Shift'.
+            - Weighable Items: If a product is weighable (e.g., Kg/g), a popup asks for exact weight.
+            - Short-cuts: F2=Search, F8=Hold, F9=Checkout. 
+            Answer in Sinhala or Singlish (polite and professional). Keep it brief and refer strictly to the manual.`;
+
+            const fullPrompt = `${contextStr}\n\nUser Question: ${text}`;
+
+            // 5. 🚨 DIRECT FETCH TO GOOGLE GEMINI API (Bypassing Firebase Functions)
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: fullPrompt }] }]
+                })
+            });
+
+            if (!response.ok) throw new Error("Google AI Server Error");
+
+            const result = await response.json();
+            document.getElementById(loaderId).remove(); 
+
+            // 6. HTML Formatting
+            let cleanResponse = result.candidates[0].content.parts[0].text;
+            cleanResponse = cleanResponse.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>'); 
+            cleanResponse = cleanResponse.replace(/\*(.*?)\*/g, '<i>$1</i>'); 
+            cleanResponse = cleanResponse.replace(/\n/g, '<br>'); 
 
             history.innerHTML += `<div class="ai-msg bot">${cleanResponse}</div>`;
 
         } catch (error) {
             console.error("AI Error:", error);
             if(document.getElementById(loaderId)) document.getElementById(loaderId).remove();
-            history.innerHTML += `<div class="ai-msg bot" style="color:red;"><i class="ri-error-warning-fill"></i> සමාවෙන්න, අන්තර්ජාල සම්බන්ධතා දෝෂයක්. කරුණාකර නැවත අසන්න. (Backend Function එක Deploy කර ඇත්දැයි පරීක්ෂා කරන්න).</div>`;
+            history.innerHTML += `<div class="ai-msg bot" style="color:red;"><i class="ri-error-warning-fill"></i> දෝෂයක්! කරුණාකර Database එකේ 'settings/api_keys' අංශයේ නිවැරදි Gemini Key එක ලබා දී ඇත්දැයි පරීක්ෂා කරන්න.</div>`;
         }
         history.scrollTop = history.scrollHeight;
     };
@@ -18802,7 +18837,7 @@ window.emergencyLocalOverride = async () => {
         doc.save(`Financial_Report_${Date.now()}.pdf`);
     };
 
-    // 🤖 AI AUDITOR INTEGRATION
+    // 🤖 AI AUDITOR INTEGRATION (DIRECT FRONTEND FETCH - NO BANK CARD REQ)
     window.requestAIAudit = async () => {
         if (!currentFinancialData) return showToast("Please process the ledger first!", "warning");
 
@@ -18817,7 +18852,16 @@ window.emergencyLocalOverride = async () => {
         chatBox.scrollTop = chatBox.scrollHeight;
 
         try {
-            // 1. Convert Financial JSON to a prompt string
+            // 1. 🚨 FETCH API KEY DIRECTLY FROM FIRESTORE (NO CLOUD FUNCTIONS)
+            const keyDocRef = doc(db, `users/${dbOwnerId}/settings/api_keys`);
+            const keySnap = await getDoc(keyDocRef);
+            
+            if (!keySnap.exists() || !keySnap.data().gemini) {
+                throw new Error("API Key Missing in Database!");
+            }
+            const apiKey = keySnap.data().gemini;
+
+            // 2. Convert Financial JSON to a prompt string
             const promptData = `
                 I am the business owner. Act as an expert Chartered Accountant and Business Auditor. Analyze the following financial data and provide a highly professional, easy-to-understand Audit Report in Sinhala. Tell me where I am losing money, how to improve profit, and if my inventory/debt is risky.
                 
@@ -18836,14 +18880,25 @@ window.emergencyLocalOverride = async () => {
                 Creditors (We owe): Rs. ${currentFinancialData.balanceSheet.totalPayables}
             `;
 
-            // 2. Call Secure Backend Function
-            const askSystemAssistant = httpsCallable(functions, 'askSystemAssistant');
-            const result = await askSystemAssistant({ question: promptData });
+            // 3. 🚨 DIRECT FETCH TO GOOGLE GEMINI API
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: promptData }] }]
+                })
+            });
 
-            // 3. Remove loader and display response
+            if (!response.ok) throw new Error("Google AI Server Error");
+            const result = await response.json();
+
+            // 4. Remove loader and display response
             chatBox.removeChild(chatBox.lastElementChild);
             
-            let cleanResponse = result.data.answer.replace(/[*#]/g, '').replace(/\n/g, '<br>');
+            let cleanResponse = result.candidates[0].content.parts[0].text;
+            cleanResponse = cleanResponse.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>'); // Bold
+            cleanResponse = cleanResponse.replace(/\*(.*?)\*/g, '<i>$1</i>');     // Italic
+            cleanResponse = cleanResponse.replace(/\n/g, '<br>');                 // Line breaks
             
             chatBox.innerHTML += `<div style="align-self:flex-start; background:#1e293b; color:white; padding:15px; border-radius:12px; border:1px solid #4f46e5; font-size:13px; max-width:95%; line-height:1.6; box-shadow:0 4px 6px rgba(0,0,0,0.3);">
                 <div style="color:#10b981; font-weight:bold; margin-bottom:10px;"><i class="ri-checkbox-circle-fill"></i> AUDIT COMPLETE</div>
@@ -18855,7 +18910,7 @@ window.emergencyLocalOverride = async () => {
         } catch(e) {
             console.error("AI Error:", e);
             chatBox.removeChild(chatBox.lastElementChild);
-            chatBox.innerHTML += `<div style="color:red; font-size:12px;">Error connecting to AI Server. Ensure Firebase Functions are deployed.</div>`;
+            chatBox.innerHTML += `<div style="color:red; font-size:12px;">Error connecting to AI Server. කරුණාකර Database එකේ 'settings/api_keys' අංශයේ නිවැරදි Gemini Key එක ලබා දී ඇත්දැයි පරීක්ෂා කරන්න.</div>`;
         } finally {
             btn.innerHTML = '<i class="ri-magic-line"></i> GENERATE AI AUDIT REPORT';
             btn.disabled = false;
