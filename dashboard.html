@@ -14562,15 +14562,22 @@ window.setQuickCash = (amount) => {
 
         try {
             if(window.writeSystemLog) writeSystemLog("AI_QUERY", `Asked System AI Assistant: "${text}"`);
-
-            // 3. 🚨 FETCH API KEY DIRECTLY FROM FIRESTORE
-            const keyDocRef = doc(db, `users/${dbOwnerId}/settings/api_keys`);
+// 3. 🚨 SMART FETCH API KEY (WITH DIAGNOSTICS & SELF-HEALING)
+            const exactPath = `users/${dbOwnerId}/settings/api_keys`;
+            const keyDocRef = doc(db, exactPath);
             const keySnap = await getDoc(keyDocRef);
             
-            if (!keySnap.exists() || !keySnap.data().gemini) {
-                throw new Error("API Key Missing in Database! (Document does not exist or 'gemini' field is empty)");
+            if (!keySnap.exists()) {
+                throw new Error(`ලිපිගොනුව සොයාගත නොහැක! පද්ධතිය සෙව්වේ මෙතැනයි: [${exactPath}]. කරුණාකර 'api_keys' නමේ අගට හෝ මුලට හිස්තැන් (Spaces) වැදී ඇත්දැයි පරීක්ෂා කරන්න.`);
             }
-            const apiKey = keySnap.data().gemini;
+            
+            const dbData = keySnap.data();
+            // 🚨 CA FIX: හිස්තැන් වැදී තිබුණත් ස්වයංක්‍රීයව අල්ලාගැනීමට (Self-healing)
+            const apiKey = dbData.gemini || dbData['gemini '] || dbData[' gemini'] || dbData['Gemini'];
+            
+            if (!apiKey) {
+                throw new Error(`API Key එක සොයාගත නොහැක! Database එකේ ඇති නම් (Fields) මෙන්න: [${Object.keys(dbData).join(', ')}]. කරුණාකර 'gemini' නම නිවැරදිදැයි බලන්න.`);
+            }
 
             // 4. INJECTING THE HIDDEN "KNOWLEDGE BASE"
             let contextStr = `You are the Support AI for 'Nawarathna Cool Engineering ERP'. The current user is logged in as: ${userRole.toUpperCase()}. `;
@@ -18860,14 +18867,22 @@ window.emergencyLocalOverride = async () => {
         chatBox.scrollTop = chatBox.scrollHeight;
 
         try {
-            // 1. 🚨 FETCH API KEY DIRECTLY FROM FIRESTORE
-            const keyDocRef = doc(db, `users/${dbOwnerId}/settings/api_keys`);
+            // 1. 🚨 SMART FETCH API KEY (WITH DIAGNOSTICS & SELF-HEALING)
+            const exactPath = `users/${dbOwnerId}/settings/api_keys`;
+            const keyDocRef = doc(db, exactPath);
             const keySnap = await getDoc(keyDocRef);
             
-            if (!keySnap.exists() || !keySnap.data().gemini) {
-                throw new Error("API Key Missing in Database!");
+            if (!keySnap.exists()) {
+                throw new Error(`ලිපිගොනුව සොයාගත නොහැක! පද්ධතිය සෙව්වේ මෙතැනයි: [${exactPath}]. කරුණාකර 'api_keys' නමේ අගට හෝ මුලට හිස්තැන් (Spaces) වැදී ඇත්දැයි පරීක්ෂා කරන්න.`);
             }
-            const apiKey = keySnap.data().gemini;
+            
+            const dbData = keySnap.data();
+            // 🚨 CA FIX: හිස්තැන් වැදී තිබුණත් ස්වයංක්‍රීයව අල්ලාගැනීමට (Self-healing)
+            const apiKey = dbData.gemini || dbData['gemini '] || dbData[' gemini'] || dbData['Gemini'];
+            
+            if (!apiKey) {
+                throw new Error(`API Key එක සොයාගත නොහැක! Database එකේ ඇති නම් (Fields) මෙන්න: [${Object.keys(dbData).join(', ')}]. කරුණාකර 'gemini' නම නිවැරදිදැයි බලන්න.`);
+            }
 
             // 2. Convert Financial JSON to a prompt string
             const promptData = `
