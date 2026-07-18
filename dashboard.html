@@ -251,6 +251,15 @@ body.pos-fullscreen-mode #view-pos > div > .card {
     border-radius: 0 !important;
     margin: 0 !important;
 }
+/* 🚨 CA FIX: Universal Layout Sanitizer (Prevents White Space Bugs) */
+#appContent > *:not(.view):not([id*="Modal"]):not([id*="modal"]) {
+    display: none !important;
+}
+#appContent > br, 
+#appContent > p, 
+#appContent > span {
+    display: none !important;
+}
 </style>
 </head>
 <body>
@@ -16372,25 +16381,34 @@ let currentBatchForSerials = null;
 // ==========================================
     // 🛡️ ENTERPRISE CHEQUE MANAGEMENT ENGINE
     // ==========================================
+    // 🛡️ ENTERPRISE FIX: CHEQUE MANAGEMENT WITH RAM-AGGREGATION
     window.loadCheques = async () => {
         const tbody = document.querySelector('#chequesTable tbody');
         if(!tbody) return;
         
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Loading Cheques...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; font-weight:bold; color:var(--primary);"><i class="ri-loader-4-line ri-spin"></i> Fetching Cheques...</td></tr>';
         const filter = document.getElementById('chequeStatusFilter').value;
         
         try {
-            const q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/cheques`), where("status", "==", filter), orderBy("receivedDate", "desc"), limit(100));
+            // 🚨 CA FIX: Bypassing Firebase Index Errors using Memory Filtering!
+            const q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/cheques`), orderBy("receivedDate", "desc"), limit(200));
             const snap = await getDocs(q);
             
-            if(snap.empty) {
+            let filteredCheques = [];
+            snap.forEach(d => {
+                const c = { id: d.id, ...d.data() };
+                if (c.status === filter) {
+                    filteredCheques.push(c);
+                }
+            });
+
+            if(filteredCheques.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#666;">No ${filter.toLowerCase()} cheques found.</td></tr>`;
                 return;
             }
 
             let html = '';
-            snap.forEach(d => {
-                const c = { id: d.id, ...d.data() };
+            filteredCheques.forEach(c => {
                 const badgeColor = c.status === 'PENDING' ? '#d97706' : (c.status === 'CLEARED' ? '#15803d' : '#b91c1c');
                 const badgeBg = c.status === 'PENDING' ? '#fef3c7' : (c.status === 'CLEARED' ? '#dcfce7' : '#fee2e2');
                 
@@ -16422,7 +16440,7 @@ let currentBatchForSerials = null;
             
         } catch(e) {
             console.error("Cheque Load Error:", e);
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:red;">Error loading cheques</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:red;">Error loading cheques. Check internet connection.</td></tr>';
         }
     };
 
