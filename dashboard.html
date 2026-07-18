@@ -18911,10 +18911,17 @@ window.emergencyLocalOverride = async () => {
         chatBox.scrollTop = chatBox.scrollHeight;
 
         try {
+            // 🚨 CA FIX: SMART FETCH API KEY (WITH SELF-HEALING LOGIC)
             const keyDocRef = doc(db, `users/${dbOwnerId}/settings/api_keys`);
             const keySnap = await getDoc(keyDocRef);
-            if (!keySnap.exists() || !keySnap.data().gemini) throw new Error("API Key Missing in Database!");
-            const apiKey = keySnap.data().gemini;
+            
+            if (!keySnap.exists()) throw new Error("API Key Database Document Missing!");
+            
+            const dbData = keySnap.data();
+            // හිස්තැන් (Spaces) හෝ කැපිටල් අකුරු තිබුණත් ස්වයංක්‍රීයව අල්ලාගැනීමට
+            const apiKey = dbData.gemini || dbData['gemini '] || dbData[' gemini'] || dbData['Gemini'];
+            
+            if (!apiKey) throw new Error("API Key Missing in Database!");
 
             // 🚨 CA FIX: Injecting the Secure System Clock into the AI Prompt
             const secureDateStr = window.getSecureLocalDateStr();
@@ -18988,10 +18995,17 @@ window.emergencyLocalOverride = async () => {
         chatBox.scrollTop = chatBox.scrollHeight;
 
         try {
+            // 🚨 CA FIX: SMART FETCH API KEY (WITH SELF-HEALING LOGIC)
             const keyDocRef = doc(db, `users/${dbOwnerId}/settings/api_keys`);
             const keySnap = await getDoc(keyDocRef);
-            if (!keySnap.exists() || !keySnap.data().gemini) throw new Error("API Key Missing!");
-            const apiKey = keySnap.data().gemini;
+            
+            if (!keySnap.exists()) throw new Error("API Key Database Document Missing!");
+            
+            const dbData = keySnap.data();
+            // හිස්තැන් (Spaces) හෝ කැපිටල් අකුරු තිබුණත් ස්වයංක්‍රීයව අල්ලාගැනීමට
+            const apiKey = dbData.gemini || dbData['gemini '] || dbData[' gemini'] || dbData['Gemini'];
+            
+            if (!apiKey) throw new Error("API Key Missing in Database!");
 
             // 🛡️ PRATHI-THARKA: Inject Financial Context so the AI remembers what it is auditing!
             let contextStr = "Act as an expert Chartered Accountant. The user is asking a follow up question. Keep answers short and in Sinhala.";
