@@ -307,6 +307,8 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 
         <div class="nav-group">Inventory</div>
         <a class="nav-item" onclick="loadView('suppliers')"><i class="ri-truck-fill"></i> Suppliers</a> <!-- NEW -->
+<!-- 🚀 NEW: BOM & Production Engine -->
+        <a class="nav-item" onclick="loadView('manufacturing')"><i class="ri-hammer-fill"></i> Manufacturing (BOM) <span style="background:#f59e0b; color:white; font-size:9px; padding:2px 6px; border-radius:10px; margin-left:5px;">NEW</span></a>
         <a class="nav-item" onclick="loadView('catalog')"><i class="ri-archive-line"></i> Add Products</a>
         <a class="nav-item" onclick="loadView('products')"><i class="ri-box-3-line"></i> Add Stock</a>
         <a class="nav-item" onclick="loadView('transfers')"><i class="ri-truck-line"></i> Stock Transfers</a>
@@ -2235,6 +2237,155 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                 <div style="display:flex; gap:10px; margin-top:10px;">
                     <button class="btn btn-success" style="flex:1;" onclick="submitDeliveryCompletion()">Save Status</button>
                     <button class="btn btn-ghost" onclick="closeModal('completeDeliveryModal')">Cancel</button>
+                </div>
+            </div>
+        </div>
+<!-- 🚀 NEW: MANUFACTURING & BOM ENGINE -->
+        <div id="view-manufacturing" class="view">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
+                <h3><i class="ri-hammer-fill" style="color:var(--primary);"></i> Manufacturing & Production</h3>
+                <div style="display:flex; gap:10px;">
+                    <button class="btn btn-warning" onclick="openBomModal()"><i class="ri-draft-line"></i> + Create BOM (Recipe)</button>
+                    <button class="btn btn-primary" onclick="openProductionModal()"><i class="ri-play-circle-fill"></i> Start Production</button>
+                </div>
+            </div>
+
+            <div class="note-box" style="background:#eff6ff; border-color:#bfdbfe; color:#1e40af;">
+                <i class="ri-information-fill"></i> <b>BOM (Bill of Materials):</b> මෙහිදී නිමි භාණ්ඩයක් සෑදීමට යන අමුද්‍රව්‍ය ලැයිස්තුව (වට්ටෝරුව) සකසන්න. "Start Production" හරහා භාණ්ඩ නිෂ්පාදනය කළ විට අමුද්‍රව්‍ය ස්වයංක්‍රීයව අඩු වී නිමි භාණ්ඩ තොගයට එකතු වේ.
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; align-items:start;">
+                
+                <!-- BOM Master List -->
+                <div class="card" style="margin:0; border-top: 4px solid var(--warning);">
+                    <h4 style="margin-bottom:15px;"><i class="ri-draft-fill"></i> BOM Master List (වට්ටෝරු)</h4>
+                    <div id="bomListArea" style="max-height:400px; overflow-y:auto; padding-right:5px;">
+                        <table style="width:100%; font-size:12px;">
+                            <thead style="background:#f1f5f9; position:sticky; top:0; z-index:10;">
+                                <tr><th>Finished Good (නිමි භාණ්ඩය)</th><th>Est. Cost</th><th>Action</th></tr>
+                            </thead>
+                            <tbody id="bomTbody"><tr><td colspan="3" style="text-align:center;">Loading BOMs...</td></tr></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Production Run History -->
+                <div class="card" style="margin:0; border-top: 4px solid var(--primary);">
+                    <h4 style="margin-bottom:15px;"><i class="ri-history-line"></i> Production History</h4>
+                    <div id="mfgHistoryArea" style="max-height:400px; overflow-y:auto; padding-right:5px;">
+                        <table style="width:100%; font-size:12px;">
+                            <thead style="background:#f1f5f9; position:sticky; top:0; z-index:10;">
+                                <tr><th>Date</th><th>Produced Item</th><th>Qty</th><th>Net Cost</th></tr>
+                            </thead>
+                            <tbody id="mfgHistoryTbody"><tr><td colspan="4" style="text-align:center;">Loading History...</td></tr></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 🚀 MODAL 1: CREATE BOM (RECIPE) -->
+        <div id="bomModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.8); display:none; align-items:center; justify-content:center; z-index:5000; backdrop-filter:blur(3px);">
+            <div class="card" style="width:600px; max-height:90vh; display:flex; flex-direction:column; margin:0; border-top: 5px solid var(--warning);">
+                <div style="display:flex; justify-content:space-between; margin-bottom:10px; border-bottom:1px solid #e5e7eb; padding-bottom:10px;">
+                    <h3 style="color:var(--warning); margin:0;"><i class="ri-draft-line"></i> Create / Edit BOM</h3>
+                    <i class="ri-close-line" style="cursor:pointer; font-size:24px;" onclick="closeModal('bomModal')"></i>
+                </div>
+                
+                <div style="overflow-y:auto; padding-right:5px; flex:1;">
+                    <input type="hidden" id="bomId">
+                    
+                    <label style="font-size:12px; font-weight:bold; color:var(--primary);">Target Finished Good (නිමි භාණ්ඩය) *</label>
+                    <select id="bomTargetProduct" style="margin-bottom:15px; border-color:var(--primary); font-weight:bold;"></select>
+
+                    <label style="font-size:12px; font-weight:bold;">Raw Materials Needed (අමුද්‍රව්‍ය) *</label>
+                    <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px; margin-bottom:15px;">
+                        <table style="width:100%; font-size:12px; margin-bottom:10px;">
+                            <thead><tr><th style="text-align:left;">Material (Base Product)</th><th style="text-align:left;">Qty Needed</th><th></th></tr></thead>
+                            <tbody id="bomMaterialsBody"></tbody>
+                        </table>
+                        <button class="btn btn-ghost" style="font-size:11px; padding:4px 8px; width:100%;" onclick="addBomMaterialRow()"><i class="ri-add-line"></i> Add Material</button>
+                    </div>
+
+                    <div style="display:flex; gap:10px;">
+                        <div style="flex:1;">
+                            <label style="font-size:12px; font-weight:bold;">Expected Scrap Output (Optional)</label>
+                            <select id="bomScrapProduct" style="margin-bottom:5px; font-size:11px;">
+                                <option value="">-- No Scrap / By-product --</option>
+                            </select>
+                            <input type="number" id="bomScrapQty" placeholder="Scrap Qty (e.g. 0.5 Kg)" style="font-size:12px; margin:0;">
+                        </div>
+                        <div style="flex:1;">
+                            <label style="font-size:12px; font-weight:bold; color:#d97706;">Labor / Overhead Cost (Rs.) *</label>
+                            <input type="number" id="bomOverheadCost" placeholder="e.g. 500.00" value="0" style="margin-bottom:0; border-color:#fcd34d; font-weight:bold; font-size:16px;">
+                            <div style="font-size:10px; color:#b45309; margin-top:4px; line-height:1.2;">මෙම මුදල නිමි භාණ්ඩයේ පිරිවැයට (Cost) එකතු වේ.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-top:15px; border-top:1px solid #e5e7eb; padding-top:15px; display:flex; gap:10px;">
+                    <button class="btn btn-warning" style="flex:1;" onclick="saveBOM()"><i class="ri-save-line"></i> Save BOM</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 🚀 MODAL 2: EXECUTE PRODUCTION RUN -->
+        <div id="productionModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.85); display:none; align-items:center; justify-content:center; z-index:5000; backdrop-filter:blur(4px);">
+            <div class="card" style="width:650px; max-height:95vh; display:flex; flex-direction:column; margin:0; border-top: 5px solid var(--primary);">
+                <div style="display:flex; justify-content:space-between; margin-bottom:10px; border-bottom:1px solid #e5e7eb; padding-bottom:10px;">
+                    <h3 style="color:var(--primary); margin:0;"><i class="ri-play-circle-fill"></i> Execute Production Run</h3>
+                    <i class="ri-close-line" style="cursor:pointer; font-size:24px;" onclick="closeModal('productionModal')"></i>
+                </div>
+                
+                <div style="overflow-y:auto; padding-right:5px; flex:1;">
+                    <div style="display:flex; gap:10px; align-items:center; margin-bottom:15px; background:#eff6ff; padding:15px; border-radius:8px; border:1px solid #bfdbfe;">
+                        <div style="flex:2;">
+                            <label style="font-size:12px; font-weight:bold; color:#1e40af;">Select BOM (Recipe) *</label>
+                            <select id="prodBomSelect" style="margin:0; font-weight:bold; border-color:#93c5fd;" onchange="loadProductionForm()"></select>
+                        </div>
+                        <div style="flex:1;">
+                            <label style="font-size:12px; font-weight:bold; color:#1e40af;">Qty to Produce *</label>
+                            <input type="number" id="prodQty" value="1" min="1" style="margin:0; font-size:18px; font-weight:900; text-align:center; border-color:#93c5fd;" onchange="loadProductionForm()" onkeyup="loadProductionForm()">
+                        </div>
+                    </div>
+
+                    <div id="prodExecutionArea" style="display:none;">
+                        <h5 style="margin-bottom:10px; color:#374151;">1. Consume Raw Materials (අමුද්‍රව්‍ය අඩු කිරීම)</h5>
+                        <div class="note-box" style="margin-top:0; margin-bottom:10px; font-size:11px;">
+                            අවවාදයි: භෞතිකව පාවිච්චි කළ අමුද්‍රව්‍ය ප්‍රමාණයම අදාළ තොගයෙන් (Batch) තෝරන්න. අමතරව අපතේ ගිය දේවලුත් (Wastage) එකතු කර සැබෑ ප්‍රමාණයම ගහන්න.
+                        </div>
+                        
+                        <div id="prodMaterialsContainer" style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px; margin-bottom:15px; display:flex; flex-direction:column; gap:10px;">
+                            <!-- Dynamic Material Selectors loaded here -->
+                        </div>
+
+                        <div style="display:flex; gap:10px; margin-bottom:15px;">
+                            <div style="flex:1; background:#fefce8; padding:10px; border-radius:8px; border:1px solid #fde047;">
+                                <label style="font-size:11px; font-weight:bold; color:#a16207;">2. Overheads (කම්කරු/විදුලිය) *</label>
+                                <input type="number" id="prodActualOverhead" style="margin:0; font-weight:bold; font-size:14px; border-color:#fde047;">
+                            </div>
+                            <div style="flex:1; background:#fef2f2; padding:10px; border-radius:8px; border:1px solid #fecaca;" id="prodScrapBox">
+                                <label style="font-size:11px; font-weight:bold; color:#b91c1c;">3. Actual Scrap/Waste Output</label>
+                                <div style="font-size:10px; color:#b91c1c; font-weight:bold; margin-bottom:3px;" id="prodScrapLabel">None</div>
+                                <input type="number" id="prodActualScrapQty" value="0" style="margin:0; font-weight:bold; font-size:14px; border-color:#fca5a5;">
+                            </div>
+                        </div>
+
+                        <div style="background:#dcfce7; border:2px dashed #22c55e; border-radius:8px; padding:15px; text-align:center;">
+                            <div style="font-size:12px; font-weight:bold; color:#166534;">Estimated Unit Cost per Finished Item</div>
+                            <div id="prodEstUnitCost" style="font-size:24px; font-weight:900; color:#15803d; margin-top:5px;">Rs 0.00</div>
+                            <div style="font-size:10px; color:#166534; margin-top:5px;">අමුද්‍රව්‍ය වල Cost එක සහ Overheads එකතු වී මෙය ස්වයංක්‍රීයව හැදේ. අලුත් Batch එකක Sell Price එක මීට වඩා වැඩියෙන් දිය යුතුය.</div>
+                            
+                            <div style="margin-top:10px; display:flex; justify-content:center; align-items:center; gap:10px;">
+                                <label style="font-size:12px; font-weight:bold; color:#166534;">Set New Selling Price * :</label>
+                                <input type="number" id="prodNewSellPrice" placeholder="Enter Sell Price" style="width:150px; margin:0; font-weight:bold; border-color:#22c55e;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-top:15px; border-top:1px solid #e5e7eb; padding-top:15px; display:flex; gap:10px;">
+                    <button class="btn btn-primary" id="btnExecuteProd" style="flex:1; justify-content:center; display:none; padding:15px; font-size:16px;" onclick="executeProductionRun()"><i class="ri-check-double-line"></i> Confirm & Run Production</button>
                 </div>
             </div>
         </div>
@@ -19581,6 +19732,423 @@ window.emergencyLocalOverride = async () => {
             </body></html>
         `);
         printWindow.document.close();
+    };
+// ==========================================
+    // 🏭 ENTERPRISE MANUFACTURING & BOM ENGINE
+    // ==========================================
+
+    let bomsCache = [];
+    let mfgHistoryCache = [];
+
+    window.loadManufacturing = async () => {
+        if (userRole !== 'admin') {
+            document.getElementById('view-manufacturing').innerHTML = '<div style="padding:40px; text-align:center; color:red; font-weight:bold;">Security Alert: Only Admins can access Manufacturing Engine.</div>';
+            return;
+        }
+
+        toggleLoader(true);
+        try {
+            // 1. Load BOMs
+            const qBom = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/boms`));
+            const snapBom = await getDocs(qBom);
+            bomsCache = [];
+            snapBom.forEach(d => bomsCache.push({ id: d.id, ...d.data() }));
+
+            // 2. Load Production History
+            const qMfg = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/production_runs`), orderBy("date", "desc"), limit(50));
+            const snapMfg = await getDocs(qMfg);
+            mfgHistoryCache = [];
+            snapMfg.forEach(d => mfgHistoryCache.push({ id: d.id, ...d.data() }));
+
+            renderBomList();
+            renderMfgHistory();
+
+        } catch (e) {
+            console.error("MFG Load Error:", e);
+            showToast("Failed to load manufacturing data", "error");
+        }
+        toggleLoader(false);
+    };
+
+    function renderBomList() {
+        const tbody = document.getElementById('bomTbody');
+        if (bomsCache.length === 0) return tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; color:#666;">No BOMs created yet.</td></tr>';
+        
+        tbody.innerHTML = bomsCache.map(b => {
+            const fgName = catalogCache.find(c => c.id === b.fgBaseId)?.name || 'Unknown Item';
+            return `
+            <tr>
+                <td style="font-weight:bold; color:var(--primary);">${fgName}</td>
+                <td><b>Overhead:</b> ${formatMoney(b.overheadCost)}<br><span style="font-size:10px; color:#666;">Materials: ${b.materials.length} items</span></td>
+                <td>
+                    <button class="btn btn-danger" style="padding:4px 8px; font-size:11px;" onclick="deleteBOM('${b.id}')"><i class="ri-delete-bin-line"></i></button>
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    function renderMfgHistory() {
+        const tbody = document.getElementById('mfgHistoryTbody');
+        if (mfgHistoryCache.length === 0) return tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#666;">No production runs yet.</td></tr>';
+        
+        tbody.innerHTML = mfgHistoryCache.map(m => `
+            <tr>
+                <td style="font-size:11px;">${new Date(m.date).toLocaleString()}</td>
+                <td style="font-weight:bold; color:#15803d;">${m.fgName}</td>
+                <td style="font-weight:900;">${m.producedQty}</td>
+                <td style="font-weight:bold; color:var(--danger);">${formatMoney(m.totalCost)}</td>
+            </tr>
+        `).join('');
+    }
+
+    // --- BOM CREATION LOGIC ---
+    window.openBomModal = () => {
+        document.getElementById('bomId').value = '';
+        
+        // Populate Dropdowns from Catalog (Base Products)
+        const opts = '<option value="">-- Select --</option>' + catalogCache.map(c => `<option value="${c.id}">${c.name} (${c.sku||'No SKU'})</option>`).join('');
+        document.getElementById('bomTargetProduct').innerHTML = opts;
+        document.getElementById('bomScrapProduct').innerHTML = '<option value="">-- No Scrap Output --</option>' + opts;
+        
+        document.getElementById('bomMaterialsBody').innerHTML = '';
+        document.getElementById('bomScrapQty').value = '';
+        document.getElementById('bomOverheadCost').value = '0';
+        
+        addBomMaterialRow(); // Add one blank row
+        openModal('bomModal');
+    };
+
+    window.addBomMaterialRow = () => {
+        const tbody = document.getElementById('bomMaterialsBody');
+        const tr = document.createElement('tr');
+        const opts = '<option value="">-- Material --</option>' + catalogCache.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+        
+        tr.innerHTML = `
+            <td style="padding:4px;"><select class="bom-mat-select" style="margin:0; font-size:11px;">${opts}</select></td>
+            <td style="padding:4px;"><input type="number" step="any" class="bom-mat-qty" placeholder="Qty" style="margin:0; font-size:11px; width:70px;"></td>
+            <td style="padding:4px;"><i class="ri-close-circle-fill" style="color:red; cursor:pointer;" onclick="this.closest('tr').remove()"></i></td>
+        `;
+        tbody.appendChild(tr);
+    };
+
+    window.saveBOM = async () => {
+        if (userRole !== 'admin') return;
+
+        const fgBaseId = document.getElementById('bomTargetProduct').value;
+        const overheadCost = parseFloat(document.getElementById('bomOverheadCost').value) || 0;
+        const scrapBaseId = document.getElementById('bomScrapProduct').value;
+        const scrapQty = parseFloat(document.getElementById('bomScrapQty').value) || 0;
+
+        if (!fgBaseId) return showToast("Target Finished Good is required!", "error");
+        if (overheadCost < 0) return showToast("Overhead cannot be negative", "error");
+
+        const materials = [];
+        let matError = false;
+        document.querySelectorAll('#bomMaterialsBody tr').forEach(tr => {
+            const matId = tr.querySelector('.bom-mat-select').value;
+            const qty = parseFloat(tr.querySelector('.bom-mat-qty').value);
+            if (matId && qty > 0) {
+                if (matId === fgBaseId) matError = true; // Cannot use itself as material!
+                materials.push({ baseProductId: matId, qty: qty });
+            }
+        });
+
+        if (matError) return showToast("Finished Good cannot be used as its own Raw Material!", "error");
+        if (materials.length === 0) return showToast("At least one raw material is required!", "error");
+
+        toggleLoader(true);
+        try {
+            await addDoc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/boms`), {
+                fgBaseId, overheadCost, scrapBaseId, expectedScrapQty: scrapQty, materials,
+                createdAt: window.getSecureTime().toISOString()
+            });
+            closeModal('bomModal');
+            loadManufacturing();
+            if(window.writeSystemLog) writeSystemLog("BOM_CREATED", `Created new BOM recipe for item ID: ${fgBaseId}`);
+            showToast("BOM Saved Successfully!");
+        } catch(e) { showToast("Error saving BOM", "error"); }
+        toggleLoader(false);
+    };
+
+    window.deleteBOM = async (id) => {
+        if (userRole !== 'admin') return;
+        if (!confirm("Delete this BOM Recipe?")) return;
+        toggleLoader(true);
+        await deleteDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/boms`, id));
+        loadManufacturing();
+        toggleLoader(false);
+    };
+
+    // --- PRODUCTION EXECUTION LOGIC (THE HEART OF THE ENGINE) ---
+    window.openProductionModal = () => {
+        document.getElementById('prodExecutionArea').style.display = 'none';
+        document.getElementById('btnExecuteProd').style.display = 'none';
+        document.getElementById('prodQty').value = '1';
+        
+        const sel = document.getElementById('prodBomSelect');
+        sel.innerHTML = '<option value="">-- Select Recipe --</option>';
+        bomsCache.forEach(b => {
+            const fgName = catalogCache.find(c => c.id === b.fgBaseId)?.name || 'Unknown';
+            sel.innerHTML += `<option value="${b.id}">${fgName}</option>`;
+        });
+        
+        openModal('productionModal');
+    };
+
+    let currentProdContext = null;
+
+    window.loadProductionForm = () => {
+        const bomId = document.getElementById('prodBomSelect').value;
+        const buildQty = parseFloat(document.getElementById('prodQty').value);
+        if (!bomId || isNaN(buildQty) || buildQty <= 0) {
+            document.getElementById('prodExecutionArea').style.display = 'none';
+            document.getElementById('btnExecuteProd').style.display = 'none';
+            return;
+        }
+
+        const bom = bomsCache.find(b => b.id === bomId);
+        const fgBase = catalogCache.find(c => c.id === bom.fgBaseId);
+        
+        currentProdContext = { bom, buildQty, fgBase };
+
+        // Render Material Selection (Force user to pick the EXACT batch to deduct from)
+        const matContainer = document.getElementById('prodMaterialsContainer');
+        matContainer.innerHTML = '';
+
+        bom.materials.forEach((m, idx) => {
+            const reqQty = m.qty * buildQty;
+            const matBase = catalogCache.find(c => c.id === m.baseProductId);
+            
+            // Find all active batches for this raw material
+            const activeBatches = productsCache.filter(p => p.sku === matBase.sku || p.name === matBase.name).filter(p => p.qty > 0);
+            
+            let batchOpts = '<option value="">-- Select Stock Batch --</option>';
+            activeBatches.forEach(ab => {
+                batchOpts += `<option value="${ab.id}" data-cost="${ab.buy}">Batch: ${formatBatch(ab.batchNumber)} (Avail: ${ab.qty} | Cost: ${formatMoney(ab.buy)})</option>`;
+            });
+
+            matContainer.innerHTML += `
+            <div style="display:flex; gap:10px; align-items:center; background:white; padding:8px; border:1px solid #cbd5e1; border-radius:6px;">
+                <div style="flex:2; font-size:12px; font-weight:bold; color:#334155;">${matBase.name}<br><span style="font-size:10px; color:#ef4444;">Req: ${reqQty}</span></div>
+                <div style="flex:3;">
+                    <select class="prod-mat-batch" id="prodMatBatch_${idx}" style="margin:0; font-size:11px; border-color:#94a3b8;" onchange="calcProductionCost()">${batchOpts}</select>
+                </div>
+                <div style="flex:1;">
+                    <input type="number" step="any" class="prod-mat-actual" id="prodMatActual_${idx}" placeholder="Actual Used" value="${reqQty}" style="margin:0; font-size:12px; font-weight:bold; border-color:var(--primary);" onkeyup="calcProductionCost()" onchange="calcProductionCost()">
+                </div>
+            </div>`;
+        });
+
+        // Set Overheads & Scrap
+        document.getElementById('prodActualOverhead').value = bom.overheadCost * buildQty;
+        
+        const scrapBox = document.getElementById('prodScrapBox');
+        if (bom.scrapBaseId) {
+            const scrapBase = catalogCache.find(c => c.id === bom.scrapBaseId);
+            document.getElementById('prodScrapLabel').textContent = scrapBase ? scrapBase.name : 'Unknown Scrap';
+            document.getElementById('prodActualScrapQty').value = (bom.expectedScrapQty || 0) * buildQty;
+            scrapBox.style.display = 'block';
+        } else {
+            scrapBox.style.display = 'none';
+            document.getElementById('prodActualScrapQty').value = 0;
+        }
+
+        document.getElementById('prodNewSellPrice').value = '';
+        document.getElementById('prodExecutionArea').style.display = 'block';
+        document.getElementById('btnExecuteProd').style.display = 'flex';
+        
+        calcProductionCost(); // Initial Calc
+    };
+
+    window.calcProductionCost = () => {
+        if (!currentProdContext) return;
+        
+        let totalRmCost = 0;
+        currentProdContext.bom.materials.forEach((m, idx) => {
+            const batchSel = document.getElementById(`prodMatBatch_${idx}`);
+            const actualQty = parseFloat(document.getElementById(`prodMatActual_${idx}`).value) || 0;
+            
+            if (batchSel.value) {
+                const unitCost = parseFloat(batchSel.options[batchSel.selectedIndex].dataset.cost) || 0;
+                totalRmCost += (unitCost * actualQty);
+            }
+        });
+
+        const overheads = parseFloat(document.getElementById('prodActualOverhead').value) || 0;
+        const totalMfgCost = totalRmCost + overheads;
+        const unitCost = totalMfgCost / currentProdContext.buildQty;
+
+        document.getElementById('prodEstUnitCost').textContent = formatMoney(unitCost);
+        currentProdContext.unitCost = unitCost;
+        currentProdContext.totalMfgCost = totalMfgCost;
+    };
+
+    // 🚨 100% ACID COMPLIANT TRANSACTION ENGINE
+    window.executeProductionRun = async () => {
+        if (userRole !== 'admin') return;
+        if (window.isExecutingProd) return;
+
+        const newSellPrice = parseFloat(document.getElementById('prodNewSellPrice').value);
+        if (isNaN(newSellPrice) || newSellPrice <= currentProdContext.unitCost) {
+            return showToast(`Sell price must be higher than Unit Cost (${formatMoney(currentProdContext.unitCost)})!`, "error");
+        }
+
+        // Validate all materials selected
+        const rmPayload = [];
+        let validationError = false;
+        
+        currentProdContext.bom.materials.forEach((m, idx) => {
+            const batchId = document.getElementById(`prodMatBatch_${idx}`).value;
+            const actualQty = parseFloat(document.getElementById(`prodMatActual_${idx}`).value);
+            
+            if (!batchId || isNaN(actualQty) || actualQty <= 0) validationError = true;
+            else rmPayload.push({ batchId, qty: actualQty, baseProductId: m.baseProductId });
+        });
+
+        if (validationError) return showToast("You MUST select a valid stock batch and enter actual used quantities for ALL materials!", "error");
+
+        const actualOverhead = parseFloat(document.getElementById('prodActualOverhead').value) || 0;
+        const actualScrapQty = parseFloat(document.getElementById('prodActualScrapQty').value) || 0;
+
+        if (!confirm(`Execute Production?\n\nFinished Good: ${currentProdContext.buildQty}x ${currentProdContext.fgBase.name}\nUnit Cost: ${formatMoney(currentProdContext.unitCost)}\n\nThis will deduct raw materials and create a new batch.`)) return;
+
+        window.isExecutingProd = true;
+        toggleLoader(true);
+
+        try {
+            await runTransaction(db, async (t) => {
+                const timestamp = window.getSecureTime().toISOString();
+                
+                // --- PHASE 1: READ ALL REQUIRED DATA ---
+                let rmDocs = [];
+                for (let rm of rmPayload) {
+                    const ref = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/products`, rm.batchId);
+                    const snap = await t.get(ref);
+                    if (!snap.exists()) throw new Error("A selected raw material batch no longer exists!");
+                    if (snap.data().qty < rm.qty) throw new Error(`Insufficient stock for ${snap.data().name}! (Avail: ${snap.data().qty})`);
+                    rmDocs.push({ ref, data: snap.data(), deductQty: rm.qty });
+                }
+
+                // Get Target Max Batch Number for Finished Good
+                const fgQ = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`), where("sku", "==", currentProdContext.fgBase.sku || currentProdContext.fgBase.name));
+                const fgSnap = await getDocs(fgQ); // OK outside transaction for batch numbers
+                let maxBatch = 0;
+                fgSnap.forEach(d => { if(d.data().batchNumber > maxBatch) maxBatch = d.data().batchNumber; });
+                const nextFgBatch = maxBatch + 1;
+
+                // Scrap Max Batch Number
+                let nextScrapBatch = 1;
+                let scrapBase = null;
+                if (currentProdContext.bom.scrapBaseId && actualScrapQty > 0) {
+                    scrapBase = catalogCache.find(c => c.id === currentProdContext.bom.scrapBaseId);
+                    const scQ = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`), where("sku", "==", scrapBase.sku || scrapBase.name));
+                    const scSnap = await getDocs(scQ);
+                    let maxScBatch = 0;
+                    scSnap.forEach(d => { if(d.data().batchNumber > maxScBatch) maxScBatch = d.data().batchNumber; });
+                    nextScrapBatch = maxScBatch + 1;
+                }
+
+                // --- PHASE 2: EXECUTE ALL WRITES ---
+                
+                // 1. Deduct Raw Materials
+                for (let rm of rmDocs) {
+                    t.update(rm.ref, { qty: increment(-rm.deductQty) });
+                    
+                    const logRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/inventory_logs`));
+                    t.set(logRef, {
+                        date: timestamp, productName: rm.data.name, action: 'MFG_CONSUME',
+                        description: `Consumed for Production of ${currentProdContext.fgBase.name}`,
+                        quantityChange: -rm.deductQty, finalQty: rm.data.qty - rm.deductQty, batchNumber: rm.data.batchNumber
+                    });
+                }
+
+                // 2. Create Finished Good Batch!
+                const fgRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`));
+                t.set(fgRef, {
+                    name: currentProdContext.fgBase.name, sku: currentProdContext.fgBase.sku || "",
+                    image: currentProdContext.fgBase.image || null, categoryId: currentProdContext.fgBase.categoryId || "",
+                    qty: currentProdContext.buildQty, 
+                    buy: currentProdContext.unitCost, // Computed Cost!
+                    sell: newSellPrice, 
+                    unit: 'pcs', dateAdded: timestamp, batchNumber: nextFgBatch,
+                    itemType: currentProdContext.fgBase.itemType || 'standard',
+                    availableSerials: [], soldSerials: [], isManufactured: true
+                });
+
+                const fgLogRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/inventory_logs`));
+                t.set(fgLogRef, {
+                    date: timestamp, productName: currentProdContext.fgBase.name, action: 'MFG_OUTPUT',
+                    description: `Manufactured Finished Good`,
+                    quantityChange: currentProdContext.buildQty, finalQty: currentProdContext.buildQty, batchNumber: nextFgBatch
+                });
+
+                // 3. Create Scrap Batch (If applicable)
+                if (scrapBase && actualScrapQty > 0) {
+                    const scRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`));
+                    t.set(scRef, {
+                        name: scrapBase.name, sku: scrapBase.sku || "",
+                        image: scrapBase.image || null, categoryId: scrapBase.categoryId || "",
+                        qty: actualScrapQty, 
+                        buy: 0, // Scrap has zero cost, pure profit!
+                        sell: 0, // Admin updates price when selling
+                        unit: 'kg', dateAdded: timestamp, batchNumber: nextScrapBatch,
+                        itemType: scrapBase.itemType || 'weighable',
+                        availableSerials: [], soldSerials: [], isScrap: true
+                    });
+                    
+                    const scLogRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/inventory_logs`));
+                    t.set(scLogRef, {
+                        date: timestamp, productName: scrapBase.name, action: 'MFG_SCRAP',
+                        description: `Byproduct from Production of ${currentProdContext.fgBase.name}`,
+                        quantityChange: actualScrapQty, finalQty: actualScrapQty, batchNumber: nextScrapBatch
+                    });
+                }
+
+                // 4. Log the Overheads to the P&L!
+                // We must log this as a Non-Cash Expense so it reduces Net Profit, but NOT the Physical Cash Drawer!
+                if (actualOverhead > 0) {
+                    const expRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`));
+                    t.set(expRef, {
+                        description: `Manufacturing Overhead Cost: ${currentProdContext.buildQty}x ${currentProdContext.fgBase.name}`,
+                        amount: actualOverhead,
+                        isIncome: false,
+                        date: timestamp,
+                        isNonCashExpense: true, // 🚨 CRITICAL: Prevents EOD cash deduction
+                        isMfgOverhead: true
+                    });
+                }
+
+                // 5. Record Production History
+                const histRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/production_runs`));
+                t.set(histRef, {
+                    date: timestamp,
+                    fgName: currentProdContext.fgBase.name,
+                    producedQty: currentProdContext.buildQty,
+                    unitCost: currentProdContext.unitCost,
+                    totalCost: currentProdContext.totalMfgCost,
+                    overheads: actualOverhead,
+                    materialsUsed: rmPayload
+                });
+            }); // End Transaction
+
+            if(window.writeSystemLog) writeSystemLog("PRODUCTION_EXECUTED", `Manufactured ${currentProdContext.buildQty}x ${currentProdContext.fgBase.name} at Unit Cost: ${formatMoney(currentProdContext.unitCost)}`);
+            
+            closeModal('productionModal');
+            showToast("Production Complete! Finished goods and Scrap added to Inventory.", "success");
+            
+            // Re-fetch all data to ensure POS and Dashboard are instantly updated
+            window.cachedStockValue = undefined; 
+            await loadProducts();
+            await loadManufacturing();
+            updateDashboard();
+
+        } catch (e) {
+            console.error("Production Error:", e);
+            showToast(e.message || "Failed to execute production run", "error");
+        } finally {
+            window.isExecutingProd = false;
+            toggleLoader(false);
+        }
     };
 </script>
 
