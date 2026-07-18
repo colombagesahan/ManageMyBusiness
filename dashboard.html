@@ -251,15 +251,6 @@ body.pos-fullscreen-mode #view-pos > div > .card {
     border-radius: 0 !important;
     margin: 0 !important;
 }
-/* 🚨 CA FIX: Universal Layout Sanitizer (Prevents White Space Bugs) */
-#appContent > *:not(.view):not([id*="Modal"]):not([id*="modal"]) {
-    display: none !important;
-}
-#appContent > br, 
-#appContent > p, 
-#appContent > span {
-    display: none !important;
-}
 </style>
 </head>
 <body>
@@ -1945,7 +1936,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
     </div>
 </div>
 
-    </div>
+    
 <!-- 🚀 NEW: TAX & VAT REPORTS TAB -->
         <div id="view-taxreports" class="view">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
@@ -2247,6 +2238,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                 </div>
             </div>
         </div>
+ </div> 
 </main>
 
 <!-- MODALS -->
