@@ -288,6 +288,8 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         <div class="nav-group">Accounting & Finance</div>
         <a class="nav-item" onclick="loadView('accounts')" id="navAccounts"><i class="ri-bank-fill"></i> Financial Accounts <span style="background:var(--success); color:white; font-size:9px; padding:2px 6px; border-radius:10px; margin-left:5px;">AI</span></a>
         <a class="nav-item" onclick="loadView('orders')"><i class="ri-file-list-3-line"></i> Sales</a>
+<!-- 🚀 NEW: Delivery Management -->
+        <a class="nav-item" onclick="loadView('delivery')"><i class="ri-truck-line"></i> Deliveries & Courier</a>
         <a class="nav-item" onclick="loadView('taxreports')"><i class="ri-file-paper-2-fill"></i> Tax & VAT Reports</a>
         <!-- NEW: SERVICE CRM TAB -->
         <a class="nav-item" onclick="loadView('crm')"><i class="ri-calendar-check-line"></i> Service CRM</a>
@@ -2119,6 +2121,120 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                             <tr><td colspan="5" style="text-align:center; padding:20px; color:#94a3b8;">Click 'Process Ledger' to load transactions.</td></tr>
                         </tbody>
                     </table>
+                </div>
+            </div>
+        </div>
+<!-- 🚀 NEW: DELIVERY & DISPATCH MANAGEMENT -->
+        <div id="view-delivery" class="view">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
+                <h3><i class="ri-truck-fill" style="color:var(--primary);"></i> Delivery & Dispatch Manager</h3>
+                
+                <div style="display:flex; gap:10px; align-items:center; background:#f9fafb; padding:8px 12px; border-radius:8px; border:1px solid #e5e7eb; flex-wrap:wrap;">
+                    <input type="date" id="delDateFilter" style="margin:0; width:auto;" onchange="loadDeliveries()">
+                    <button class="btn btn-ghost" onclick="document.getElementById('delDateFilter').value=''; loadDeliveries()" title="Clear Date"><i class="ri-close-circle-line"></i></button>
+                    
+                    <input type="text" id="delSearchInput" placeholder="Search Tracking No or Order ID..." style="margin:0; min-width:250px; border-color:var(--primary);" onkeyup="searchDeliveryDebounced()">
+                    <button class="btn btn-primary" onclick="searchDeliveryDebounced()"><i class="ri-search-line"></i></button>
+                </div>
+                
+                <button class="btn btn-success" style="font-size:14px; padding:10px 15px; font-weight:900;" onclick="openNewDeliveryModal()"><i class="ri-add-box-line"></i> + Create Dispatch</button>
+            </div>
+
+            <div class="note-box" style="background:#fffbeb; border-color:#fde68a; color:#b45309;"><i class="ri-shield-keyhole-fill"></i> System Security: Deliveries are strictly linked to Sales Invoices. Records are immutable (Cannot be deleted) to prevent logistics fraud.</div>
+
+            <!-- 🛡️ Infinite Scroll Area -->
+            <div class="card" id="deliveryScrollArea" style="max-height:65vh; overflow-y:auto; padding:0;" onscroll="handleDeliveryScroll()">
+                <table id="deliveryTable" style="width:100%; font-size:13px; text-align:left; border-collapse:collapse;">
+                    <thead style="background:#f1f5f9; position:sticky; top:0; z-index:10; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
+                        <tr>
+                            <th style="padding:12px;">Dispatch Date & Tracking</th>
+                            <th style="padding:12px;">Customer Details</th>
+                            <th style="padding:12px;">Delivery Method</th>
+                            <th style="padding:12px;">Status</th>
+                            <th style="padding:12px; text-align:right;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="deliveryTbody">
+                        <tr><td colspan="5" style="text-align:center; padding:20px;">Loading Deliveries...</td></tr>
+                    </tbody>
+                </table>
+                <div id="delLoadMoreLoader" style="text-align:center; padding:15px; display:none; color:var(--primary); font-weight:bold;"><i class="ri-loader-4-line ri-spin"></i> තවත් වාර්තා ගෙන එමින් පවතී...</div>
+            </div>
+        </div>
+
+        <!-- 🚀 NEW: CREATE DISPATCH MODAL -->
+        <div id="newDeliveryModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.8); display:none; align-items:center; justify-content:center; z-index:5000; backdrop-filter:blur(3px);">
+            <div class="card" style="width:500px; max-height:90vh; display:flex; flex-direction:column; margin:0; border-top: 5px solid var(--primary);">
+                <div style="display:flex; justify-content:space-between; margin-bottom:15px; border-bottom:1px solid #e5e7eb; padding-bottom:10px;">
+                    <h3 style="color:var(--primary); margin:0;"><i class="ri-send-plane-fill"></i> New Dispatch / Delivery</h3>
+                    <i class="ri-close-line" style="cursor:pointer; font-size:24px;" onclick="closeModal('newDeliveryModal')"></i>
+                </div>
+                
+                <div style="overflow-y:auto; padding-right:5px; flex:1;">
+                    <!-- 1. Order Linkage -->
+                    <label style="font-size:12px; font-weight:bold; color:#1e40af;">1. Link to Sale Invoice *</label>
+                    <div style="display:flex; gap:10px; margin-bottom:15px;">
+                        <input type="text" id="delOrderIdInput" placeholder="Enter Exact Sale ID / Invoice No..." style="margin:0; border-color:#3b82f6; font-weight:bold;">
+                        <button class="btn btn-info" onclick="fetchOrderForDelivery()">Verify Order</button>
+                    </div>
+
+                    <!-- Hidden context -->
+                    <div id="delOrderContextArea" style="display:none; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; padding:10px; margin-bottom:15px;">
+                        <div style="font-size:11px; color:#166534; font-weight:bold;"><i class="ri-check-double-line"></i> Order Verified!</div>
+                        <div style="font-size:13px; font-weight:bold; margin-top:5px;" id="delCustNameDisp"></div>
+                        <div style="font-size:12px; color:#4b5563;" id="delCustPhoneDisp"></div>
+                        <input type="text" id="delCustAddressInput" placeholder="Delivery Address (Update if needed)..." style="margin-top:5px; margin-bottom:0; font-size:12px;">
+                        <div style="font-size:10px; color:#6b7280; margin-top:5px;">Items: <span id="delItemsDisp"></span></div>
+                    </div>
+
+                    <!-- 2. Logistics Details -->
+                    <div id="delLogisticsArea" style="display:none; border-top:1px dashed #cbd5e1; padding-top:15px;">
+                        <label style="font-size:12px; font-weight:bold; color:#d97706;">2. Logistics Method *</label>
+                        <select id="delMethodType" style="margin-bottom:10px; border-color:#fcd34d; font-weight:bold;" onchange="toggleDeliveryMethodInputs()">
+                            <option value="inhouse">In-House Fleet (Our Vehicles)</option>
+                            <option value="courier">3rd Party Courier (e.g., Pronto, Domex)</option>
+                        </select>
+
+                        <!-- Method A: Courier -->
+                        <div id="delMethodCourier" style="display:none; background:#fffbeb; padding:10px; border-radius:8px; margin-bottom:15px;">
+                            <input type="text" id="delCourierName" placeholder="Courier Company Name (e.g. Domex) *" style="margin-bottom:5px; font-size:12px;">
+                            <input type="text" id="delCourierTracking" placeholder="External Courier Tracking No (Optional)" style="margin-bottom:0; font-size:12px;">
+                        </div>
+
+                        <!-- Method B: In-House -->
+                        <div id="delMethodInhouse" style="display:block; background:#eff6ff; padding:10px; border-radius:8px; margin-bottom:15px;">
+                            <input type="text" id="delVehicleNo" placeholder="Vehicle Plate No (e.g. CAB-1234) *" style="margin-bottom:5px; font-size:12px;">
+                            <input type="text" id="delDriverName" placeholder="Driver / Deliverer Name *" style="margin-bottom:0; font-size:12px;">
+                        </div>
+
+                        <label style="font-size:12px; font-weight:bold;">Special Instructions / Delivery Notes</label>
+                        <input type="text" id="delNotes" placeholder="e.g. Call before delivery, Handle with care..." style="font-size:12px;">
+                    </div>
+                </div>
+
+                <div style="margin-top:15px; border-top:1px solid #e5e7eb; padding-top:15px; display:flex; gap:10px;">
+                    <button class="btn btn-primary" id="btnSaveDispatch" style="flex:1; justify-content:center; display:none;" onclick="saveNewDelivery()"><i class="ri-barcode-line"></i> Generate Dispatch & Print</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 🚀 NEW: COMPLETE DELIVERY MODAL -->
+        <div id="completeDeliveryModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.8); display:none; align-items:center; justify-content:center; z-index:5000;">
+            <div class="card" style="width:400px; margin:0; border-top:5px solid var(--success);">
+                <h3 style="color:var(--success);"><i class="ri-checkbox-circle-fill"></i> Update Delivery Status</h3>
+                <p style="font-size:12px; color:#666; margin-bottom:15px;">Confirm with the customer before marking as delivered.</p>
+                
+                <input type="hidden" id="cdId">
+                <select id="cdStatus" style="font-weight:bold; border-color:var(--success); margin-bottom:10px;" onchange="document.getElementById('cdNote').placeholder = this.value === 'FAILED' ? 'Reason for failure/return *' : 'Optional completion notes...'">
+                    <option value="DELIVERED">DELIVERED (Successfully Handed Over)</option>
+                    <option value="FAILED">FAILED / RETURNED TO STORE</option>
+                </select>
+
+                <textarea id="cdNote" rows="2" placeholder="Optional completion notes..."></textarea>
+                
+                <div style="display:flex; gap:10px; margin-top:10px;">
+                    <button class="btn btn-success" style="flex:1;" onclick="submitDeliveryCompletion()">Save Status</button>
+                    <button class="btn btn-ghost" onclick="closeModal('completeDeliveryModal')">Cancel</button>
                 </div>
             </div>
         </div>
@@ -19038,6 +19154,423 @@ window.emergencyLocalOverride = async () => {
         } finally {
             chatBox.scrollTop = chatBox.scrollHeight;
         }
+    };
+// ==========================================
+    // 🚚 ENTERPRISE DELIVERY & DISPATCH ENGINE
+    // ==========================================
+    
+    let deliveriesCache = [];
+    let lastDeliveryDoc = null;
+    let isFetchingDeliveries = false;
+    let hasMoreDeliveries = true;
+
+    // 1. DOM Pagination & Loading
+    window.loadDeliveries = async (isLoadMore = false) => {
+        const tbody = document.getElementById('deliveryTbody');
+        const loaderUi = document.getElementById('delLoadMoreLoader');
+        if(!tbody) return;
+
+        const dateFilter = document.getElementById('delDateFilter')?.value;
+        const searchInput = document.getElementById('delSearchInput')?.value.trim();
+
+        if (!isLoadMore) {
+            lastDeliveryDoc = null; hasMoreDeliveries = true; deliveriesCache = [];
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; font-weight:bold; color:var(--primary);"><i class="ri-loader-4-line ri-spin"></i> Fetching Dispatches...</td></tr>';
+            toggleLoader(!isLoadMore); 
+        } else {
+            if(loaderUi) loaderUi.style.display = 'block';
+        }
+
+        if (isFetchingDeliveries || !hasMoreDeliveries) return;
+        isFetchingDeliveries = true;
+
+        try {
+            let q;
+            const collRef = collection(db, `users/${dbOwnerId}/shops/${currentShopId}/deliveries`);
+
+            if (dateFilter) {
+                hasMoreDeliveries = false; 
+                const startOfDay = new Date(dateFilter + "T00:00:00.000Z").toISOString();
+                const endOfDay = new Date(dateFilter + "T23:59:59.999Z").toISOString();
+                q = query(collRef, where("dispatchDate", ">=", startOfDay), where("dispatchDate", "<=", endOfDay), orderBy("dispatchDate", "desc"), limit(200));
+            } else if (searchInput) {
+                // Search handled by separate debounced function
+                return; 
+            } else {
+                if (lastDeliveryDoc) q = query(collRef, orderBy('dispatchDate', 'desc'), startAfter(lastDeliveryDoc), limit(30));
+                else q = query(collRef, orderBy('dispatchDate', 'desc'), limit(30));
+            }
+
+            const snap = await getDocs(q);
+            if (!isLoadMore) tbody.innerHTML = '';
+
+            if(snap.empty) {
+                if(!isLoadMore) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#666;">No delivery records found.</td></tr>';
+                hasMoreDeliveries = false;
+            } else {
+                lastDeliveryDoc = snap.docs[snap.docs.length - 1]; 
+                if (snap.docs.length < 30) hasMoreDeliveries = false; 
+
+                let newHtml = '';
+                snap.forEach(d => {
+                    const del = { id: d.id, ...d.data() };
+                    if(!deliveriesCache.find(x => x.id === del.id)) deliveriesCache.push(del);
+                    
+                    const isDelivered = del.status === 'DELIVERED';
+                    const isFailed = del.status === 'FAILED';
+                    
+                    let statusBadge = `<span style="background:#fef3c7; color:#d97706; padding:3px 8px; border-radius:4px; font-size:10px; font-weight:900; border:1px solid #fde68a;">DISPATCHED / EN-ROUTE</span>`;
+                    if (isDelivered) statusBadge = `<span style="background:#dcfce7; color:#15803d; padding:3px 8px; border-radius:4px; font-size:10px; font-weight:900;">DELIVERED</span>`;
+                    if (isFailed) statusBadge = `<span style="background:#fee2e2; color:#b91c1c; padding:3px 8px; border-radius:4px; font-size:10px; font-weight:900;">FAILED / RETURNED</span>`;
+
+                    const methodText = del.deliveryType === 'courier' 
+                        ? `<b>Courier:</b> ${del.courierName} <br><span style="font-size:10px; color:#3b82f6;">Ext Trk: ${del.courierTracking || 'N/A'}</span>`
+                        : `<b>Fleet:</b> ${del.vehicleNo} <br><span style="font-size:10px; color:#6b7280;">Driver: ${del.driverName}</span>`;
+
+                    newHtml += `
+                    <tr style="border-bottom:1px solid #e5e7eb; ${isDelivered ? 'opacity:0.7;' : (isFailed ? 'background:#fef2f2;' : '')}">
+                        <td>
+                            <div style="font-family:monospace; font-size:14px; font-weight:900; color:var(--primary);">${del.trackingNo}</div>
+                            <div style="font-size:11px; color:#666;">Date: ${new Date(del.dispatchDate).toLocaleString()}</div>
+                            <div style="font-size:10px; margin-top:2px; font-weight:bold; color:#4b5563;">Ref Order: ${del.orderId}</div>
+                        </td>
+                        <td>
+                            <b>${del.customerName}</b><br>
+                            <span style="font-size:11px; color:#666;"><i class="ri-phone-line"></i> ${del.customerPhone}</span><br>
+                            <span style="font-size:10px; color:#4b5563;"><i class="ri-map-pin-line"></i> ${del.customerAddress}</span>
+                        </td>
+                        <td style="font-size:12px;">${methodText}</td>
+                        <td>
+                            ${statusBadge}
+                            ${del.completeDate ? `<div style="font-size:9px; color:#9ca3af; margin-top:4px;">At: ${new Date(del.completeDate).toLocaleTimeString()}</div>` : ''}
+                        </td>
+                        <td>
+                            <div style="display:flex; flex-direction:column; gap:5px; align-items:flex-end;">
+                                <button class="btn btn-ghost" style="padding:4px 8px; font-size:11px; border-color:var(--primary); color:var(--primary);" onclick="printWaybill('${del.id}')"><i class="ri-printer-line"></i> Receipt</button>
+                                ${!isDelivered && !isFailed ? `<button class="btn btn-success" style="padding:4px 8px; font-size:11px;" onclick="openCompleteDelivery('${del.id}')"><i class="ri-check-line"></i> Update Status</button>` : ''}
+                            </div>
+                        </td>
+                    </tr>`;
+                });
+                tbody.insertAdjacentHTML('beforeend', newHtml);
+            }
+        } catch(e) { console.error(e); if(!isLoadMore) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:red;">Error loading deliveries.</td></tr>'; }
+        finally { isFetchingDeliveries = false; if(loaderUi) loaderUi.style.display = 'none'; toggleLoader(false); }
+    };
+
+    window.handleDeliveryScroll = () => {
+        if(document.getElementById('delSearchInput').value.trim() !== '' || document.getElementById('delDateFilter').value !== '') return; 
+        const area = document.getElementById('deliveryScrollArea');
+        if (area.scrollTop + area.clientHeight >= area.scrollHeight - 10) {
+            if (hasMoreDeliveries && !isFetchingDeliveries) loadDeliveries(true);
+        }
+    };
+
+    // 2. Omni-Search Engine for Deliveries (Database deep search)
+    window.searchDeliveryDebounced = debounceSearch(async () => {
+        const term = document.getElementById('delSearchInput').value.trim().toUpperCase();
+        if (term === '') return loadDeliveries(false);
+        
+        const tbody = document.getElementById('deliveryTbody');
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; font-weight:bold; color:var(--primary);">Searching Database... <i class="ri-loader-4-line ri-spin"></i></td></tr>';
+        
+        try {
+            // Search by Tracking No OR Order ID
+            const qTrk = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/deliveries`), where('trackingNo', '==', term), limit(5));
+            const qOrd = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/deliveries`), where('orderId', '==', term), limit(5));
+
+            const [sTrk, sOrd] = await Promise.all([getDocs(qTrk), getDocs(qOrd)]);
+            deliveriesCache = []; // Reset for search results
+            
+            const addRes = (d) => { if(!deliveriesCache.find(x => x.id === d.id)) deliveriesCache.push({id: d.id, ...d.data()}); };
+            sTrk.forEach(addRes); sOrd.forEach(addRes);
+
+            // Re-render function logic (Reused from above for brevity in this snippet)
+            if(deliveriesCache.length > 0) {
+                hasMoreDeliveries = false; // Stop scroll
+                // Clear and render manually for search
+                tbody.innerHTML = '';
+                deliveriesCache.forEach(del => {
+                   // (Same HTML generation as inside loadDeliveries)
+                   const isDelivered = del.status === 'DELIVERED';
+                    const isFailed = del.status === 'FAILED';
+                    
+                    let statusBadge = `<span style="background:#fef3c7; color:#d97706; padding:3px 8px; border-radius:4px; font-size:10px; font-weight:900; border:1px solid #fde68a;">DISPATCHED / EN-ROUTE</span>`;
+                    if (isDelivered) statusBadge = `<span style="background:#dcfce7; color:#15803d; padding:3px 8px; border-radius:4px; font-size:10px; font-weight:900;">DELIVERED</span>`;
+                    if (isFailed) statusBadge = `<span style="background:#fee2e2; color:#b91c1c; padding:3px 8px; border-radius:4px; font-size:10px; font-weight:900;">FAILED / RETURNED</span>`;
+
+                    const methodText = del.deliveryType === 'courier' 
+                        ? `<b>Courier:</b> ${del.courierName} <br><span style="font-size:10px; color:#3b82f6;">Ext Trk: ${del.courierTracking || 'N/A'}</span>`
+                        : `<b>Fleet:</b> ${del.vehicleNo} <br><span style="font-size:10px; color:#6b7280;">Driver: ${del.driverName}</span>`;
+
+                    tbody.innerHTML += `
+                    <tr style="border-bottom:1px solid #e5e7eb; ${isDelivered ? 'opacity:0.7;' : (isFailed ? 'background:#fef2f2;' : '')}">
+                        <td>
+                            <div style="font-family:monospace; font-size:14px; font-weight:900; color:var(--primary);">${del.trackingNo}</div>
+                            <div style="font-size:11px; color:#666;">Date: ${new Date(del.dispatchDate).toLocaleString()}</div>
+                            <div style="font-size:10px; margin-top:2px; font-weight:bold; color:#4b5563;">Ref Order: ${del.orderId}</div>
+                        </td>
+                        <td>
+                            <b>${del.customerName}</b><br>
+                            <span style="font-size:11px; color:#666;"><i class="ri-phone-line"></i> ${del.customerPhone}</span><br>
+                            <span style="font-size:10px; color:#4b5563;"><i class="ri-map-pin-line"></i> ${del.customerAddress}</span>
+                        </td>
+                        <td style="font-size:12px;">${methodText}</td>
+                        <td>${statusBadge}</td>
+                        <td>
+                            <div style="display:flex; flex-direction:column; gap:5px; align-items:flex-end;">
+                                <button class="btn btn-ghost" style="padding:4px 8px; font-size:11px; border-color:var(--primary); color:var(--primary);" onclick="printWaybill('${del.id}')"><i class="ri-printer-line"></i> Receipt</button>
+                                ${!isDelivered && !isFailed ? `<button class="btn btn-success" style="padding:4px 8px; font-size:11px;" onclick="openCompleteDelivery('${del.id}')"><i class="ri-check-line"></i> Update Status</button>` : ''}
+                            </div>
+                        </td>
+                    </tr>`;
+                });
+            } else {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:red;">No records found for this Tracking/Order ID.</td></tr>';
+            }
+        } catch(e) { console.error(e); }
+    }, 400);
+
+    // 3. Create Dispatch Modal Logic
+    let pendingDeliveryOrderData = null;
+
+    window.openNewDeliveryModal = () => {
+        document.getElementById('delOrderIdInput').value = '';
+        document.getElementById('delOrderContextArea').style.display = 'none';
+        document.getElementById('delLogisticsArea').style.display = 'none';
+        document.getElementById('btnSaveDispatch').style.display = 'none';
+        pendingDeliveryOrderData = null;
+        openModal('newDeliveryModal');
+    };
+
+    window.toggleDeliveryMethodInputs = () => {
+        const type = document.getElementById('delMethodType').value;
+        document.getElementById('delMethodCourier').style.display = type === 'courier' ? 'block' : 'none';
+        document.getElementById('delMethodInhouse').style.display = type === 'inhouse' ? 'block' : 'none';
+    };
+
+    window.fetchOrderForDelivery = async () => {
+        const orderId = document.getElementById('delOrderIdInput').value.trim();
+        if(!orderId) return showToast("Please enter an Order ID", "error");
+
+        toggleLoader(true);
+        try {
+            // Check if already dispatched to prevent duplicate dispatches for the same order
+            const checkQ = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/deliveries`), where("orderId", "==", orderId));
+            const checkSnap = await getDocs(checkQ);
+            if(!checkSnap.empty) {
+                toggleLoader(false);
+                return showToast(`This Order (${orderId}) has already been dispatched! Check Tracking No: ${checkSnap.docs[0].data().trackingNo}`, "error");
+            }
+
+            // Fetch Sale Data
+            const q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`), where("customOrderId", "==", orderId));
+            const snap = await getDocs(q);
+            
+            if(snap.empty) {
+                toggleLoader(false);
+                return showToast("Invalid Order ID! No sale record found.", "error");
+            }
+
+            pendingDeliveryOrderData = snap.docs[0].data();
+            
+            document.getElementById('delCustNameDisp').textContent = pendingDeliveryOrderData.customer.name;
+            document.getElementById('delCustPhoneDisp').textContent = pendingDeliveryOrderData.customer.phone;
+            document.getElementById('delCustAddressInput').value = pendingDeliveryOrderData.customer.address || '';
+            
+            const itemsStr = pendingDeliveryOrderData.items.map(i => `${i.name} (x${i.qty})`).join(', ');
+            document.getElementById('delItemsDisp').textContent = itemsStr;
+
+            document.getElementById('delOrderContextArea').style.display = 'block';
+            document.getElementById('delLogisticsArea').style.display = 'block';
+            document.getElementById('btnSaveDispatch').style.display = 'flex';
+            toggleDeliveryMethodInputs(); // Ensure UI matches dropdown
+
+        } catch(e) { showToast("Error verifying order", "error"); }
+        toggleLoader(false);
+    };
+
+    window.saveNewDelivery = async () => {
+        if(!pendingDeliveryOrderData) return;
+        
+        const methodType = document.getElementById('delMethodType').value;
+        const custAddr = document.getElementById('delCustAddressInput').value.trim();
+        const notes = document.getElementById('delNotes').value.trim();
+
+        let courierName = "", courierTrack = "", vehNo = "", driverName = "";
+
+        if (methodType === 'courier') {
+            courierName = document.getElementById('delCourierName').value.trim();
+            courierTrack = document.getElementById('delCourierTracking').value.trim();
+            if(!courierName) return showToast("Courier Name is required!", "error");
+        } else {
+            vehNo = document.getElementById('delVehicleNo').value.trim();
+            driverName = document.getElementById('delDriverName').value.trim();
+            if(!vehNo || !driverName) return showToast("Vehicle No & Driver Name required!", "error");
+        }
+
+        if(!custAddr) return showToast("Delivery Address is required!", "error");
+
+        if(!confirm("Generate Tracking Number and Dispatch Order?")) return;
+
+        toggleLoader(true);
+        try {
+            // Generate Secure Tracking Number (e.g. TRK-20260718-4921)
+            const dateStr = window.getSecureLocalDateStr().replace(/-/g, '');
+            const rnd = Math.floor(1000 + Math.random() * 9000);
+            const trackingNo = `TRK-${dateStr}-${rnd}`;
+
+            const payload = {
+                trackingNo: trackingNo,
+                orderId: pendingDeliveryOrderData.customOrderId,
+                customerPhone: pendingDeliveryOrderData.customer.phone,
+                customerName: pendingDeliveryOrderData.customer.name,
+                customerAddress: custAddr,
+                deliveryType: methodType,
+                courierName: courierName,
+                courierTracking: courierTrack,
+                vehicleNo: vehNo,
+                driverName: driverName,
+                notes: notes,
+                status: 'DISPATCHED',
+                dispatchDate: window.getSecureTime().toISOString(),
+                completeDate: null,
+                itemsSummary: pendingDeliveryOrderData.items.map(i => ({name: i.name, qty: i.qty})) // Tiny payload for receipt
+            };
+
+            const docRef = await addDoc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/deliveries`), payload);
+            
+            if(window.writeSystemLog) writeSystemLog("ORDER_DISPATCHED", `Dispatched Order ${payload.orderId}. Tracking: ${trackingNo}`);
+            
+            closeModal('newDeliveryModal');
+            showToast("Dispatch Recorded! Printing Waybill...", "success");
+            
+            await loadDeliveries(); // Refresh Table
+            
+            // Auto Print Waybill
+            printWaybill(docRef.id, payload);
+
+        } catch(e) {
+            console.error(e);
+            showToast("Error creating dispatch", "error");
+        } finally {
+            toggleLoader(false);
+        }
+    };
+
+    // 4. Update Status (Complete / Fail)
+    window.openCompleteDelivery = (id) => {
+        document.getElementById('cdId').value = id;
+        document.getElementById('cdStatus').value = 'DELIVERED';
+        document.getElementById('cdNote').value = '';
+        openModal('completeDeliveryModal');
+    };
+
+    window.submitDeliveryCompletion = async () => {
+        const id = document.getElementById('cdId').value;
+        const status = document.getElementById('cdStatus').value;
+        const note = document.getElementById('cdNote').value.trim();
+
+        if (status === 'FAILED' && !note) return showToast("Reason for failure is required!", "error");
+
+        if(!confirm(`Mark this delivery as ${status}?`)) return;
+
+        toggleLoader(true);
+        try {
+            await updateDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/deliveries`, id), {
+                status: status,
+                completionNote: note,
+                completeDate: window.getSecureTime().toISOString()
+            });
+
+            if(window.writeSystemLog) writeSystemLog("DELIVERY_STATUS_UPDATE", `Delivery status updated to ${status}. Notes: ${note}`);
+            
+            closeModal('completeDeliveryModal');
+            showToast(`Delivery marked as ${status}!`, "success");
+            await loadDeliveries();
+
+        } catch(e) { showToast("Error updating status", "error"); }
+        toggleLoader(false);
+    };
+
+    // 5. WAYBILL / RECEIPT PRINTING ENGINE
+    window.printWaybill = async (id, passedData = null) => {
+        let del = passedData;
+        
+        if (!del) {
+            // Fetch from Cache or DB
+            del = deliveriesCache.find(x => x.id === id);
+            if (!del) {
+                toggleLoader(true);
+                const snap = await getDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/deliveries`, id));
+                if(snap.exists()) del = snap.data();
+                toggleLoader(false);
+            }
+        }
+        if(!del) return showToast("Data missing for print", "error");
+
+        // Generate Barcode for Tracking No
+        let barcodeSrc = "";
+        try {
+            JsBarcode(hiddenBarcodeCanvas, del.trackingNo, { format: "CODE128", displayValue: false, height: 40, margin: 0 });
+            barcodeSrc = hiddenBarcodeCanvas.toDataURL("image/png");
+        } catch(err) { console.warn("Barcode err"); }
+
+        const shopName = profileCache?.bizName || "Our Shop";
+        const shopPhone = profileCache?.phone1 || "";
+
+        const itemsHtml = del.itemsSummary.map(i => `<tr><td style="border-bottom:1px dashed #ccc; padding:4px 0;">${i.name}</td><td style="border-bottom:1px dashed #ccc; text-align:right;">x${i.qty}</td></tr>`).join('');
+
+        const printWindow = window.open('', '', 'height=600,width=400');
+        printWindow.document.write(`
+            <html><head><title>Dispatch Note - ${del.trackingNo}</title>
+            <style>
+                body { font-family: 'Courier New', Courier, monospace; margin: 0; padding: 15px; width: 300px; color: #000; font-size: 12px; }
+                .center { text-align: center; } .bold { font-weight: bold; }
+                .box { border: 2px solid #000; padding: 10px; margin-top: 10px; border-radius:8px;}
+                @media print { @page { margin: 0; } body { width: 100%; padding: 0; } }
+            </style>
+            </head><body>
+                <div class="center">
+                    <h2 style="margin:0;">${shopName}</h2>
+                    <div style="font-size:10px;">${shopPhone}</div>
+                    <div style="margin-top:10px; font-weight:900; font-size:18px; border-top:2px solid #000; border-bottom:2px solid #000; padding:5px 0;">DISPATCH WAYBILL</div>
+                </div>
+
+                <div class="center" style="margin-top:15px;">
+                    <img src="${barcodeSrc}" style="width:90%; height:45px;" />
+                    <div style="font-size:14px; font-weight:bold; letter-spacing:1px; margin-top:5px;">${del.trackingNo}</div>
+                </div>
+
+                <div class="box">
+                    <div class="bold" style="font-size:14px; text-decoration:underline; margin-bottom:5px;">TO (CUSTOMER):</div>
+                    <div class="bold fs-14">${del.customerName}</div>
+                    <div>Tel: ${del.customerPhone}</div>
+                    <div style="margin-top:5px; font-size:11px;">${del.customerAddress}</div>
+                </div>
+
+                <div style="margin-top:15px; border-top:1px dashed #000; padding-top:10px;">
+                    <div class="bold">Ref Order ID: ${del.orderId}</div>
+                    <div style="margin-top:5px;">Date: ${new Date(del.dispatchDate).toLocaleString()}</div>
+                    <div style="margin-top:5px;">Method: <b>${del.deliveryType === 'courier' ? del.courierName : del.vehicleNo}</b></div>
+                    ${del.notes ? `<div style="margin-top:5px; font-size:10px; font-style:italic;">Note: ${del.notes}</div>` : ''}
+                </div>
+
+                <div style="margin-top:15px;">
+                    <div class="bold" style="border-bottom:1px solid #000; padding-bottom:3px; margin-bottom:5px;">PACKAGE CONTENTS</div>
+                    <table style="width:100%; border-collapse:collapse; font-size:11px;">
+                        ${itemsHtml}
+                    </table>
+                </div>
+
+                <div style="margin-top:30px; display:flex; justify-content:space-between; font-size:10px;">
+                    <div class="center">..................<br>Authorized By</div>
+                    <div class="center">..................<br>Receiver Sign</div>
+                </div>
+                <script>window.onload = function() { setTimeout(() => { window.print(); window.close(); }, 500); };<\/script>
+            </body></html>
+        `);
+        printWindow.document.close();
     };
 </script>
 
