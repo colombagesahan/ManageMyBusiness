@@ -11008,6 +11008,13 @@ window.autoFillDocCustomer = (name) => {
         });
         
         renderEmployees();
+
+        // 🚨 CA FIX: Update Sales Rep Dropdown automatically in POS (Initial Load)
+        const sRep = document.getElementById('posSalesRep');
+        if(sRep) {
+            sRep.innerHTML = '<option value="">-- Cashier Only (No Rep) --</option>' + 
+                employeesCache.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
+        }
     }
 
     // 2. Virtual DOM Rendering Engine
