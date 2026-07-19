@@ -1348,8 +1348,9 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                     
                     <!-- 🚀 NEW: SALES REP & GAMIFICATION BANNER -->
                     <div style="margin-bottom:15px;">
-                        <label style="font-size:11px; font-weight:bold; color:var(--primary);"><i class="ri-user-star-fill"></i> Sales Representative (Commission)</label>
-                        <select id="posSalesRep" style="margin-bottom:5px; border-color:var(--primary); font-weight:bold; font-size:12px;" onchange="updateGamificationUI()"></select>
+                        <label style="font-size:11px; font-weight:bold; color:var(--primary);"><i class="ri-user-star-fill"></i> Sales Representative (ID or Name)</label>
+                        <input id="posSalesRepInput" list="posSalesRepList" placeholder="Type Rep ID or Name..." style="margin-bottom:5px; border-color:var(--primary); font-weight:bold; font-size:12px; width:100%; padding:8px;" onchange="updateGamificationUI()" onkeyup="searchLiveSalesRep(this.value)">
+                        <datalist id="posSalesRepList"></datalist>
                         
                         <!-- Gamification Progress Bar -->
                         <div id="gamificationBox" style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px; display:none;">
@@ -2994,14 +2995,20 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             </div>
             
             <!-- 🚀 NEW: GAMIFICATION & COMMISSION SETTINGS -->
-            <div style="display:flex; gap:10px; margin-top:10px; background:#fffbeb; border:1px solid #fde68a; padding:10px; border-radius:8px;">
-                <div style="flex:1;">
-                    <label style="font-size:11px; font-weight:bold; color:#b45309;"><i class="ri-funds-line"></i> Monthly Sales Target</label>
-                    <input id="meTarget" type="number" value="0" placeholder="e.g. 500000" style="margin-bottom:0; border-color:#fcd34d; font-weight:bold;">
-                </div>
-                <div style="flex:1;">
-                    <label style="font-size:11px; font-weight:bold; color:#b45309;"><i class="ri-percent-line"></i> Commission Rate (%)</label>
-                    <input id="meCommission" type="number" value="0" placeholder="e.g. 2" style="margin-bottom:0; border-color:#fcd34d; font-weight:bold;">
+            <div style="background:#fffbeb; border:1px solid #fde68a; padding:10px; border-radius:8px; margin-top:10px;">
+                <label style="display:flex; align-items:center; gap:8px; font-size:12px; font-weight:bold; color:var(--primary); margin-bottom:10px; cursor:pointer;">
+                    <input type="checkbox" id="meIsSalesRep" style="width:18px; height:18px; margin:0; accent-color:var(--primary);">
+                    Mark as Sales Representative (Show in POS)
+                </label>
+                <div style="display:flex; gap:10px;">
+                    <div style="flex:1;">
+                        <label style="font-size:11px; font-weight:bold; color:#b45309;"><i class="ri-funds-line"></i> Monthly Target</label>
+                        <input id="meTarget" type="number" value="0" placeholder="e.g. 500000" style="margin-bottom:0; border-color:#fcd34d; font-weight:bold;">
+                    </div>
+                    <div style="flex:1;">
+                        <label style="font-size:11px; font-weight:bold; color:#b45309;"><i class="ri-percent-line"></i> Commission (%)</label>
+                        <input id="meCommission" type="number" value="0" placeholder="e.g. 2" style="margin-bottom:0; border-color:#fcd34d; font-weight:bold;">
+                    </div>
                 </div>
             </div>
         </div>
@@ -7652,9 +7659,17 @@ window.checkout = async () => {
             creditBalance: roundToTwo(creditBalance), 
             items: cart, 
             customer: { name: finalCustName, phone: finalCustPhone, address: custAddr || "" },
-            // 🚨 CA FIX: Record the Sales Rep for Commission Math
-            salesRepId: document.getElementById('posSalesRep').value || '',
-            salesRepName: document.getElementById('posSalesRep').options[document.getElementById('posSalesRep').selectedIndex]?.text || 'Cashier',
+            // 🚨 CA FIX: Record the Sales Rep for Commission Math (Upgraded for Datalist)
+            salesRepId: (function(){ 
+                const v = document.getElementById('posSalesRepInput') ? document.getElementById('posSalesRepInput').value.trim() : '';
+                const e = employeesCache.find(x => x.id === v);
+                return e && e.isSalesRep ? e.id : '';
+            })(),
+            salesRepName: (function(){ 
+                const v = document.getElementById('posSalesRepInput') ? document.getElementById('posSalesRepInput').value.trim() : '';
+                const e = employeesCache.find(x => x.id === v);
+                return e && e.isSalesRep ? e.name : 'Cashier';
+            })(),
             notes: []
         };
 
@@ -11009,11 +11024,13 @@ window.autoFillDocCustomer = (name) => {
         
         renderEmployees();
 
-        // 🚨 CA FIX: Update Sales Rep Dropdown automatically in POS (Initial Load)
-        const sRep = document.getElementById('posSalesRep');
-        if(sRep) {
-            sRep.innerHTML = '<option value="">-- Cashier Only (No Rep) --</option>' + 
-                employeesCache.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
+        // 🚨 CA FIX: Update Sales Rep Datalist automatically in POS (Filtered by isSalesRep)
+        const sRepList = document.getElementById('posSalesRepList');
+        if(sRepList) {
+            sRepList.innerHTML = employeesCache
+                .filter(e => e.isSalesRep)
+                .map(e => `<option value="${e.id}">${e.name} (${e.role || 'Rep'})</option>`)
+                .join('');
         }
     }
 
@@ -11185,6 +11202,7 @@ window.autoFillDocCustomer = (name) => {
         document.getElementById('meOTRate').value = '0';
         document.getElementById('meTarget').value = '0'; // 👈 NEW
         document.getElementById('meCommission').value = '0'; // 👈 NEW
+        document.getElementById('meIsSalesRep').checked = false;
         
         // Reset Photo
         document.getElementById('empPhotoFile').value = '';
@@ -11209,6 +11227,7 @@ window.autoFillDocCustomer = (name) => {
         document.getElementById('meOTRate').value = e.otRate || 0;
         document.getElementById('meTarget').value = e.targetAmount || 0; // 👈 NEW
         document.getElementById('meCommission').value = e.commissionRate || 0; // 👈 NEW
+        document.getElementById('meIsSalesRep').checked = e.isSalesRep || false;
         
         // Load Photo
         document.getElementById('empPhotoFile').value = '';
@@ -11332,6 +11351,7 @@ window.autoFillDocCustomer = (name) => {
         const otRate = Number(document.getElementById('meOTRate').value) || 0;
         const targetAmt = Number(document.getElementById('meTarget').value) || 0;
         const commRate = Number(document.getElementById('meCommission').value) || 0;
+        const isSalesRep = document.getElementById('meIsSalesRep').checked;
         
         // ENTERPRISE FIX: Strict Validation for Financial/Math Fields
         if(!name || !phone) return showToast("Name and Phone (ID) are required", "error");
@@ -11354,7 +11374,7 @@ window.autoFillDocCustomer = (name) => {
 
             await setDoc(empRef, {
                 name, phone, role, baseSalary: salary, standardHours: hours, otRate: otRate,
-                targetAmount: targetAmt, commissionRate: commRate,
+                targetAmount: targetAmt, commissionRate: commRate, isSalesRep: isSalesRep,
                 photo: currentEmpPhotoBase64 
             }, { merge: true });
             
@@ -20311,6 +20331,79 @@ window.emergencyLocalOverride = async () => {
             progBar.style.background = 'linear-gradient(90deg, #10b981, #059669)';
             const earn = liveSales * (rate / 100);
             commText.textContent = `🔥 Commission Earned: ${formatMoney(earn)}`;
+            commText.style.color = '#15803d';
+        }
+    };
+// ==========================================
+    // 🚀 LIVE SALES REP SEARCH & GAMIFICATION FIXES
+    // ==========================================
+
+    // 1. Live Database Search for Reps (Bypasses Cache limits)
+    window.searchLiveSalesRep = debounceSearch(async (term) => {
+        if (term.length < 3) return;
+        try {
+            const qPhone = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/employees`), where('isSalesRep', '==', true), where('phone', '>=', term), where('phone', '<=', term + '\uf8ff'), limit(5));
+            const capTerm = term.charAt(0).toUpperCase() + term.slice(1);
+            const qName = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/employees`), where('isSalesRep', '==', true), where('name', '>=', capTerm), where('name', '<=', capTerm + '\uf8ff'), limit(5));
+
+            const [snapPhone, snapName] = await Promise.all([getDocs(qPhone), getDocs(qName)]);
+            
+            const addToCache = (d) => { if(!employeesCache.find(e => e.id === d.id)) employeesCache.unshift({id: d.id, ...d.data()}); };
+            snapPhone.forEach(addToCache); snapName.forEach(addToCache);
+
+            const sRepList = document.getElementById('posSalesRepList');
+            if(sRepList) {
+                sRepList.innerHTML = employeesCache.filter(e => e.isSalesRep).map(e => `<option value="${e.id}">${e.name} (${e.role || 'Rep'})</option>`).join('');
+            }
+        } catch(e) { console.error("Live Rep Search Error:", e); }
+    }, 400);
+
+    // 2. Fix Gamification UI to use the new Input Box
+    window.updateGamificationUI = async () => {
+        const inputVal = document.getElementById('posSalesRepInput').value.trim();
+        const box = document.getElementById('gamificationBox');
+        
+        const emp = employeesCache.find(e => e.id === inputVal);
+        
+        // 🚨 Validation: Input එකේ ගැහුවේ ඇත්තටම Rep කෙනෙක්ගේ ID එකක්ද බලනවා
+        if (!inputVal || !emp || !emp.isSalesRep) { 
+            box.style.display = 'none'; 
+            return; 
+        }
+        
+        const target = Number(emp.targetAmount) || 0;
+        const rate = Number(emp.commissionRate) || 0;
+        if (rate <= 0) { box.style.display = 'none'; return; }
+
+        const now = window.getSecureTime();
+        const startIso = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+        
+        let liveSales = 0;
+        salesCache.forEach(s => { if (s.date >= startIso && s.salesRepId === emp.id) liveSales += (s.total - (s.taxAmt||0)); });
+        refundsCache.forEach(r => { if (r.date >= startIso && r.salesRepId === emp.id) liveSales -= (r.amount - (r.taxReversed||0)); });
+
+        box.style.display = 'block';
+        document.getElementById('gfSalesText').textContent = `Net Sales: ${formatMoney(liveSales)}`;
+        document.getElementById('gfTargetText').textContent = `Target: ${formatMoney(target)}`;
+        
+        const progBar = document.getElementById('gfProgressBar');
+        const commText = document.getElementById('gfCommissionText');
+
+        if (target > 0) {
+            let perc = Math.min((liveSales / target) * 100, 100);
+            progBar.style.width = `${perc}%`;
+            if (liveSales > target) {
+                const earn = (liveSales - target) * (rate / 100);
+                commText.textContent = `🔥 Target Reached! Commission Earned: ${formatMoney(earn)}`;
+                commText.style.color = '#15803d'; progBar.style.background = 'linear-gradient(90deg, #10b981, #059669)';
+            } else {
+                const short = target - liveSales;
+                commText.textContent = `Sell ${formatMoney(short)} more to unlock ${rate}% Commission!`;
+                commText.style.color = '#b45309'; progBar.style.background = 'linear-gradient(90deg, #f59e0b, #d97706)';
+            }
+        } else {
+            progBar.style.width = '100%'; progBar.style.background = 'linear-gradient(90deg, #10b981, #059669)';
+            commText.textContent = `🔥 Commission Earned: ${formatMoney(liveSales * (rate / 100))}`;
             commText.style.color = '#15803d';
         }
     };
