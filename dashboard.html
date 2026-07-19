@@ -1346,7 +1346,23 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                 <!-- RIGHT: Customer, Fees & Checkout Panel -->
                 <div class="card" style="display:flex; flex-direction:column; padding:15px; overflow-y:auto; height: calc(100vh - 120px); background:#fdfdfd;">
                     
-                    <!-- Customer Details moved to Checkout Modal -->
+                    <!-- 🚀 NEW: SALES REP & GAMIFICATION BANNER -->
+                    <div style="margin-bottom:15px;">
+                        <label style="font-size:11px; font-weight:bold; color:var(--primary);"><i class="ri-user-star-fill"></i> Sales Representative (Commission)</label>
+                        <select id="posSalesRep" style="margin-bottom:5px; border-color:var(--primary); font-weight:bold; font-size:12px;" onchange="updateGamificationUI()"></select>
+                        
+                        <!-- Gamification Progress Bar -->
+                        <div id="gamificationBox" style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:10px; display:none;">
+                            <div style="display:flex; justify-content:space-between; font-size:10px; font-weight:bold; margin-bottom:5px;">
+                                <span style="color:#4b5563;" id="gfSalesText">Net Sales: Rs. 0</span>
+                                <span style="color:#b45309;" id="gfTargetText">Target: Rs. 0</span>
+                            </div>
+                            <div style="width:100%; background:#e2e8f0; height:8px; border-radius:4px; overflow:hidden;">
+                                <div id="gfProgressBar" style="width:0%; background:linear-gradient(90deg, #f59e0b, #10b981); height:100%; transition:0.5s;"></div>
+                            </div>
+                            <div style="text-align:center; font-size:10px; font-weight:bold; color:#15803d; margin-top:5px;" id="gfCommissionText">Commission Earned: Rs. 0.00</div>
+                        </div>
+                    </div>
 
                     <!-- Fees & Discount -->
                     <div style="margin-bottom:15px; background:white; border:1px solid #e5e7eb; padding:10px; border-radius:8px;">
@@ -2974,6 +2990,18 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                 <div style="flex:1;">
                     <label style="font-size:12px;">OT Rate per Hour (Rs)</label>
                     <input id="meOTRate" type="number" value="0" placeholder="e.g. 300">
+                </div>
+            </div>
+            
+            <!-- 🚀 NEW: GAMIFICATION & COMMISSION SETTINGS -->
+            <div style="display:flex; gap:10px; margin-top:10px; background:#fffbeb; border:1px solid #fde68a; padding:10px; border-radius:8px;">
+                <div style="flex:1;">
+                    <label style="font-size:11px; font-weight:bold; color:#b45309;"><i class="ri-funds-line"></i> Monthly Sales Target</label>
+                    <input id="meTarget" type="number" value="0" placeholder="e.g. 500000" style="margin-bottom:0; border-color:#fcd34d; font-weight:bold;">
+                </div>
+                <div style="flex:1;">
+                    <label style="font-size:11px; font-weight:bold; color:#b45309;"><i class="ri-percent-line"></i> Commission Rate (%)</label>
+                    <input id="meCommission" type="number" value="0" placeholder="e.g. 2" style="margin-bottom:0; border-color:#fcd34d; font-weight:bold;">
                 </div>
             </div>
         </div>
@@ -7624,6 +7652,9 @@ window.checkout = async () => {
             creditBalance: roundToTwo(creditBalance), 
             items: cart, 
             customer: { name: finalCustName, phone: finalCustPhone, address: custAddr || "" },
+            // 🚨 CA FIX: Record the Sales Rep for Commission Math
+            salesRepId: document.getElementById('posSalesRep').value || '',
+            salesRepName: document.getElementById('posSalesRep').options[document.getElementById('posSalesRep').selectedIndex]?.text || 'Cashier',
             notes: []
         };
 
@@ -9470,9 +9501,15 @@ window.autoFillDocCustomer = (name) => {
                 let taxReversedAmt = 0; // 🛡️ NEW: Track Tax Reversal
 
                 // 1. Read Sale & Update Credit (Original Logic)
+                let originalSalesRepId = ''; // 🚨 CA FIX: Capture original Sales Rep to reverse their commission!
+                
                 if(saleRef) {
                     const sDoc = await transaction.get(saleRef);
                     
+                    if (sDoc.exists()) {
+                        originalSalesRepId = sDoc.data().salesRepId || '';
+                    }
+
                     // 🚨 CRITICAL MATH FIX: Calculate exact Tax Reversed for this item!
                     if (sDoc.exists() && sDoc.data().taxPercent > 0) {
                         const taxPerc = sDoc.data().taxPercent;
@@ -9534,7 +9571,7 @@ window.autoFillDocCustomer = (name) => {
                     // 🚨 CRITICAL DB FIX: Save Tax Reversed Amount for accurate Tax Reports!
                     taxReversed: taxReversedAmt, 
                     
-                    restock: restock, refundMethod: rMethodSaved, originalBatch: batchNum, date: window.getSecureTime().toISOString()
+                    restock: restock, refundMethod: rMethodSaved, originalBatch: batchNum, date: window.getSecureTime().toISOString(), salesRepId: originalSalesRepId // 👈 Reverses commission
                 });
 
                 // 3. Read Product & Restore Stock Safely (Original Logic - Fully Preserved!)
@@ -11139,6 +11176,8 @@ window.autoFillDocCustomer = (name) => {
         document.getElementById('meSalary').value = '';
         document.getElementById('meHours').value = '8';
         document.getElementById('meOTRate').value = '0';
+        document.getElementById('meTarget').value = '0'; // 👈 NEW
+        document.getElementById('meCommission').value = '0'; // 👈 NEW
         
         // Reset Photo
         document.getElementById('empPhotoFile').value = '';
@@ -11161,6 +11200,8 @@ window.autoFillDocCustomer = (name) => {
         document.getElementById('meSalary').value = e.baseSalary || 0;
         document.getElementById('meHours').value = e.standardHours || 8;
         document.getElementById('meOTRate').value = e.otRate || 0;
+        document.getElementById('meTarget').value = e.targetAmount || 0; // 👈 NEW
+        document.getElementById('meCommission').value = e.commissionRate || 0; // 👈 NEW
         
         // Load Photo
         document.getElementById('empPhotoFile').value = '';
@@ -11282,6 +11323,8 @@ window.autoFillDocCustomer = (name) => {
         const salary = Number(document.getElementById('meSalary').value) || 0;
         const hours = Number(document.getElementById('meHours').value) || 8;
         const otRate = Number(document.getElementById('meOTRate').value) || 0;
+        const targetAmt = Number(document.getElementById('meTarget').value) || 0;
+        const commRate = Number(document.getElementById('meCommission').value) || 0;
         
         // ENTERPRISE FIX: Strict Validation for Financial/Math Fields
         if(!name || !phone) return showToast("Name and Phone (ID) are required", "error");
@@ -11304,6 +11347,7 @@ window.autoFillDocCustomer = (name) => {
 
             await setDoc(empRef, {
                 name, phone, role, baseSalary: salary, standardHours: hours, otRate: otRate,
+                targetAmount: targetAmt, commissionRate: commRate,
                 photo: currentEmpPhotoBase64 
             }, { merge: true });
             
@@ -14322,6 +14366,34 @@ window.setQuickCash = (amount) => {
             const paidSalariesMap = {};
             expSnap.forEach(d => { paidSalariesMap[d.data().empId] = true; });
 
+            // 🚀 CA FIX: N+1 QUERY PREVENTION FOR COMMISSIONS
+            // Fetch ALL sales and refunds for the entire month ONLY ONCE, then group them in RAM.
+            const startOfMonthIso = new Date(`${year}-${String(month + 1).padStart(2, '0')}-01T00:00:00.000Z`).toISOString();
+            const lastDayDate = new Date(year, month + 1, 0).getDate();
+            const endOfMonthIso = new Date(`${year}-${String(month + 1).padStart(2, '0')}-${lastDayDate}T23:59:59.999Z`).toISOString();
+            
+            const [allSalesSnap, allRefsSnap] = await Promise.all([
+                getDocs(query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`), where("date", ">=", startOfMonthIso), where("date", "<=", endOfMonthIso))),
+                getDocs(query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/refunds`), where("date", ">=", startOfMonthIso), where("date", "<=", endOfMonthIso)))
+            ]);
+
+            const repSalesMap = {};
+            allSalesSnap.forEach(d => {
+                const s = d.data();
+                if(s.salesRepId) {
+                    // Tax වලට කොමිස් නොදෙන බැවින් Tax-Free Total එක (Net) පමණක් ගනී
+                    const netTaxFreeTotal = s.total - (s.taxAmt || 0); 
+                    repSalesMap[s.salesRepId] = (repSalesMap[s.salesRepId] || 0) + netTaxFreeTotal;
+                }
+            });
+            allRefsSnap.forEach(d => {
+                const r = d.data();
+                if(r.salesRepId) {
+                    const taxFreeRefund = r.amount - (r.taxReversed || 0);
+                    repSalesMap[r.salesRepId] = (repSalesMap[r.salesRepId] || 0) - taxFreeRefund;
+                }
+            });
+
             let html = '';
             // Process each employee securely
             for(let emp of allEmployees) {
@@ -14392,17 +14464,34 @@ window.setQuickCash = (amount) => {
                 const otRate = Number(emp.otRate) || 0;
                 const otPay = totExtra * otRate;
                 
+                // 🚀 CA FIX: CALCULATE GAMIFICATION COMMISSION
+                const targetAmt = Number(emp.targetAmount) || 0;
+                const commRate = Number(emp.commissionRate) || 0;
+                const repNetSales = repSalesMap[emp.id] || 0;
+                let commissionPay = 0;
+
+                if (commRate > 0) {
+                    if (targetAmt > 0) {
+                        if (repNetSales > targetAmt) {
+                            commissionPay = (repNetSales - targetAmt) * (commRate / 100);
+                        }
+                    } else {
+                        // ටාගට් එකක් දීලා නැත්නම් විකුණන මුළු ගාණටම කොමිස් ලැබේ
+                        commissionPay = repNetSales * (commRate / 100);
+                    }
+                }
+                commissionPay = Math.round(commissionPay * 100) / 100;
+
                 // 🛡️ ENTERPRISE PAYROLL FIX: Sri Lankan Statutory Deductions (EPF 8%)
-                // Only calculate EPF if base salary is configured
                 const epfDeduction = baseSal > 0 ? (earnedBasic * 0.08) : 0;
                 
                 // Final safety round to prevent JS floating point avalanche
-                const netSalary = Math.round((earnedBasic - deficitDeduction - totAdvance - epfDeduction + otPay) * 100) / 100;
+                const netSalary = Math.round((earnedBasic - deficitDeduction - totAdvance - epfDeduction + otPay + commissionPay) * 100) / 100; // 👈 Added commissionPay
 
                 // Save to local variable for Timesheet view
                 currentPayrollData.push({
                     emp: emp, logs: processedLogs, pDays, plDays, halfDays, lwpDays,
-                    totWorked, totExtra, totAdvance, otPay, deficitDeduction, earnedBasic, epfDeduction, netSalary
+                    totWorked, totExtra, totAdvance, otPay, deficitDeduction, earnedBasic, epfDeduction, commissionPay, netSalary
                 });
 
                 // 🛡️ ENTERPRISE FIX: Generate Pay Button or Paid Badge
@@ -14482,6 +14571,8 @@ window.setQuickCash = (amount) => {
                     <div style="display:flex; justify-content:space-between; margin-bottom:5px; font-size:11px; color:#999;"><span>Contract Base:</span> <span>${formatMoney(data.emp.baseSalary)} / 30 Days</span></div>
                     <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>Earned Basic (${data.pDays} P, ${data.plDays} PL, ${data.halfDays} H):</span> <strong>${formatMoney(data.earnedBasic)}</strong></div>
                     <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>OT Pay (${data.totExtra.toFixed(1)} hrs @ ${formatMoney(data.emp.otRate)}/hr):</span> <strong style="color:var(--success);">+${formatMoney(data.otPay)}</strong></div>
+                    <!-- 🚨 NEW: Sales Commission Display -->
+                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>Sales Commission:</span> <strong style="color:var(--primary);">+${formatMoney(data.commissionPay || 0)}</strong></div>
                 </div>
                 <div>
                     <h5 style="margin-bottom:10px; color:#666;">DEDUCTIONS</h5>
@@ -17413,6 +17504,13 @@ let currentBatchForSerials = null;
                     if(!employeesCache.find(x => x.id === d.id)) employeesCache.push({ id: d.id, ...d.data() });
                 });
                 renderEmployees(); 
+                
+                // 🚨 CA FIX: Update Sales Rep Dropdown automatically in POS
+                const sRep = document.getElementById('posSalesRep');
+                if(sRep) {
+                    sRep.innerHTML = '<option value="">-- Cashier Only (No Rep) --</option>' + 
+                        employeesCache.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
+                }
             }
         } catch(e) { console.error(e); } 
         finally {
@@ -20148,6 +20246,65 @@ window.emergencyLocalOverride = async () => {
         } finally {
             window.isExecutingProd = false;
             toggleLoader(false);
+        }
+    };
+// ==========================================
+    // 🚀 LIVE GAMIFICATION ENGINE
+    // ==========================================
+    window.updateGamificationUI = async () => {
+        const repId = document.getElementById('posSalesRep').value;
+        const box = document.getElementById('gamificationBox');
+        
+        if (!repId) { box.style.display = 'none'; return; }
+        
+        const emp = employeesCache.find(e => e.id === repId);
+        const target = Number(emp?.targetAmount) || 0;
+        const rate = Number(emp?.commissionRate) || 0;
+
+        if (rate <= 0) { box.style.display = 'none'; return; } // කොමිස් නැති අයට පෙන්වන්නේ නැත
+
+        // Fast RAM Cache calculation for the current month
+        const now = window.getSecureTime();
+        const startIso = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+        
+        // Use local cache for speed (Doesn't cost Firebase Reads!)
+        let liveSales = 0;
+        salesCache.forEach(s => {
+            if (s.date >= startIso && s.salesRepId === repId) liveSales += (s.total - (s.taxAmt||0));
+        });
+        refundsCache.forEach(r => {
+            if (r.date >= startIso && r.salesRepId === repId) liveSales -= (r.amount - (r.taxReversed||0));
+        });
+
+        box.style.display = 'block';
+        document.getElementById('gfSalesText').textContent = `Net Sales: ${formatMoney(liveSales)}`;
+        document.getElementById('gfTargetText').textContent = `Target: ${formatMoney(target)}`;
+        
+        const progBar = document.getElementById('gfProgressBar');
+        const commText = document.getElementById('gfCommissionText');
+
+        if (target > 0) {
+            let perc = Math.min((liveSales / target) * 100, 100);
+            progBar.style.width = `${perc}%`;
+            
+            if (liveSales > target) {
+                const earn = (liveSales - target) * (rate / 100);
+                commText.textContent = `🔥 Target Reached! Commission Earned: ${formatMoney(earn)}`;
+                commText.style.color = '#15803d';
+                progBar.style.background = 'linear-gradient(90deg, #10b981, #059669)';
+            } else {
+                const short = target - liveSales;
+                commText.textContent = `Sell ${formatMoney(short)} more to unlock ${rate}% Commission!`;
+                commText.style.color = '#b45309';
+                progBar.style.background = 'linear-gradient(90deg, #f59e0b, #d97706)';
+            }
+        } else {
+            // No Target, Flat Commission
+            progBar.style.width = '100%';
+            progBar.style.background = 'linear-gradient(90deg, #10b981, #059669)';
+            const earn = liveSales * (rate / 100);
+            commText.textContent = `🔥 Commission Earned: ${formatMoney(earn)}`;
+            commText.style.color = '#15803d';
         }
     };
 </script>
