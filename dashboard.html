@@ -1685,18 +1685,24 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
                 <h3><i class="ri-bank-card-line"></i> Cheque Registry (චෙක්පත් කළමනාකරණය)</h3>
                 <div style="display:flex; gap:10px;">
-                    <select id="chequeStatusFilter" onchange="loadCheques()" style="margin:0; width:150px; font-weight:bold;">
-                        <option value="PENDING">Pending (මාරු වීමට ඇති)</option>
-                        <option value="CLEARED">Cleared (මාරු වූ)</option>
-                        <option value="BOUNCED">Bounced (අගරු වූ)</option>
+                    <!-- 🚀 NEW: Mode Toggle -->
+                    <select id="chequeModeFilter" onchange="loadCheques()" style="margin:0; width:160px; font-weight:bold; background:#e0e7ff; color:var(--primary); border-color:#c7d2fe;">
+                        <option value="RECEIVED">Received (ලැබුණු)</option>
+                        <option value="ISSUED">Issued (අප නිකුත් කළ)</option>
+                    </select>
+                    
+                    <select id="chequeStatusFilter" onchange="loadCheques()" style="margin:0; width:130px; font-weight:bold;">
+                        <option value="PENDING">Pending</option>
+                        <option value="CLEARED">Cleared</option>
+                        <option value="BOUNCED">Bounced</option>
                     </select>
                     <button class="btn btn-primary" onclick="loadCheques()"><i class="ri-refresh-line"></i></button>
                 </div>
             </div>
-            <div class="note-box"><i class="ri-information-fill"></i> චෙක්පත් මගින් ණය ගෙවූ විට ඒවා මෙහි Pending ලෙස වැටේ. බැංකුවට මුදල් වැටුණු පසු එය 'Clear' කරන්න. චෙක්පත අගරු වුවහොත් 'Bounce' කරන්න (එවිට පාරිභෝගිකයාගේ ණය නැවතත් පද්ධතියට එකතු වේ).</div>
+            <div class="note-box" id="chequeNoteBox"><i class="ri-information-fill"></i> පාරිභෝගිකයින්ගෙන් ලැබුණු චෙක්පත් මෙහි දිස්වේ.</div>
             <div class="card" style="overflow-x:auto;">
                 <table id="chequesTable">
-                    <thead><tr><th>Received Date</th><th>Customer</th><th>Cheque Details</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead>
+                    <thead id="chequeThead"><tr><th>Date</th><th>Customer/Supplier</th><th>Cheque Details</th><th>Amount</th><th>Status</th><th>Actions</th></tr></thead>
                     <tbody></tbody>
                 </table>
             </div>
@@ -2743,11 +2749,36 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                 <option value="l">l</option><option value="ml">ml</option><option value="m">m</option>
             </select>
         </div>
-        <!-- NEW: Supplier Dropdown -->
-        <label style="font-size:12px; margin-top:5px; display:block;">Supplier (Optional)</label>
-        <select id="mpSupplier" style="margin-bottom:10px;">
-            <option value="">-- No Supplier --</option>
-        </select>
+        <!-- 🚀 NEW: Supplier & Invoice Details -->
+        <div style="display:flex; gap:10px; margin-top:5px;">
+            <div style="flex:1;">
+                <label style="font-size:12px; font-weight:bold;">Supplier (සැපයුම්කරු)</label>
+                <select id="mpSupplier" style="margin-bottom:5px; border-color:var(--primary); font-weight:bold;">
+                    <option value="">-- No Supplier --</option>
+                </select>
+            </div>
+            <div style="flex:1;">
+                <label style="font-size:12px; font-weight:bold;">Supplier Inv No (බිල් අංකය)</label>
+                <input type="text" id="mpInvoiceNo" placeholder="e.g. INV-901" style="margin-bottom:5px; border-color:var(--primary); font-weight:bold;">
+            </div>
+        </div>
+
+        <!-- 🚀 NEW: Payment Status for Accounts Payable -->
+        <div style="background:#fffbeb; border:1px solid #fde68a; padding:10px; border-radius:8px; margin-bottom:15px;">
+            <label style="font-size:12px; font-weight:bold; color:#b45309;"><i class="ri-wallet-3-fill"></i> Payment Status (ගෙවීම් ක්‍රමය) *</label>
+            <select id="mpPaymentStatus" style="margin-bottom:5px; border-color:#fcd34d; font-weight:bold;" onchange="document.getElementById('mpChequeDetails').style.display = this.value === 'Cheque' ? 'block' : 'none';">
+                <option value="Cash">Cash (Paid from Till)</option>
+                <option value="Credit">Credit (Pay Later / ණයට)</option>
+                <option value="Cheque">Post-Dated Cheque (PDC)</option>
+            </select>
+            
+            <div id="mpChequeDetails" style="display:none; background:#fefce8; padding:8px; border-radius:6px; border:1px dashed #facc15;">
+                <input type="text" id="mpChequeNo" placeholder="Cheque No *" style="font-size:11px; padding:6px; margin-bottom:5px;">
+                <input type="text" id="mpChequeBank" placeholder="Bank & Branch *" style="font-size:11px; padding:6px; margin-bottom:5px;">
+                <label style="font-size:10px; font-weight:bold;">Cheque Date *</label>
+                <input type="date" id="mpChequeDate" style="font-size:11px; padding:6px; margin-bottom:0;">
+            </div>
+        </div>
 
  <!-- නව කොටස: Expiry Date -->
         <label style="font-size:12px; margin-top:5px; display:block; color:var(--danger); font-weight:bold;">Expiry Date * (Required)</label>
@@ -3349,6 +3380,43 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         <div style="display:flex; gap:10px; margin-top:15px;">
             <button class="btn btn-primary" onclick="saveSupplier()">Save Supplier</button>
             <button class="btn btn-ghost" onclick="closeModal('supplierModal')">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- 🚀 NEW: SUPPLIER DEBT SETTLEMENT MODAL -->
+<div id="supSettleModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.8); display:none; align-items:center; justify-content:center; z-index:5000; backdrop-filter:blur(3px);">
+    <div class="card" style="width:400px; margin:0; border-top:5px solid var(--success);">
+        <h3 style="color:var(--success); margin-bottom:5px;"><i class="ri-hand-coin-fill"></i> Settle Supplier Debt</h3>
+        <p style="font-size:11px; color:#666; margin-bottom:15px;">Pay pending balances to your suppliers.</p>
+        
+        <input type="hidden" id="ssSupplierId">
+        <div style="background:#f0fdf4; padding:10px; border-radius:8px; border:1px solid #bbf7d0; margin-bottom:15px; text-align:center;">
+            <div id="ssSupplierName" style="font-weight:bold; color:#166534; font-size:14px;"></div>
+            <div style="font-size:11px; color:#15803d; margin-top:5px;">Pending Debt:</div>
+            <div id="ssPendingDebt" style="font-weight:900; font-size:22px; color:var(--danger);">0.00</div>
+        </div>
+
+        <label style="font-size:12px; font-weight:bold;">Paying Amount *</label>
+        <input type="number" id="ssPayAmount" placeholder="e.g. 50000" style="font-weight:bold; font-size:16px;">
+
+        <label style="font-size:12px; font-weight:bold;">Payment Method *</label>
+        <select id="ssPayMethod" style="border-color:var(--success); font-weight:bold; margin-bottom:10px;" onchange="document.getElementById('ssChequeDetails').style.display = this.value === 'Cheque' ? 'block' : 'none';">
+            <option value="Cash">Cash (Deducts from Till)</option>
+            <option value="Bank">Bank Transfer (Non-Cash)</option>
+            <option value="Cheque">Issue Post-Dated Cheque</option>
+        </select>
+
+        <div id="ssChequeDetails" style="display:none; background:#fffbeb; padding:10px; border-radius:8px; border:1px solid #fde68a; margin-bottom:10px;">
+            <input type="text" id="ssChequeNo" placeholder="Cheque No *" style="font-size:12px; padding:8px; margin-bottom:5px;">
+            <input type="text" id="ssChequeBank" placeholder="Bank & Branch *" style="font-size:12px; padding:8px; margin-bottom:5px;">
+            <label style="font-size:11px; font-weight:bold; color:#d97706;">Cheque Date *</label>
+            <input type="date" id="ssChequeDate" style="font-size:12px; padding:8px; margin-bottom:0;">
+        </div>
+
+        <div style="display:flex; gap:10px; margin-top:15px;">
+            <button class="btn btn-success" style="flex:1;" onclick="processSupplierPayment()">Confirm Payment</button>
+            <button class="btn btn-ghost" onclick="closeModal('supSettleModal')">Cancel</button>
         </div>
     </div>
 </div>
@@ -5768,7 +5836,21 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         const supplierId = document.getElementById('mpSupplier') ? document.getElementById('mpSupplier').value : "";
 
         // 🚀 Pass itemType down to transaction
-        const stockData = { name, buy, sell, qty, unit, image, sku, categoryId, supplierId, expiryDate, itemType, adminDiscType, adminDiscValue };
+        // 🚨 CA FIX: Capture Accounts Payable Details
+        const payStatus = document.getElementById('mpPaymentStatus') ? document.getElementById('mpPaymentStatus').value : 'Cash';
+        const invNo = document.getElementById('mpInvoiceNo') ? document.getElementById('mpInvoiceNo').value.trim() : '';
+        const chqNo = document.getElementById('mpChequeNo') ? document.getElementById('mpChequeNo').value.trim() : '';
+        const chqBank = document.getElementById('mpChequeBank') ? document.getElementById('mpChequeBank').value.trim() : '';
+        const chqDate = document.getElementById('mpChequeDate') ? document.getElementById('mpChequeDate').value : '';
+        
+        if (payStatus === 'Cheque' && (!chqNo || !chqBank || !chqDate)) {
+            return showToast("Cheque details are required!", "error");
+        }
+
+        const stockData = { 
+            name, buy, sell, qty, unit, image, sku, categoryId, supplierId, expiryDate, itemType, adminDiscType, adminDiscValue,
+            payStatus, invNo, chqNo, chqBank, chqDate
+        };
 
         if (sell < buy) {
             document.getElementById('priceWarningMsg').innerHTML = `Loss: ${formatMoney(sell - buy)} per unit`;
@@ -5858,9 +5940,46 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                     const logRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/inventory_logs`));
                     transaction.set(logRef, {
                         date: window.getSecureTime().toISOString(), productName: data.name, action: 'ADD',
-                        description: `New Stock Batch (Exp: ${data.expiryDate})`, quantityChange: data.qty,
+                        description: `New Stock Batch (Inv: ${data.invNo || '-'})`, quantityChange: data.qty,
                         finalQty: data.qty, initialQty: 0, batchNumber: nextBatchNum
                     });
+
+                    // 🚨 CA FIX: ACCOUNTS PAYABLE & CAPEX LOGIC
+                    const totalCost = data.buy * data.qty;
+                    if (totalCost > 0) {
+                        const supNameStr = data.supplierId ? document.getElementById('mpSupplier').options[document.getElementById('mpSupplier').selectedIndex].text : 'Supplier';
+                        
+                        if (data.payStatus === 'Credit' && data.supplierId) {
+                            const supRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/suppliers`, data.supplierId);
+                            transaction.update(supRef, { creditBalance: increment(totalCost) });
+                        } 
+                        else if (data.payStatus === 'Cheque' && data.supplierId) {
+                            const chqRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/issued_cheques`));
+                            transaction.set(chqRef, {
+                                supplierId: data.supplierId, supplierName: supNameStr, amount: totalCost,
+                                chequeNo: data.chqNo, bank: data.chqBank, chequeDate: data.chqDate,
+                                status: 'PENDING', issuedDate: window.getSecureTime().toISOString()
+                            });
+
+                            const alertDate = new Date(data.chqDate);
+                            alertDate.setDate(alertDate.getDate() - 3);
+                            const alertRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/alerts`));
+                            transaction.set(alertRef, {
+                                refId: `CHQ-${data.chqNo}`, type: 'global', orderId: chqRef.id,
+                                message: `🚨 PDC REMINDER: Rs. ${formatMoney(totalCost)} Cheque to ${supNameStr} will clear in 3 days!`,
+                                targetDate: alertDate.toISOString(), frequency: 'once', status: 'active', createdAt: window.getSecureTime().toISOString()
+                            });
+                        } 
+                        else {
+                            // CASH: Directly hit Expenses (Drawer)
+                            const expRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`));
+                            transaction.set(expRef, {
+                                description: `[SUPPLIER PAY] Stock Purchased (${data.name}) Inv: ${data.invNo||'-'}`,
+                                amount: totalCost, isIncome: false, date: window.getSecureTime().toISOString(),
+                                isPending: false, isCapex: true, isNonCashExpense: false
+                            });
+                        }
+                    }
                 });
 
             } catch (e) {
@@ -13483,9 +13602,10 @@ window.setQuickCash = (amount) => {
                         <td style="font-weight:bold; font-size:13px; color:var(--secondary);">${s.name}</td>
                         <td style="font-size:12px;">${s.contact || '-'}<br><i class="ri-phone-line"></i> ${s.phone}</td>
                         <td>${creditBadge}</td>
-                        <td>
-                            <button class="btn btn-danger" style="padding:4px 8px; font-size:11px;" onclick="deleteSupplier('${s.id}')"><i class="ri-delete-bin-line"></i></button>
-                        </td>
+                        <td style="display:flex; gap:5px;">
+                    ${creditBal > 0 ? `<button class="btn btn-success" style="padding:4px 8px; font-size:11px;" onclick="openSupSettleModal('${s.id}', '${s.name.replace(/'/g,"\\'")}', ${creditBal})">Settle</button>` : ''}
+                    <button class="btn btn-danger" style="padding:4px 8px; font-size:11px;" onclick="deleteSupplier('${s.id}')"><i class="ri-delete-bin-line"></i></button>
+                </td>
                     </tr>`;
                 });
                 
@@ -13619,7 +13739,8 @@ window.setQuickCash = (amount) => {
                 <td style="font-weight:bold; font-size:13px; color:var(--secondary);">${s.name}</td>
                 <td style="font-size:12px;">${s.contact || '-'}<br><i class="ri-phone-line"></i> ${s.phone}</td>
                 <td>${creditBadge}</td>
-                <td>
+                <td style="display:flex; gap:5px;">
+                    ${creditBal > 0 ? `<button class="btn btn-success" style="padding:4px 8px; font-size:11px;" onclick="openSupSettleModal('${s.id}', '${s.name.replace(/'/g,"\\'")}', ${creditBal})">Settle</button>` : ''}
                     <button class="btn btn-danger" style="padding:4px 8px; font-size:11px;" onclick="deleteSupplier('${s.id}')"><i class="ri-delete-bin-line"></i></button>
                 </td>
             </tr>`;
@@ -14408,9 +14529,16 @@ window.setQuickCash = (amount) => {
             allSalesSnap.forEach(d => {
                 const s = d.data();
                 if(s.salesRepId) {
-                    // Tax වලට කොමිස් නොදෙන බැවින් Tax-Free Total එක (Net) පමණක් ගනී
-                    const netTaxFreeTotal = s.total - (s.taxAmt || 0); 
-                    repSalesMap[s.salesRepId] = (repSalesMap[s.salesRepId] || 0) + netTaxFreeTotal;
+                    // 🚨 CA FIX: "Realized Revenue" Commission Math
+                    // Tax සහ නොගෙවූ ණය (Credit Balance) සඳහා කොමිස් ගෙවීම 100% ක් අවහිර කර ඇත!
+                    // මේ හරහා Salesman ට කොමිස් ලැබෙන්නේ සැබැවින්ම කඩේට ලැබුණු මුදලට (Cash, Card, Online, Advance) පමණි.
+                    const unpaidDebt = s.creditBalance || 0;
+                    let realizedRevenue = s.total - (s.taxAmt || 0) - unpaidDebt; 
+                    
+                    // සෘණ අගයන් ආරක්ෂා කිරීම (Failsafe)
+                    if (realizedRevenue < 0) realizedRevenue = 0;
+
+                    repSalesMap[s.salesRepId] = (repSalesMap[s.salesRepId] || 0) + realizedRevenue;
                 }
             });
             allRefsSnap.forEach(d => {
@@ -20379,8 +20507,19 @@ window.emergencyLocalOverride = async () => {
         const startIso = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
         
         let liveSales = 0;
-        salesCache.forEach(s => { if (s.date >= startIso && s.salesRepId === emp.id) liveSales += (s.total - (s.taxAmt||0)); });
-        refundsCache.forEach(r => { if (r.date >= startIso && r.salesRepId === emp.id) liveSales -= (r.amount - (r.taxReversed||0)); });
+        salesCache.forEach(s => {
+            if (s.date >= startIso && s.salesRepId === emp.id) {
+                // 🚨 CA FIX: Gamification Bar updates ONLY for realized money! Unpaid debts don't move the progress bar.
+                const unpaidDebt = s.creditBalance || 0;
+                let realized = s.total - (s.taxAmt || 0) - unpaidDebt;
+                if (realized > 0) liveSales += realized;
+            }
+        });
+        refundsCache.forEach(r => {
+            if (r.date >= startIso && r.salesRepId === emp.id) {
+                liveSales -= (r.amount - (r.taxReversed||0));
+            }
+        });
 
         box.style.display = 'block';
         document.getElementById('gfSalesText').textContent = `Net Sales: ${formatMoney(liveSales)}`;
@@ -20406,6 +20545,182 @@ window.emergencyLocalOverride = async () => {
             commText.textContent = `🔥 Commission Earned: ${formatMoney(liveSales * (rate / 100))}`;
             commText.style.color = '#15803d';
         }
+    };
+// ==========================================
+    // 🚀 ACCOUNTS PAYABLE & ISSUED CHEQUES ENGINE
+    // ==========================================
+
+    window.openSupSettleModal = (id, name, debt) => {
+        document.getElementById('ssSupplierId').value = id;
+        document.getElementById('ssSupplierName').textContent = name;
+        document.getElementById('ssPendingDebt').textContent = formatMoney(debt);
+        document.getElementById('ssPayAmount').value = '';
+        document.getElementById('ssPayMethod').value = 'Cash';
+        document.getElementById('ssChequeDetails').style.display = 'none';
+        openModal('supSettleModal');
+    };
+
+    window.processSupplierPayment = async () => {
+        const supId = document.getElementById('ssSupplierId').value;
+        const supName = document.getElementById('ssSupplierName').textContent;
+        const maxDebt = parseFloat(document.getElementById('ssPendingDebt').textContent.replace(/[^0-9.-]+/g,""));
+        const payAmt = parseFloat(document.getElementById('ssPayAmount').value);
+        const method = document.getElementById('ssPayMethod').value;
+        const nowIso = window.getSecureTime().toISOString();
+
+        if (isNaN(payAmt) || payAmt <= 0) return showToast("Enter valid amount", "error");
+        if (payAmt > maxDebt) return showToast(`Cannot overpay! Max debt is ${formatMoney(maxDebt)}`, "error");
+
+        let chqNo = '', chqBank = '', chqDate = '';
+        if (method === 'Cheque') {
+            chqNo = document.getElementById('ssChequeNo').value.trim();
+            chqBank = document.getElementById('ssChequeBank').value.trim();
+            chqDate = document.getElementById('ssChequeDate').value;
+            if(!chqNo || !chqBank || !chqDate) return showToast("All Cheque details are required!", "error");
+        }
+
+        if(!confirm(`Settle ${formatMoney(payAmt)} via ${method}?`)) return;
+
+        toggleLoader(true);
+        try {
+            await runTransaction(db, async (t) => {
+                const supRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/suppliers`, supId);
+                
+                // 1. Deduct Debt
+                t.update(supRef, { creditBalance: increment(-payAmt) });
+
+                // 2. Process Payment Method
+                if (method === 'Cheque') {
+                    // Save to Issued Cheques Collection
+                    const chqRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/issued_cheques`));
+                    t.set(chqRef, {
+                        supplierId: supId, supplierName: supName, amount: payAmt,
+                        chequeNo: chqNo, bank: chqBank, chequeDate: chqDate,
+                        status: 'PENDING', issuedDate: nowIso
+                    });
+
+                    // 🚨 CA FIX: The 3-Day Proactive Alert!
+                    const alertDate = new Date(chqDate);
+                    alertDate.setDate(alertDate.getDate() - 3); // දින 3කට පෙර!
+                    
+                    const alertRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/alerts`));
+                    t.set(alertRef, {
+                        refId: `CHQ-${chqNo}`, type: 'global', orderId: chqRef.id,
+                        message: `🚨 PDC REMINDER: Rs. ${formatMoney(payAmt)} Cheque to ${supName} will clear in 3 days! Check bank balance.`,
+                        targetDate: alertDate.toISOString(), frequency: 'once', status: 'active', createdAt: nowIso
+                    });
+                } else {
+                    // Cash or Bank -> Record Expense (CAPEX)
+                    const expRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`));
+                    t.set(expRef, {
+                        description: `[SUPPLIER PAY] Debt Settlement to ${supName} (${method})`,
+                        amount: payAmt, isIncome: false, date: nowIso, isPending: false, isCapex: true,
+                        isNonCashExpense: (method === 'Bank') // Bank transfers don't hit cash drawer!
+                    });
+                }
+            });
+
+            closeModal('supSettleModal');
+            showToast("Payment Recorded Successfully!", "success");
+            loadSuppliers();
+            if(window.writeSystemLog) writeSystemLog("SUPPLIER_PAYMENT", `Paid ${formatMoney(payAmt)} to ${supName} via ${method}`);
+        } catch(e) { showToast("Payment failed", "error"); }
+        toggleLoader(false);
+    };
+
+    // Update Load Cheques to handle both collections
+    window.loadCheques = async () => {
+        const tbody = document.querySelector('#chequesTable tbody');
+        if(!tbody) return;
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; font-weight:bold; color:var(--primary);"><i class="ri-loader-4-line ri-spin"></i> Fetching...</td></tr>';
+        
+        const filter = document.getElementById('chequeStatusFilter').value;
+        const mode = document.getElementById('chequeModeFilter').value; // RECEIVED or ISSUED
+        const collName = mode === 'ISSUED' ? 'issued_cheques' : 'cheques';
+        const dateField = mode === 'ISSUED' ? 'issuedDate' : 'receivedDate';
+
+        document.getElementById('chequeNoteBox').innerHTML = mode === 'ISSUED' 
+            ? `<i class="ri-information-fill"></i> අප විසින් සැපයුම්කරුවන්ට නිකුත් කළ ඉදිරි දිනැති චෙක්පත් මෙහි පෙන්වයි. "Cleared" කළ විට එය Expense එකක් ලෙස ලියවේ.`
+            : `<i class="ri-information-fill"></i> පාරිභෝගිකයින්ගෙන් ලැබුණු චෙක්පත් මෙහි දිස්වේ.`;
+
+        try {
+            const q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/${collName}`), orderBy(dateField, "desc"), limit(200));
+            const snap = await getDocs(q);
+            
+            let filteredCheques = [];
+            snap.forEach(d => {
+                const c = { id: d.id, ...d.data() };
+                if (c.status === filter) filteredCheques.push(c);
+            });
+
+            if(filteredCheques.length === 0) return tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#666;">No ${filter.toLowerCase()} cheques found.</td></tr>`;
+
+            let html = '';
+            filteredCheques.forEach(c => {
+                const badgeColor = c.status === 'PENDING' ? '#d97706' : (c.status === 'CLEARED' ? '#15803d' : '#b91c1c');
+                const badgeBg = c.status === 'PENDING' ? '#fef3c7' : (c.status === 'CLEARED' ? '#dcfce7' : '#fee2e2');
+                const ptyName = mode === 'ISSUED' ? c.supplierName : c.customerName;
+                
+                let actions = '';
+                if(c.status === 'PENDING') {
+                    // ISSUED cheques use a different processing function to hit CAPEX!
+                    const processFunc = mode === 'ISSUED' ? `processIssuedCheque('${c.id}', '` : `processCheque('${c.id}', '`;
+                    actions = `
+                        <button class="btn btn-success" style="padding:4px 8px; font-size:11px;" onclick="${processFunc}CLEARED')"><i class="ri-check-double-line"></i> Clear</button>
+                        <button class="btn btn-danger" style="padding:4px 8px; font-size:11px;" onclick="${processFunc}BOUNCED')"><i class="ri-close-circle-line"></i> Bounce</button>
+                    `;
+                } else {
+                    actions = `<span style="font-size:11px; color:#64748b;"><i class="ri-lock-2-line"></i> Locked</span>`;
+                }
+
+                html += `
+                <tr>
+                    <td style="font-size:12px;">${new Date(c[dateField]).toLocaleDateString()}</td>
+                    <td><b>${ptyName}</b></td>
+                    <td style="font-size:12px;">
+                        <b>No:</b> <span style="font-family:monospace;">${c.chequeNo}</span><br>
+                        <b>Bank:</b> ${c.bank}<br>
+                        <span style="color:var(--primary); font-weight:bold;">Chq Date: ${c.chequeDate}</span>
+                    </td>
+                    <td style="font-weight:900; font-size:15px;">${formatMoney(c.amount)}</td>
+                    <td><span style="background:${badgeBg}; color:${badgeColor}; padding:2px 6px; border-radius:4px; font-size:11px; font-weight:bold;">${c.status}</span></td>
+                    <td style="display:flex; gap:5px;">${actions}</td>
+                </tr>`;
+            });
+            tbody.innerHTML = html;
+        } catch(e) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:red;">Error loading cheques.</td></tr>'; }
+    };
+
+    window.processIssuedCheque = async (chequeId, action) => {
+        if(!confirm(`Mark this Issued Cheque as ${action}?`)) return;
+        toggleLoader(true);
+        try {
+            await runTransaction(db, async (t) => {
+                const chqRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/issued_cheques`, chequeId);
+                const snap = await t.get(chqRef);
+                const cData = snap.data();
+                const nowIso = window.getSecureTime().toISOString();
+
+                if (action === 'CLEARED') {
+                    t.update(chqRef, { status: 'CLEARED', clearedDate: nowIso });
+                    // Hit Bank Expenses!
+                    const expRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`));
+                    t.set(expRef, {
+                        description: `[SUPPLIER PAY] Issued Cheque Cleared (${cData.chequeNo}) to ${cData.supplierName}`,
+                        amount: cData.amount, isIncome: false, date: nowIso, isPending: false, isCapex: true,
+                        isNonCashExpense: true // Bank payment, so doesn't hit cash drawer
+                    });
+                } else {
+                    // BOUNCED - Restore Supplier Debt!
+                    t.update(chqRef, { status: 'BOUNCED', bouncedDate: nowIso });
+                    const supRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/suppliers`, cData.supplierId);
+                    t.update(supRef, { creditBalance: increment(cData.amount) });
+                }
+            });
+            showToast(`Cheque ${action}!`, "success");
+            loadCheques();
+        } catch(e) { showToast("Error", "error"); }
+        toggleLoader(false);
     };
 </script>
 
