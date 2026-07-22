@@ -1336,7 +1336,11 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                 <div class="card" style="display:flex; flex-direction:column; padding:15px; height: calc(100vh - 120px);">
                     <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #e5e7eb; padding-bottom:10px; margin-bottom:10px;">
                         <h3 style="margin:0; font-size:16px;"><i class="ri-shopping-cart-2-fill" style="color:var(--primary); margin-right:5px;"></i> Cart Items</h3>
-                        <button class="btn btn-danger" style="padding:4px 10px; font-size:11px;" onclick="clearEntireCart()"><i class="ri-delete-bin-line"></i> Clear All</button>
+                        <div style="display:flex; gap:5px;">
+                            <!-- 🚀 NEW: Customer Display Button -->
+                            <button class="btn btn-info" style="padding:4px 10px; font-size:11px; background:#0ea5e9;" onclick="openCustomerDisplay()"><i class="ri-tv-2-line"></i> CFD Screen</button>
+                            <button class="btn btn-danger" style="padding:4px 10px; font-size:11px;" onclick="clearEntireCart()"><i class="ri-delete-bin-line"></i> Clear</button>
+                        </div>
                     </div>
                     
                     <!-- Cart Items List (Full Height) -->
@@ -3670,14 +3674,45 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         <input type="hidden" id="promoBatchId">
         <div id="promoItemName" style="font-weight:900; margin-bottom:10px; color:#1f2937;"></div>
 
-        <label style="font-size:12px; font-weight:bold;">Discount Type</label>
-        <select id="promoType" style="margin-bottom:10px;">
-            <option value="percent">Percentage (%)</option>
-            <option value="amount">Fixed Amount (Rs)</option>
+        <!-- 🚨 CA FIX: Enterprise Promo Strategy Engine -->
+        <label style="font-size:12px; font-weight:bold; color:#1e40af;">Promotion Strategy *</label>
+        <select id="promoStrategy" style="margin-bottom:10px; border-color:#3b82f6; font-weight:bold;" onchange="togglePromoFields()">
+            <option value="basic">Standard: Discount on this item</option>
+            <option value="bogo">BOGO: Buy X, Get Y Free (Same Item)</option>
+            <option value="cross_sell">Cross-Sell: Buy this, Get Discount on another item</option>
         </select>
 
-        <label style="font-size:12px; font-weight:bold;">Discount Value</label>
-        <input type="number" id="promoValue" placeholder="e.g. 10 or 500" style="margin-bottom:10px;">
+        <!-- Standard Promo -->
+        <div id="promoBasicFields" style="display:block;">
+            <div style="display:flex; gap:10px;">
+                <div style="flex:1;">
+                    <label style="font-size:11px; font-weight:bold;">Discount Type</label>
+                    <select id="promoType" style="margin-bottom:10px; font-size:12px;"><option value="percent">Percentage (%)</option><option value="amount">Fixed (Rs)</option></select>
+                </div>
+                <div style="flex:1;">
+                    <label style="font-size:11px; font-weight:bold;">Value</label>
+                    <input type="number" id="promoValue" placeholder="e.g. 10" style="margin-bottom:10px; font-size:12px;">
+                </div>
+            </div>
+        </div>
+
+        <!-- BOGO Promo -->
+        <div id="promoBogoFields" style="display:none; background:#f0fdf4; padding:10px; border-radius:8px; border:1px solid #bbf7d0; margin-bottom:10px;">
+            <div style="display:flex; gap:10px;">
+                <div style="flex:1;"><label style="font-size:11px; font-weight:bold; color:#166534;">Buy Qty</label><input type="number" id="promoBuyQty" placeholder="e.g. 2" style="margin:0; font-size:12px; border-color:#86efac;"></div>
+                <div style="flex:1;"><label style="font-size:11px; font-weight:bold; color:#166534;">Get Free Qty</label><input type="number" id="promoFreeQty" placeholder="e.g. 1" style="margin:0; font-size:12px; border-color:#86efac;"></div>
+            </div>
+        </div>
+
+        <!-- Cross-Sell Promo -->
+        <div id="promoCrossFields" style="display:none; background:#fffbeb; padding:10px; border-radius:8px; border:1px solid #fde68a; margin-bottom:10px;">
+            <label style="font-size:11px; font-weight:bold; color:#b45309;">Target Item to Discount (e.g. Wall Bracket)</label>
+            <input type="text" id="promoTargetName" list="promoTargetList" placeholder="Type Base Product Name..." style="margin-bottom:5px; font-size:12px; border-color:#fcd34d;">
+            <datalist id="promoTargetList"></datalist>
+            
+            <label style="font-size:11px; font-weight:bold; color:#b45309;">Discount % on Target Item</label>
+            <input type="number" id="promoTargetPerc" placeholder="e.g. 50 (for 50% off)" style="margin:0; font-size:12px; border-color:#fcd34d;">
+        </div>
 
         <label style="font-size:12px; font-weight:bold; color:var(--danger);">Promotion End Date & Time *</label>
         <input type="datetime-local" id="promoEnd" style="border-color:var(--danger); font-weight:bold; margin-bottom:15px;">
@@ -7170,9 +7205,51 @@ window.onTransferProductSelect = () => {
             </div>`;
         }).join('');
      
+        // 🚀 ENTERPRISE FIX: SMART BUNDLE & CROSS-SELL ENGINE (CART-LEVEL MATH)
+        let bundleDiscountAmt = 0;
+        const nowMs = window.getSecureTime().getTime();
+
+        cart.forEach(item => {
+            const batch = productsCache.find(p => p.id === item.id);
+            if (!batch || !batch.promoEnd) return;
+            
+            const endMs = new Date(batch.promoEnd).getTime();
+            if (endMs <= nowMs) return; // Expired promo
+
+            if (batch.promoStrategy === 'bogo') {
+                const bQty = parseInt(batch.promoBuyQty) || 0;
+                const fQty = parseInt(batch.promoFreeQty) || 0;
+                if (bQty > 0 && fQty > 0) {
+                    const totalReq = bQty + fQty;
+                    const dealCount = Math.floor(item.qty / totalReq);
+                    if (dealCount > 0) {
+                        bundleDiscountAmt += (dealCount * fQty * batch.sell); // Value of free items
+                    }
+                }
+            } 
+            else if (batch.promoStrategy === 'cross_sell') {
+                const targetName = batch.promoTargetName;
+                const targetPerc = parseFloat(batch.promoTargetPerc) || 0;
+                
+                if (targetName && targetPerc > 0) {
+                    const targetItemsInCart = cart.filter(c => c.name === targetName);
+                    let targetEligibleQty = 0;
+                    targetItemsInCart.forEach(t => targetEligibleQty += t.qty);
+
+                    const applicableQty = Math.min(item.qty, targetEligibleQty);
+
+                    if (applicableQty > 0 && targetItemsInCart.length > 0) {
+                        const targetBasePrice = targetItemsInCart[0].sell; 
+                        bundleDiscountAmt += (targetBasePrice * (targetPerc / 100)) * applicableQty;
+                    }
+                }
+            }
+        });
+
         // 🛡️ ENTERPRISE FIX: ZERO-TRUST AUTOMATED DISCOUNT (F12 Hack Proof)
-        let discountAmt = 0;
-        
+        let discountAmt = bundleDiscountAmt; // 👈 1. මුලින්ම Bundle Discount එක අරගන්නවා
+
+        // 👈 2. ඔබ Highlight කළ කොටස මෙතැන එලෙසම ඇත. (Global Auto Discount)
         if (profileCache && profileCache.autoDiscEnabled) {
             const thresh = parseFloat(profileCache.autoDiscThreshold) || 0;
             const dVal = parseFloat(profileCache.autoDiscValue) || 0;
@@ -7180,14 +7257,16 @@ window.onTransferProductSelect = () => {
             // Check if cart subtotal meets the Admin's condition
             if (subtotal >= thresh && thresh > 0 && dVal > 0) {
                 if (profileCache.autoDiscType === 'percent') {
-                    discountAmt = (subtotal * dVal) / 100;
+                    // 🚨 CA FIX: '=' වෙනුවට '+=' දැමීමෙන් වට්ටම් දෙකම එකතු වේ!
+                    discountAmt += (subtotal * dVal) / 100; 
                 } else {
-                    discountAmt = dVal;
+                    // 🚨 CA FIX: '=' වෙනුවට '+=' දැමීමෙන් වට්ටම් දෙකම එකතු වේ!
+                    discountAmt += dVal; 
                 }
             }
         }
         
-        // Failsafe
+        // Failsafe (වට්ටම මුළු බිලට වඩා වැඩි විය නොහැක)
         if (discountAmt > subtotal) discountAmt = subtotal;
 
         // 🛡️ UPDATE DYNAMIC UI STATUS BOX
@@ -16435,38 +16514,68 @@ let currentBatchForSerials = null;
             toggleLoader(false);
         }
     };
-// 🛡️ ENTERPRISE FIX: TIME-BOUND PROMOTION ENGINE
+window.togglePromoFields = () => {
+        const s = document.getElementById('promoStrategy').value;
+        document.getElementById('promoBasicFields').style.display = s === 'basic' ? 'block' : 'none';
+        document.getElementById('promoBogoFields').style.display = s === 'bogo' ? 'block' : 'none';
+        document.getElementById('promoCrossFields').style.display = s === 'cross_sell' ? 'block' : 'none';
+    };
+
     window.openPromoModal = (id) => {
         const p = productsCache.find(x => x.id === id);
         if(!p) return;
         document.getElementById('promoBatchId').value = id;
         document.getElementById('promoItemName').innerHTML = `${p.name} <br><span style="font-size:12px; color:#666;">Current Price: ${formatMoney(p.sell)}</span>`;
         
+        document.getElementById('promoStrategy').value = p.promoStrategy || 'basic';
         document.getElementById('promoType').value = p.promoType || 'percent';
         document.getElementById('promoValue').value = p.promoValue || '';
+        document.getElementById('promoBuyQty').value = p.promoBuyQty || '';
+        document.getElementById('promoFreeQty').value = p.promoFreeQty || '';
+        document.getElementById('promoTargetName').value = p.promoTargetName || '';
+        document.getElementById('promoTargetPerc').value = p.promoTargetPerc || '';
         document.getElementById('promoEnd').value = p.promoEnd || '';
         
+        // Populate Target Datalist
+        const dl = document.getElementById('promoTargetList');
+        if(dl) dl.innerHTML = catalogCache.map(c => `<option value="${c.name}">`).join('');
+
+        togglePromoFields();
         openModal('promoModal');
     };
 
     window.savePromotion = async () => {
         const id = document.getElementById('promoBatchId').value;
-        const type = document.getElementById('promoType').value;
-        const val = parseFloat(document.getElementById('promoValue').value);
+        const strategy = document.getElementById('promoStrategy').value;
         const end = document.getElementById('promoEnd').value;
 
-        if (isNaN(val) || val <= 0) return showToast("Enter a valid discount value!", "error");
         if (!end) return showToast("Expiry Date & Time is required!", "error");
         if (new Date(end) <= window.getSecureTime()) return showToast("Expiry time must be in the future!", "error");
 
+        const dataPayload = { promoStrategy: strategy, promoEnd: end };
+
+        if (strategy === 'basic') {
+            dataPayload.promoType = document.getElementById('promoType').value;
+            dataPayload.promoValue = parseFloat(document.getElementById('promoValue').value);
+            if (isNaN(dataPayload.promoValue) || dataPayload.promoValue <= 0) return showToast("Enter a valid discount value!", "error");
+        } 
+        else if (strategy === 'bogo') {
+            dataPayload.promoBuyQty = parseInt(document.getElementById('promoBuyQty').value);
+            dataPayload.promoFreeQty = parseInt(document.getElementById('promoFreeQty').value);
+            if (!dataPayload.promoBuyQty || !dataPayload.promoFreeQty) return showToast("Buy and Free quantities required!", "error");
+        } 
+        else if (strategy === 'cross_sell') {
+            dataPayload.promoTargetName = document.getElementById('promoTargetName').value.trim();
+            dataPayload.promoTargetPerc = parseFloat(document.getElementById('promoTargetPerc').value);
+            if (!dataPayload.promoTargetName || isNaN(dataPayload.promoTargetPerc) || dataPayload.promoTargetPerc <= 0) return showToast("Target Item and Discount % required!", "error");
+        }
+
         toggleLoader(true);
         try {
-            await updateDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/products`, id), {
-                promoType: type, promoValue: val, promoEnd: end
-            });
+            await updateDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/products`, id), dataPayload);
             closeModal('promoModal');
             await loadProducts();
-            if(window.writeSystemLog) writeSystemLog("PROMO_CREATED", `Started a promotion for Batch ${id}. Discount: ${val} ${type}, Ends: ${end}`);
+            if(window.writeSystemLog) writeSystemLog("PROMO_CREATED", `Started a ${strategy} promotion for Batch ${id}. Ends: ${end}`);
             showToast("Promotion Started Successfully!");
         } catch(e) { showToast("Error saving promo", "error"); }
         toggleLoader(false);
@@ -16476,8 +16585,8 @@ let currentBatchForSerials = null;
         const id = document.getElementById('promoBatchId').value;
         toggleLoader(true);
         try {
-            await updateDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/products`, id), {
-                promoType: null, promoValue: null, promoEnd: null
+            await updateDoc(doc(db, `users/${dbOwnerId}/shops/${currentcurrentShopId}/products`, id), {
+                promoStrategy: null, promoType: null, promoValue: null, promoBuyQty: null, promoFreeQty: null, promoTargetName: null, promoTargetPerc: null, promoEnd: null
             });
             closeModal('promoModal');
             await loadProducts();
@@ -16491,8 +16600,9 @@ let currentBatchForSerials = null;
     window.getEffectivePrice = (batch) => {
         let finalPrice = batch.sell;
 
-        // 1. Time-bound Promo Takes Highest Priority
-        if (batch.promoEnd && batch.promoValue > 0) {
+        // 1. Time-bound Promo Takes Highest Priority (ONLY for 'basic' strategy)
+        // 🚨 CA FIX: BOGO and Cross-Sell are calculated at the CART LEVEL, not item level!
+        if (batch.promoEnd && (!batch.promoStrategy || batch.promoStrategy === 'basic') && batch.promoValue > 0) {
             const now = window.getSecureTime();
             const endDate = new Date(batch.promoEnd);
             if (endDate > now) { // 🛡️ STRICT TIME VALIDATION
@@ -20721,6 +20831,50 @@ window.emergencyLocalOverride = async () => {
             loadCheques();
         } catch(e) { showToast("Error", "error"); }
         toggleLoader(false);
+    };
+// ==========================================
+    // 📺 ENTERPRISE CUSTOMER FACING DISPLAY (CFD) ENGINE
+    // ==========================================
+    
+    // Create a secure local communication channel (Zero Database Cost!)
+    const cfdChannel = new BroadcastChannel('nawarathna_cfd_channel');
+
+    window.openCustomerDisplay = () => {
+        // අලුත් Tab එකකින් Customer Screen එක අරිනවා (මෙය Extended Monitor එකට ඇදගෙන යා හැක)
+        window.open('display.html', '_blank', 'width=800,height=600');
+        syncCfdScreen(); // Open කරපු ගමන් දැනට තියෙන බිල යවනවා
+    };
+
+    window.syncCfdScreen = () => {
+        const subtotal = parseFloat(document.getElementById('cartSubtotal').textContent.replace(/[^0-9.-]+/g,"")) || 0;
+        const discount = parseFloat(document.getElementById('cartDiscount').textContent.replace(/[^0-9.-]+/g,"")) || 0;
+        const total = parseFloat(document.getElementById('cartTotal').textContent.replace(/[^0-9.-]+/g,"")) || 0;
+        
+        // Send cart data securely via RAM
+        cfdChannel.postMessage({
+            type: 'CART_UPDATE',
+            cart: cart, // මුළු භාණ්ඩ ලැයිස්තුවම යවනවා
+            subtotal: subtotal,
+            discount: Math.abs(discount),
+            total: total
+        });
+    };
+
+    // 🚨 CA FIX: Inject CFD Sync into existing processes!
+    // අනිවාර්යයෙන්ම පහත Functions වල අගට syncCfdScreen() එකතු කළ යුතුය.
+    const originalRenderCart = window.renderCart;
+    window.renderCart = () => { originalRenderCart(); syncCfdScreen(); };
+
+    const originalClearEntireCart = window.clearEntireCart;
+    window.clearEntireCart = () => { originalClearEntireCart(); cfdChannel.postMessage({ type: 'CLEAR_CART' }); };
+
+    // Checkout එකේදී QR Code එක පෙන්වීමට
+    const originalFinalizeCheckout = window.finalizeCheckout;
+    window.finalizeCheckout = async () => {
+        await originalFinalizeCheckout();
+        // Payment එක ගෙවන්න ඕන ගාණ CFD එකට යවනවා
+        const total = parseFloat(document.getElementById('cartTotal').textContent.replace(/[^0-9.-]+/g,"")) || 0;
+        cfdChannel.postMessage({ type: 'CHECKOUT_QR', amount: total });
     };
 </script>
 
