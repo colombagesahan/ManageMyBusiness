@@ -8228,8 +8228,14 @@ window.checkout = async () => {
             currentCartSerials = []; 
             currentOtherFees = [];
             
-            document.getElementById('discountValue').value = '';
+            // 🚨 CA FIX: Safe Null Check for Discount Value (Prevents UI Crash)
+            const dValObj = document.getElementById('discountValue');
+            if (dValObj) dValObj.value = '';
             
+            // 🚨 CA FIX: Clear Sales Rep Input for the next bill
+            const sRepInp = document.getElementById('posSalesRepInput');
+            if (sRepInp) sRepInp.value = '';
+
             if(document.getElementById('posCashGiven')) document.getElementById('posCashGiven').value = '';
             if(document.getElementById('posBalance')) document.getElementById('posBalance').textContent = '0.00';
             
