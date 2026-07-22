@@ -7328,6 +7328,9 @@ window.onTransferProductSelect = () => {
     }
 
     window.removeFromCart = (idx) => {
+        // 🚨 CA FIX: Array Bounds Failsafe
+        if (!cart[idx]) return;
+        
         const item = cart[idx];
         if(item.serials) {
             // Cart එකෙන් අයින් කරනකොට මතක තියාගත්ත අංක ටිකත් අයින් කරනවා
@@ -9388,14 +9391,14 @@ window.autoFillDocCustomer = (name) => {
                     <div class="divider"></div>
                     <table><tbody>${itemsHtml}</tbody></table>
                     <table style="margin-top: 10px;">
-                        <tr><td style="text-align: left; padding: 2px 0;">Sub Total</td><td style="text-align: right; padding: 2px 0;">${formatMoney(order.subtotal)}</td></tr>
-                        ${order.discountAmt > 0 ? `<tr><td style="text-align: left; padding: 2px 0;">Discount</td><td style="text-align: right; padding: 2px 0;">-${formatMoney(order.discountAmt)}</td></tr>` : ''}
+                        <tr><td style="text-align: left; padding: 2px 0;">Sub Total</td><td style="text-align: right; padding: 2px 0;">${formatMoney(docData.subtotal)}</td></tr>
+                        ${docData.discount > 0 ? `<tr><td style="text-align: left; padding: 2px 0;">Discount</td><td style="text-align: right; padding: 2px 0;">-${formatMoney(docData.discount)}</td></tr>` : ''}
                         
                         <!-- 🛡️ ENTERPRISE FIX: Loyalty Discount Line for Thermal Bills -->
-                        ${order.loyaltyRedeemed > 0 ? `<tr><td style="text-align: left; padding: 2px 0; color:#9333ea; font-weight:bold;">Loyalty Discount</td><td style="text-align: right; padding: 2px 0; color:#9333ea; font-weight:bold;">-${formatMoney(order.loyaltyRedeemed)}</td></tr>` : ''}
+                        ${docData.loyaltyRedeemed > 0 ? `<tr><td style="text-align: left; padding: 2px 0; color:#9333ea; font-weight:bold;">Loyalty Discount</td><td style="text-align: right; padding: 2px 0; color:#9333ea; font-weight:bold;">-${formatMoney(docData.loyaltyRedeemed)}</td></tr>` : ''}
                         
                         <!-- 🚨 BUG FIX: Print TAX / VAT dynamically on Thermal Bills -->
-                        ${order.taxAmt > 0 ? `<tr><td style="text-align: left; padding: 2px 0;">${shop.taxName || 'TAX'} (${order.taxPercent || 0}%)</td><td style="text-align: right; padding: 2px 0;">+${formatMoney(order.taxAmt)}</td></tr>` : ''}
+                        ${docData.tax > 0 ? `<tr><td style="text-align: left; padding: 2px 0;">${shop.taxName || 'TAX'} (${docData.taxPercent || 0}%)</td><td style="text-align: right; padding: 2px 0;">+${formatMoney(docData.tax)}</td></tr>` : ''}
                         
                         ${feesHtml}
                         <tr>
@@ -11987,6 +11990,9 @@ window.triggerDocAction = async (action, docId) => {
         }
     };
 window.updateCartQty = (cartIndex, newQtyVal, productId) => {
+        // 🚨 CA FIX: Array Bounds Failsafe to prevent UI crash
+        if (!cart[cartIndex]) return;
+
         let newQty = parseFloat(newQtyVal);
         
         if (isNaN(newQty) || newQty <= 0) {
@@ -12366,7 +12372,10 @@ window.clearEntireCart = () => {
         cart = [];
         currentCartSerials = []; // අංක මතකය සම්පූර්ණයෙන්ම හිස් කිරීම
         currentOtherFees = [];
-        document.getElementById('discountValue').value = '';
+        // 🚨 CA FIX: Use Safe Null Checks before clearing UI elements!
+        const dVal = document.getElementById('discountValue');
+        if(dVal) dVal.value = '';
+        
         if(document.getElementById('posCashGiven')) document.getElementById('posCashGiven').value = '';
         
         if(typeof clearPosCustomer === 'function') clearPosCustomer();
