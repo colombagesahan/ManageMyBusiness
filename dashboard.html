@@ -9743,18 +9743,19 @@ window.autoFillDocCustomer = (name) => {
             }
 
             if (isSerialized) {
-            if (!serialsRaw) {
-                window.isRefundingProcessing = false;
-                return showToast("This is a Serialized item! You must scan the returned item's sticker to restock it.", "error");
-            }
-            
-            // 🚨 ULTIMATE BUG FIX 2: Validate exact number of serials
-            serialsToReturn = serialsRaw.split(',').map(s => s.trim()).filter(s => s !== "");
-            if(serialsToReturn.length !== qty) {
-                window.isRefundingProcessing = false;
-                return showToast(`You are refunding ${qty} items, but scanned ${serialsToReturn.length} serials! Must match exactly.`, "error");
-            }
-        }
+                if (!serialsRaw) {
+                    window.isRefundingProcessing = false;
+                    return showToast("This is a Serialized item! You must scan the returned item's sticker to restock it.", "error");
+                }
+                
+                // 🚨 ULTIMATE BUG FIX 2: Validate exact number of serials
+                serialsToReturn = serialsRaw.split(',').map(s => s.trim()).filter(s => s !== "");
+                if(serialsToReturn.length !== qty) {
+                    window.isRefundingProcessing = false;
+                    return showToast(`You are refunding ${qty} items, but scanned ${serialsToReturn.length} serials! Must match exactly.`, "error");
+                }
+            } // 👈 1. මෙතැන 'if (isSerialized)' එක අවසන් වේ
+        } // 👈 2. 🚨 THE ROOT CAUSE: මෙතැන 'if(restock && !isServiceItem)' එක අනිවාර්යයෙන්ම අවසන් විය යුතුයි!
 
         const refundTotal = Math.round((qty * price) * 100) / 100;
         toggleLoader(true);
