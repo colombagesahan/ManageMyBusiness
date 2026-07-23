@@ -8801,23 +8801,20 @@ window.autoFillDocCustomer = (name) => {
                         
                         if (isSerialized) {
                             const requiredSerials = data.item.serials || [];
-                            
-                            // 1. Double check count
-                            if (requiredSerials.length !== take) {
-                                throw new Error(`CRITICAL INVENTORY ALERT: Missing serials for ${data.item.name}. Expected ${take}, got ${requiredSerials.length}.`);
-                            }
-                            
-                            // 2. Security Check: Are these serials ACTUALLY in the database?
                             const currentAvail = pData.availableSerials || [];
-                            for(let s of requiredSerials) {
-                                if(!currentAvail.includes(s)) {
-                                    throw new Error(`FRAUD/INVENTORY ALERT: Serial '${s}' for '${data.item.name}' is NOT available in stock! It may have been sold or typed incorrectly.`);
-                                }
+                            
+                            // 🚨 INVENTORY ARCHITECTURE FIX: Cross-Batch Serial Resolution
+                            // Find EXACTLY which typed serials belong to this specific batch
+                            const matchedSerialsForThisBatch = requiredSerials.filter(s => currentAvail.includes(s));
+                            
+                            // 1. Security Check: Did we find the required amount of valid serials in this batch?
+                            if (matchedSerialsForThisBatch.length !== take) {
+                                throw new Error(`CRITICAL INVENTORY ALERT: Expected ${take} valid serial(s) for Batch ${data.prod.batchNumber} of '${data.item.name}', but found ${matchedSerialsForThisBatch.length}. Please check if the serials typed exactly match the available stock.`);
                             }
                             
-                            // 3. Process Atomic Update
-                            updatePayload.availableSerials = arrayRemove(...requiredSerials);
-                            updatePayload.soldSerials = arrayUnion(...requiredSerials);
+                            // 2. Process Atomic Update using strictly matched serials
+                            updatePayload.availableSerials = arrayRemove(...matchedSerialsForThisBatch);
+                            updatePayload.soldSerials = arrayUnion(...matchedSerialsForThisBatch);
                         }
 
                         transaction.update(data.ref, updatePayload);
@@ -18998,9 +18995,10 @@ window.togglePromoFields = () => {
                 // 1. Deduct Stock
                 t.update(prodRef, updatePayload);
 
-                // 2. Add Supplier Credit
+                // 2. Deduct Supplier Credit (RTV Logic Fix)
+                // 🚨 CA FIX: Returning goods reduces our Accounts Payable (Debt) to the supplier!
                 const supRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/suppliers`, supId);
-                t.update(supRef, { creditBalance: increment(secureTotalCredit) });
+                t.update(supRef, { creditBalance: increment(-secureTotalCredit) });
 
                 // 3. Save Debit Note Document
                 const dnRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/debit_notes`));
