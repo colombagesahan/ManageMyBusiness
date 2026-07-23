@@ -3202,6 +3202,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         
         <label style="font-size:12px;">Attendance Status</label>
         <select id="payStatus">
+            <option value="NO_CHANGE" style="font-weight:bold; color:var(--primary);">-- Keep Current Status / Advance Only --</option>
             <option value="P">Present (P)</option>
             <option value="H">Half Day (H)</option>
             <option value="LWP">Leave Without Pay (LWP)</option>
@@ -5345,6 +5346,9 @@ body.pos-fullscreen-mode #view-pos > div > .card {
     }
 
    window.saveBaseProduct = async () => {
+        // 🚨 SECURITY FIX: Block Cashier Console Hacks!
+        if (userRole !== 'admin') return showToast("Security Alert: Only Admins can modify Base Products!", "error");
+        
         // ENTERPRISE FIX: Javascript Execution Lock to prevent duplicate product cloning!
         if (window.isSavingProduct) return;
         
@@ -5465,6 +5469,13 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             if(!snapCheck.empty) {
                 return showToast("Cannot delete: Active stock exists in the Database! Delete stock first.", "error");
             }
+        }
+
+        // 🚨 CA FIX 3: Prevent deleting raw materials that are used in BOM Recipes! (Ghost BOM Crash Prevention)
+        const isUsedInBOM = bomsCache.some(b => b.fgBaseId === id || b.materials.some(m => m.baseProductId === id));
+        if (isUsedInBOM) {
+            toggleLoader(false);
+            return showToast("Cannot delete: This product is currently used in a Manufacturing BOM (Recipe)! Please delete the BOM first.", "error");
         }
 
         if(!confirm("Delete this Base Product?")) return;
@@ -6246,11 +6257,16 @@ window.onTransferProductSelect = () => {
 
         if (!targetShopId) return showToast("Please select a destination branch", "error");
         if (!sourceProdId) return showToast("Please select a product", "error");
-        if (isNaN(qty) || qty <= 0 || !Number.isInteger(qty)) return showToast("Valid whole number quantity is required", "error");
-
+        
         const sourceShop = shopsCache.find(s => s.id === currentShopId);
         const targetShop = shopsCache.find(s => s.id === targetShopId);
         const sourceProd = productsCache.find(p => p.id === sourceProdId);
+
+        // 🚨 CA FIX 2: Allow decimals ONLY for Weighable items during Stock Transfers!
+        if (isNaN(qty) || qty <= 0) return showToast("Valid quantity is required", "error");
+        if (sourceProd.itemType !== 'weighable' && !Number.isInteger(qty)) {
+            return showToast(`You cannot transfer decimal quantities (${qty}) for Standard or Serialized items!`, "error");
+        }
 
         if (qty > sourceProd.qty) return showToast(`Not enough stock. Available: ${sourceProd.qty}`, "error");
 
@@ -6268,12 +6284,8 @@ window.onTransferProductSelect = () => {
 
         toggleLoader(true);
         try {
-            // ENTERPRISE FIX: Run getDocs completely OUTSIDE the transaction!
-            const targetProdsQ = query(collection(db, `users/${dbOwnerId}/shops/${targetShopId}/products`), where("sku", "==", sourceProd.sku || ""));
-            const targetSnap = await getDocs(targetProdsQ);
-            let targetMaxBatch = 0;
-            targetSnap.forEach(d => { if (d.data().batchNumber > targetMaxBatch) targetMaxBatch = d.data().batchNumber; });
-            const newTargetBatch = targetMaxBatch + 1;
+            // 🚨 CA FIX: Batch Calculation MUST be inside the transaction to prevent Duplicate Batch Numbers!
+            // Do not calculate newTargetBatch here! We moved it inside the runTransaction block.
 
             let targetBaseQ;
             if (sourceProd.sku && sourceProd.sku.trim() !== "") {
@@ -6331,6 +6343,13 @@ window.onTransferProductSelect = () => {
                     transaction.set(newBpRef, { name: sourceProd.name, image: sourceProd.image || null, sku: sourceProd.sku || "", categoryId: "", created: window.getSecureTime().toISOString() });
                 }
 
+                // 🚨 CA FIX: Concurrency-safe Batch Number Generation inside Transaction
+                const targetProdsQ = query(collection(db, `users/${dbOwnerId}/shops/${targetShopId}/products`), where("sku", "==", sourceProd.sku || sourceProd.name));
+                const targetSnap = await getDocs(targetProdsQ); // Safe to read here
+                let targetMaxBatch = 0;
+                targetSnap.forEach(d => { if (d.data().batchNumber > targetMaxBatch) targetMaxBatch = d.data().batchNumber; });
+                const newTargetBatch = targetMaxBatch + 1;
+
                 // 3. Add to Target Branch with ALL Critical Metadata Preserved!
                 const targetProdRef = doc(collection(db, `users/${dbOwnerId}/shops/${targetShopId}/products`));
                 transaction.set(targetProdRef, {
@@ -6371,6 +6390,10 @@ window.onTransferProductSelect = () => {
             document.getElementById('transferQty').value = '';
             document.getElementById('transferTargetShop').value = '';
             
+            // 🚨 CA FIX: Invalidate Dashboard Stock Cache so it recalculates instantly!
+            window.cachedStockValue = undefined; 
+            window.cachedLowCount = undefined;
+
             // Refresh Caches
             await loadProducts(); 
             await loadTransfersUI(); 
@@ -6833,7 +6856,15 @@ window.onTransferProductSelect = () => {
             if (baseProduct.sku && p.sku === baseProduct.sku) return true;
             if (!baseProduct.sku && p.name === baseProduct.name) return true;
             return false;
-        }).filter(p => p.qty > 0).sort((a,b) => (a.batchNumber||0) - (b.batchNumber||0));
+        }).filter(p => p.qty > 0);
+
+        // 🚨 CA FIX: If a specific price was selected in the collision modal, STRICTLY filter by it!
+        if (forcedPrice !== null) {
+            activeBatches = activeBatches.filter(p => p.sell === forcedPrice);
+        }
+        
+        // ඉන්පසු පමණක් පරණ බැච් එකෙන් පටන් ගැනීමට පෙළගස්වයි
+        activeBatches.sort((a,b) => (a.batchNumber||0) - (b.batchNumber||0));
 
         // 🛡️ ENTERPRISE FIFO ENGINE FIX (Auto-Split without Cashier Interference)
         // No modals needed! We iterate chronologically and push multiple line-items to the cart 
@@ -7208,6 +7239,9 @@ window.onTransferProductSelect = () => {
         // 🚀 ENTERPRISE FIX: SMART BUNDLE & CROSS-SELL ENGINE (CART-LEVEL MATH)
         let bundleDiscountAmt = 0;
         const nowMs = window.getSecureTime().getTime();
+        
+        // 🚨 CA FIX: Track discounted cross-sell quantities to prevent Double-Dipping Fraud!
+        let discountedCrossSellTargets = {};
 
         cart.forEach(item => {
             const batch = productsCache.find(p => p.id === item.id);
@@ -7236,11 +7270,18 @@ window.onTransferProductSelect = () => {
                     let targetEligibleQty = 0;
                     targetItemsInCart.forEach(t => targetEligibleQty += t.qty);
 
-                    const applicableQty = Math.min(item.qty, targetEligibleQty);
+                    // 🚨 CA FIX: Deduct already discounted quantities so we don't discount the same item twice!
+                    const alreadyDiscounted = discountedCrossSellTargets[targetName] || 0;
+                    const remainingEligible = targetEligibleQty - alreadyDiscounted;
+
+                    const applicableQty = Math.min(item.qty, remainingEligible);
 
                     if (applicableQty > 0 && targetItemsInCart.length > 0) {
                         const targetBasePrice = targetItemsInCart[0].sell; 
                         bundleDiscountAmt += (targetBasePrice * (targetPerc / 100)) * applicableQty;
+                        
+                        // Record usage to prevent next batch from abusing it
+                        discountedCrossSellTargets[targetName] = alreadyDiscounted + applicableQty; 
                     }
                 }
             }
@@ -8594,16 +8635,24 @@ window.checkout = async () => {
 
         const convertedQuoteId = document.getElementById('convertedFromQuoteId') ? document.getElementById('convertedFromQuoteId').value : null;
 
+        // 🚨 CA FIX 1: Extract and Flatten ALL items from Option Blocks so the Stock Engine can see them!
+        let flatItems = [];
+        optionsData.forEach(opt => {
+            opt.items.forEach(i => {
+                flatItems.push(i);
+            });
+        });
+
         tempDocData = {
             type, docId, date: document.getElementById('docDate').value,
             dueDate: document.getElementById('docDueDate').value,
             customer: { name: custName, address: document.getElementById('docCustAddr').value },
             options: optionsData,      
             extras: extrasData,        
-            items: [],                 
+            items: flatItems, // 👈 🚨 THE FIX: Now the engine will deduct these exact items!
             subtotal, discount, tax: taxAmt, taxPercent: taxPercent, total,
             createdAt: window.getSecureTime().toISOString(),
-            linkedQuoteId: convertedQuoteId // 🛡️ ENTERPRISE FIX: Link back to quote
+            linkedQuoteId: convertedQuoteId
         };
 
         if(type === 'invoice') {
@@ -8958,8 +9007,18 @@ window.autoFillDocCustomer = (name) => {
                     const liveProd = productsCache.find(p => p.name === i.name);
                     const liveSrv = servicesCache.find(s => s.name === i.name);
                     
-                    if (liveProd && liveProd.sell !== i.uPrice) { livePrice = liveProd.sell; priceChangedAlert = true; }
-                    else if (liveSrv && liveSrv.price !== i.uPrice) { livePrice = liveSrv.price; priceChangedAlert = true; }
+                    if (liveProd) {
+                        // 🚨 CA FIX: Fetch the TRUE Effective Price (Including Active Promos) for the Document!
+                        const trueEffectivePrice = window.getEffectivePrice(liveProd).price;
+                        if (trueEffectivePrice !== i.uPrice) { 
+                            livePrice = trueEffectivePrice; 
+                            priceChangedAlert = true; 
+                        }
+                    }
+                    else if (liveSrv && liveSrv.price !== i.uPrice) { 
+                        livePrice = liveSrv.price; 
+                        priceChangedAlert = true; 
+                    }
 
                     const newTotal = livePrice * i.qty;
                     const tr = document.createElement('tr');
@@ -9661,11 +9720,14 @@ window.autoFillDocCustomer = (name) => {
         
         let serialsToReturn = [];
         
-        if(restock && !isServiceItem && isSerialized) {
-            if (!Number.isInteger(qty)) {
+        if(restock && !isServiceItem) {
+            // 🚨 CA FIX: Block Decimal Refunds for Standard Items too!
+            if ((isSerialized || origProd.itemType === 'standard') && !Number.isInteger(qty)) {
                 window.isRefundingProcessing = false;
-                return showToast("Serialized items cannot be refunded in decimals!", "error");
+                return showToast(`${isSerialized ? 'Serialized' : 'Standard'} items CANNOT be refunded in decimals!`, "error");
             }
+
+            if (isSerialized) {
             if (!serialsRaw) {
                 window.isRefundingProcessing = false;
                 return showToast("This is a Serialized item! You must scan the returned item's sticker to restock it.", "error");
@@ -9758,8 +9820,19 @@ window.autoFillDocCustomer = (name) => {
                         
                         if (pointsToReverse > 0 && originalOrder.customer.phone !== "N/A") {
                             const cRefForPoints = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/customers`, originalOrder.customer.phone);
-                            // පාරිභෝගිකයාගේ ගිණුමෙන් අදාළ Points ප්‍රමාණය කපා හැරීම (සෘණ වීම වුවද නිවැරදියි, මන්ද ඔහු පද්ධතියට ලකුණු ණය වේ)
                             transaction.update(cRefForPoints, { loyaltyPoints: increment(-pointsToReverse) });
+                        }
+                    }
+
+                    // 🚨 CA FIX: Restore REDEEMED Loyalty Points proportionally!
+                    if (sDoc.exists() && sDoc.data().loyaltyRedeemed > 0 && sDoc.data().subtotal > 0 && sDoc.data().customer.phone !== "N/A") {
+                        const originalOrder = sDoc.data();
+                        // බිලෙන් ආපසු දෙන මුදලට සමානුපාතිකව, එදා කැපුණු Points ටික ආපසු ගිණුමට එකතු කිරීම!
+                        const pointsToRestore = Math.floor((refundTotal / originalOrder.subtotal) * originalOrder.loyaltyRedeemed);
+                        if (pointsToRestore > 0) {
+                            const cRefForPoints = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/customers`, originalOrder.customer.phone);
+                            transaction.update(cRefForPoints, { loyaltyPoints: increment(pointsToRestore) });
+                            if(window.writeSystemLog) writeSystemLog("LOYALTY_RESTORED", `Restored ${pointsToRestore} redeemed points back to ${originalOrder.customer.phone} due to refund.`);
                         }
                     }
                     
@@ -11683,16 +11756,22 @@ window.autoFillDocCustomer = (name) => {
 
             if (!snap.empty) {
                 const existingLog = snap.docs[0].data();
-                advanceDiff = newAdv - (Number(existingLog.advance) || 0); // 🛡️ Calculate difference for updates
+                advanceDiff = newAdv - (Number(existingLog.advance) || 0);
+                
+                // 🚨 CA FIX 3: Do not overwrite status if manager selected "NO_CHANGE"
+                const finalStatus = newStatus === 'NO_CHANGE' ? existingLog.status : newStatus;
                 
                 logDocRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/employees/${empId}/logs`, snap.docs[0].id);
                 batch.update(logDocRef, { 
-                    status: newStatus, timestamp: now.toISOString(), ot: newOt, advance: newAdv 
+                    status: finalStatus, timestamp: now.toISOString(), ot: newOt, advance: newAdv 
                 });
             } else {
+                // If it's a new log and they selected NO_CHANGE, we can't create an empty attendance. Fallback to LWP (Leave).
+                const finalStatus = newStatus === 'NO_CHANGE' ? 'LWP' : newStatus;
+                
                 logDocRef = doc(logsRef);
                 batch.set(logDocRef, {
-                    date: dateVal, status: newStatus, ot: newOt, advance: newAdv, timestamp: now.toISOString()
+                    date: dateVal, status: finalStatus, ot: newOt, advance: newAdv, timestamp: now.toISOString()
                 });
             }
 
@@ -12771,6 +12850,9 @@ window.setQuickCash = (amount) => {
     };
 
     window.saveService = async () => {
+        // 🚨 SECURITY FIX: Block Cashier Console Hacks!
+        if (userRole !== 'admin') return showToast("Security Alert: Only Admins can modify Services!", "error");
+
         const id = document.getElementById('srvId').value;
         const categoryId = document.getElementById('srvCategory').value;
         const name = document.getElementById('srvName').value.trim();
@@ -12851,13 +12933,11 @@ window.setQuickCash = (amount) => {
 
         const holdData = {
             id: Date.now(),
-            time: new Date().toLocaleTimeString(),
+            time: window.getSecureTime().toLocaleTimeString(), // 🚨 CA FIX: Use secure time!
             cart: safeCartToHold,
             fees:[ ...currentOtherFees ],
-            discountVal: document.getElementById('discountValue').value,
-            discountType: document.getElementById('discountType').value,
-            // 🛡️ ENTERPRISE BUG FIX: Use the prompted 'custName' variable correctly!
-            custName: custName, 
+            // 🚨 CA FIX: Removed broken UI calls. Dynamic discounts are calculated natively on recall!
+            custName: custName,
             custPhone: document.getElementById('modalCustPhone') ? document.getElementById('modalCustPhone').value : '',
             custAddr: document.getElementById('modalCustAddr') ? document.getElementById('modalCustAddr').value : '',
             totalItems: cart.reduce((sum, item) => sum + item.qty, 0)
@@ -12985,8 +13065,9 @@ window.setQuickCash = (amount) => {
 
         cart = validCart; // Only load available items
         currentOtherFees = h.fees || [  ];
-        document.getElementById('discountValue').value = h.discountVal || '';
-        document.getElementById('discountType').value = h.discountType || 'amount';
+        // 🚨 CA FIX: Removed legacy UI calls (discountValue/Type) that cause crashes. 
+        // Our new Smart Promo Engine will automatically recalculate discounts upon cart recall!
+        
         // ENTERPRISE FIX: Restore data back into Modal inputs correctly
         document.getElementById('modalCustName').value = h.custName || '';
         document.getElementById('modalCustPhone').value = h.custPhone || '';
@@ -16322,8 +16403,19 @@ let currentBatchForSerials = null;
                 for (let idx = 0; idx < currentAuditBatches.length; idx++) {
                     const b = currentAuditBatches[idx];
                     const phyInput = document.getElementById(`phyQty_${idx}`).value;
-                    const phy = phyInput === '' ? 0 : parseFloat(phyInput);
                     
+                    // 🚨 CA FIX: If the box is explicitly left blank, throw an error to prevent accidental wipeouts!
+                    if (phyInput === '') {
+                        throw new Error(`CRITICAL: You left the count blank for Batch ${b.batchNumber || 1}! If the item is completely missing, you MUST explicitly type '0'. Blank fields are not allowed.`);
+                    }
+                    
+                    const phy = parseFloat(phyInput);
+                    
+                    // 🚨 CA FIX: Block decimals for Standard (Indivisible) Items!
+                    if (b.itemType === 'standard' && !Number.isInteger(phy)) {
+                         throw new Error(`CRITICAL: You cannot enter decimal quantities (${phy}) for standard items like '${b.name}' (Batch ${b.batchNumber || 1})!`);
+                    }
+
                     // 🚨 ULTIMATE BUG FIX 3: Prevent Negative Physical Counts (Data Corruption Protection)
                     if (phy < 0) {
                         throw new Error(`CRITICAL: Physical stock count cannot be negative for Batch ${b.batchNumber || 1}!`);
@@ -18830,19 +18922,26 @@ window.togglePromoFields = () => {
                     updatePayload.returnedToSupplierSerials = arrayUnion(...serialsToReturn); // Audit Trail
                 }
 
+                // 🚨 CA FIX: Never trust HTML DOM for pricing! Fetch true cost securely from Database!
+                const trueBuyPrice = parseFloat(pData.buy) || 0;
+                const secureTotalCredit = trueBuyPrice * qty;
+
                 // 1. Deduct Stock
                 t.update(prodRef, updatePayload);
 
                 // 2. Add Supplier Credit
                 const supRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/suppliers`, supId);
-                t.update(supRef, { creditBalance: increment(totalCredit) });
+                t.update(supRef, { creditBalance: increment(secureTotalCredit) });
 
                 // 3. Save Debit Note Document
                 const dnRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/debit_notes`));
                 t.set(dnRef, {
                     dnId: dnId, supplierId: supId, supplierName: supplierName,
                     productName: prodName, batchNumber: pData.batchNumber || 1,
-                    qty: qty, unitPrice: buyPrice, totalCredit: totalCredit, reason: reason,
+                    qty: qty, 
+                    unitPrice: trueBuyPrice, // 🚨 CA FIX: අන්තර්ජාලයෙන් ගත් සුරක්ෂිත මිල
+                    totalCredit: secureTotalCredit, // 🚨 CA FIX: අන්තර්ජාලයෙන් ගත් සුරක්ෂිත එකතුව
+                    reason: reason,
                     serials: serialsToReturn, date: window.getSecureTime().toISOString()
                 });
 
@@ -19390,6 +19489,15 @@ window.emergencyLocalOverride = async () => {
             const snapC = await getDocs(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/customers`));
             snapC.forEach(d => { if(d.data().walletBalance > 0) storeCredits += d.data().walletBalance; });
 
+            // 🚨 CA FIX 2: Account for PENDING Cheques in Balance Sheet (Notes Receivable & Payable)
+            let pendingRecCheques = 0;
+            const snapRecChq = await getDocs(query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/cheques`), where("status", "==", "PENDING")));
+            snapRecChq.forEach(d => pendingRecCheques += d.data().amount);
+
+            let pendingIssCheques = 0;
+            const snapIssChq = await getDocs(query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/issued_cheques`), where("status", "==", "PENDING")));
+            snapIssChq.forEach(d => pendingIssCheques += d.data().amount);
+
             // Calculate Inventory Value
             const snapInv = await getDocs(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`));
             snapInv.forEach(d => {
@@ -19400,9 +19508,10 @@ window.emergencyLocalOverride = async () => {
             // Update Balance Sheet UI
             document.getElementById('accBsDate').textContent = new Date().toLocaleDateString();
             document.getElementById('accBsInv').textContent = formatMoney(inventoryAsset);
-            document.getElementById('accBsAr').textContent = formatMoney(totalReceivables);
+            document.getElementById('accBsAr').textContent = formatMoney(totalReceivables) + ` ( + ${formatMoney(pendingRecCheques)} Pnd. Cheques)`; // 👈 Update this line
+            document.getElementById('accBsTotAssets').textContent = formatMoney(inventoryAsset + totalReceivables + pendingRecCheques); // 👈 Add pendingRecCheques
             document.getElementById('accBsTotAssets').textContent = formatMoney(inventoryAsset + totalReceivables);
-            document.getElementById('accBsAp').textContent = formatMoney(totalPayables);
+            document.getElementById('accBsAp').textContent = formatMoney(totalPayables) + ` ( + ${formatMoney(pendingIssCheques)} Pnd. Cheques)`; // 👈 Update this line
             document.getElementById('accBsStoreCredit').textContent = formatMoney(storeCredits);
 
 
@@ -20354,7 +20463,9 @@ window.emergencyLocalOverride = async () => {
 
         const overheads = parseFloat(document.getElementById('prodActualOverhead').value) || 0;
         const totalMfgCost = totalRmCost + overheads;
-        const unitCost = totalMfgCost / currentProdContext.buildQty;
+        
+        // 🚨 CA FIX: Strictly apply Banker's Rounding to prevent floating point drifts in P&L!
+        const unitCost = Math.round((totalMfgCost / currentProdContext.buildQty) * 100) / 100;
 
         document.getElementById('prodEstUnitCost').textContent = formatMoney(unitCost);
         currentProdContext.unitCost = unitCost;
@@ -20394,10 +20505,32 @@ window.emergencyLocalOverride = async () => {
         toggleLoader(true);
 
         try {
+            // 🚨 CA FIX 1: Run collection queries OUTSIDE the transaction to prevent Firebase crash!
+            const timestamp = window.getSecureTime().toISOString();
+            
+            // Get Target Max Batch Number for Finished Good
+            const fgQ = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`), where("sku", "==", currentProdContext.fgBase.sku || currentProdContext.fgBase.name));
+            const fgSnap = await getDocs(fgQ); 
+            let maxBatch = 0;
+            fgSnap.forEach(d => { if(d.data().batchNumber > maxBatch) maxBatch = d.data().batchNumber; });
+            const nextFgBatch = maxBatch + 1;
+
+            // Scrap Max Batch Number
+            let nextScrapBatch = 1;
+            let scrapBase = null;
+            if (currentProdContext.bom.scrapBaseId && actualScrapQty > 0) {
+                scrapBase = catalogCache.find(c => c.id === currentProdContext.bom.scrapBaseId);
+                const scQ = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`), where("sku", "==", scrapBase.sku || scrapBase.name));
+                const scSnap = await getDocs(scQ);
+                let maxScBatch = 0;
+                scSnap.forEach(d => { if(d.data().batchNumber > maxScBatch) maxScBatch = d.data().batchNumber; });
+                nextScrapBatch = maxScBatch + 1;
+            }
+
+            // NOW start the atomic transaction
             await runTransaction(db, async (t) => {
-                const timestamp = window.getSecureTime().toISOString();
                 
-                // --- PHASE 1: READ ALL REQUIRED DATA ---
+                // --- PHASE 1: READ ALL REQUIRED DATA (Only DocumentRefs allowed here) ---
                 let rmDocs = [];
                 for (let rm of rmPayload) {
                     const ref = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/products`, rm.batchId);
@@ -20405,25 +20538,6 @@ window.emergencyLocalOverride = async () => {
                     if (!snap.exists()) throw new Error("A selected raw material batch no longer exists!");
                     if (snap.data().qty < rm.qty) throw new Error(`Insufficient stock for ${snap.data().name}! (Avail: ${snap.data().qty})`);
                     rmDocs.push({ ref, data: snap.data(), deductQty: rm.qty });
-                }
-
-                // Get Target Max Batch Number for Finished Good
-                const fgQ = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`), where("sku", "==", currentProdContext.fgBase.sku || currentProdContext.fgBase.name));
-                const fgSnap = await getDocs(fgQ); // OK outside transaction for batch numbers
-                let maxBatch = 0;
-                fgSnap.forEach(d => { if(d.data().batchNumber > maxBatch) maxBatch = d.data().batchNumber; });
-                const nextFgBatch = maxBatch + 1;
-
-                // Scrap Max Batch Number
-                let nextScrapBatch = 1;
-                let scrapBase = null;
-                if (currentProdContext.bom.scrapBaseId && actualScrapQty > 0) {
-                    scrapBase = catalogCache.find(c => c.id === currentProdContext.bom.scrapBaseId);
-                    const scQ = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`), where("sku", "==", scrapBase.sku || scrapBase.name));
-                    const scSnap = await getDocs(scQ);
-                    let maxScBatch = 0;
-                    scSnap.forEach(d => { if(d.data().batchNumber > maxScBatch) maxScBatch = d.data().batchNumber; });
-                    nextScrapBatch = maxScBatch + 1;
                 }
 
                 // --- PHASE 2: EXECUTE ALL WRITES ---
