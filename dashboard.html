@@ -19401,22 +19401,22 @@ window.emergencyLocalOverride = async () => {
                 const msg = document.getElementById('rosterLockMsg');
 
                 if (!snap.exists()) {
-                    // 🚨 AUDITOR FIX: Global Memory Lock (Prevents F12 Hacks)
-                    window.isSystemRosterLocked = true; 
+                        // 🚨 AUDITOR FIX: Global Memory Lock (Prevents F12 Hacks)
+                        window.isSystemRosterLocked = true; 
+                        
+                        // Roster එක Save කරලා නෑ! සිස්ටම් එක Lock කරන්න!
+                        lockOverlay.style.display = 'flex';
                     
-                    // Roster එක Save කරලා නෑ! සිස්ටම් එක Lock කරන්න!
-                    lockOverlay.style.display = 'flex';
-                
-                if (userRole === 'admin') {
-                    msg.innerHTML = `The Monthly Roster for <b style="color:var(--warning);">${monthLabel} ${year}</b> has not been configured yet.<br><br>You must set up the working hours and holidays before you or your staff can use the system.`;
-                    btnUnlock.style.display = 'inline-flex';
-                } else {
-                    msg.innerHTML = `The Monthly Roster for <b style="color:var(--warning);">${monthLabel} ${year}</b> has not been set up.<br><br><span style="color:var(--danger); font-weight:bold;">Please contact your Administrator to configure it.</span>`;
-                    btnUnlock.style.display = 'none';
-                }
-            } else {
-                    // 🚨 AUDITOR FIX: Global Memory Unlock
-                    window.isSystemRosterLocked = false; 
+                        if (userRole === 'admin') {
+                            msg.innerHTML = `The Monthly Roster for <b style="color:var(--warning);">${monthLabel} ${year}</b> has not been configured yet.<br><br>You must set up the working hours and holidays before you or your staff can use the system.`;
+                            btnUnlock.style.display = 'inline-flex';
+                        } else {
+                            msg.innerHTML = `The Monthly Roster for <b style="color:var(--warning);">${monthLabel} ${year}</b> has not been set up.<br><br><span style="color:var(--danger); font-weight:bold;">Please contact your Administrator to configure it.</span>`;
+                            btnUnlock.style.display = 'none';
+                        }
+                    } else {
+                        // 🚨 AUDITOR FIX: Global Memory Unlock
+                        window.isSystemRosterLocked = false;
                     
                     // Roster එක තියෙනවා, Lock එක අරින්න!
                     lockOverlay.style.display = 'none';
