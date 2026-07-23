@@ -14121,92 +14121,89 @@ window.setQuickCash = (amount) => {
             unpaidSales.sort((a, b) => new Date(a.date) - new Date(b.date)); // Oldest first
             
             let totalPaidNow = payAmount;
-            const batch = writeBatch(db);
             let settledOrderIds = []; 
             let settlementBreakdown = {}; 
-            let billedPhonesInvolved = new Set(); // Track which actual numbers got paid
+            let billedPhonesInvolved = new Set(); 
 
-            for (let sale of unpaidSales) {
-                if (payAmount <= 0) break;
-                const cId = sale.customOrderId || sale.id;
-                if(!settledOrderIds.includes(cId)) settledOrderIds.push(cId);
-                billedPhonesInvolved.add(sale.customer.phone);
+            // 🚨 CA FIX: Use runTransaction to PREVENT negative debt from concurrent payments!
+            await runTransaction(db, async (t) => {
+                let currentPayAmount = payAmount;
+                let overpaidAmount = 0;
                 
-                const ref = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`, sale.id);
-                
-                payAmount = Math.round(payAmount * 100) / 100;
-                const currentCredit = Math.round(sale.creditBalance * 100) / 100;
-
-                if (payAmount >= currentCredit) {
-                    const deductedAmount = currentCredit;
-                    payAmount -= deductedAmount;
-                    batch.update(ref, { creditBalance: increment(-deductedAmount) });
-                    settlementBreakdown[cId] = deductedAmount; 
-                } else {
-                    const deductedAmount = payAmount;
-                    batch.update(ref, { creditBalance: increment(-deductedAmount) });
-                    settlementBreakdown[cId] = deductedAmount; 
-                    payAmount = 0;
+                // 1. Read all unpaid sales securely within the transaction
+                let saleDocs = [];
+                for (let sale of unpaidSales) {
+                    const ref = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`, sale.id);
+                    const snap = await t.get(ref);
+                    if (snap.exists() && snap.data().creditBalance > 0) {
+                        saleDocs.push({ ref, data: snap.data(), cId: sale.customOrderId || sale.id });
+                    }
                 }
-            }
 
-            // 🚨 ULTIMATE BUG FIX 2 (Part A): Do NOT add overpayments to Wallet if paid via Cheque!
-            const payMethod = document.getElementById('dsPayMethod').value;
-            const secureNow = window.getSecureTime().toISOString();
+                // 2. Write logic
+                for (let sDoc of saleDocs) {
+                    if (currentPayAmount <= 0) break;
+                    
+                    settledOrderIds.push(sDoc.cId);
+                    billedPhonesInvolved.add(sDoc.data().customer.phone);
+                    
+                    const currentCredit = Math.round(sDoc.data().creditBalance * 100) / 100;
+                    currentPayAmount = Math.round(currentPayAmount * 100) / 100;
 
-            // චෙක්පතකින් වැඩිපුර ගෙව්වොත්, එම මුදල Wallet එකට එකතු වන්නේ චෙක්පත Cleared වූ පසු පමණි!
-            if (payAmount > 0 && payMethod !== 'Cheque') {
-                const cRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/customers`, currentActivePhone);
-                batch.update(cRef, { walletBalance: increment(payAmount) });
+                    if (currentPayAmount >= currentCredit) {
+                        t.update(sDoc.ref, { creditBalance: increment(-currentCredit) });
+                        settlementBreakdown[sDoc.cId] = currentCredit; 
+                        currentPayAmount -= currentCredit;
+                    } else {
+                        t.update(sDoc.ref, { creditBalance: increment(-currentPayAmount) });
+                        settlementBreakdown[sDoc.cId] = currentPayAmount; 
+                        currentPayAmount = 0;
+                    }
+                }
                 
-                // 🚨 CA FIX: Instantly sync the local RAM cache so Cashier can use this Store Credit immediately in POS!
-                const cachedCust = customersCache.find(c => c.id === currentActivePhone);
-                if (cachedCust) cachedCust.walletBalance = (cachedCust.walletBalance || 0) + payAmount;
-                
-                if(window.writeSystemLog) writeSystemLog("DEBT_OVERPAYMENT_WALLET", `Customer overpaid debt by ${formatMoney(payAmount)} via ${payMethod}. Added to Store Credit.`);
-            }
-            
-            // 🛡️ ENTERPRISE FIX: Route Cheques to Registry instead of Cash Flow!
-            if (payMethod === 'Cheque') {
-                const chqNo = document.getElementById('dsChequeNo').value.trim();
-                const chqBank = document.getElementById('dsChequeBank').value.trim();
-                const chqDate = document.getElementById('dsChequeDate').value;
-                
-                if(!chqNo || !chqBank || !chqDate) throw new Error("Cheque Number, Bank, and Date are strictly required!");
-                
-                const chqRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/cheques`));
-                batch.set(chqRef, {
-                    customerPhone: currentActivePhone,
-                    customerName: document.getElementById('dsCustomerName').textContent,
-                    chequeNo: chqNo,
-                    bank: chqBank,
-                    chequeDate: chqDate,
-                    amount: totalPaidNow,
-                    status: 'PENDING',
-                    receivedDate: secureNow,
-                    breakdown: settlementBreakdown, // To restore debt if bounced!
-                    billedPhonesInvolved: Array.from(billedPhonesInvolved),
-                    linkedOrders: settledOrderIds
-                });
-                if(window.writeSystemLog) writeSystemLog("CHEQUE_RECEIVED", `Received Cheque (${chqNo} - ${chqBank}) for ${formatMoney(totalPaidNow)} from ${currentActivePhone}`);
-            } else {
-                // Cash / Online (Direct Income)
-                const expRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`));
-                const expData = {
-                    description: `Debt Settled (${payMethod}) by active identity ${currentActivePhone} [Orders: ${settledOrderIds.join(', ')}]`,
-                    amount: totalPaidNow,
-                    isIncome: true,
-                    payMethod: payMethod,
-                    settledByPhone: currentActivePhone,
-                    originalBilledPhones: Array.from(billedPhonesInvolved),
-                    breakdown: settlementBreakdown,
-                    date: secureNow
-                };
-                batch.set(expRef, expData);
-                if(window.writeSystemLog) writeSystemLog("DEBT_SETTLEMENT", `Received ${formatMoney(totalPaidNow)} (${payMethod}) from ${currentActivePhone}`);
-            }
+                overpaidAmount = currentPayAmount; // ඉතිරි සල්ලි Overpayment එකකි
 
-            await batch.commit();
+                // 3. Overpayment goes to Wallet (Unless Cheque)
+                const payMethod = document.getElementById('dsPayMethod').value;
+                const secureNow = window.getSecureTime().toISOString();
+
+                if (overpaidAmount > 0 && payMethod !== 'Cheque') {
+                    const cRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/customers`, currentActivePhone);
+                    t.update(cRef, { walletBalance: increment(overpaidAmount) });
+                    
+                    // 🚨 CA FIX: Instantly sync the local RAM cache so Cashier can use this Store Credit immediately in POS!
+                    const cachedCust = customersCache.find(c => c.id === currentActivePhone);
+                    if (cachedCust) cachedCust.walletBalance = (cachedCust.walletBalance || 0) + overpaidAmount;
+                    
+                    if(window.writeSystemLog) writeSystemLog("DEBT_OVERPAYMENT_WALLET", `Customer overpaid debt by ${formatMoney(overpaidAmount)} via ${payMethod}. Added to Store Credit.`);
+                }
+
+                // 4. Save Cheque or Direct Expense
+                if (payMethod === 'Cheque') {
+                    const chqNo = document.getElementById('dsChequeNo').value.trim();
+                    const chqBank = document.getElementById('dsChequeBank').value.trim();
+                    const chqDate = document.getElementById('dsChequeDate').value;
+
+                    if(!chqNo || !chqBank || !chqDate) throw new Error("Cheque Number, Bank, and Date are strictly required!");
+
+                    const chqRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/cheques`));
+                    t.set(chqRef, {
+                        customerPhone: currentActivePhone, customerName: document.getElementById('dsCustomerName').textContent,
+                        chequeNo: chqNo, bank: chqBank, chequeDate: chqDate, amount: totalPaidNow, status: 'PENDING', receivedDate: secureNow,
+                        breakdown: settlementBreakdown, billedPhonesInvolved: Array.from(billedPhonesInvolved), linkedOrders: settledOrderIds
+                    });
+                    if(window.writeSystemLog) writeSystemLog("CHEQUE_RECEIVED", `Received Cheque (${chqNo} - ${chqBank}) for ${formatMoney(totalPaidNow)} from ${currentActivePhone}`);
+
+                } else {
+                    const expRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`));
+                    t.set(expRef, {
+                        description: `Debt Settled (${payMethod}) by active identity ${currentActivePhone} [Orders: ${settledOrderIds.join(', ')}]`,
+                        amount: totalPaidNow, isIncome: true, payMethod: payMethod, settledByPhone: currentActivePhone,
+                        originalBilledPhones: Array.from(billedPhonesInvolved), breakdown: settlementBreakdown, date: secureNow
+                    });
+                    if(window.writeSystemLog) writeSystemLog("DEBT_SETTLEMENT", `Received ${formatMoney(totalPaidNow)} (${payMethod}) from ${currentActivePhone}`);
+                }
+            }); // End Transaction
             
             if(window.writeSystemLog) writeSystemLog("DEBT_SETTLEMENT", `Received ${formatMoney(totalPaidNow)} from ${currentActivePhone}`);
 
