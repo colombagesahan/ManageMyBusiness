@@ -6255,15 +6255,22 @@ window.onTransferProductSelect = () => {
         const sourceProdId = document.getElementById('transferProduct').value;
         const qty = parseFloat(document.getElementById('transferQty').value);
 
+        // 1. Basic Input Validation (CPU Time ඉතිරි කිරීම)
         if (!targetShopId) return showToast("Please select a destination branch", "error");
         if (!sourceProdId) return showToast("Please select a product", "error");
+        if (isNaN(qty) || qty <= 0) return showToast("Valid quantity is required", "error");
         
+        // 2. Read from Cache
         const sourceShop = shopsCache.find(s => s.id === currentShopId);
         const targetShop = shopsCache.find(s => s.id === targetShopId);
         const sourceProd = productsCache.find(p => p.id === sourceProdId);
 
+        // 3. 🚨 CRITICAL BUG FIX: Failsafe for Cache Miss / DOM Manipulation (Crash වීම වැළැක්වීම)
+        if (!sourceShop || !targetShop) return showToast("Branch data syncing error. Please refresh.", "error");
+        if (!sourceProd) return showToast("Product not found in active memory. Please refresh.", "error");
+
+        // 4. Deep Business Logic Validation (දැන් sourceProd අනිවාර්යයෙන්ම පවතින බව අපි දනිමු)
         // 🚨 CA FIX 2: Allow decimals ONLY for Weighable items during Stock Transfers!
-        if (isNaN(qty) || qty <= 0) return showToast("Valid quantity is required", "error");
         if (sourceProd.itemType !== 'weighable' && !Number.isInteger(qty)) {
             return showToast(`You cannot transfer decimal quantities (${qty}) for Standard or Serialized items!`, "error");
         }
@@ -8701,6 +8708,12 @@ window.autoFillDocCustomer = (name) => {
 
                 await runTransaction(db, async (transaction) => {
                     const readsData =[];
+                    
+                    // 🛡️ ENTERPRISE ARCHITECTURE FIX: Assign a Unique Row ID to prevent Serialized Item Crashes!
+                    tempDocData.items.forEach((item, index) => {
+                        item._uniqueRowId = `row_${index}`;
+                    });
+
                     // Phase 1: All Reads (Firestore Rule)
                     for (const item of tempDocData.items) {
                         const candidates = candidateMap[item.name] ||[];
@@ -8715,10 +8728,11 @@ window.autoFillDocCustomer = (name) => {
 
                     // Phase 2: All Writes & Deductions
                     const itemDeductions = {};
-                    tempDocData.items.forEach(i => itemDeductions[i.name] = i.qty);
+                    // 🚨 CA FIX: Track deductions strictly per Unique Row ID, NOT by global Name!
+                    tempDocData.items.forEach(i => itemDeductions[i._uniqueRowId] = i.qty);
 
                     for (const data of readsData) {
-                        let remainingToDeduct = itemDeductions[data.item.name];
+                        let remainingToDeduct = itemDeductions[data.item._uniqueRowId];
                         if (remainingToDeduct <= 0) continue;
 
                         const currentQty = data.snap.data().qty;
@@ -8767,16 +8781,17 @@ window.autoFillDocCustomer = (name) => {
                             initialQty: currentQty
                         });
                         
-                        itemDeductions[data.item.name] -= take;
+                        itemDeductions[data.item._uniqueRowId] -= take;
                     }
                     
                     // ENTERPRISE FIX: Strictly check if any PHYSICAL product failed to fulfill its requested quantity!
-                    for (const [itemName, remainder] of Object.entries(itemDeductions)) {
+                    for (const item of tempDocData.items) {
+                        const remainder = itemDeductions[item._uniqueRowId];
                         if (remainder > 0) {
                             // Check if this item is a known Service (Services bypass stock checks)
-                            const isService = servicesCache.some(s => s.name === itemName);
+                            const isService = servicesCache.some(s => s.name === item.name);
                             if (!isService) {
-                                throw new Error(`Insufficient stock in Database for item: ${itemName}`);
+                                throw new Error(`Insufficient stock in Database for item: ${item.name}`);
                             }
                         }
                     }
@@ -11702,7 +11717,10 @@ window.autoFillDocCustomer = (name) => {
         
         // 🛡️ Strictly Force Sri Lanka Time
         document.getElementById('payDate').value = window.getSecureLocalDateStr();
-        document.getElementById('payStatus').value = 'P';
+        
+        // 🚨 HR LOGIC FIX: Do not default to 'P'. Prevent accidental Present marks when issuing advances!
+        document.getElementById('payStatus').value = 'NO_CHANGE';
+        
         document.getElementById('payOT').value = '0';
         document.getElementById('payAdv').value = '0';
         openModal('dailyLogModal');
