@@ -283,60 +283,58 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         <span id="sidebarBrandName" style="white-space:normal; word-wrap:break-word; line-height:1.3; font-size:14px; font-weight:800; display:block;" title="YOUR BUSINESS NAME">YOUR BUSINESS NAME</span>
     </div>
     <div class="nav">
+        <!-- 1. MAIN / CORE -->
         <div class="nav-group">Main</div>
         <a class="nav-item active" onclick="loadView('dashboard')"><i class="ri-dashboard-line"></i> Dashboard</a>
-        <!-- NEW PROFILE TAB -->
         <a class="nav-item" onclick="loadView('profile')"><i class="ri-user-settings-line"></i> Profile</a>
-        <!-- ENTERPRISE AI TAB -->
         <a class="nav-item" onclick="loadView('aiassistant')"><i class="ri-robot-2-fill"></i> AI Assistant <span style="background:var(--success); color:white; font-size:9px; padding:2px 6px; border-radius:10px; margin-left:5px;">HELP</span></a>
-        <a class="nav-item" onclick="loadView('documents')"><i class="ri-file-text-line"></i> Documents</a>
-        
-        <div class="nav-group">Sales & POS</div>
-        <a class="nav-item" onclick="loadView('pos')"><i class="ri-shopping-cart-2-line"></i> Smart POS</a>
-        
-        <!-- 🚨 අලුත් ගිණුම් අංශය -->
-        <div class="nav-group">Accounting & Finance</div>
-        <a class="nav-item" onclick="loadView('accounts')" id="navAccounts"><i class="ri-bank-fill"></i> Financial Accounts <span style="background:var(--success); color:white; font-size:9px; padding:2px 6px; border-radius:10px; margin-left:5px;">AI</span></a>
-        <a class="nav-item" onclick="loadView('orders')"><i class="ri-file-list-3-line"></i> Sales</a>
-<!-- 🚀 NEW: Delivery Management -->
-        <a class="nav-item" onclick="loadView('delivery')"><i class="ri-truck-line"></i> Deliveries & Courier</a>
-        <a class="nav-item" onclick="loadView('taxreports')"><i class="ri-file-paper-2-fill"></i> Tax & VAT Reports</a>
-        <!-- NEW: SERVICE CRM TAB -->
-        <a class="nav-item" onclick="loadView('crm')"><i class="ri-calendar-check-line"></i> Service CRM</a>
-        <a class="nav-item" onclick="loadView('refunds')"><i class="ri-arrow-go-back-line"></i> Refunds</a>
-        <a class="nav-item" onclick="loadView('debt')"><i class="ri-money-dollar-box-line"></i> Debt Collection</a>
-        <!-- 🛡️ ENTERPRISE FIX: New Cheque Management Tab -->
-        <a class="nav-item" onclick="loadView('cheques')"><i class="ri-bank-card-line"></i> Cheque Management</a>
-        <a class="nav-item" onclick="loadView('expenses')"><i class="ri-wallet-3-line"></i> Cash Flow (Expenses)</a>
-        <a class="nav-item" onclick="loadView('eod')"><i class="ri-file-chart-line"></i> End of Day (EOD)</a> <!-- NEW -->
         <a class="nav-item" onclick="loadView('alerts')"><i class="ri-alarm-line"></i> Alerts <span class="badge-dot" id="alertBadge"></span></a>
-        
-        <!-- 🛡️ ENTERPRISE FIX: Fleet Management -->
-        <div class="nav-group">Operations & Fleet</div>
-        <a class="nav-item" onclick="loadView('fleet')"><i class="ri-car-line"></i> Fleet Management</a>
 
-        <div class="nav-group">Inventory</div>
-        <a class="nav-item" onclick="loadView('suppliers')"><i class="ri-truck-fill"></i> Suppliers</a> <!-- NEW -->
-<!-- 🚀 NEW: BOM & Production Engine -->
-        <a class="nav-item" onclick="loadView('manufacturing')"><i class="ri-hammer-fill"></i> Manufacturing (BOM) <span style="background:#f59e0b; color:white; font-size:9px; padding:2px 6px; border-radius:10px; margin-left:5px;">NEW</span></a>
+        <!-- 2. SALES & RETAIL -->
+        <div class="nav-group">Sales & Retail</div>
+        <a class="nav-item" onclick="loadView('pos')"><i class="ri-shopping-cart-2-line"></i> Smart POS</a>
+        <a class="nav-item" onclick="loadView('orders')"><i class="ri-file-list-3-line"></i> Sales History</a>
+        <a class="nav-item" onclick="loadView('refunds')"><i class="ri-arrow-go-back-line"></i> Refunds</a>
+        <a class="nav-item" onclick="loadView('eod')"><i class="ri-file-chart-line"></i> End of Day (EOD)</a>
+
+        <!-- 3. INVENTORY & PRODUCTION -->
+        <div class="nav-group">Inventory & Production</div>
         <a class="nav-item" onclick="loadView('catalog')"><i class="ri-archive-line"></i> Add Products</a>
         <a class="nav-item" onclick="loadView('products')"><i class="ri-box-3-line"></i> Add Stock</a>
         <a class="nav-item" onclick="loadView('transfers')"><i class="ri-truck-line"></i> Stock Transfers</a>
-        <a class="nav-item" onclick="loadView('stocktake')"><i class="ri-scales-fill"></i> Stock Take (Audit)</a> <!-- 🚀 NEW -->
+        <a class="nav-item" onclick="loadView('stocktake')"><i class="ri-scales-fill"></i> Stock Take (Audit)</a>
+        <a class="nav-item" onclick="loadView('manufacturing')"><i class="ri-hammer-fill"></i> Manufacturing (BOM) <span style="background:#f59e0b; color:white; font-size:9px; padding:2px 6px; border-radius:10px; margin-left:5px;">NEW</span></a>
         <a class="nav-item" onclick="loadView('services')"><i class="ri-service-line"></i> Services</a>
 
-        <div class="nav-group">HR & Admin</div>
-        <a class="nav-item" onclick="loadView('cashiers')"><i class="ri-user-settings-line"></i> System Officers</a>
-        <a class="nav-item" onclick="loadView('employees')"><i class="ri-team-line"></i> Employees</a>
-        <!-- 🛡️ ENTERPRISE FIX: New Team Workspace Tab -->
-        <a class="nav-item" onclick="loadView('workspace')"><i class="ri-discuss-line"></i> Team Workspace</a>
-        <!-- NEW: SYSTEM LOGS -->
-        <a class="nav-item" onclick="loadView('syslogs')" id="navSysLogs"><i class="ri-history-line"></i> Activity Logs</a>
-        <a class="nav-item" onclick="loadView('payroll')"><i class="ri-calculator-line"></i> Payroll Processor</a>
+        <!-- 4. FINANCE & ACCOUNTING -->
+        <div class="nav-group">Finance & Accounting</div>
+        <a class="nav-item" onclick="loadView('accounts')" id="navAccounts"><i class="ri-bank-fill"></i> Financial Accounts <span style="background:var(--success); color:white; font-size:9px; padding:2px 6px; border-radius:10px; margin-left:5px;">AI</span></a>
+        <a class="nav-item" onclick="loadView('expenses')"><i class="ri-wallet-3-line"></i> Cash Flow (Expenses)</a>
+        <a class="nav-item" onclick="loadView('cheques')"><i class="ri-bank-card-line"></i> Cheque Management</a>
+        <a class="nav-item" onclick="loadView('debt')"><i class="ri-money-dollar-box-line"></i> Debt Collection</a>
+        <a class="nav-item" onclick="loadView('taxreports')"><i class="ri-file-paper-2-fill"></i> Tax & VAT Reports</a>
+
+        <!-- 5. SUPPLY CHAIN & LOGISTICS -->
+        <div class="nav-group">Supply Chain & Logistics</div>
+        <a class="nav-item" onclick="loadView('suppliers')"><i class="ri-truck-fill"></i> Suppliers & RTV</a>
+        <a class="nav-item" onclick="loadView('delivery')"><i class="ri-truck-line"></i> Deliveries & Courier</a>
+        <a class="nav-item" onclick="loadView('fleet')"><i class="ri-car-line"></i> Fleet Management</a>
+
+        <!-- 6. CUSTOMERS & CRM -->
+        <div class="nav-group">Customers & CRM</div>
         <a class="nav-item" onclick="loadView('customers')"><i class="ri-user-heart-line"></i> Customers</a>
-        <!-- 🛡️ ENTERPRISE FIX: Loyalty & Email Center -->
         <a class="nav-item" onclick="loadView('loyalty')"><i class="ri-medal-line"></i> Loyalty Rewards</a>
+        <a class="nav-item" onclick="loadView('crm')"><i class="ri-calendar-check-line"></i> Service CRM</a>
+        <a class="nav-item" onclick="loadView('documents')"><i class="ri-file-text-line"></i> Documents (Invoices)</a>
         <a class="nav-item" onclick="loadView('emailcenter')"><i class="ri-mail-send-line"></i> Email Center <span class="badge-dot" id="emailBadge"></span></a>
+
+        <!-- 7. HR & ADMINISTRATION -->
+        <div class="nav-group">HR & Administration</div>
+        <a class="nav-item" onclick="loadView('employees')"><i class="ri-team-line"></i> Employees</a>
+        <a class="nav-item" onclick="loadView('payroll')"><i class="ri-calculator-line"></i> Payroll Processor</a>
+        <a class="nav-item" onclick="loadView('workspace')"><i class="ri-discuss-line"></i> Team Workspace</a>
+        <a class="nav-item" onclick="loadView('cashiers')"><i class="ri-user-settings-line"></i> System Officers</a>
+        <a class="nav-item" onclick="loadView('syslogs')" id="navSysLogs"><i class="ri-history-line"></i> Activity Logs</a>
     </div>
     
     <!-- 🛡️ UI FIX: Dynamic User Avatar Profile Area -->
