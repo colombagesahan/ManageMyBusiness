@@ -271,7 +271,11 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 
 <!-- SIDEBAR -->
 <aside class="sidebar" id="sidebar">
-    <div class="brand"><i class="ri-pie-chart-2-fill" style="margin-right:10px;"></i> Nawarathna Cool Engineering Pvt LTD</div>
+    <div class="brand">
+        <!-- 🛡️ UI FIX: Dynamic Logo & Name -->
+        <img id="sidebarBrandLogo" src="" style="display:none; max-height:35px; max-width:35px; margin-right:10px; border-radius:6px; object-fit:contain; background:#fff;">
+        <span id="sidebarBrandName" style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:15px;" title="YOUR BUSINESS NAME">YOUR BUSINESS NAME</span>
+    </div>
     <div class="nav">
         <div class="nav-group">Main</div>
         <a class="nav-item active" onclick="loadView('dashboard')"><i class="ri-dashboard-line"></i> Dashboard</a>
@@ -328,10 +332,18 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         <a class="nav-item" onclick="loadView('loyalty')"><i class="ri-medal-line"></i> Loyalty Rewards</a>
         <a class="nav-item" onclick="loadView('emailcenter')"><i class="ri-mail-send-line"></i> Email Center <span class="badge-dot" id="emailBadge"></span></a>
     </div>
-    <div style="padding: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
-        <div style="font-size: 12px; opacity: 0.7;">Logged in as</div>
-        <div id="userEmail" style="font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis;">...</div>
-        <button onclick="logout()" style="color: #f87171; background: none; border: none; margin-top: 10px; cursor: pointer; font-size: 12px;">Logout</button>
+    
+    <!-- 🛡️ UI FIX: Dynamic User Avatar Profile Area -->
+    <div style="padding: 20px; border-top: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2);">
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+            <img id="userAuthAvatar" src="" style="display:none; width:38px; height:38px; border-radius:50%; object-fit:cover; border:2px solid #4b5563;">
+            <div id="userAuthInitial" style="width:38px; height:38px; border-radius:50%; background:var(--primary); color:white; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:18px; box-shadow:0 2px 5px rgba(0,0,0,0.3);">U</div>
+            <div style="flex:1; overflow:hidden;">
+                <div style="font-size: 10px; color: #9ca3af; text-transform:uppercase; letter-spacing:1px; margin-bottom:2px;">Logged in as</div>
+                <div id="userEmail" style="font-size: 13px; font-weight: 700; color: white; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="Email">...</div>
+            </div>
+        </div>
+        <button onclick="logout()" style="color: #f87171; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); width:100%; border-radius:6px; padding:6px; text-align:center; cursor: pointer; font-size: 12px; font-weight:bold; transition:0.2s;" onmouseover="this.style.background='rgba(239, 68, 68, 0.2)'" onmouseout="this.style.background='rgba(239, 68, 68, 0.1)'"><i class="ri-logout-box-r-line"></i> Secure Logout</button>
     </div>
 </aside>
 
@@ -4071,6 +4083,20 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 
         currentUser = user;
         document.getElementById('userEmail').textContent = user.email;
+        document.getElementById('userEmail').title = user.email; // Hover Tooltip
+        
+        // 🛡️ UX FIX: Load Google Avatar or Fallback to Initial Letter
+        const avatarImg = document.getElementById('userAuthAvatar');
+        const avatarInit = document.getElementById('userAuthInitial');
+        if (user.photoURL) {
+            avatarImg.src = user.photoURL;
+            avatarImg.style.display = 'block';
+            avatarInit.style.display = 'none';
+        } else {
+            avatarImg.style.display = 'none';
+            avatarInit.style.display = 'flex';
+            avatarInit.textContent = user.email ? user.email.charAt(0).toUpperCase() : 'U';
+        }
         
         // Fetch User Role from Database
         try {
@@ -4785,6 +4811,11 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             // Default checks
             document.querySelectorAll('#profFields input[type="checkbox"]').forEach(i => i.checked = true);
             document.getElementById('profLogoContainer').innerHTML = '<span>No Logo</span>';
+            
+            // 🛡️ Reset Sidebar Brand when no profile exists
+            document.getElementById('sidebarBrandName').textContent = "YOUR BUSINESS NAME";
+            document.getElementById('sidebarBrandName').title = "YOUR BUSINESS NAME";
+            document.getElementById('sidebarBrandLogo').style.display = 'none';
         }
     }
 
@@ -4861,6 +4892,21 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         } else {
             const shopName = document.getElementById('shopSelector').options[document.getElementById('shopSelector').selectedIndex].text;
             container.innerHTML = `<div class="text-logo-preview" style="font-family:${p.logoFont}; color:${p.logoColor}; font-size:20px;">${shopName}</div>`;
+        }
+
+        // 🛡️ SYNC SIDEBAR BRAND DYNAMICALLY
+        const sBrandName = document.getElementById('sidebarBrandName');
+        const sBrandLogo = document.getElementById('sidebarBrandLogo');
+        
+        sBrandName.textContent = p.bizName || "YOUR BUSINESS NAME";
+        sBrandName.title = p.bizName || "YOUR BUSINESS NAME"; // Add tooltip for long names
+        
+        if (p.logoImage) {
+            sBrandLogo.src = p.logoImage;
+            sBrandLogo.style.display = 'block';
+        } else {
+            sBrandLogo.style.display = 'none';
+            sBrandLogo.src = '';
         }
     }
 
