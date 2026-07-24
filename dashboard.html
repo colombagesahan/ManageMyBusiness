@@ -2407,6 +2407,11 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                             <div style="flex:1; background:#fefce8; padding:10px; border-radius:8px; border:1px solid #fde047;">
                                 <label style="font-size:11px; font-weight:bold; color:#a16207;">2. Overheads (කම්කරු/විදුලිය) *</label>
                                 <input type="number" id="prodActualOverhead" style="margin:0; font-weight:bold; font-size:14px; border-color:#fde047;">
+                                <!-- 🛡️ ENTERPRISE FIX: Smart Overhead Payment Source -->
+                                <select id="prodOverheadPayMode" style="margin-top:5px; margin-bottom:0; font-size:11px; font-weight:bold; border-color:#fde047; color:#a16207; background:#fffbeb;">
+                                    <option value="none">මාසික බිලෙන්/පඩියෙන් කැපේ (No Cash Out)</option>
+                                    <option value="cash">දැන් කවුන්ටරයෙන් මුදල් ගෙවයි (Pay Cash Now)</option>
+                                </select>
                             </div>
                             <div style="flex:1; background:#fef2f2; padding:10px; border-radius:8px; border:1px solid #fecaca;" id="prodScrapBox">
                                 <label style="font-size:11px; font-weight:bold; color:#b91c1c;">3. Actual Scrap/Waste Output</label>
@@ -19630,7 +19635,8 @@ window.emergencyLocalOverride = async () => {
                 } else {
                     const isCapex = e.isCapex || desc.includes('[owner_drawing]');
                     if (!isCapex) {
-                        if (e.isPayroll) payroll += e.amount;
+                        // 🚨 CA FIX: Staff Advances (isAdvanceEvent) MUST be strictly categorized under Payroll, NOT General Expenses!
+                        if (e.isPayroll || e.isAdvanceEvent) payroll += e.amount;
                         else if (e.isFleetExpense) fleetOpex += e.amount;
                         else if (e.isNonCashExpense && desc.includes('write-off')) writeOffLoss += e.amount;
                         else generalOpex += e.amount;
@@ -20661,21 +20667,23 @@ window.emergencyLocalOverride = async () => {
                     });
                 }
 
-                // 4. Log the Overheads to the P&L!
-                // We must log this as a Non-Cash Expense so it reduces Net Profit, but NOT the Physical Cash Drawer!
-                if (actualOverhead > 0) {
+                // 🛡️ ENTERPRISE AUTOMATION FIX: Smart Overhead Payment Router
+                const overheadPayMode = document.getElementById('prodOverheadPayMode').value;
+                if (actualOverhead > 0 && overheadPayMode === 'cash') {
                     const expRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`));
                     t.set(expRef, {
-                        description: `Manufacturing Overhead Cost: ${currentProdContext.buildQty}x ${currentProdContext.fgBase.name}`,
+                        description: `[MFG PAY] Labor/Overhead for ${currentProdContext.buildQty}x ${currentProdContext.fgBase.name}`,
                         amount: actualOverhead,
                         isIncome: false,
+                        payMethod: 'Cash',
                         date: timestamp,
-                        isNonCashExpense: true, // 🚨 CRITICAL: Prevents EOD cash deduction
-                        isMfgOverhead: true
+                        isPending: false,
+                        isCapex: true, // 🚨 IFRS FIX: Protects P&L from Double Deduction
+                        isNonCashExpense: false // 🚨 EOD FIX: Hits the physical Cash Drawer!
                     });
                 }
 
-                // 5. Record Production History
+                // 4. Record Production History
                 const histRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/production_runs`));
                 t.set(histRef, {
                     date: timestamp,
