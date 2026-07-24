@@ -418,9 +418,9 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 
             <div class="grid-4">
                 <div class="card">
-                    <div style="color:#6b7280; font-size:13px;">Total Sales</div>
-                    <div style="font-size:28px; font-weight:700;" id="dashSales">0.00</div>
-                    <div style="font-size:12px; color: #6b7280; margin-top:5px;">Based on selection</div>
+                    <div style="color:#6b7280; font-size:13px; font-weight:bold;">Net Revenue (Sales)</div>
+                    <div style="font-size:28px; font-weight:700; color:var(--primary);" id="dashSales">0.00</div>
+                    <div style="font-size:11px; color: #6b7280; margin-top:5px;">* Excludes Tax & Liabilities</div>
                 </div>
                 <div class="card">
                     <div style="color:#6b7280; font-size:13px;">Total Profit</div>
@@ -3769,7 +3769,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
     import { getAuth, signOut, onAuthStateChanged, createUserWithEmailAndPassword, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
     
     // 🛡️ ENTERPRISE FIX: Modernized Firebase v9.23.0 Imports with Persistent Cache Engine
-    import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, addDoc, getDocs, doc, deleteDoc, updateDoc, query, where, orderBy, setDoc, getDoc, runTransaction, limit, startAfter, writeBatch, increment, onSnapshot, collectionGroup, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+    import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, addDoc, getDocs, doc, deleteDoc, updateDoc, query, where, orderBy, setDoc, getDoc, runTransaction, limit, startAfter, writeBatch, increment, onSnapshot, collectionGroup, arrayUnion, arrayRemove, getCountFromServer } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
     // ENTERPRISE FIX: Import Firebase Functions to securely call Gemini AI backend
     import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-functions.js";
 
@@ -4803,6 +4803,9 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 
     // --- PROFILE LOGIC ---
     async function loadProfile() {
+        // 🚨 ARCHITECTURE FIX: Purge global memory when switching branches to prevent Logo Leaks!
+        compressedImageBase64 = null; 
+        
         const docRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/settings`, 'profile');
         const snap = await getDoc(docRef);
         const warn = document.getElementById('profileWarning');
@@ -4948,6 +4951,53 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             if(window.writeSystemLog) writeSystemLog("HACK_ATTEMPT", "CRITICAL: System Officer attempted to execute saveProfile via Developer Console!");
             return showToast("Security Alert: Access Denied! Only Admin can modify Business Profile.", "error");
         }
+
+        // ========================================================
+        // 🚨 FINANCIAL & LOGICAL POKA-YOKE ENGINE (FOOL-PROOFING)
+        // ========================================================
+
+        // 1. Validate Auto Discount (Prevent 150% discounts that pay the customer)
+        const autoDiscEnabled = document.getElementById('profAutoDiscEnabled').checked;
+        const autoDiscType = document.getElementById('profAutoDiscType').value;
+        const autoDiscValue = parseFloat(document.getElementById('profAutoDiscValue').value) || 0;
+        const autoDiscThreshold = parseFloat(document.getElementById('profAutoDiscThreshold').value) || 0;
+
+        if (autoDiscEnabled) {
+            if (autoDiscValue < 0) return showToast("Auto Discount value cannot be negative!", "error");
+            if (autoDiscType === 'percent' && autoDiscValue > 100) return showToast("Discount percentage cannot exceed 100%!", "error");
+            if (autoDiscThreshold < 0) return showToast("Discount Threshold cannot be negative!", "error");
+        }
+
+        // 2. Validate Tax / VAT Engine
+        const taxEnabled = document.getElementById('profTaxEnabled').checked;
+        const taxPercent = parseFloat(document.getElementById('profTaxPercent').value) || 0;
+        if (taxEnabled) {
+            if (taxPercent < 0 || taxPercent > 100) return showToast("Tax/VAT percentage must be between 0 and 100!", "error");
+        }
+
+        // 3. Validate Loyalty Program (Prevent Zero-Division Crash in POS)
+        const loyaltyEnabled = document.getElementById('profLoyaltyEnabled').checked;
+        const loyaltySpend = parseFloat(document.getElementById('profLoyaltySpend').value) || 0;
+        const loyaltyEarn = parseFloat(document.getElementById('profLoyaltyEarn').value) || 0;
+
+        if (loyaltyEnabled) {
+            if (loyaltySpend < 1) return showToast("Loyalty Spend Target MUST be 1.00 or higher to prevent system crashes!", "error");
+            if (loyaltyEarn <= 0) return showToast("Loyalty Earn Value MUST be greater than 0!", "error");
+        }
+
+        // 4. Validate Petty Cash Approval Limit
+        const expenseLimit = parseFloat(document.getElementById('profExpenseLimit').value) || 0;
+        if (expenseLimit < 0) return showToast("Petty Cash Approval Limit cannot be negative!", "error");
+
+        // 5. Validate Scale Integration Barcode Engine
+        const scaleMode = document.getElementById('profScaleMode').value;
+        const scalePrefix = document.getElementById('profScalePrefix').value.trim() || '21';
+        if (scaleMode !== 'manual') {
+            // Regex: Must be exactly two digits (e.g., 20, 21, 99)
+            if (!/^\d{2}$/.test(scalePrefix)) return showToast("Scale Barcode Prefix MUST be exactly 2 digits (e.g. 20 or 21)!", "error");
+        }
+
+        // ========================================================
         
         const data = {
             bizName: document.getElementById('profBizName').value.trim(),
@@ -5017,6 +5067,10 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         toggleLoader(true);
         await setDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/settings`, 'profile'), data);
         await loadProfile();
+        
+        // 🚨 ARCHITECTURE FIX: Clear image memory to prevent future UI contamination
+        compressedImageBase64 = null; 
+        
         toggleLoader(false);
         if(window.writeSystemLog) writeSystemLog("SYSTEM_PROFILE_UPDATED", `Business Profile / Invoice Terms / Scale Settings were modified and saved.`);
         showToast("Profile Saved Successfully");
@@ -11728,6 +11782,13 @@ window.autoFillDocCustomer = (name) => {
             }, { merge: true });
             
             document.getElementById('empModal').style.display = 'none'; // සෘජුවම Modal එක වැසීම
+            
+            // 🛡️ Cache Invalidation: Only clear cache if it's a NEW employee
+            if (!isEditMode) {
+                window.cachedEmpCount = undefined;
+                if(document.getElementById('view-dashboard').classList.contains('active')) updateDashboard();
+            }
+
             await loadEmployees();
             if(window.writeSystemLog) writeSystemLog(isEditMode ? "EMPLOYEE_UPDATED" : "EMPLOYEE_CREATED", `${isEditMode ? 'Updated' : 'Created'} employee profile for: ${name} (Role: ${role}, Basic: ${salary})`);
             showToast("Employee Saved Successfully");
@@ -11758,6 +11819,10 @@ window.autoFillDocCustomer = (name) => {
         toggleLoader(true);
         await deleteDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/employees`, id));
         
+        // 🛡️ Cache Invalidation: Force Dashboard to recalculate count
+        window.cachedEmpCount = undefined;
+        if(document.getElementById('view-dashboard').classList.contains('active')) updateDashboard();
+
         await loadEmployees();
         toggleLoader(false);
         if(window.writeSystemLog) writeSystemLog("EMPLOYEE_DELETED", `Permanently deleted employee ID: ${id}`);
@@ -11899,15 +11964,18 @@ window.autoFillDocCustomer = (name) => {
 
     // ENTERPRISE FIX: Database-level Aggregation to bypass 150-limit Cache!
     window.updateDashboard = async () => {
-        document.getElementById('dashEmp').textContent = document.querySelectorAll('#empGrid .card').length;
         
-        // 🛡️ ENTERPRISE FIX: FIREBASE BILLING & MEMORY TRAP PREVENTION
-        // Date Filter එක වෙනස් කරන සෑම විටම 10,000+ Products ඇදීම නතර කරයි! 
-        // මෙය ගණනය කරන්නේ Shop එක Load වෙද්දී එකම එක වතාවක් පමණි (Window Caching).
-        if (window.cachedStockValue === undefined || window.cachedLowCount === undefined) {
+        // 🛡️ ENTERPRISE FIX: FIREBASE BILLING & MEMORY TRAP PREVENTION (Includes Employee Count)
+        if (window.cachedStockValue === undefined || window.cachedLowCount === undefined || window.cachedEmpCount === undefined) {
             (async () => {
                 try {
-                    // Optimized: Only fetch items that actually have stock to calculate value
+                    // 1. Secure Server-Side Aggregation for Employee Count (Costs only 1 Read!)
+                    const empCol = collection(db, `users/${dbOwnerId}/shops/${currentShopId}/employees`);
+                    const empCountSnap = await getCountFromServer(empCol);
+                    window.cachedEmpCount = empCountSnap.data().count;
+                    document.getElementById('dashEmp').textContent = window.cachedEmpCount;
+
+                    // 2. Stock Value & Low Stock Count
                     const qStock = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`), where("qty", ">", 0));
                     const snap = await getDocs(qStock);
                     let lowCount = 0; let stockVal = 0;
@@ -11926,145 +11994,178 @@ window.autoFillDocCustomer = (name) => {
                 } catch(e) { console.error("Dashboard metrics error", e); }
             })();
         } else {
-            // Use cached values immediately without hitting Firebase! (Lightning Fast & Free)
+            // Fetch directly from RAM Cache (Lightning Fast & Free)
+            document.getElementById('dashEmp').textContent = window.cachedEmpCount;
             document.getElementById('dashLow').textContent = window.cachedLowCount;
             const stockEl = document.getElementById('dashStockValue');
             if(stockEl) stockEl.textContent = formatMoney(window.cachedStockValue);
         }
-        
-        const filterType = document.getElementById('dashFilterType').value;
-        // 🛡️ ENTERPRISE FIX: Moved totalCOGS to global scope to prevent ReferenceError crash
-        let totalRevenue = 0, totalProfit = 0, totalExpenses = 0, pendingCredit = 0, totalCOGS = 0; 
-        let otherIncomes = 0; // Track additional incomes
-        const chartDataMap = {};
+    
+    const filterType = document.getElementById('dashFilterType').value;
+    let totalRevenue = 0, totalProfit = 0, totalExpenses = 0, pendingCredit = 0, totalCOGS = 0; 
+    let otherIncomes = 0; 
+    const chartDataMap = {};
 
-        let startIso = "", endIso = "";
-        const now = window.getSecureTime ? window.getSecureTime() : new Date(); // Secure Time Fallback
-        if (filterType === 'daily') {
-            const val = document.getElementById('dashDateInput').value;
-            if(!val) return;
-            startIso = new Date(val + "T00:00:00").toISOString();
-            endIso = new Date(val + "T23:59:59.999").toISOString();
-        } else if (filterType === 'monthly') {
-            const val = document.getElementById('dashMonthInput').value;
-            if(!val) return;
-            startIso = new Date(val + "-01T00:00:00").toISOString();
-            const y = parseInt(val.split('-')[0]), m = parseInt(val.split('-')[1]);
-            endIso = new Date(y, m, 0, 23, 59, 59, 999).toISOString();
-        } else if (filterType === 'yearly') {
-            const val = document.getElementById('dashYearInput').value;
-            startIso = new Date(val + "-01-01T00:00:00").toISOString();
-            endIso = new Date(val + "-12-31T23:59:59.999").toISOString();
-        }
+    let startIso = "", endIso = "";
+    
+    // 🛡️ PRATHI-THARKA APPLIED: OS Timezone Bypass Enforcement
+    // STRICT TIMEZONE ENFORCEMENT (Sri Lanka UTC+05:30)
+    if (filterType === 'daily') {
+        const val = document.getElementById('dashDateInput').value;
+        if(!val) return;
+        // බලහත්කාරයෙන් ලංකාවේ (Asia/Colombo) වෙලාවට අගුලු දැමීම (+05:30)
+        startIso = new Date(val + "T00:00:00+05:30").toISOString();
+        endIso = new Date(val + "T23:59:59.999+05:30").toISOString();
+    } else if (filterType === 'monthly') {
+        const val = document.getElementById('dashMonthInput').value;
+        if(!val) return;
+        startIso = new Date(val + "-01T00:00:00+05:30").toISOString();
+        const y = parseInt(val.split('-')[0]), m = parseInt(val.split('-')[1]);
+        // අදාළ මාසයේ අවසන් දිනය සෙවීම
+        const endD = new Date(y, m, 0); 
+        endIso = new Date(endD.getFullYear() + "-" + String(endD.getMonth() + 1).padStart(2, '0') + "-" + String(endD.getDate()).padStart(2, '0') + "T23:59:59.999+05:30").toISOString();
+    } else if (filterType === 'yearly') {
+        const val = document.getElementById('dashYearInput').value;
+        startIso = new Date(val + "-01-01T00:00:00+05:30").toISOString();
+        endIso = new Date(val + "-12-31T23:59:59.999+05:30").toISOString();
+    }
 
-        try {
-            // Fetch Sales
-            const qSales = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`), where("date", ">=", startIso), where("date", "<=", endIso));
-            const snapSales = await getDocs(qSales);
+    try {
+        // ==========================================
+        // 1. FETCH SALES
+        // ==========================================
+        const qSales = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`), where("date", ">=", startIso), where("date", "<=", endIso));
+        const snapSales = await getDocs(qSales);
 
-            snapSales.forEach(d => {
-                const sale = d.data();
-                const saleDate = new Date(sale.date);
-                
-                totalRevenue += sale.total; 
-                
-                if (sale.items) {
-                    sale.items.forEach(item => {
-                        const itemCost = (parseFloat(item.buy) || 0) * (parseFloat(item.qty) || 1);
-                        totalCOGS = Math.round((totalCOGS + itemCost) * 100) / 100; 
-                    });
-                }
-                
-                if(sale.paymentMethod === 'Pay Later') pendingCredit += (sale.creditBalance || 0);
-
-                let key = "";
-                if (filterType === 'daily') key = saleDate.getHours().toString().padStart(2, '0') + ":00";
-                else if (filterType === 'monthly') key = new Date(saleDate.getTime() - (saleDate.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
-                else if (filterType === 'yearly') key = `${String(saleDate.getMonth() + 1).padStart(2, '0')}-${saleDate.toLocaleString('default', { month: 'short' })}`;
-                
-                chartDataMap[key] = (chartDataMap[key] || 0) + sale.total;
-            });
-
-            // Fetch Refunds
-            const qRef = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/refunds`), where("date", ">=", startIso), where("date", "<=", endIso));
-            const snapRef = await getDocs(qRef);
-            snapRef.forEach(d => {
-                const r = d.data();
-                totalRevenue -= r.amount; 
-                
-                // 🛡️ ENTERPRISE ACCOUNTING FIX: Damaged Goods Profit Illusion
-                // භාණ්ඩය කසළ බඳුනට දැමුවා නම් (Restock නොකළේ නම්), එහි ගැනුම් මිල කඩේට පාඩුවකි!
-                // එබැවින් Restock කළහොත් පමණක් COGS (විකුණුම් පිරිවැය) ප්‍රතිවර්තනය කරයි.
-                if (r.restock !== false) { 
-                    const refundedItemCost = (parseFloat(r.amount) - (parseFloat(r.profitReversal) || 0));
-                    totalCOGS = Math.round((totalCOGS - refundedItemCost) * 100) / 100;
-                }
-                // r.restock === false අවස්ථාවේදී COGS එක අඩු නොකරන බැවින්, 
-                // එය ස්වභාවිකවම Net Profit එකෙන් අඩු වී ආයතනයේ පාඩුව නිවැරදිව පෙන්වයි!
-            });
-
-            // Fetch Cash Flow (Expenses & Incomes)
-            const qExp = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`), where("date", ">=", startIso), where("date", "<=", endIso));
-            const snapExp = await getDocs(qExp);
+        snapSales.forEach(d => {
+            const sale = d.data();
+            const saleDate = new Date(sale.date);
             
-            snapExp.forEach(d => {
-                const record = d.data();
-                if (record.isPending) return; // 🛡️ SKIP PENDING EXPENSES FOR PROFIT MATH!
-
-                if(record.isIncome) {
-                    const desc = record.description ? record.description.toLowerCase() : "";
-                    // 🚨 CHARTERED ACCOUNTANT FIX 1: Prevent Artificial Profit Inflation BUT Allow Staff Advance Corrections!
-                    // 'record.isAdvanceEvent' is TRUE for Staff Advance Corrections. They MUST be added back to restore profit.
-                    const isCustomerLiability = desc.includes('debt') || desc.includes('cheque') || desc.includes('liability') || (desc.includes('advance') && !record.isAdvanceEvent) || record.isLiability;
-                    
-                    if (!isCustomerLiability) {
-                        otherIncomes += record.amount; // ඇත්තම අමතර ලාභ සහ Staff Advance Corrections පමණක්
-                    }
-                } else {
-                    // 🚨 CA FIX: Exclude Owner Drawings & Supplier Payments (CAPEX) from P&L
-                    const desc = record.description ? record.description.toLowerCase() : "";
-                    if (!desc.includes('[owner_drawing]') && !record.isCapex) {
-                        totalExpenses += record.amount; // ඇත්තම මෙහෙයුම් වියදම් (OPEX) පමණක් ලාභයෙන් අඩු කරයි
-                    }
-                }
-            });
-
-        } catch (error) { console.error("Dashboard Aggregation Error:", error); }
-
-        // MATH FIX: The Absolute Accounting Formula for Net Profit
-        totalProfit = Math.round((totalRevenue - totalCOGS) * 100) / 100;
-        const netProfit = Math.round((totalProfit + otherIncomes - totalExpenses) * 100) / 100;
-
-        document.getElementById('dashSales').innerHTML = `${formatMoney(totalRevenue)} 
-            ${pendingCredit > 0 ? `<span style="font-size:12px; color:#ef4444; display:block; font-weight:normal; margin-top:2px;">(Pending Credit: ${formatMoney(pendingCredit)})</span>` : ''}`;
+            // 🚨 IFRS FIX: Revenue = Gross Total MINUS Government Taxes!
+            const netSaleRevenue = sale.total - (sale.taxAmt || 0);
+            totalRevenue += netSaleRevenue; 
             
-        document.getElementById('dashProfit').innerHTML = `${formatMoney(netProfit)} 
-            <span style="font-size:11px; color:#15803d; display:block; font-weight:bold; margin-top:2px;">(Includes +${formatMoney(otherIncomes)} Other Income)</span>
-            <span style="font-size:11px; color:#ef4444; display:block; font-weight:normal;">(After -${formatMoney(totalExpenses)} Expenses)</span>`;
-        
-        if(window.myChart) window.myChart.destroy();
-        const ctx = document.getElementById('salesChart');
-        
-        const chartLabels = Object.keys(chartDataMap).sort();
-        const chartValues = chartLabels.map(l => chartDataMap[l]);
+            if (sale.items) {
+                sale.items.forEach(item => {
+                    const itemCost = (parseFloat(item.buy) || 0) * (parseFloat(item.qty) || 1);
+                    totalCOGS = Math.round((totalCOGS + itemCost) * 100) / 100; 
+                });
+            }
+            
+            if(sale.paymentMethod === 'Pay Later') pendingCredit += (sale.creditBalance || 0);
 
-        window.myChart = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: chartLabels.length > 0 ? chartLabels : ['No Data'],
-                datasets:[{ 
-                    label: 'Revenue', 
-                    data: chartValues.length > 0 ? chartValues : [0], 
-                    backgroundColor: '#4F46E5', 
-                    borderRadius: 4 
-                }]
-            },
-            options: { responsive: true, maintainAspectRatio: false }
+            // Chart shows Net Revenue
+            let key = "";
+            if (filterType === 'daily') {
+                const slHourDate = new Date(saleDate.getTime() + (5.5 * 60 * 60 * 1000));
+                key = slHourDate.getUTCHours().toString().padStart(2, '0') + ":00";
+            }
+            else if (filterType === 'monthly') {
+                const slDate = new Date(saleDate.getTime() + (5.5 * 60 * 60 * 1000));
+                key = slDate.toISOString().split('T')[0];
+            }
+            else if (filterType === 'yearly') {
+                const slDate = new Date(saleDate.getTime() + (5.5 * 60 * 60 * 1000));
+                key = `${String(slDate.getUTCMonth() + 1).padStart(2, '0')}-${slDate.toLocaleString('default', { month: 'short', timeZone: 'UTC' })}`;
+            }
+            chartDataMap[key] = (chartDataMap[key] || 0) + netSaleRevenue;
         });
 
-        // 🛡️ ENTERPRISE FIX: Check Active Cashiers via Audit Logs (Zero Database Overhead)
+        // ==========================================
+        // 2. FETCH REFUNDS
+        // ==========================================
+        const qRef = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/refunds`), where("date", ">=", startIso), where("date", "<=", endIso));
+        const snapRef = await getDocs(qRef);
+        snapRef.forEach(d => {
+            const r = d.data();
+            
+            // 🚨 IFRS FIX: Deduct only the net amount refunded (Excluding tax returned) from Revenue
+            const netRefundAmount = r.amount - (r.taxReversed || 0);
+            totalRevenue -= netRefundAmount; 
+            
+            // 🛡️ ENTERPRISE ACCOUNTING FIX: Damaged Goods Profit Illusion
+            // භාණ්ඩය කසළ බඳුනට දැමුවා නම් (Restock නොකළේ නම්), එහි ගැනුම් මිල කඩේට පාඩුවකි!
+            // එබැවින් Restock කළහොත් පමණක් COGS (විකුණුම් පිරිවැය) ප්‍රතිවර්තනය කරයි.
+            if (r.restock !== false) { 
+                const refundedItemCost = (parseFloat(r.amount) - (parseFloat(r.profitReversal) || 0));
+                totalCOGS = Math.round((totalCOGS - refundedItemCost) * 100) / 100;
+            }
+            // r.restock === false අවස්ථාවේදී COGS එක අඩු නොකරන බැවින්, 
+            // එය ස්වභාවිකවම Net Profit එකෙන් අඩු වී ආයතනයේ පාඩුව නිවැරදිව පෙන්වයි!
+        });
+
+        // ==========================================
+        // 3. FETCH CASH FLOW (INCOME & EXPENSES)
+        // ==========================================
+        const qExp = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`), where("date", ">=", startIso), where("date", "<=", endIso));
+        const snapExp = await getDocs(qExp);
+
+        snapExp.forEach(d => {
+            const record = d.data();
+            if (record.isPending) return; // 🛡️ SKIP PENDING EXPENSES FOR PROFIT MATH!
+
+            if(record.isIncome) {
+                const desc = record.description ? record.description.toLowerCase() : "";
+                
+                // 🚨 CHARTERED ACCOUNTANT & HYBRID POKA-YOKE FIX:
+                // Supports both modern Boolean Flags (isLiability) AND Legacy String Matching for old DB records.
+                const isLegacyLiabilityString = desc.includes('liability') || desc.includes('debt') || desc.includes('cheque') || desc.includes('advance');
+                const isCustomerLiability = record.isLiability || isLegacyLiabilityString;
+                
+                // Allow Staff Advance Corrections to increase profit (record.isAdvanceEvent)
+                if (!isCustomerLiability || record.isAdvanceEvent) {
+                    otherIncomes += record.amount; 
+                }
+            } else {
+                const desc = record.description ? record.description.toLowerCase() : "";
+                
+                // 🚨 HYBRID POKA-YOKE FIX FOR EXPENSES: 
+                // Exclude CAPEX (Owner Drawings & Supplier Payments) from Net Profit
+                const isCapexOrDrawing = record.isCapex || desc.includes('owner_drawing') || desc.includes('[owner_drawing]');
+                
+                if (!isCapexOrDrawing) {
+                    totalExpenses += record.amount; // Strictly OPEX (Salaries, Utilities, Fleet, Write-offs)
+                }
+            }
+        });
+
+    } catch (error) { console.error("Dashboard Aggregation Error:", error); }
+
+    // The Absolute Accounting Formula for Net Profit
+    totalProfit = Math.round((totalRevenue - totalCOGS) * 100) / 100;
+    const netProfit = Math.round((totalProfit + otherIncomes - totalExpenses) * 100) / 100;
+
+    document.getElementById('dashSales').innerHTML = `${formatMoney(totalRevenue)} 
+        ${pendingCredit > 0 ? `<span style="font-size:12px; color:#ef4444; display:block; font-weight:normal; margin-top:2px;">(Pending Credit: ${formatMoney(pendingCredit)})</span>` : ''}`;
+        
+    document.getElementById('dashProfit').innerHTML = `${formatMoney(netProfit)} 
+        <span style="font-size:11px; color:#15803d; display:block; font-weight:bold; margin-top:2px;">(Includes +${formatMoney(otherIncomes)} Other Income)</span>
+        <span style="font-size:11px; color:#ef4444; display:block; font-weight:normal;">(After -${formatMoney(totalExpenses)} Expenses)</span>`;
+    
+    if(window.myChart) window.myChart.destroy();
+    const ctx = document.getElementById('salesChart');
+    
+    const chartLabels = Object.keys(chartDataMap).sort();
+    const chartValues = chartLabels.map(l => chartDataMap[l]);
+
+    window.myChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: chartLabels.length > 0 ? chartLabels : ['No Data'],
+            datasets:[{ 
+                label: 'Net Revenue', 
+                data: chartValues.length > 0 ? chartValues : [0], 
+                backgroundColor: '#4F46E5', 
+                borderRadius: 4 
+            }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+    });
+
+    if (typeof updatePersonnelStatus === 'function') {
         updatePersonnelStatus(startIso, endIso);
-    };
+    }
+};
 
     // අලුතින් එක් කළ Function එක
     async function updatePersonnelStatus(startIso, endIso) {
