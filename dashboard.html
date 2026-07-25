@@ -9693,131 +9693,15 @@ window.autoFillDocCustomer = (name) => {
             doc.text(`(For security, please change this PIN after your first login)`, margin + 5, pinY + 11);
         }
 
-        // --- 🔴 THERMAL RECEIPT PRINTING LOGIC ---
+        // --- 🔴 OUTPUT GENERATION LOGIC ---
+        // 🚨 ARCHITECT FIX: Removed duplicated thermal logic! This function MUST strictly handle A4 PDFs ONLY!
         if (docData.type === 'RECEIPT') {
-            const sizePref = localStorage.getItem('posBillSize_' + currentShopId) || '80mm';
-            
-            // Generate Thermal Items List (With Notes & Serials)
-            let itemsHtml = '';
-            docData.items.forEach(i => {
-                const itemTotal = i.qty * (i.sell || i.price);
-                const qtyDisplay = Number.isInteger(i.qty) ? i.qty : Number(i.qty).toFixed(3);
-                // 🛡️ Ensure Warranties/Notes and Serials are printed clearly on thermal
-                const noteHtml = i.description ? `<tr><td colspan="3" style="text-align:left; font-size:10px; color:#444; padding-bottom:2px; font-style:italic;">* ${i.description}</td></tr>` : '';
-                const serialsHtml = (i.serials && i.serials.length > 0) ? `<tr><td colspan="3" style="text-align:left; font-size:10px; color:#000; font-weight:bold; padding-bottom:3px;">S/N: ${i.serials.map(s => s.split('-').pop()).join(', ')}</td></tr>` : '';
-                
-                itemsHtml += `
-                    <tr><td colspan="3" style="text-align: left; font-weight: bold; padding-top: 5px;">${i.name}</td></tr>
-                    ${noteHtml} ${serialsHtml}
-                    <tr>
-                        <td style="text-align: left; border-bottom: 1px dashed #000; padding-bottom: 4px;">${qtyDisplay} x ${formatMoney(i.sell || i.price)}</td>
-                        <td style="border-bottom: 1px dashed #000;"></td>
-                        <td style="text-align: right; border-bottom: 1px dashed #000; padding-bottom: 4px;">${formatMoney(itemTotal)}</td>
-                    </tr>`;
-            });
-
-            let feesHtml = '';
-            if(docData.fees && docData.fees.length > 0) {
-                docData.fees.forEach(f => {
-                    feesHtml += `<tr><td colspan="2" style="text-align: left;">${f.name}</td><td style="text-align: right;">+${formatMoney(f.amount)}</td></tr>`;
-                });
-            }
-
-            // 🛡️ ENTERPRISE FIX: object-fit:contain යොදා Thermal බිලෙත් ඇදීම නැවැත්වීම
-            const thermalLogoHtml = (shop.showLogoThermal !== false && shop.logoImage) 
-                ? `<img src="${shop.logoImage}" style="max-width:80%; height:80px; object-fit:contain; margin-bottom:10px; filter:grayscale(100%);">` 
-                : '';
-
-            const receiptHtml = `
-                <html>
-                <head>
-                    <title>Receipt - ${docData.docId}</title>
-                    <style>
-                        body { font-family: 'Courier New', Courier, monospace; margin: 0; padding: 10px; width: ${sizePref === '58mm' ? '200px' : '300px'}; color: #000; font-size: ${sizePref === '58mm' ? '10px' : '12px'}; }
-                        .center { text-align: center; } .bold { font-weight: bold; } .fs-14 { font-size: 14px; } .fs-16 { font-size: 16px; }
-                        .divider { border-bottom: 1px dashed #000; margin: 8px 0; }
-                        table { width: 100%; border-collapse: collapse; } td { vertical-align: top; }
-                        /* 🛡️ Thermal Dynamic Color Injection (Only visible if saved as PDF, physical printers print B/W) */
-                        .brand-text { color: ${hexColor}; }
-                        @media print { @page { margin: 0; } body { width: 100%; padding: 0; } }
-                    </style>
-                </head>
-                <body>
-                    <div class="center">
-                        ${thermalLogoHtml}
-                        ${shop.showBizName !== false && shop.bizName ? `<div class="bold fs-16 brand-text">${shop.bizName.toUpperCase()}</div>` : ''}
-                        ${shop.showAddress !== false && shop.address ? `<div>${shop.address.replace(/\n/g, ', ')}</div>` : ''}
-                        ${shop.showPhone1 !== false && shop.phone1 ? `<div>Tel: ${shop.phone1} ${shop.showPhone2 !== false && shop.phone2 ? '/ '+shop.phone2 : ''}</div>` : ''}
-                        <div class="divider"></div>
-                        <div class="bold fs-14">CASH RECEIPT</div>
-                    </div>
-                    
-                    <div style="margin-top: 10px; display: flex; justify-content: space-between;"><div>No: ${docData.docId}</div><div>${docData.date.split('T')[0]}</div></div>
-                    <div style="display: flex; justify-content: space-between;"><div>Cashier: ${currentUser ? currentUser.email.split('@')[0] : 'Admin'}</div><div>${docData.dueDate || new Date().toLocaleTimeString()}</div></div>
-                    
-                    ${docData.customer && docData.customer.name !== "Walk-in Customer" && docData.customer.name !== "Cash Customer" ? `
-                    <div class="divider"></div>
-                    <div>Cust: ${docData.customer.name}</div>
-                    ${docData.customer.phone && docData.customer.phone !== "N/A" ? `<div>Tel: ${docData.customer.phone.length >= 9 ? docData.customer.phone.slice(0, 3) + ' **** ' + docData.customer.phone.slice(-3) : docData.customer.phone}</div>` : ''}
-                    ` : ''}
-
-                    <div class="divider"></div>
-                    <table><tbody>${itemsHtml}</tbody></table>
-                    <table style="margin-top: 10px;">
-                        <tr><td style="text-align: left; padding: 2px 0;">Sub Total</td><td style="text-align: right; padding: 2px 0;">${formatMoney(docData.subtotal)}</td></tr>
-                        ${docData.discount > 0 ? `<tr><td style="text-align: left; padding: 2px 0;">Discount</td><td style="text-align: right; padding: 2px 0;">-${formatMoney(docData.discount)}</td></tr>` : ''}
-                        
-                        <!-- 🛡️ ENTERPRISE FIX: Loyalty Discount Line for Thermal Bills -->
-                        ${docData.loyaltyRedeemed > 0 ? `<tr><td style="text-align: left; padding: 2px 0; color:#9333ea; font-weight:bold;">Loyalty Discount</td><td style="text-align: right; padding: 2px 0; color:#9333ea; font-weight:bold;">-${formatMoney(docData.loyaltyRedeemed)}</td></tr>` : ''}
-                        
-                        <!-- 🚨 BUG FIX: Print TAX / VAT dynamically on Thermal Bills -->
-                        ${docData.tax > 0 ? `<tr><td style="text-align: left; padding: 2px 0;">${shop.taxName || 'TAX'} (${docData.taxPercent || 0}%)</td><td style="text-align: right; padding: 2px 0;">+${formatMoney(docData.tax)}</td></tr>` : ''}
-                        
-                        ${feesHtml}
-                        <tr>
-                            <td class="bold fs-14 brand-text" style="text-align: left; padding: 5px 0; border-top: 1px solid #000; border-bottom: 2px solid #000;">NET TOTAL</td>
-                            <td class="bold fs-14 brand-text" style="text-align: right; padding: 5px 0; border-top: 1px solid #000; border-bottom: 2px solid #000;">${formatMoney(docData.total)}</td>
-                        </tr>
-                    </table>
-
-                    <table style="margin-top: 10px;">
-                        <tr><td style="text-align: left;">Pay Mode:</td><td style="text-align: right; font-weight: bold;">${(docData.paymentMethod || 'Cash').toUpperCase()}</td></tr>
-                        ${docData.paymentMethod === 'Pay Later' ? `
-                        <tr><td style="text-align: left;">Adv Paid:</td><td style="text-align: right;">${formatMoney(docData.cashGiven || 0)}</td></tr>
-                        <tr><td style="text-align: left; font-weight: bold;">Credit Bal:</td><td style="text-align: right; font-weight: bold;">${formatMoney(docData.creditBalance || (docData.total - (docData.cashGiven||0)))}</td></tr>
-                        ` : `
-                        <tr><td style="text-align: left;">Cash Given:</td><td style="text-align: right;">${formatMoney(docData.cashGiven || docData.total)}</td></tr>
-                        <tr><td style="text-align: left; font-weight: bold;">Balance:</td><td style="text-align: right; font-weight: bold;">${formatMoney(docData.balance || 0)}</td></tr>
-                        `}
-                    </table>
-
-                    <div class="divider"></div>
-                    <div class="center" style="margin-bottom: 5px;">
-                        ${(shop.termsThermal !== undefined ? shop.termsThermal : "Thank You! Come Again.\nExchange within 7 days.").replace(/\n/g, '<br>')}
-                    </div>
-                    
-                    ${docData.initialPin ? `
-                    <div style="margin-top: 8px; padding: 6px; border: 1px dashed #000; text-align: center;">
-                        <div class="bold fs-14">Portal PIN: ${docData.initialPin}</div>
-                        <div style="font-size: 9px; margin-top: 3px;">(Please change PIN after 1st login)</div>
-                    </div>` : ''}
-                    
-                    <!-- 🛡️ ENTERPRISE FIX: Star Points Earned Message -->
-                    ${docData.loyaltyEarned > 0 ? `<div class="center" style="font-weight:bold; font-size:11px; margin-top:8px; color:#9333ea; border:1px solid #9333ea; padding:4px; border-radius:4px;">⭐ You Earned ${docData.loyaltyEarned} Loyalty Points!</div>` : ''}
-                    
-                    <div class="center" style="font-size: 10px; margin-top: 10px; color: #666;">System by 070 315 0742</div>
-                    
-                    <script>
-                        window.onload = function() { setTimeout(() => { window.print(); window.close(); }, 300); };
-                    <\/script>
-                </body>
-                </html>
-            `;
+            // පාරිභෝගිකයා ළඟ සිටින විට (POS) Auto-print command එක සමග A4 PDF එක Open කරයි.
             doc.autoPrint({variant: 'non-conform'}); 
-            window.open(doc.output('bloburl'), '_blank'); // Open A4 format for PDF saving
-            window.silentPrint(receiptHtml, false); // Send to thermal printer
+            window.open(doc.output('bloburl'), '_blank'); 
         } else {
-            doc.save(`${docData.type}_${docData.docId}.pdf`); // Direct download for Invoices/Quotes
+            // Documents Tab එකෙන් හදන Invoice/Quotes කෙලින්ම Download කරයි.
+            doc.save(`${docData.type}_${docData.docId}.pdf`); 
         }
     };
 
@@ -11402,7 +11286,7 @@ window.autoFillDocCustomer = (name) => {
         // ENTERPRISE FIX: If A4 is selected, route to the existing beautiful A4 Document Generator!
         if (sizePref === 'A4') {
             const docData = {
-                type: 'RECEIPT', // Custom type to hide due dates etc.
+                type: 'RECEIPT', 
                 docId: order.customOrderId || order.id.substring(0,8),
                 date: order.date,
                 dueDate: new Date(order.date).toLocaleTimeString(), 
@@ -11411,8 +11295,12 @@ window.autoFillDocCustomer = (name) => {
                 subtotal: order.subtotal,
                 discount: order.discountAmt,
                 
-                // 🚨 PDF FIX: Pass actual Tax to A4 Receipt
+                // 🚨 ARCHITECT FIX: Pass ALL missing financial properties to A4 generator!
                 tax: order.taxAmt || 0, 
+                taxPercent: order.taxPercent || 0,
+                loyaltyRedeemed: order.loyaltyRedeemed || 0,
+                loyaltyEarned: order.loyaltyEarned || 0,
+                initialPin: order.initialPin || null,
                 
                 fees: order.fees ||[],
                 total: order.total,
@@ -11548,6 +11436,20 @@ window.autoFillDocCustomer = (name) => {
                         <td style="text-align: left; padding: 2px 0;">Discount</td>
                         <td style="text-align: right; padding: 2px 0;">-${formatMoney(order.discountAmt)}</td>
                     </tr>` : ''}
+                    
+                    <!-- 🚨 IFRS FIX: Added missing Loyalty and Tax rows for Thermal Print -->
+                    ${order.loyaltyRedeemed > 0 ? `
+                    <tr>
+                        <td style="text-align: left; padding: 2px 0; font-weight:bold;">Loyalty Paid</td>
+                        <td style="text-align: right; padding: 2px 0; font-weight:bold;">-${formatMoney(order.loyaltyRedeemed)}</td>
+                    </tr>` : ''}
+                    
+                    ${order.taxAmt > 0 ? `
+                    <tr>
+                        <td style="text-align: left; padding: 2px 0;">${shop.taxName || 'TAX'} (${order.taxPercent || 0}%)</td>
+                        <td style="text-align: right; padding: 2px 0;">+${formatMoney(order.taxAmt)}</td>
+                    </tr>` : ''}
+
                     ${feesHtml}
                     <tr>
                         <td class="bold fs-14" style="text-align: left; padding: 5px 0; border-top: 1px solid #000; border-bottom: 2px solid #000;">NET TOTAL</td>
