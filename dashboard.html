@@ -9131,6 +9131,14 @@ window.autoFillDocCustomer = (name) => {
 
             if(window.writeSystemLog) writeSystemLog("DOCUMENT_GENERATED", `Generated ${tempDocData.type.toUpperCase()} #${tempDocData.docId} for ${tempDocData.customer.name}. Total: ${formatMoney(tempDocData.total)}`);
 
+            // 🚨 CHARTERED ACCOUNTANT FIX: Ensure A4 Invoices show proper Credit/Payment details
+            if (tempDocData.type === 'invoice') {
+                tempDocData.paymentMethod = 'Pay Later';
+                tempDocData.cashGiven = 0;
+                tempDocData.balance = 0;
+                tempDocData.creditBalance = tempDocData.total;
+            }
+
             generateDocumentPDF(tempDocData);
             showToast(`${tempDocData.type.toUpperCase()} Saved!`);
             
@@ -11318,6 +11326,17 @@ window.autoFillDocCustomer = (name) => {
         const phone = shop.phone1 || "";
         
         const dateObj = new Date(order.date);
+
+        // 🚨 ARCHITECT FIX: Define dynamic mainTitle for Thermal Prints to prevent ReferenceError Crash!
+        let mainTitle = "CASH RECEIPT";
+        if (order.type === 'RECEIPT') {
+            if (order.docId && String(order.docId).startsWith('RET-')) mainTitle = "REFUND / RETURN NOTE";
+            else if (order.paymentMethod === 'Pay Later' || order.paymentMethod === 'Cheque') mainTitle = "INVOICE";
+        } else if (order.type === 'invoice') {
+            mainTitle = "INVOICE";
+        } else if (order.type === 'quotation') {
+            mainTitle = "QUOTATION";
+        }
         const dateStr = dateObj.toLocaleDateString();
         const timeStr = dateObj.toLocaleTimeString();
         
@@ -14633,6 +14652,10 @@ window.setQuickCash = (amount) => {
     };
 
     window.printEOD = () => {
+        // 🚨 ARCHITECT FIX: Sync the dynamic input value to the DOM attribute before extracting innerHTML!
+        const floatInput = document.getElementById('eodMorningFloat');
+        if (floatInput) floatInput.setAttribute('value', floatInput.value);
+        
         const area = document.getElementById('eodReportArea').innerHTML;
         // 🚨 CA FIX: Dynamically construct print label from actual shift timestamps
         const startStr = document.getElementById('eodStartDateTime').value;
