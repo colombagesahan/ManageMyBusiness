@@ -1002,10 +1002,14 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; background:#f9fafb; padding:15px; border-radius:8px; border:1px solid #e5e7eb; margin-bottom:20px;">
                         <div>
-                            <label style="font-size:12px;">Customer (Search/Type)</label>
-                            <input id="docCustName" placeholder="Customer Name" list="custSuggestions" onchange="autoFillDocCustomer(this.value)">
+                            <label style="font-size:12px; font-weight:bold; color:var(--primary);">Customer (Search/Type) *</label>
+                            <input id="docCustName" placeholder="Search Customer Name..." list="custSuggestions" onchange="autoFillDocCustomer(this.value)" style="margin-bottom:5px; border-color:var(--primary);">
                             <datalist id="custSuggestions"></datalist>
-                            <textarea id="docCustAddr" rows="2" placeholder="Address" style="margin-top:5px;"></textarea>
+                            
+                            <div style="display:flex; gap:5px;">
+                                <input id="docCustPhone" placeholder="Phone Number (ID) *" style="margin:0; font-weight:bold; border-color:var(--primary); font-size:12px;">
+                            </div>
+                            <textarea id="docCustAddr" rows="2" placeholder="Billing Address" style="margin-top:5px; font-size:12px;"></textarea>
                         </div>
                         <div>
                             <label style="font-size:12px;">Document Details</label>
@@ -7596,23 +7600,59 @@ window.checkout = async () => {
         // 🛡️ ENTERPRISE ACCOUNTING FIX: Sum rounded values only
         let subtotal = cart.reduce((a,b) => a + Math.round((b.sell * b.qty) * 100) / 100, 0);
         
-        // 🛡️ ZERO-TRUST AUTOMATED DISCOUNT (DB RULE)
-        let discountAmt = 0;
-        let discountType = 'none';
-        let discountVal = 0;
+        // 🚨 FINANCIAL FIX: RE-INJECT BUNDLE & CROSS-SELL MATH TO PREVENT CHECKOUT CRASHES
+        let bundleDiscountAmt = 0;
+        const nowMs = window.getSecureTime().getTime();
+        let discountedCrossSellTargets = {};
 
+        cart.forEach(item => {
+            const batch = productsCache.find(p => p.id === item.id);
+            if (!batch || !batch.promoEnd) return;
+            if (new Date(batch.promoEnd).getTime() <= nowMs) return;
+
+            if (batch.promoStrategy === 'bogo') {
+                const bQty = parseInt(batch.promoBuyQty) || 0;
+                const fQty = parseInt(batch.promoFreeQty) || 0;
+                if (bQty > 0 && fQty > 0) {
+                    const totalReq = bQty + fQty;
+                    const dealCount = Math.floor(item.qty / totalReq);
+                    if (dealCount > 0) bundleDiscountAmt += (dealCount * fQty * batch.sell);
+                }
+            } else if (batch.promoStrategy === 'cross_sell') {
+                const targetName = batch.promoTargetName;
+                const targetPerc = parseFloat(batch.promoTargetPerc) || 0;
+                if (targetName && targetPerc > 0) {
+                    const targetItemsInCart = cart.filter(c => c.name === targetName);
+                    let targetEligibleQty = targetItemsInCart.reduce((sum, t) => sum + t.qty, 0);
+                    const alreadyDiscounted = discountedCrossSellTargets[targetName] || 0;
+                    const applicableQty = Math.min(item.qty, targetEligibleQty - alreadyDiscounted);
+
+                    if (applicableQty > 0 && targetItemsInCart.length > 0) {
+                        bundleDiscountAmt += (targetItemsInCart[0].sell * (targetPerc / 100)) * applicableQty;
+                        discountedCrossSellTargets[targetName] = alreadyDiscounted + applicableQty; 
+                    }
+                }
+            }
+        });
+
+        let discountAmt = bundleDiscountAmt;
+        let discountType = bundleDiscountAmt > 0 ? 'bundle/promo' : 'none';
+        let discountVal = bundleDiscountAmt;
+
+        // 🛡️ ZERO-TRUST AUTOMATED DISCOUNT (DB RULE - Applied to NET Subtotal)
         if (profileCache && profileCache.autoDiscEnabled) {
             const thresh = parseFloat(profileCache.autoDiscThreshold) || 0;
             const dVal = parseFloat(profileCache.autoDiscValue) || 0;
+            const netSubtotalForThreshold = subtotal - bundleDiscountAmt;
             
-            if (subtotal >= thresh && thresh > 0 && dVal > 0) {
-                discountType = profileCache.autoDiscType;
-                discountVal = dVal;
+            if (netSubtotalForThreshold >= thresh && thresh > 0 && dVal > 0) {
+                discountType = discountType === 'none' ? profileCache.autoDiscType : 'mixed';
+                discountVal += dVal;
                 
-                if (discountType === 'percent') {
-                    discountAmt = (subtotal * dVal) / 100;
+                if (profileCache.autoDiscType === 'percent') {
+                    discountAmt += (netSubtotalForThreshold * dVal) / 100;
                 } else {
-                    discountAmt = dVal;
+                    discountAmt += dVal;
                 }
             }
         }
@@ -7682,23 +7722,61 @@ window.checkout = async () => {
         // 🛡️ ENTERPRISE ACCOUNTING FIX: Sum rounded values only
         let subtotal = cart.reduce((a,b) => a + Math.round((b.sell * b.qty) * 100) / 100, 0);
         
-        // 🛡️ ZERO-TRUST AUTOMATED DISCOUNT (DB RULE)
-        let discountAmt = 0;
-        let discountType = 'none';
-        let discountVal = 0;
+        // 🚨 FINANCIAL FIX: RE-INJECT BUNDLE & CROSS-SELL MATH TO PREVENT BAIT-AND-SWITCH PRICING
+        let bundleDiscountAmt = 0;
+        const nowMs = window.getSecureTime().getTime();
+        let discountedCrossSellTargets = {};
 
+        cart.forEach(item => {
+            const batch = productsCache.find(p => p.id === item.id);
+            if (!batch || !batch.promoEnd) return;
+            if (new Date(batch.promoEnd).getTime() <= nowMs) return;
+
+            if (batch.promoStrategy === 'bogo') {
+                const bQty = parseInt(batch.promoBuyQty) || 0;
+                const fQty = parseInt(batch.promoFreeQty) || 0;
+                if (bQty > 0 && fQty > 0) {
+                    const totalReq = bQty + fQty;
+                    const dealCount = Math.floor(item.qty / totalReq);
+                    if (dealCount > 0) bundleDiscountAmt += (dealCount * fQty * batch.sell);
+                }
+            } else if (batch.promoStrategy === 'cross_sell') {
+                const targetName = batch.promoTargetName;
+                const targetPerc = parseFloat(batch.promoTargetPerc) || 0;
+                if (targetName && targetPerc > 0) {
+                    const targetItemsInCart = cart.filter(c => c.name === targetName);
+                    let targetEligibleQty = targetItemsInCart.reduce((sum, t) => sum + t.qty, 0);
+                    const alreadyDiscounted = discountedCrossSellTargets[targetName] || 0;
+                    const applicableQty = Math.min(item.qty, targetEligibleQty - alreadyDiscounted);
+
+                    if (applicableQty > 0 && targetItemsInCart.length > 0) {
+                        bundleDiscountAmt += (targetItemsInCart[0].sell * (targetPerc / 100)) * applicableQty;
+                        discountedCrossSellTargets[targetName] = alreadyDiscounted + applicableQty; 
+                    }
+                }
+            }
+        });
+
+        let discountAmt = bundleDiscountAmt;
+        let discountType = bundleDiscountAmt > 0 ? 'bundle/promo' : 'none';
+        let discountVal = bundleDiscountAmt;
+
+        // 🛡️ ZERO-TRUST AUTOMATED DISCOUNT (Applied to NET Subtotal)
         if (profileCache && profileCache.autoDiscEnabled) {
             const thresh = parseFloat(profileCache.autoDiscThreshold) || 0;
             const dVal = parseFloat(profileCache.autoDiscValue) || 0;
             
-            if (subtotal >= thresh && thresh > 0 && dVal > 0) {
-                discountType = profileCache.autoDiscType;
-                discountVal = dVal;
+            // MATH FIX: Auto-Discount applies ONLY if the remaining balance (Net Subtotal) qualifies!
+            const netSubtotalForThreshold = subtotal - bundleDiscountAmt;
+            
+            if (netSubtotalForThreshold >= thresh && thresh > 0 && dVal > 0) {
+                discountType = discountType === 'none' ? profileCache.autoDiscType : 'mixed';
+                discountVal += dVal;
                 
-                if (discountType === 'percent') {
-                    discountAmt = (subtotal * dVal) / 100;
+                if (profileCache.autoDiscType === 'percent') {
+                    discountAmt += (netSubtotalForThreshold * dVal) / 100;
                 } else {
-                    discountAmt = dVal;
+                    discountAmt += dVal;
                 }
             }
         }
@@ -7844,23 +7922,59 @@ window.checkout = async () => {
         // 🛡️ ENTERPRISE ACCOUNTING FIX: Sum rounded values only
         let subtotal = cart.reduce((a,b) => a + Math.round((b.sell * b.qty) * 100) / 100, 0);
         
-        // 🛡️ ZERO-TRUST AUTOMATED DISCOUNT (DB RULE)
-        let discountAmt = 0;
-        let discountType = 'none';
-        let discountVal = 0;
+        // 🚨 FINANCIAL FIX: RE-INJECT BUNDLE & CROSS-SELL MATH TO DATABASE WRITER
+        let bundleDiscountAmt = 0;
+        const nowMs = window.getSecureTime().getTime();
+        let discountedCrossSellTargets = {};
 
+        cart.forEach(item => {
+            const batch = productsCache.find(p => p.id === item.id);
+            if (!batch || !batch.promoEnd) return;
+            if (new Date(batch.promoEnd).getTime() <= nowMs) return;
+
+            if (batch.promoStrategy === 'bogo') {
+                const bQty = parseInt(batch.promoBuyQty) || 0;
+                const fQty = parseInt(batch.promoFreeQty) || 0;
+                if (bQty > 0 && fQty > 0) {
+                    const totalReq = bQty + fQty;
+                    const dealCount = Math.floor(item.qty / totalReq);
+                    if (dealCount > 0) bundleDiscountAmt += (dealCount * fQty * batch.sell);
+                }
+            } else if (batch.promoStrategy === 'cross_sell') {
+                const targetName = batch.promoTargetName;
+                const targetPerc = parseFloat(batch.promoTargetPerc) || 0;
+                if (targetName && targetPerc > 0) {
+                    const targetItemsInCart = cart.filter(c => c.name === targetName);
+                    let targetEligibleQty = targetItemsInCart.reduce((sum, t) => sum + t.qty, 0);
+                    const alreadyDiscounted = discountedCrossSellTargets[targetName] || 0;
+                    const applicableQty = Math.min(item.qty, targetEligibleQty - alreadyDiscounted);
+
+                    if (applicableQty > 0 && targetItemsInCart.length > 0) {
+                        bundleDiscountAmt += (targetItemsInCart[0].sell * (targetPerc / 100)) * applicableQty;
+                        discountedCrossSellTargets[targetName] = alreadyDiscounted + applicableQty; 
+                    }
+                }
+            }
+        });
+
+        let discountAmt = bundleDiscountAmt;
+        let discountType = bundleDiscountAmt > 0 ? 'bundle/promo' : 'none';
+        let discountVal = bundleDiscountAmt;
+
+        // 🛡️ ZERO-TRUST AUTOMATED DISCOUNT (DB RULE - Applied to NET Subtotal)
         if (profileCache && profileCache.autoDiscEnabled) {
             const thresh = parseFloat(profileCache.autoDiscThreshold) || 0;
             const dVal = parseFloat(profileCache.autoDiscValue) || 0;
+            const netSubtotalForThreshold = subtotal - bundleDiscountAmt;
             
-            if (subtotal >= thresh && thresh > 0 && dVal > 0) {
-                discountType = profileCache.autoDiscType;
-                discountVal = dVal;
+            if (netSubtotalForThreshold >= thresh && thresh > 0 && dVal > 0) {
+                discountType = discountType === 'none' ? profileCache.autoDiscType : 'mixed';
+                discountVal += dVal;
                 
-                if (discountType === 'percent') {
-                    discountAmt = (subtotal * dVal) / 100;
+                if (profileCache.autoDiscType === 'percent') {
+                    discountAmt += (netSubtotalForThreshold * dVal) / 100;
                 } else {
-                    discountAmt = dVal;
+                    discountAmt += dVal;
                 }
             }
         }
@@ -8537,7 +8651,18 @@ window.checkout = async () => {
         }
 
         if(stockP) {
-            const price = stockP.sell || stockP.price || 0;
+            let price = stockP.sell || stockP.price || 0;
+            
+            // 🚨 ARCHITECT FIX: Use Effective Price Engine to capture live Promos!
+            if (stockP.itemType && window.getEffectivePrice) {
+                const livePriceInfo = window.getEffectivePrice(stockP);
+                price = livePriceInfo.price;
+                
+                if (livePriceInfo.isPromo || livePriceInfo.hasAdminDisc) {
+                    showToast(`Active promotion applied to ${name}!`, "info");
+                }
+            }
+
             row.querySelector('.item-uprice').value = price;
             row.querySelector('.item-dprice').value = price; // Default discounted price to unit price
             
@@ -8613,10 +8738,14 @@ window.checkout = async () => {
 
     window.saveDocument = async () => {
         const type = document.getElementById('docTypeToggle').value;
-        const custName = document.getElementById('docCustName').value;
-        const docId = document.getElementById('docId').value;
+        const custName = document.getElementById('docCustName').value.trim();
+        const custPhone = document.getElementById('docCustPhone').value.trim() || "N/A"; // 👈 Capture Phone
+        const docId = document.getElementById('docId').value.trim();
         
-        if(!custName || !docId) return showToast("Customer Name & Doc ID Required", "error");
+        // 🚨 POKA-YOKE: Invoices MUST have a customer phone for Debt Ledger tracking!
+        if(type === 'invoice' && (!custName || custPhone === "N/A" || !docId)) {
+            return showToast("Customer Name, Phone Number, and Doc ID are strictly REQUIRED for Invoices!", "error");
+        }
 
         // 🚀 ENTERPRISE DOCUMENT DATA EXTRACTOR
         const optionsData = [];
@@ -8763,8 +8892,9 @@ window.checkout = async () => {
         tempDocData = {
             type, docId, date: document.getElementById('docDate').value,
             dueDate: document.getElementById('docDueDate').value,
-            customer: { name: custName, address: document.getElementById('docCustAddr').value },
-            options: optionsData,      
+            // 🚨 ARCHITECT FIX: Added phone to customer object for global compatibility
+            customer: { name: custName, phone: custPhone, address: document.getElementById('docCustAddr').value.trim() },
+            options: optionsData,
             extras: extrasData,        
             items: flatItems, // 👈 🚨 THE FIX: Now the engine will deduct these exact items!
             subtotal, discount, tax: taxAmt, taxPercent: taxPercent, total,
@@ -8782,11 +8912,12 @@ window.checkout = async () => {
 
 window.autoFillDocCustomer = (name) => {
         const c = customersCache.find(x => x.name === name);
-        if(c && c.address) {
-            document.getElementById('docCustAddr').value = c.address;
+        if(c) {
+            document.getElementById('docCustAddr').value = c.address || '';
+            document.getElementById('docCustPhone').value = c.id || ''; // 🛡️ ENTERPRISE FIX: Capture ID
         } else {
-            // ENTERPRISE FIX: වෙනත් නමක් ගැසූ විට පරණ ලිපිනය මකා දැමීම
             document.getElementById('docCustAddr').value = ''; 
+            document.getElementById('docCustPhone').value = ''; 
         }
     };
 
@@ -8910,6 +9041,61 @@ window.autoFillDocCustomer = (name) => {
                     if(docCheck.exists()) throw new Error(`Document No '${tempDocData.docId}' was just used by someone else! Please change the ID.`);
                     
                     transaction.set(docRef, { ...tempDocData, stockDeducted: true });
+
+                    // =======================================================
+                    // 🚨 CHARTERED ACCOUNTANT FIX: THE FINANCIAL BRIDGE
+                    // If stock is deducted, we MUST create a Sale (Accounts Receivable) 
+                    // to keep the Balance Sheet and Profit/Loss perfectly synced!
+                    // =======================================================
+                    const saleRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`));
+                    
+                    // Map Document Extras to POS Fees
+                    const mappedFees = tempDocData.extras.map(e => ({ name: e.type, amount: e.rate }));
+                    const feesTotal = mappedFees.reduce((sum, e) => sum + e.amount, 0);
+
+                    // Reconstruct exact deducted items with proper IDs and Batches
+                    const saleItemsForLedger = [];
+                    for (const data of readsData) {
+                        const take = itemDeductions[data.item._uniqueRowId] !== undefined ? itemDeductions[data.item._uniqueRowId] : data.item.qty;
+                        if (take > 0) {
+                            saleItemsForLedger.push({
+                                id: data.prod.id,
+                                name: data.item.name,
+                                sell: data.item.dPrice,
+                                qty: take,
+                                total: Math.round((take * data.item.dPrice) * 100) / 100,
+                                batchNumber: data.prod.batchNumber,
+                                serials: (data.item.serials && data.item.serials.length > 0) ? data.item.serials : []
+                            });
+                        }
+                    }
+
+                    const saleData = {
+                        customOrderId: tempDocData.docId, // Exact Invoice No
+                        date: window.getSecureTime().toISOString(),
+                        subtotal: tempDocData.subtotal,
+                        discountType: tempDocData.discount > 0 ? 'amount' : 'none',
+                        discountAmt: tempDocData.discount,
+                        fees: mappedFees,
+                        feesTotal: feesTotal,
+                        taxPercent: tempDocData.taxPercent,
+                        taxAmt: tempDocData.tax,
+                        total: tempDocData.total,
+                        paymentMethod: 'Pay Later', // A4 B2B Invoices are fundamentally Credit Instruments!
+                        cashGiven: 0,
+                        balance: 0,
+                        creditBalance: tempDocData.total, // Full amount goes to Debt Ledger!
+                        items: saleItemsForLedger,
+                        customer: tempDocData.customer,
+                        salesRepId: '',
+                        salesRepName: 'System Generated (Documents)',
+                        notes: [{ text: "Auto-generated from Invoice Document Builder", date: window.getSecureTime().toISOString() }],
+                        isFromDocument: true
+                    };
+                    
+                    transaction.set(saleRef, saleData);
+                    // =======================================================
+
                 });
             } else {
                 // ENTERPRISE FIX: Use Transaction for Quotations too! Prevents millisecond overwrites by multiple salesmen.
@@ -10260,8 +10446,20 @@ window.autoFillDocCustomer = (name) => {
         
         expSnap.forEach(e => {
             const ed = e.data();
-            // ENTERPRISE FIX: STRICTLY match ONLY by customId to prevent cross-contamination of receipts!
-            if(ed.description && ed.description.includes(customId)) {
+            // 🚨 CHARTERED ACCOUNTANT FIX: Prevent String Match Cross-Contamination!
+            // .includes() භාවිතා කිරීමෙන් "123" සෙවූ විට "91234" හසුවේ.
+            // එබැවින් අලුත් බිල් සඳහා linkedOrders Array එකත්, පරණ බිල් සඳහා Regex Word Boundary (\b) එකත් යොදා 100% ක් නිවැරදි කෙරේ!
+            
+            let isMatch = false;
+            if (ed.linkedOrders && ed.linkedOrders.includes(customId)) {
+                isMatch = true;
+            } else if (ed.description) {
+                // Regex \b means "Word Boundary". It will only match exactly "123", not "91234"
+                const exactMatchRegex = new RegExp('\\b' + customId + '\\b');
+                if (exactMatchRegex.test(ed.description)) isMatch = true;
+            }
+
+            if(isMatch) {
                 
                 // Determine exact amount allocated to THIS specific bill
                 let allocatedAmount = ed.amount; // Fallback for old legacy records
@@ -10383,6 +10581,12 @@ window.autoFillDocCustomer = (name) => {
 
     // UPDATED: Helper to jump to refund tab and auto-load items
     window.goToRefundForOrder = (orderId) => {
+        // 🚨 SECURITY FIX: Stop Cashiers without Refund permissions from exploiting this trigger!
+        if (userRole === 'cashier' && (!window.currentUserTabs || !window.currentUserTabs.includes('refunds'))) {
+            if(window.writeSystemLog) writeSystemLog("SECURITY_BREACH_ATTEMPT", `Officer attempted to force open Refund engine for Order: ${orderId}`);
+            return showToast("Security Alert: Access Denied! You do not have permission to process refunds.", "error");
+        }
+
         document.getElementById('orderDetailsModal').style.display = 'none';
         loadView('refunds');
         
@@ -13246,6 +13450,15 @@ window.setQuickCash = (amount) => {
         document.getElementById('modalCustPhone').value = h.custPhone || '';
         document.getElementById('modalCustAddr').value = h.custAddr || '';
         
+        // 🚨 ARCHITECT FIX: Force Wallet & Loyalty State Sync from Database!
+        // මෙය නොකළහොත් වෙනත් පාරිභෝගිකයෙකුගේ Store Credit වැරදීමකින් කැපී යා හැක.
+        if (h.custPhone && typeof window.autoFillPosCustomer === 'function') {
+            window.autoFillPosCustomer(h.custPhone);
+        } else {
+            window.currentCustomerWallet = 0;
+            window.currentCustomerLoyalty = 0;
+        }
+        
         // Remove from held
         heldCarts.splice(index, 1);
         localStorage.setItem("posHeldCarts_" + currentShopId, JSON.stringify(heldCarts));
@@ -13747,6 +13960,20 @@ window.setQuickCash = (amount) => {
         const id = document.getElementById('psOrderId').value;
         closeModal('printSizeModal');
         
+        // 🚨 POKA-YOKE FIX: Intercept Final Receipt Mode without overriding global functions!
+        if (id === 'FINAL_RECEIPT_MODE') {
+            if (window.pendingFinalReceiptData) {
+                if(window.writeSystemLog) writeSystemLog("FINAL_RECEIPT_PRINTED", `Printed Final Cash Receipt for settled invoice: ${window.pendingFinalReceiptData.customOrderId || window.pendingFinalReceiptData.id}`);
+                
+                generateInvoicePDF(window.pendingFinalReceiptData, size); // අදාළ තේරූ Size එකට Print වේ!
+                window.pendingFinalReceiptData = null; // RAM එක පිරිසිදු කිරීම (Garbage Collection)
+            }
+            return; // ⛔ Stop normal reprint execution
+        }
+        
+        // ===============================================
+        // Normal Reprint Logic for Standard Sales
+        // ===============================================
         let order = salesCache.find(s => s.id === id);
         if(order) {
             if(window.writeSystemLog) writeSystemLog("BILL_REPRINTED", `Reprinted past bill/receipt. Order ID: ${order.customOrderId || id}`);
@@ -14383,8 +14610,16 @@ window.setQuickCash = (amount) => {
             closeModal('debtSettlementModal');
             showToast("Payment Processed Successfully!");
             
-            refreshData(); 
-            loadDebts();
+            // 🚨 QUOTA DRAIN FIX: Do NOT call refreshData() here! It wastes thousands of reads.
+            // Just refresh the specific tabs that need it safely.
+            loadDebts(); 
+            if(document.getElementById('view-orders').classList.contains('active')) {
+                loadOrders(false); 
+            }
+            if(document.getElementById('view-expenses').classList.contains('active')) {
+                loadExpensesUI();
+            }
+            updateDashboard();
 
         } catch (e) {
             console.error(e);
@@ -17306,8 +17541,8 @@ window.togglePromoFields = () => {
                 const order = { id: snap.id, ...snap.data() };
                 
                 // 🛡️ ACCOUNTING RULE: Force title to RECEIPT since debt is 0
-                // We create a temporary modified object just for the PDF generator
-                const receiptData = {
+                // 🚨 JS ARCHITECTURE FIX: Store in a temporary global variable safely, no function overrides!
+                window.pendingFinalReceiptData = {
                     ...order,
                     type: 'RECEIPT', // Forces "CASH RECEIPT" title
                     paymentMethod: 'Settled in Full', // Overrides "Pay Later" text
@@ -17316,22 +17551,10 @@ window.togglePromoFields = () => {
                     creditBalance: 0
                 };
                 
-                openModal('printSizeModal');
+                // Set a special flag in the hidden input
+                document.getElementById('psOrderId').value = 'FINAL_RECEIPT_MODE';
                 
-                // Override the reprint execution temporarily for this flow
-                window.executeReprint = (size) => {
-                    closeModal('printSizeModal');
-                    if(window.writeSystemLog) writeSystemLog("FINAL_RECEIPT_PRINTED", `Printed Final Cash Receipt for settled invoice: ${order.customOrderId || orderId}`);
-                    generateInvoicePDF(receiptData, size); 
-                    
-                    // Restore original logic
-                    window.executeReprint = async (origSize) => {
-                        const id = document.getElementById('psOrderId').value;
-                        closeModal('printSizeModal');
-                        let o = salesCache.find(s => s.id === id);
-                        if(o) { generateInvoicePDF(o, origSize); }
-                    };
-                };
+                openModal('printSizeModal'); // විකල්ප 3 ම අසන Modal එක සාමාන්‍ය පරිදි විවෘත වේ!
             }
         } catch (e) {
             showToast("Error generating receipt", "error");
