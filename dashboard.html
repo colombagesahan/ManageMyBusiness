@@ -332,6 +332,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         <div class="nav-group">HR & Administration</div>
         <a class="nav-item" onclick="loadView('employees')"><i class="ri-team-line"></i> Employees</a>
         <a class="nav-item" onclick="loadView('payroll')"><i class="ri-calculator-line"></i> Payroll Processor</a>
+        <a class="nav-item" onclick="loadView('epfreports')"><i class="ri-file-list-3-fill"></i> EPF / ETF Returns</a>
         <a class="nav-item" onclick="loadView('workspace')"><i class="ri-discuss-line"></i> Team Workspace</a>
         <a class="nav-item" onclick="loadView('cashiers')"><i class="ri-user-settings-line"></i> System Officers</a>
         <a class="nav-item" onclick="loadView('syslogs')" id="navSysLogs"><i class="ri-history-line"></i> Activity Logs</a>
@@ -660,6 +661,26 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                                 <input type="checkbox" id="profLoyaltyCashOnly" checked style="width:16px; height:16px; margin:0; accent-color:#9333ea;"> 
                                 අත්පිට මුදලට (Cash/Card) ගත් විට පමණක් ලකුණු ලබා දෙන්න (ණය සහ චෙක්පත් වලට නොදේ)
                             </label>
+                        </div>
+
+<!-- 🚀 ENTERPRISE STATUTORY EPF/ETF SETTINGS -->
+                        <div style="margin-top: 15px; padding: 15px; background: #f0fdfa; border: 2px solid #14b8a6; border-radius: 8px;">
+                            <h4 style="color:#0f766e; margin-bottom:10px;"><i class="ri-bank-line"></i> EPF / ETF Statutory Rates</h4>
+                            <div style="display:flex; gap:10px;">
+                                <div style="flex:1;">
+                                    <label style="font-size:11px; font-weight:bold;">EPF Employee (%)</label>
+                                    <input type="number" id="profEpfEmployee" value="8" style="margin-bottom:5px; font-weight:bold; border-color:#5eead4;">
+                                </div>
+                                <div style="flex:1;">
+                                    <label style="font-size:11px; font-weight:bold;">EPF Employer (%)</label>
+                                    <input type="number" id="profEpfEmployer" value="12" style="margin-bottom:5px; font-weight:bold; border-color:#5eead4;">
+                                </div>
+                                <div style="flex:1;">
+                                    <label style="font-size:11px; font-weight:bold;">ETF Employer (%)</label>
+                                    <input type="number" id="profEtfEmployer" value="3" style="margin-bottom:5px; font-weight:bold; border-color:#5eead4;">
+                                </div>
+                            </div>
+                            <div style="font-size:10px; color:#0f766e;">මෙම ප්‍රතිශත වෙනස් කළහොත්, මින් ඉදිරියට ගණනය වන පඩිපත් සඳහා එය බලපානු ඇත.</div>
                         </div>
 
                         <!-- 🛡️ ENTERPRISE FIX: EXPENSE APPROVAL LIMIT -->
@@ -1655,6 +1676,65 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                 <div style="text-align:right; margin-top:15px;">
                     <button class="btn btn-success" onclick="printIndividualPayslip()"><i class="ri-printer-line"></i> Save & Print Payslip</button>
                 </div>
+            </div>
+        </div>
+
+<!-- 🚀 NEW: STATUTORY EPF / ETF REPORTS -->
+        <div id="view-epfreports" class="view">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; flex-wrap:wrap; gap:10px;">
+                <h3><i class="ri-file-list-3-fill" style="color:var(--primary);"></i> Statutory EPF / ETF Returns (Form C)</h3>
+                
+                <div style="display:flex; gap:10px; align-items:center; background:#f9fafb; padding:8px 12px; border-radius:8px; border:1px solid #e5e7eb;">
+                    <label style="font-size:12px; font-weight:bold; color:#6b7280;">Payroll Month:</label>
+                    <input type="month" id="epfMonthFilter" style="margin:0; width:auto; font-size:12px; font-weight:bold; border-color:var(--primary);">
+                    <button class="btn btn-primary" onclick="generateEpfReport()"><i class="ri-refresh-line"></i> Generate Report</button>
+                    <button class="btn btn-ghost" onclick="downloadEpfCSV()"><i class="ri-file-excel-2-line"></i> Export CSV</button>
+                </div>
+            </div>
+
+            <div class="note-box" style="background:#fffbeb; border-color:#fde68a; color:#b45309;">
+                <i class="ri-information-fill"></i> මෙම වාර්තාව ජනනය වන්නේ ඔබ Payroll Processor එක හරහා <b>පඩි ගෙවා අවසන් කර ඇති (Salary Paid)</b> සේවකයින්ගේ දත්ත මත පමණි.
+            </div>
+
+            <div id="epfSummaryCards" class="grid-4" style="margin-bottom:20px; display:none;">
+                <div class="card" style="border-top:4px solid #3b82f6; margin:0;">
+                    <div style="font-size:11px; color:#64748b; font-weight:bold;">Total Gross Earnings</div>
+                    <div id="epfRepGross" style="font-size:20px; font-weight:900; color:#1e3a8a;">0.00</div>
+                </div>
+                <div class="card" style="border-top:4px solid #f59e0b; margin:0;">
+                    <div style="font-size:11px; color:#64748b; font-weight:bold;">EPF (Employee + Employer)</div>
+                    <div id="epfRepTotalEpf" style="font-size:20px; font-weight:900; color:#b45309;">0.00</div>
+                    <div id="epfRepSplit" style="font-size:10px; color:#d97706; margin-top:2px;"></div>
+                </div>
+                <div class="card" style="border-top:4px solid #10b981; margin:0;">
+                    <div style="font-size:11px; color:#64748b; font-weight:bold;">ETF (Employer 3%)</div>
+                    <div id="epfRepTotalEtf" style="font-size:20px; font-weight:900; color:#15803d;">0.00</div>
+                </div>
+                <div class="card" style="border-top:4px solid #ef4444; margin:0; background:#fef2f2;">
+                    <div style="font-size:11px; color:#b91c1c; font-weight:bold;">Total Remittance to CBSL</div>
+                    <div id="epfRepTotalRemit" style="font-size:24px; font-weight:900; color:#dc2626;">0.00</div>
+                </div>
+            </div>
+
+            <div class="card" id="epfReportArea" style="display:none; max-height:50vh; overflow-y:auto; padding:0;">
+                <div style="padding:10px 15px; border-bottom:1px solid #e5e7eb; background:#f8fafc; display:flex; justify-content:space-between; align-items:center;">
+                    <input type="text" id="epfSearchInput" placeholder="Search by Name, NIC or EPF No..." style="margin:0; width:300px; font-size:12px;" onkeyup="filterEpfTable()">
+                </div>
+                <table id="epfReportTable" style="width:100%; font-size:12px; white-space:nowrap;">
+                    <thead style="background:#f1f5f9; position:sticky; top:0; z-index:10; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
+                        <tr>
+                            <th style="padding:10px;">EPF No.</th>
+                            <th style="padding:10px;">NIC Number</th>
+                            <th style="padding:10px;">Employee Name</th>
+                            <th style="padding:10px; text-align:right;">Total Earnings</th>
+                            <th style="padding:10px; text-align:right;">EPF (8%)<br><span style="font-size:9px; font-weight:normal;">Employee</span></th>
+                            <th style="padding:10px; text-align:right;">EPF (12%)<br><span style="font-size:9px; font-weight:normal;">Employer</span></th>
+                            <th style="padding:10px; text-align:right;">ETF (3%)<br><span style="font-size:9px; font-weight:normal;">Employer</span></th>
+                            <th style="padding:10px; text-align:right; color:var(--danger);">Total EPF+ETF</th>
+                        </tr>
+                    </thead>
+                    <tbody id="epfReportBody"></tbody>
+                </table>
             </div>
         </div>
 
@@ -3042,6 +3122,22 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 
         <label style="font-size:12px;">Full Name *</label>
         <input id="meName" placeholder="Employee Name">
+        
+        <div style="display:flex; gap:10px; margin-top:5px;">
+            <div style="flex:1;">
+                <label style="font-size:12px;">NIC Number</label>
+                <input id="meNIC" placeholder="e.g. 199012345678" style="margin-bottom:5px;">
+            </div>
+            <div style="flex:1;">
+                <label style="font-size:12px;">EPF Number</label>
+                <input id="meEpfNo" placeholder="e.g. 12345" style="margin-bottom:5px;">
+            </div>
+        </div>
+        
+        <label style="display:flex; align-items:center; gap:8px; font-size:12px; font-weight:bold; color:#0f766e; margin-bottom:10px; cursor:pointer; background:#f0fdfa; padding:8px; border-radius:6px; border:1px solid #ccfbf1;">
+            <input type="checkbox" id="meIsEpfEligible" style="width:18px; height:18px; margin:0; accent-color:#0d9488;">
+            EPF / ETF දායකත්වය සඳහා ලියාපදිංචි කර ඇත (Eligible)
+        </label>
         
         <label style="font-size:12px;">Phone Number (Used as ID / Barcode) *</label>
         <input id="mePhone" type="number" placeholder="e.g. 0771234567">
@@ -4905,7 +5001,10 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         
         // Load the Manager PIN. If not set previously, default to 0000
         document.getElementById('profManagerPin').value = p.managerPin || '0000';
-        document.getElementById('profExpenseLimit').value = p.expenseLimit || '5000'; 
+        document.getElementById('profExpenseLimit').value = p.expenseLimit || '5000';
+        document.getElementById('profEpfEmployee').value = p.epfEmployee !== undefined ? p.epfEmployee : '8';
+        document.getElementById('profEpfEmployer').value = p.epfEmployer !== undefined ? p.epfEmployer : '12';
+        document.getElementById('profEtfEmployer').value = p.etfEmployer !== undefined ? p.etfEmployer : '3'; 
         
         // Load Auto Discount Rules
         document.getElementById('profAutoDiscEnabled').checked = p.autoDiscEnabled === true;
@@ -5066,6 +5165,9 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             // Save the Manager PIN (Fallback to 0000 if left empty)
             managerPin: document.getElementById('profManagerPin').value.trim() || '0000',
             expenseLimit: parseFloat(document.getElementById('profExpenseLimit').value) || 5000,
+            epfEmployee: parseFloat(document.getElementById('profEpfEmployee').value) || 8,
+            epfEmployer: parseFloat(document.getElementById('profEpfEmployer').value) || 12,
+            etfEmployer: parseFloat(document.getElementById('profEtfEmployer').value) || 3,
             commissionPolicy: document.getElementById('profCommissionPolicy').value,
             // Save Auto Discount Rules
             autoDiscEnabled: document.getElementById('profAutoDiscEnabled').checked,
@@ -10741,10 +10843,15 @@ window.autoFillDocCustomer = (name) => {
             phone = '0' + phone.substring(4);
         } else if (phone.startsWith('94') && phone.length === 11) {
             phone = '0' + phone.substring(2);
-        } else if (phone.length === 9) {
+        } else if (phone.length === 9 && !phone.startsWith('0')) {
             phone = '0' + phone;
-        } // විදේශීය අංක (10ට වැඩි) ඒ ආකාරයෙන්ම ඉතිරි වේ
+        } 
         
+        // 🚨 POKA-YOKE FIX: Enforce minimum ID length to prevent Scale/POS Barcode Crashes!
+        if (phone.length < 9) {
+            return showToast("Phone Number is too short! Must be at least 9 digits to be a valid Customer ID.", "error");
+        }
+
         const whatsapp = document.getElementById('custWhatsapp').value.trim();
         const email = document.getElementById('custEmail').value.trim();
         const address = document.getElementById('custAddress').value.trim();
@@ -10758,6 +10865,11 @@ window.autoFillDocCustomer = (name) => {
             const custRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/customers`, phone);
 
             let autoPin = null;
+            const custPayload = {
+                name, phone, whatsapp, email, address,
+                lastUpdated: window.getSecureTime().toISOString()
+            };
+
             if (!isEditMode) {
                 const checkSnap = await getDoc(custRef);
                 if (checkSnap.exists()) {
@@ -10765,15 +10877,21 @@ window.autoFillDocCustomer = (name) => {
                     return showToast(`Customer ID ${phone} already exists! Please edit them instead.`, "error");
                 }
                 autoPin = Math.floor(1000 + Math.random() * 9000).toString();
+                custPayload.pin = autoPin;
+                
+                // 🚨 FINANCIAL STATE FIX: Initialize clean financial ledgers to prevent NaN errors in POS
+                custPayload.loyaltyPoints = 0;
+                custPayload.walletBalance = 0;
+                custPayload.loyaltySuspended = false;
             }
 
-            const custPayload = {
-                name, phone, whatsapp, email, address,
-                lastUpdated: window.getSecureTime().toISOString()
-            };
-            if (autoPin) custPayload.pin = autoPin;
-
             await setDoc(custRef, custPayload, { merge: true });
+            
+            // 🚨 UI LATENCY FIX: Inject directly into cache so POS Checkout can use it IMMEDIATELY!
+            if (!isEditMode) {
+                customersCache.unshift({ id: phone, ...custPayload });
+                updateCustomerDatalist(); // Instantly update POS Search Dropdowns
+            }
             
             if (autoPin) alert(`Customer Saved!\nNormalized ID: ${phone}\nLogin PIN: ${autoPin}`);
 
@@ -11033,13 +11151,14 @@ window.autoFillDocCustomer = (name) => {
     window.deleteCustomer = async (id) => {
         toggleLoader(true);
         
-        // Block deletion if they have pending debts
-        const qDebt = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`), where("customer.phone", "==", id), where("creditBalance", ">", 0));
-        const snapDebt = await getDocs(qDebt);
+        // 🚨 CHARTERED ACCOUNTANT FIX: Check for ANY Historical Financial Transactions!
+        // ණය නැති වුණත්, මේ පාරිභෝගිකයා එක බිලක් හෝ කපා ඇත්නම් ඔහුව මැකීමට නොහැක.
+        const qHistory = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`), where("customer.phone", "==", id), limit(1));
+        const snapHistory = await getDocs(qHistory);
         
-        if(!snapDebt.empty) {
+        if(!snapHistory.empty) {
             toggleLoader(false);
-            return showToast("Cannot Delete: This customer has pending unpaid debts!", "error");
+            return showToast("Cannot Delete: This customer has past Sales History! Please use 'Lost SIM' / 'Change No.' feature to deactivate them instead.", "error");
         }
         
         // 🚨 CA FIX: Block deletion if customer has Store Credit (Wallet) to prevent Liability Loss!
@@ -11050,7 +11169,7 @@ window.autoFillDocCustomer = (name) => {
         }
         toggleLoader(false);
 
-        if(!confirm(`Are you sure you want to delete customer ${id}?\nTheir past sales history will be archived securely.`)) return;
+        if(!confirm(`Are you sure you want to delete customer ${id}?\nSince they have NO sales history, they will be completely removed.`)) return;
         
         toggleLoader(true);
         try {
@@ -11795,9 +11914,12 @@ window.autoFillDocCustomer = (name) => {
         document.getElementById('meSalary').value = '';
         document.getElementById('meHours').value = '8';
         document.getElementById('meOTRate').value = '0';
-        document.getElementById('meTarget').value = '0'; // 👈 NEW
-        document.getElementById('meCommission').value = '0'; // 👈 NEW
+        document.getElementById('meTarget').value = '0'; 
+        document.getElementById('meCommission').value = '0'; 
         document.getElementById('meIsSalesRep').checked = false;
+        document.getElementById('meNIC').value = '';
+        document.getElementById('meEpfNo').value = '';
+        document.getElementById('meIsEpfEligible').checked = true; // Default true for new employees
         
         // Reset Photo
         document.getElementById('empPhotoFile').value = '';
@@ -11820,9 +11942,13 @@ window.autoFillDocCustomer = (name) => {
         document.getElementById('meSalary').value = e.baseSalary || 0;
         document.getElementById('meHours').value = e.standardHours || 8;
         document.getElementById('meOTRate').value = e.otRate || 0;
-        document.getElementById('meTarget').value = e.targetAmount || 0; // 👈 NEW
-        document.getElementById('meCommission').value = e.commissionRate || 0; // 👈 NEW
+        document.getElementById('meTarget').value = e.targetAmount || 0; 
+        document.getElementById('meCommission').value = e.commissionRate || 0; 
         document.getElementById('meIsSalesRep').checked = e.isSalesRep || false;
+        document.getElementById('meNIC').value = e.nic || '';
+        document.getElementById('meEpfNo').value = e.epfNo || '';
+        // POKA-YOKE: For old existing employees without this field, assume they are eligible
+        document.getElementById('meIsEpfEligible').checked = e.isEpfEligible !== false;
         
         // Load Photo
         document.getElementById('empPhotoFile').value = '';
@@ -11947,6 +12073,9 @@ window.autoFillDocCustomer = (name) => {
         const targetAmt = Number(document.getElementById('meTarget').value) || 0;
         const commRate = Number(document.getElementById('meCommission').value) || 0;
         const isSalesRep = document.getElementById('meIsSalesRep').checked;
+        const nic = document.getElementById('meNIC').value.trim();
+        const epfNo = document.getElementById('meEpfNo').value.trim();
+        const isEpfEligible = document.getElementById('meIsEpfEligible').checked;
         
         // ENTERPRISE FIX: Strict Validation for Financial/Math Fields
         if(!name || !phone) return showToast("Name and Phone (ID) are required", "error");
@@ -11970,6 +12099,7 @@ window.autoFillDocCustomer = (name) => {
             await setDoc(empRef, {
                 name, phone, role, baseSalary: salary, standardHours: hours, otRate: otRate,
                 targetAmount: targetAmt, commissionRate: commRate, isSalesRep: isSalesRep,
+                nic: nic, epfNo: epfNo, isEpfEligible: isEpfEligible,
                 photo: currentEmpPhotoBase64 
             }, { merge: true });
             
@@ -15243,27 +15373,39 @@ window.setQuickCash = (amount) => {
                 }
                 commissionPay = Math.round(commissionPay * 100) / 100;
 
-                // 🛡️ ENTERPRISE PAYROLL FIX: Sri Lankan Statutory Deductions (EPF 8%)
-                const epfDeduction = baseSal > 0 ? (earnedBasic * 0.08) : 0;
-                
-                // Final safety round to prevent JS floating point avalanche
-                const netSalary = Math.round((earnedBasic - deficitDeduction - totAdvance - epfDeduction + otPay + commissionPay) * 100) / 100; // 👈 Added commissionPay
+                // 🚨 IFRS & STATUTORY FIX: Dynamic EPF/ETF Calculation based on Eligibility
+                let epfEmployeeDed = 0;
+                let epfEmployerCont = 0;
+                let etfEmployerCont = 0;
 
-                // Save to local variable for Timesheet view
+                const isEligible = emp.isEpfEligible !== false; // Default true
+                if (isEligible && earnedBasic > 0) {
+                    const pctEmp = profileCache?.epfEmployee !== undefined ? profileCache.epfEmployee : 8;
+                    const pctEmpr = profileCache?.epfEmployer !== undefined ? profileCache.epfEmployer : 12;
+                    const pctEtf = profileCache?.etfEmployer !== undefined ? profileCache.etfEmployer : 3;
+                    
+                    epfEmployeeDed = Math.round((earnedBasic * (pctEmp / 100)) * 100) / 100;
+                    epfEmployerCont = Math.round((earnedBasic * (pctEmpr / 100)) * 100) / 100;
+                    etfEmployerCont = Math.round((earnedBasic * (pctEtf / 100)) * 100) / 100;
+                }
+                
+                const netSalary = Math.round((earnedBasic - deficitDeduction - totAdvance - epfEmployeeDed + otPay + commissionPay) * 100) / 100;
+
+                // Save to Global RAM Cache for Payment Processing & Views!
                 currentPayrollData.push({
                     emp: emp, logs: processedLogs, pDays, plDays, halfDays, lwpDays,
-                    totWorked, totExtra, totAdvance, otPay, deficitDeduction, earnedBasic, epfDeduction, commissionPay, netSalary
+                    totWorked, totExtra, totAdvance, otPay, deficitDeduction, earnedBasic, 
+                    epfEmployeeDed, epfEmployerCont, etfEmployerCont, commissionPay, netSalary
                 });
 
-                // 🛡️ ENTERPRISE FIX: Generate Pay Button or Paid Badge
                 const isPaid = paidSalariesMap[emp.id];
                 const safeEmpName = emp.name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                // 🚨 CA FIX: Pass EPF Deduction to the Payment Processor to log P&L Liabilities correctly!
+                
+                // 🚨 UI FIX: Pass ONLY the empId, fetch the rest from RAM securely!
                 const payActionHtml = isPaid 
                     ? `<button class="btn btn-ghost" style="padding:4px 8px; font-size:11px; color:#10b981; border-color:#bbf7d0; background:#f0fdf4; width:100%; cursor:default;" disabled><i class="ri-check-double-line"></i> Salary Paid</button>`
-                    : `<button class="btn btn-success" style="padding:4px 8px; font-size:11px; width:100%;" onclick="processSalaryPayment('${emp.id}', '${safeEmpName}', ${netSalary}, ${epfDeduction}, ${year}, ${month})"><i class="ri-wallet-3-line"></i> Pay Salary</button>`;
+                    : `<button class="btn btn-success" style="padding:4px 8px; font-size:11px; width:100%;" onclick="prepareSalaryPayment('${emp.id}', ${year}, ${month})"><i class="ri-wallet-3-line"></i> Pay Salary</button>`;
 
-                // 🚨 CA FIX: Carry Forward Button for Negative Salaries
                 const deficitActionHtml = `<button class="btn btn-danger" style="padding:4px 8px; font-size:11px; width:100%;" onclick="carryForwardDeficit('${emp.id}', '${safeEmpName}', ${Math.abs(netSalary)}, ${year}, ${month})"><i class="ri-arrow-right-circle-line"></i> Carry Deficit Forward</button>`;
 
                 html += `
@@ -15339,7 +15481,8 @@ window.setQuickCash = (amount) => {
                 <div>
                     <h5 style="margin-bottom:10px; color:#666;">DEDUCTIONS</h5>
                     <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>Short Hours Penalty:</span> <strong style="color:var(--danger);">-${formatMoney(data.deficitDeduction)}</strong></div>
-                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>EPF Deduction (8%):</span> <strong style="color:var(--danger);">-${formatMoney(data.epfDeduction)}</strong></div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>EPF Deduction (Employee):</span> <strong style="color:var(--danger);">-${formatMoney(data.epfEmployeeDed)}</strong></div>
+<div style="font-size:10px; color:#0f766e; margin-top:10px; border-top:1px dashed #ccc; padding-top:5px;">* Employer contributes additional ${formatMoney(data.epfEmployerCont)} to EPF & ${formatMoney(data.etfEmployerCont)} to ETF on your behalf.</div>
                     <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>Cash Advances:</span> <strong style="color:var(--danger);">-${formatMoney(data.totAdvance)}</strong></div>
                 </div>
             </div>
@@ -17183,115 +17326,125 @@ window.togglePromoFields = () => {
 
         return { isPromo: false, hasAdminDisc: false, price: Math.round(finalPrice * 100) / 100 };
     };
-// ==========================================
-    // 🛡️ ENTERPRISE PAYROLL-TO-LEDGER INTEGRATION
-    // ==========================================
-    // 🚨 ARCHITECT FIX: Added epfDeduction parameter
-    // 1. Opens the Secure Modal
-    window.processSalaryPayment = (empId, empName, amount, epfDeduction, year, month) => {
+// 1. Prepare Salary Modal
+    window.prepareSalaryPayment = (empId, year, month) => {
         if (userRole !== 'admin') return showToast("Security Alert: Access Denied!", "error");
-        if (amount <= 0) return showToast("Net salary is zero or negative!", "error");
+
+        const data = currentPayrollData.find(d => d.emp.id === empId);
+        if (!data) return showToast("Employee data missing in memory!", "error");
+
+        if (data.netSalary <= 0) return showToast("Net salary is zero or negative!", "error");
 
         const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
         
         document.getElementById('spEmpId').value = empId;
-        document.getElementById('spNetSalary').value = amount;
-        document.getElementById('spEpf').value = epfDeduction;
         document.getElementById('spYear').value = year;
         document.getElementById('spMonth').value = month;
 
-        document.getElementById('spEmpName').textContent = empName;
+        document.getElementById('spEmpName').textContent = data.emp.name;
         document.getElementById('spPeriod').textContent = `Payroll Period: ${monthNames[month]} ${year}`;
-        document.getElementById('spNetSalaryDisplay').textContent = formatMoney(amount);
-        document.getElementById('spEpfDisplay').textContent = epfDeduction > 0 ? `+ Retained EPF Liability: ${formatMoney(epfDeduction)}` : '';
+        document.getElementById('spNetSalaryDisplay').textContent = formatMoney(data.netSalary);
         
-        document.getElementById('spPayMethod').value = 'Cash'; // Default
+        let epfText = '';
+        if (data.epfEmployeeDed > 0) {
+            epfText = `+ Total Statutory Liability: ${formatMoney(data.epfEmployeeDed + data.epfEmployerCont + data.etfEmployerCont)}`;
+        }
+        document.getElementById('spEpfDisplay').textContent = epfText;
+        document.getElementById('spPayMethod').value = 'Cash'; 
         
         openModal('salaryPaymentModal');
     };
 
-    // 2. The actual transaction executed from the Modal
+    // 2. The IFRS Transaction executed from the Modal
     window.confirmSalaryPayment = async () => {
         if (window.isProcessingSalary) return;
 
         const empId = document.getElementById('spEmpId').value;
-        const empName = document.getElementById('spEmpName').textContent;
-        const amount = parseFloat(document.getElementById('spNetSalary').value);
-        const epfDeduction = parseFloat(document.getElementById('spEpf').value);
         const year = document.getElementById('spYear').value;
         const month = document.getElementById('spMonth').value;
         const payMethod = document.getElementById('spPayMethod').value;
         
-        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-        const periodName = `${monthNames[month]} ${year}`;
+        const data = currentPayrollData.find(d => d.emp.id === empId);
+        if (!data) { closeModal('salaryPaymentModal'); return showToast("Data sync error!", "error"); }
+
+        const periodName = `${year}_${month}`;
         const isNonCash = (payMethod === 'Bank Transfer' || payMethod === 'Cheque');
 
-        window.isProcessingSalary = true; // LOCK ENGAGED
+        window.isProcessingSalary = true; 
         toggleLoader(true);
+
         try {
             const checkQ = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`), 
-                where("isPayroll", "==", true), 
-                where("payrollPeriod", "==", `${year}_${month}`),
-                where("empId", "==", empId)
+                where("isPayroll", "==", true), where("payrollPeriod", "==", periodName), where("empId", "==", empId)
             );
             const checkSnap = await getDocs(checkQ);
             
             if (!checkSnap.empty) {
-                closeModal('salaryPaymentModal');
-                toggleLoader(false);
-                window.isProcessingSalary = false;
+                closeModal('salaryPaymentModal'); toggleLoader(false); window.isProcessingSalary = false;
                 await loadMasterPayroll(); 
-                return showToast(`Security Alert: Salary for ${empName} was already paid!`, "error");
+                return showToast(`Security Alert: Salary for ${data.emp.name} was already paid!`, "error");
             }
 
             const secureTimeNow = window.getSecureTime().toISOString();
             const batch = writeBatch(db);
 
-            // Entry A: Net Salary (Cash/Bank Outflow)
+            // 🚨 IFRS ENTRY 1: Net Salary (Cash/Bank Outflow)
             const netExpRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`));
             batch.set(netExpRef, {
-                description: `Staff Salary Payout: ${empName} (${periodName})`,
-                amount: amount,
-                isIncome: false,
-                payMethod: payMethod, 
-                date: secureTimeNow,
-                isPayroll: true,
-                isNonCashExpense: isNonCash, // 👈 Only deducts from Physical Drawer if Cash!
-                payrollPeriod: `${year}_${month}`,
-                empId: empId
+                description: `Staff Salary Payout: ${data.emp.name} (${periodName})`,
+                amount: data.netSalary, isIncome: false, payMethod: payMethod, date: secureTimeNow,
+                isPayroll: true, isNonCashExpense: isNonCash, payrollPeriod: periodName, empId: empId
             });
 
-            // Entry B: Log EPF as a Non-Cash Liability to reflect True P&L Cost!
-            if (epfDeduction > 0) {
-                const epfExpRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`));
-                batch.set(epfExpRef, {
-                    description: `EPF Liability Retained: ${empName} (${periodName})`,
-                    amount: epfDeduction,
-                    isIncome: false,
-                    payMethod: 'None', 
-                    date: secureTimeNow,
-                    isPayroll: true,
-                    isNonCashExpense: true, // DOES NOT deduct from Physical Drawer
-                    payrollPeriod: `${year}_${month}`,
-                    empId: empId
+            // 🚨 IFRS ENTRY 2: Employee EPF (Retained from Gross - Non Cash)
+            if (data.epfEmployeeDed > 0) {
+                const epf1Ref = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`));
+                batch.set(epf1Ref, {
+                    description: `EPF Liability Retained (Employee): ${data.emp.name} (${periodName})`,
+                    amount: data.epfEmployeeDed, isIncome: false, payMethod: 'None', date: secureTimeNow,
+                    isPayroll: true, isNonCashExpense: true, payrollPeriod: periodName, empId: empId
                 });
             }
 
+            // 🚨 IFRS ENTRY 3: Employer EPF & ETF (Additional P&L Cost - Non Cash)
+            const employerTotal = data.epfEmployerCont + data.etfEmployerCont;
+            if (employerTotal > 0) {
+                const epf2Ref = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`));
+                batch.set(epf2Ref, {
+                    description: `EPF/ETF Liability Accrued (Employer): ${data.emp.name} (${periodName})`,
+                    amount: employerTotal, isIncome: false, payMethod: 'None', date: secureTimeNow,
+                    isPayroll: true, isNonCashExpense: true, payrollPeriod: periodName, empId: empId
+                });
+            }
+
+            // 🚨 STATUTORY ENTRY: Record data for the C-Form Reports!
+            const statRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/epf_etf_records`));
+            batch.set(statRef, {
+                payrollPeriod: periodName,
+                empId: empId,
+                nic: data.emp.nic || '-',
+                epfNo: data.emp.epfNo || '-',
+                empName: data.emp.name,
+                grossEarnings: data.earnedBasic, // Subject to EPF
+                epfEmployee: data.epfEmployeeDed,
+                epfEmployer: data.epfEmployerCont,
+                etfEmployer: data.etfEmployerCont,
+                paidAt: secureTimeNow
+            });
+
             await batch.commit();
 
-            if(window.writeSystemLog) writeSystemLog("SALARY_DISBURSED", `Disbursed ${formatMoney(amount)} (${payMethod}) and retained EPF of ${formatMoney(epfDeduction)} for ${empName} (${periodName})`);
+            if(window.writeSystemLog) writeSystemLog("SALARY_DISBURSED", `Paid ${formatMoney(data.netSalary)} to ${data.emp.name}. Recorded Statutory Liabilities.`);
 
             closeModal('salaryPaymentModal');
-            showToast(`Salary Paid to ${empName} successfully!`, "success");
+            showToast(`Salary Paid to ${data.emp.name} successfully!`, "success");
             await loadMasterPayroll(); 
             updateDashboard(); 
 
         } catch (e) {
-            console.error("Salary Payout Error:", e);
-            showToast("Error processing salary. Check connection.", "error");
+            console.error(e); showToast("Error processing salary.", "error");
         } finally {
-            toggleLoader(false);
-            window.isProcessingSalary = false; // LOCK RELEASED
+            toggleLoader(false); window.isProcessingSalary = false; 
         }
     };
 // 🚨 CA FIX: Safely carry forward employee debts to the next month's payroll
@@ -21513,6 +21666,127 @@ window.emergencyLocalOverride = async () => {
         // Payment එක ගෙවන්න ඕන ගාණ CFD එකට යවනවා
         const total = parseFloat(document.getElementById('cartTotal').textContent.replace(/[^0-9.-]+/g,"")) || 0;
         cfdChannel.postMessage({ type: 'CHECKOUT_QR', amount: total });
+    };
+// ==========================================
+    // 🏛️ ENTERPRISE STATUTORY EPF/ETF ENGINE
+    // ==========================================
+    let epfReportCache = [];
+
+    window.generateEpfReport = async () => {
+        const monthVal = document.getElementById('epfMonthFilter').value;
+        if (!monthVal) {
+            document.getElementById('epfMonthFilter').value = window.getSecureLocalDateStr().slice(0, 7);
+            return showToast("Please select a Payroll Month first!", "warning");
+        }
+
+        const [y, m] = monthVal.split('-');
+        // 0-indexed month needed for the payrollPeriod string
+        const periodName = `${parseInt(y)}_${parseInt(m) - 1}`;
+
+        toggleLoader(true);
+        const tbody = document.getElementById('epfReportBody');
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;"><i class="ri-loader-4-line ri-spin"></i> Generating C-Form Data...</td></tr>';
+        document.getElementById('epfReportArea').style.display = 'none';
+        document.getElementById('epfSummaryCards').style.display = 'none';
+
+        try {
+            const q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/epf_etf_records`), where("payrollPeriod", "==", periodName));
+            const snap = await getDocs(q);
+
+            epfReportCache = [];
+            let totalGross = 0, totalEmpEpf = 0, totalEmprEpf = 0, totalEtf = 0;
+
+            snap.forEach(d => {
+                const r = d.data();
+                epfReportCache.push(r);
+                totalGross += r.grossEarnings;
+                totalEmpEpf += r.epfEmployee;
+                totalEmprEpf += r.epfEmployer;
+                totalEtf += r.etfEmployer;
+            });
+
+            if (epfReportCache.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#ef4444; font-weight:bold;">No statutory records found! Ensure you have processed salaries for this month.</td></tr>';
+                document.getElementById('epfReportArea').style.display = 'block';
+                return;
+            }
+
+            // Summary UI
+            document.getElementById('epfRepGross').textContent = formatMoney(totalGross);
+            document.getElementById('epfRepTotalEpf').textContent = formatMoney(totalEmpEpf + totalEmprEpf);
+            document.getElementById('epfRepSplit').textContent = `(Emp: ${formatMoney(totalEmpEpf)} | Coy: ${formatMoney(totalEmprEpf)})`;
+            document.getElementById('epfRepTotalEtf').textContent = formatMoney(totalEtf);
+            document.getElementById('epfRepTotalRemit').textContent = formatMoney(totalEmpEpf + totalEmprEpf + totalEtf);
+            
+            document.getElementById('epfSummaryCards').style.display = 'grid';
+            document.getElementById('epfReportArea').style.display = 'block';
+
+            renderEpfTable(); // RAM pagination & filter function
+            if(window.writeSystemLog) writeSystemLog("EPF_REPORT_GENERATED", `Generated Statutory EPF/ETF Report for period: ${monthVal}`);
+
+        } catch (e) {
+            console.error(e);
+            showToast("Failed to generate report", "error");
+        } finally {
+            toggleLoader(false);
+        }
+    };
+
+    window.filterEpfTable = debounceSearch(() => { renderEpfTable(); }, 300);
+
+    function renderEpfTable() {
+        const tbody = document.getElementById('epfReportBody');
+        const term = document.getElementById('epfSearchInput').value.toLowerCase().trim();
+
+        const filtered = epfReportCache.filter(r => 
+            r.empName.toLowerCase().includes(term) || 
+            (r.nic && r.nic.toLowerCase().includes(term)) || 
+            (r.epfNo && r.epfNo.includes(term))
+        );
+
+        if (filtered.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:#666;">No records match your search.</td></tr>';
+            return;
+        }
+
+        // DOM POKA-YOKE: Render All since EPF reports need to be visible, but usually companies don't have >1000 employees per branch.
+        let html = '';
+        filtered.forEach(r => {
+            const totEpfEtf = r.epfEmployee + r.epfEmployer + r.etfEmployer;
+            html += `
+            <tr style="border-bottom:1px solid #e5e7eb; transition:0.2s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background=''">
+                <td style="font-weight:bold; font-family:monospace; color:var(--primary);">${r.epfNo}</td>
+                <td style="font-family:monospace; color:#4b5563;">${r.nic}</td>
+                <td style="font-weight:600;">${r.empName}</td>
+                <td style="text-align:right;">${formatMoney(r.grossEarnings)}</td>
+                <td style="text-align:right; color:#b45309;">${formatMoney(r.epfEmployee)}</td>
+                <td style="text-align:right; color:#b45309;">${formatMoney(r.epfEmployer)}</td>
+                <td style="text-align:right; color:#15803d;">${formatMoney(r.etfEmployer)}</td>
+                <td style="text-align:right; font-weight:900; color:var(--danger);">${formatMoney(totEpfEtf)}</td>
+            </tr>`;
+        });
+        tbody.innerHTML = html;
+    }
+
+    window.downloadEpfCSV = () => {
+        if (epfReportCache.length === 0) return showToast("No data to export!", "error");
+        
+        let csv = "EPF No,NIC,Employee Name,Total Earnings (Rs),EPF Employee 8% (Rs),EPF Employer 12% (Rs),ETF Employer 3% (Rs),Total Remittance (Rs)\n";
+        
+        epfReportCache.forEach(r => {
+            const totEpfEtf = r.epfEmployee + r.epfEmployer + r.etfEmployer;
+            csv += `"${r.epfNo}","${r.nic}","${r.empName}",${r.grossEarnings},${r.epfEmployee},${r.epfEmployer},${r.etfEmployer},${totEpfEtf}\n`;
+        });
+
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.setAttribute('hidden', '');
+        a.setAttribute('href', url);
+        a.setAttribute('download', `EPF_ETF_Return_${document.getElementById('epfMonthFilter').value}.csv`);
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
     };
 </script>
 
