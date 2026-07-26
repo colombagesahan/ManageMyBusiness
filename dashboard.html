@@ -9568,6 +9568,25 @@ window.autoFillDocCustomer = (name) => {
                 });
                 currentY = doc.lastAutoTable.finalY + 5;
             });
+
+            // 🚨 ARCHITECT FIX: Dynamically render Extra Charges Table if they exist!
+            if (docData.extras && docData.extras.length > 0) {
+                const extraBody = docData.extras.map((ex, i) => [
+                    i + 1, ex.cap || "-", ex.type || "Extra Charge", "-", "-", "-", formatMoney(ex.rate).replace(currentCurrency,'')
+                ]);
+                
+                doc.autoTable({
+                    startY: currentY,
+                    head: [['No', 'Capacity/Size', 'Extra Charge Description', '', '', '', 'Amount']],
+                    body: extraBody, theme: 'grid',
+                    // Use a slightly different header color (Orange/Amber) to differentiate Extras
+                    headStyles: { fillColor: [245, 158, 11], textColor: 255, fontSize: 9, fontStyle: 'bold' }, 
+                    columnStyles: { 0: { cellWidth: 10, halign:'center' }, 1: { cellWidth: 30 }, 2: { cellWidth: 'auto' }, 6: { cellWidth: 25, halign:'right' } },
+                    styles: { lineColor: [200, 200, 200], lineWidth: 0.1 }, margin: { left: margin, right: margin }
+                });
+                currentY = doc.lastAutoTable.finalY + 5;
+            }
+
         } 
         else if (docData.items && docData.items.length > 0) { // Smart POS A4 Receipt
             const tableBody = docData.items.map((item, i) => {
@@ -15965,7 +15984,30 @@ window.setQuickCash = (amount) => {
         if(window.writeSystemLog) writeSystemLog("ANALYTICS_PRINTED", `Printed system analytics/report: ${title}`);
         const content = document.getElementById(elementId).outerHTML;
         const win = window.open('', '', 'height=600,width=800');
-        win.document.write(`<html><head><title>${title}</title><style>body{font-family:sans-serif;} table{width:100%;border-collapse:collapse;font-size:12px;} th,td{border:1px solid #ddd;padding:8px;text-align:left;} th{background-color:#f2f2f2;}</style></head><body><h2>${title}</h2>${content}<script>window.onload=()=>{window.print();window.close();}<\/script></body></html>`);
+        
+        // 🚨 ACCOUNTING FIX: Injected Professional CSS to Right-Align Financial Columns automatically
+        win.document.write(`
+            <html><head><title>${title}</title>
+            <style>
+                body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 20px; color: #111827; }
+                h2 { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; }
+                table { width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 20px; }
+                th, td { border: 1px solid #d1d5db; padding: 10px; text-align: left; }
+                th { background-color: #f3f4f6; color: #374151; font-weight: bold; -webkit-print-color-adjust: exact; }
+                
+                /* Smart Alignment: Assumes last 2 columns in financial tables are numbers/money */
+                td:last-child, th:last-child, td:nth-last-child(2), th:nth-last-child(2) { text-align: right; }
+                
+                /* Keep actions hidden in prints if any sneaked in */
+                button { display: none !important; }
+            </style>
+            </head><body>
+                <h2>${title}</h2>
+                <div style="font-size:10px; color:#6b7280; text-align:right; margin-top:-15px; margin-bottom:20px;">Printed on: ${new Date().toLocaleString()}</div>
+                ${content}
+                <script>window.onload=()=>{ setTimeout(() => { window.print(); window.close(); }, 300); }<\/script>
+            </body></html>
+        `);
         win.document.close();
     };
 
