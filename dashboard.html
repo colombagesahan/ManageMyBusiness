@@ -15038,12 +15038,20 @@ window.setQuickCash = (amount) => {
             const paidSalariesMap = {};
             expSnap.forEach(d => { paidSalariesMap[d.data().empId] = true; });
 
-            // 🚀 CA FIX: N+1 QUERY PREVENTION FOR COMMISSIONS
-            // Fetch ALL sales and refunds for the entire month ONLY ONCE, then group them in RAM.
-            const startOfMonthIso = new Date(`${year}-${String(month + 1).padStart(2, '0')}-01T00:00:00.000Z`).toISOString();
+            // 🚨 ARCHITECT FIX: Strict Timezone Bypass (UTC+05:30) applied to Commission Engine!
+            const startOfMonthIso = new Date(`${year}-${String(month + 1).padStart(2, '0')}-01T00:00:00+05:30`).toISOString();
             const lastDayDate = new Date(year, month + 1, 0).getDate();
-            const endOfMonthIso = new Date(`${year}-${String(month + 1).padStart(2, '0')}-${lastDayDate}T23:59:59.999Z`).toISOString();
+            const endOfMonthIso = new Date(`${year}-${String(month + 1).padStart(2, '0')}-${lastDayDate}T23:59:59.999+05:30`).toISOString();
             
+            // 🚨 HR FIX: Fetch the Monthly Roster to calculate Official Closed Days
+            let closedDaysCount = 0;
+            try {
+                const rSnap = await getDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/settings`, `roster_${year}_${String(month + 1).padStart(2, '0')}`));
+                if (rSnap.exists() && rSnap.data().days) {
+                    Object.values(rSnap.data().days).forEach(day => { if(day.isClosed) closedDaysCount++; });
+                }
+            } catch(e) { console.warn("Roster fetch error", e); }
+
             const [allSalesSnap, allRefsSnap] = await Promise.all([
                 getDocs(query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`), where("date", ">=", startOfMonthIso), where("date", "<=", endOfMonthIso))),
                 getDocs(query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/refunds`), where("date", ">=", startOfMonthIso), where("date", "<=", endOfMonthIso)))
@@ -15053,15 +15061,12 @@ window.setQuickCash = (amount) => {
             allSalesSnap.forEach(d => {
                 const s = d.data();
                 if(s.salesRepId) {
-                    // 🚨 CA FIX: "Realized Revenue" Commission Math
-                    // Tax සහ නොගෙවූ ණය (Credit Balance) සඳහා කොමිස් ගෙවීම 100% ක් අවහිර කර ඇත!
-                    // මේ හරහා Salesman ට කොමිස් ලැබෙන්නේ සැබැවින්ම කඩේට ලැබුණු මුදලට (Cash, Card, Online, Advance) පමණි.
+                    // 🚨 IFRS ACCOUNTING FIX: Commission is based on Realized Cash Value!
+                    // පාරිභෝගික ණය (Credit Risk) සඳහා කොමිස් නොගෙවයි. Tax සඳහාද කොමිස් නොගෙවයි.
                     const unpaidDebt = s.creditBalance || 0;
                     let realizedRevenue = s.total - (s.taxAmt || 0) - unpaidDebt; 
                     
-                    // සෘණ අගයන් ආරක්ෂා කිරීම (Failsafe)
                     if (realizedRevenue < 0) realizedRevenue = 0;
-
                     repSalesMap[s.salesRepId] = (repSalesMap[s.salesRepId] || 0) + realizedRevenue;
                 }
             });
@@ -15136,9 +15141,12 @@ window.setQuickCash = (amount) => {
                     totAdvance += (Number(l.advance) || 0);
                 });
 
-                // ENTERPRISE FIX 1: Earned-Basis Calculation (Pro-rata for absconding or newly joined employees)
-                const payableDays = pDays + plDays + (halfDays * 0.5);
-                const earnedBasic = payableDays * dailyRate;
+                // 🚨 HR LABOUR LAW FIX: Employees MUST be paid for Official Closed Days!
+                const payableDays = pDays + plDays + (halfDays * 0.5) + closedDaysCount;
+                
+                // Failsafe: Cannot exceed actual days in month
+                const finalPayableDays = Math.min(payableDays, daysInMonth);
+                const earnedBasic = finalPayableDays * dailyRate;
 
                 const otRate = Number(emp.otRate) || 0;
                 const otPay = totExtra * otRate;
@@ -15176,9 +15184,10 @@ window.setQuickCash = (amount) => {
                 // 🛡️ ENTERPRISE FIX: Generate Pay Button or Paid Badge
                 const isPaid = paidSalariesMap[emp.id];
                 const safeEmpName = emp.name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                // 🚨 CA FIX: Pass EPF Deduction to the Payment Processor to log P&L Liabilities correctly!
                 const payActionHtml = isPaid 
                     ? `<button class="btn btn-ghost" style="padding:4px 8px; font-size:11px; color:#10b981; border-color:#bbf7d0; background:#f0fdf4; width:100%; cursor:default;" disabled><i class="ri-check-double-line"></i> Salary Paid</button>`
-                    : `<button class="btn btn-success" style="padding:4px 8px; font-size:11px; width:100%;" onclick="processSalaryPayment('${emp.id}', '${safeEmpName}', ${netSalary}, ${year}, ${month})"><i class="ri-wallet-3-line"></i> Pay Salary</button>`;
+                    : `<button class="btn btn-success" style="padding:4px 8px; font-size:11px; width:100%;" onclick="processSalaryPayment('${emp.id}', '${safeEmpName}', ${netSalary}, ${epfDeduction}, ${year}, ${month})"><i class="ri-wallet-3-line"></i> Pay Salary</button>`;
 
                 // 🚨 CA FIX: Carry Forward Button for Negative Salaries
                 const deficitActionHtml = `<button class="btn btn-danger" style="padding:4px 8px; font-size:11px; width:100%;" onclick="carryForwardDeficit('${emp.id}', '${safeEmpName}', ${Math.abs(netSalary)}, ${year}, ${month})"><i class="ri-arrow-right-circle-line"></i> Carry Deficit Forward</button>`;
@@ -17103,23 +17112,31 @@ window.togglePromoFields = () => {
 // ==========================================
     // 🛡️ ENTERPRISE PAYROLL-TO-LEDGER INTEGRATION
     // ==========================================
-    window.processSalaryPayment = async (empId, empName, amount, year, month) => {
-        // 🛡️ ENTERPRISE SECURITY: Prevent Cashiers from initiating Salary Payouts
+    // 🚨 ARCHITECT FIX: Added epfDeduction parameter
+    window.processSalaryPayment = async (empId, empName, amount, epfDeduction, year, month) => {
         if (userRole !== 'admin') {
             if(window.writeSystemLog) writeSystemLog("HACK_ATTEMPT", "CRITICAL: System Officer attempted to execute processSalaryPayment via Console!");
             return showToast("Security Alert: Access Denied!", "error");
         }
+
+        // 🚨 POKA-YOKE FIX: JavaScript Execution Lock (Prevents Double-Click Twin Payouts)
+        if (window.isProcessingSalary) return;
 
         if (amount <= 0) return showToast("Net salary is zero or negative!", "error");
         
         const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
         const periodName = `${monthNames[month]} ${year}`;
 
-        if (!confirm(`Authorize Official Salary Payout?\n\nEmployee: ${empName}\nAmount: ${formatMoney(amount)}\nPeriod: ${periodName}\n\nThis will be securely deducted from your Shop's Net Profit and EOD Cash Drawer.`)) return;
+        // 🚨 EOD FIX: Allow Admin to choose Payment Method so Bank Transfers don't crash the Cash Drawer
+        const payMethodStr = prompt(`Authorize Official Salary Payout?\n\nEmployee: ${empName}\nNet Paid: ${formatMoney(amount)}\nEPF Kept: ${formatMoney(epfDeduction)}\nPeriod: ${periodName}\n\nType '1' to Pay via CASH (Deducts from Till)\nType '2' to Pay via BANK TRANSFER`, "1");
+        
+        if (!payMethodStr) return; // User Cancelled
+        const payMethod = payMethodStr === "2" ? "Bank Transfer" : "Cash";
+        const isNonCash = payMethod === "Bank Transfer";
 
+        window.isProcessingSalary = true; // LOCK ENGAGED
         toggleLoader(true);
         try {
-            // 🛡️ 1. DOUBLE-PAYOUT PREVENTION: Check DB one last time before saving
             const checkQ = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`), 
                 where("isPayroll", "==", true), 
                 where("payrollPeriod", "==", `${year}_${month}`),
@@ -17129,29 +17146,49 @@ window.togglePromoFields = () => {
             
             if (!checkSnap.empty) {
                 toggleLoader(false);
-                await loadMasterPayroll(); // Refresh UI to fix stale state
+                window.isProcessingSalary = false;
+                await loadMasterPayroll(); 
                 return showToast(`Security Alert: Salary for ${empName} was already paid!`, "error");
             }
 
-            // 🛡️ 2. RECORD IN EXPENSES (General Ledger)
-            const expRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`));
-            await setDoc(expRef, {
+            const secureTimeNow = window.getSecureTime().toISOString();
+            const batch = writeBatch(db);
+
+            // Entry A: Net Salary (Cash/Bank Outflow)
+            const netExpRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`));
+            batch.set(netExpRef, {
                 description: `Staff Salary Payout: ${empName} (${periodName})`,
                 amount: amount,
                 isIncome: false,
-                payMethod: 'Cash', // Logs as Cash so EOD Drawer is perfectly balanced
-                date: window.getSecureTime().toISOString(),
-                // Metadata to link back to HR
+                payMethod: payMethod, 
+                date: secureTimeNow,
                 isPayroll: true,
+                isNonCashExpense: isNonCash, // 👈 Only deducts from Physical Drawer if Cash!
                 payrollPeriod: `${year}_${month}`,
                 empId: empId
             });
 
-            if(window.writeSystemLog) writeSystemLog("SALARY_DISBURSED", `Officially disbursed salary of ${formatMoney(amount)} to ${empName} for ${periodName}`);
+            // 🚨 CHARTERED ACCOUNTANT FIX: Log EPF as a Non-Cash Liability to reflect True P&L Cost!
+            if (epfDeduction > 0) {
+                const epfExpRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`));
+                batch.set(epfExpRef, {
+                    description: `EPF Liability Retained: ${empName} (${periodName})`,
+                    amount: epfDeduction,
+                    isIncome: false,
+                    payMethod: 'None', 
+                    date: secureTimeNow,
+                    isPayroll: true,
+                    isNonCashExpense: true, // DOES NOT deduct from Physical Drawer
+                    payrollPeriod: `${year}_${month}`,
+                    empId: empId
+                });
+            }
+
+            await batch.commit();
+
+            if(window.writeSystemLog) writeSystemLog("SALARY_DISBURSED", `Disbursed ${formatMoney(amount)} (${payMethod}) and retained EPF of ${formatMoney(epfDeduction)} for ${empName} (${periodName})`);
 
             showToast(`Salary Paid to ${empName} successfully!`, "success");
-            
-            // 🛡️ 3. REFRESH UI & PROFITS INSTANTLY
             await loadMasterPayroll(); 
             updateDashboard(); 
 
@@ -17160,6 +17197,7 @@ window.togglePromoFields = () => {
             showToast("Error processing salary. Check connection.", "error");
         } finally {
             toggleLoader(false);
+            window.isProcessingSalary = false; // LOCK RELEASED
         }
     };
 // 🚨 CA FIX: Safely carry forward employee debts to the next month's payroll
