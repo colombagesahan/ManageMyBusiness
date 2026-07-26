@@ -626,6 +626,19 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                             <div style="font-size:10px; color:#166534; margin-top:8px;">උදා: බිල රු. 5000 ට වැඩි නම් 5% ක වට්ටමක් දෙන්න. Cashier ට අතින් වට්ටම් දිය නොහැක.</div>
                         </div>
 
+<!-- 🚀 ENTERPRISE SALES COMMISSION POLICY -->
+                        <div style="margin-top: 15px; padding: 15px; background: #eff6ff; border: 2px solid #3b82f6; border-radius: 8px;">
+                            <h4 style="color:#1e40af; margin-bottom:10px;"><i class="ri-percent-fill"></i> Sales Rep Commission Policy (කොමිස් ගෙවීමේ නීතිය)</h4>
+                            <label style="font-size:12px; font-weight:bold; color:#1e3a8a;">Select Commission Calculation Method *</label>
+                            <select id="profCommissionPolicy" style="margin-bottom:5px; border-color:#93c5fd; font-weight:bold; color:#1e3a8a;">
+                                <option value="ALL_SALES">Option A: Pay on ALL Sales (ණය සහ චෙක්පත් ඇතුළුව සියලුම අලෙවි සඳහා කොමිස් දෙන්න)</option>
+                                <option value="REALIZED_ONLY">Option B: Pay on Cash/Card/Bank ONLY (අත්පිට මුදලට විකුණූ ඒවට පමණක් කොමිස් දෙන්න - ණය/චෙක්පත් හැර)</option>
+                            </select>
+                            <div style="font-size:10px; color:#1d4ed8; margin-top:4px; line-height:1.3;">
+                                Option B තේරුවහොත්, ණයට (Pay Later) සහ චෙක්පත්වලට විකුණන බිල්පත් සඳහා සේවකයාට කොමිස් එකතු නොවේ.
+                            </div>
+                        </div>
+
                         <!-- 🚀 ENTERPRISE LOYALTY SETTINGS -->
                         <div style="margin-top: 15px; padding: 15px; background: #faf5ff; border: 2px solid #a855f7; border-radius: 8px;">
                             <h4 style="color:#7e22ce; margin-bottom:10px;"><i class="ri-medal-fill"></i> Customer Loyalty Program</h4>
@@ -4899,6 +4912,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         document.getElementById('profAutoDiscThreshold').value = p.autoDiscThreshold || '';
         document.getElementById('profAutoDiscType').value = p.autoDiscType || 'percent';
         document.getElementById('profAutoDiscValue').value = p.autoDiscValue || '';
+        document.getElementById('profCommissionPolicy').value = p.commissionPolicy || 'ALL_SALES';
         document.getElementById('profLoyaltyEnabled').checked = p.loyaltyEnabled === true;
         document.getElementById('profLoyaltySpend').value = p.loyaltySpend || '1000';
         document.getElementById('profLoyaltyEarn').value = p.loyaltyEarn || '1';
@@ -5052,7 +5066,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             // Save the Manager PIN (Fallback to 0000 if left empty)
             managerPin: document.getElementById('profManagerPin').value.trim() || '0000',
             expenseLimit: parseFloat(document.getElementById('profExpenseLimit').value) || 5000,
-            
+            commissionPolicy: document.getElementById('profCommissionPolicy').value,
             // Save Auto Discount Rules
             autoDiscEnabled: document.getElementById('profAutoDiscEnabled').checked,
             autoDiscThreshold: parseFloat(document.getElementById('profAutoDiscThreshold').value) || 0,
@@ -15101,16 +15115,33 @@ window.setQuickCash = (amount) => {
             ]);
 
             const repSalesMap = {};
+            const commPolicy = (profileCache && profileCache.commissionPolicy) ? profileCache.commissionPolicy : 'ALL_SALES';
+
             allSalesSnap.forEach(d => {
                 const s = d.data();
                 if(s.salesRepId) {
-                    // 🚨 CHARTERED ACCOUNTANT FIX: IFRS Accrual Basis for Commissions!
-                    // Commission must be paid on Net Sale Value (Subtotal - Discount), irrespective of Credit/Debt.
-                    // Tax amounts are excluded as they belong to the government.
-                    let netSaleValue = (s.subtotal || 0) - (s.discountAmt || 0); 
+                    let eligibleValue = 0;
+                    const netSaleValue = (s.subtotal || 0) - (s.discountAmt || 0);
+
+                    if (commPolicy === 'REALIZED_ONLY') {
+                        // Option B: Exclude Pay Later Debt and Cheque Payments!
+                        const isCreditOrCheque = (s.paymentMethod === 'Pay Later' || s.paymentMethod === 'Cheque');
+                        
+                        if (!isCreditOrCheque) {
+                            // Deduct any partial debt if exists
+                            const unpaidDebt = s.creditBalance || 0;
+                            eligibleValue = netSaleValue - unpaidDebt;
+                        } else {
+                            // If advance paid on Pay Later bill, count ONLY the advance
+                            eligibleValue = s.cashGiven || 0;
+                        }
+                    } else {
+                        // Option A: Pay on ALL Sales (Accrual Basis)
+                        eligibleValue = netSaleValue;
+                    }
                     
-                    if (netSaleValue < 0) netSaleValue = 0;
-                    repSalesMap[s.salesRepId] = (repSalesMap[s.salesRepId] || 0) + netSaleValue;
+                    if (eligibleValue < 0) eligibleValue = 0;
+                    repSalesMap[s.salesRepId] = (repSalesMap[s.salesRepId] || 0) + eligibleValue;
                 }
             });
             allRefsSnap.forEach(d => {
@@ -21211,12 +21242,25 @@ window.emergencyLocalOverride = async () => {
         const startIso = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
         
         let liveSales = 0;
+        const commPolicy = (profileCache && profileCache.commissionPolicy) ? profileCache.commissionPolicy : 'ALL_SALES';
+
         salesCache.forEach(s => {
             if (s.date >= startIso && s.salesRepId === emp.id) {
-                // 🚨 CA FIX: Gamification Bar updates ONLY for realized money! Unpaid debts don't move the progress bar.
-                const unpaidDebt = s.creditBalance || 0;
-                let realized = s.total - (s.taxAmt || 0) - unpaidDebt;
-                if (realized > 0) liveSales += realized;
+                let eligibleValue = 0;
+                const netSaleValue = (s.subtotal || 0) - (s.discountAmt || 0);
+
+                if (commPolicy === 'REALIZED_ONLY') {
+                    const isCreditOrCheque = (s.paymentMethod === 'Pay Later' || s.paymentMethod === 'Cheque');
+                    if (!isCreditOrCheque) {
+                        eligibleValue = netSaleValue - (s.creditBalance || 0);
+                    } else {
+                        eligibleValue = s.cashGiven || 0;
+                    }
+                } else {
+                    eligibleValue = netSaleValue;
+                }
+
+                if (eligibleValue > 0) liveSales += eligibleValue;
             }
         });
         refundsCache.forEach(r => {
