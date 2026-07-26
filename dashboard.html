@@ -3254,6 +3254,40 @@ body.pos-fullscreen-mode #view-pos > div > .card {
     </div>
 </div>
 
+<!-- 🚀 NEW: SECURE SALARY PAYMENT MODAL (POKA-YOKE) -->
+<div id="salaryPaymentModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.85); display:none; align-items:center; justify-content:center; z-index:5500; backdrop-filter:blur(4px);">
+    <div class="card" style="width:400px; margin:0; border-top:5px solid var(--success);">
+        <h3 style="color:var(--success); margin-bottom:10px;"><i class="ri-wallet-3-fill"></i> Disburse Salary</h3>
+        <p style="font-size:12px; color:#666; margin-bottom:15px;">Authorize official monthly payroll disbursement.</p>
+        
+        <input type="hidden" id="spEmpId">
+        <input type="hidden" id="spNetSalary">
+        <input type="hidden" id="spEpf">
+        <input type="hidden" id="spYear">
+        <input type="hidden" id="spMonth">
+
+        <div style="background:#f0fdf4; padding:15px; border-radius:8px; border:1px solid #bbf7d0; margin-bottom:15px; text-align:center;">
+            <div id="spEmpName" style="font-weight:bold; color:#166534; font-size:14px; margin-bottom:5px;"></div>
+            <div id="spPeriod" style="font-size:11px; color:#15803d; font-weight:bold; margin-bottom:10px;"></div>
+            <div style="font-size:11px; color:#15803d;">Net Payable:</div>
+            <div id="spNetSalaryDisplay" style="font-weight:900; font-size:26px; color:var(--primary);">0.00</div>
+            <div id="spEpfDisplay" style="font-size:10px; color:#b91c1c; margin-top:5px; font-weight:bold;"></div>
+        </div>
+
+        <label style="font-size:12px; font-weight:bold;">Payment Method (Fund Source) *</label>
+        <select id="spPayMethod" style="border-color:var(--success); font-weight:bold; margin-bottom:15px;">
+            <option value="Cash">Cash (Deducts from Till / EOD)</option>
+            <option value="Bank Transfer">Bank Transfer (Non-Cash / Ledger Only)</option>
+            <option value="Cheque">Issued Cheque</option>
+        </select>
+
+        <div style="display:flex; gap:10px;">
+            <button class="btn btn-success" style="flex:1; justify-content:center; padding:12px; font-size:14px;" onclick="confirmSalaryPayment()"><i class="ri-check-double-line"></i> Confirm & Pay</button>
+            <button class="btn btn-ghost" onclick="closeModal('salaryPaymentModal')">Cancel</button>
+        </div>
+    </div>
+</div>
+
 <!-- CREATE ALERT MODAL -->
 <div id="createAlertModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:2000;">
     <div class="card" style="width:400px; margin:0;">
@@ -12037,6 +12071,15 @@ window.autoFillDocCustomer = (name) => {
 
             if (!snap.empty) {
                 const existingLog = snap.docs[0].data();
+                
+                // 🚨 PRATHI-THARKA SECURITY FIX: Block editing of Auto-Carried Forward Deficits!
+                if (existingLog.systemNote && existingLog.systemNote.includes('Auto Carry-Forward')) {
+                    if (newAdv !== Number(existingLog.advance)) {
+                        toggleLoader(false);
+                        return showToast("Security Alert: You cannot modify an auto-carried forward debt! It must be settled via the official payroll.", "error");
+                    }
+                }
+
                 advanceDiff = newAdv - (Number(existingLog.advance) || 0);
                 
                 // 🚨 CA FIX 3: Do not overwrite status if manager selected "NO_CHANGE"
@@ -15061,13 +15104,13 @@ window.setQuickCash = (amount) => {
             allSalesSnap.forEach(d => {
                 const s = d.data();
                 if(s.salesRepId) {
-                    // 🚨 IFRS ACCOUNTING FIX: Commission is based on Realized Cash Value!
-                    // පාරිභෝගික ණය (Credit Risk) සඳහා කොමිස් නොගෙවයි. Tax සඳහාද කොමිස් නොගෙවයි.
-                    const unpaidDebt = s.creditBalance || 0;
-                    let realizedRevenue = s.total - (s.taxAmt || 0) - unpaidDebt; 
+                    // 🚨 CHARTERED ACCOUNTANT FIX: IFRS Accrual Basis for Commissions!
+                    // Commission must be paid on Net Sale Value (Subtotal - Discount), irrespective of Credit/Debt.
+                    // Tax amounts are excluded as they belong to the government.
+                    let netSaleValue = (s.subtotal || 0) - (s.discountAmt || 0); 
                     
-                    if (realizedRevenue < 0) realizedRevenue = 0;
-                    repSalesMap[s.salesRepId] = (repSalesMap[s.salesRepId] || 0) + realizedRevenue;
+                    if (netSaleValue < 0) netSaleValue = 0;
+                    repSalesMap[s.salesRepId] = (repSalesMap[s.salesRepId] || 0) + netSaleValue;
                 }
             });
             allRefsSnap.forEach(d => {
@@ -17113,26 +17156,44 @@ window.togglePromoFields = () => {
     // 🛡️ ENTERPRISE PAYROLL-TO-LEDGER INTEGRATION
     // ==========================================
     // 🚨 ARCHITECT FIX: Added epfDeduction parameter
-    window.processSalaryPayment = async (empId, empName, amount, epfDeduction, year, month) => {
-        if (userRole !== 'admin') {
-            if(window.writeSystemLog) writeSystemLog("HACK_ATTEMPT", "CRITICAL: System Officer attempted to execute processSalaryPayment via Console!");
-            return showToast("Security Alert: Access Denied!", "error");
-        }
+    // 1. Opens the Secure Modal
+    window.processSalaryPayment = (empId, empName, amount, epfDeduction, year, month) => {
+        if (userRole !== 'admin') return showToast("Security Alert: Access Denied!", "error");
+        if (amount <= 0) return showToast("Net salary is zero or negative!", "error");
 
-        // 🚨 POKA-YOKE FIX: JavaScript Execution Lock (Prevents Double-Click Twin Payouts)
+        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        
+        document.getElementById('spEmpId').value = empId;
+        document.getElementById('spNetSalary').value = amount;
+        document.getElementById('spEpf').value = epfDeduction;
+        document.getElementById('spYear').value = year;
+        document.getElementById('spMonth').value = month;
+
+        document.getElementById('spEmpName').textContent = empName;
+        document.getElementById('spPeriod').textContent = `Payroll Period: ${monthNames[month]} ${year}`;
+        document.getElementById('spNetSalaryDisplay').textContent = formatMoney(amount);
+        document.getElementById('spEpfDisplay').textContent = epfDeduction > 0 ? `+ Retained EPF Liability: ${formatMoney(epfDeduction)}` : '';
+        
+        document.getElementById('spPayMethod').value = 'Cash'; // Default
+        
+        openModal('salaryPaymentModal');
+    };
+
+    // 2. The actual transaction executed from the Modal
+    window.confirmSalaryPayment = async () => {
         if (window.isProcessingSalary) return;
 
-        if (amount <= 0) return showToast("Net salary is zero or negative!", "error");
+        const empId = document.getElementById('spEmpId').value;
+        const empName = document.getElementById('spEmpName').textContent;
+        const amount = parseFloat(document.getElementById('spNetSalary').value);
+        const epfDeduction = parseFloat(document.getElementById('spEpf').value);
+        const year = document.getElementById('spYear').value;
+        const month = document.getElementById('spMonth').value;
+        const payMethod = document.getElementById('spPayMethod').value;
         
         const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
         const periodName = `${monthNames[month]} ${year}`;
-
-        // 🚨 EOD FIX: Allow Admin to choose Payment Method so Bank Transfers don't crash the Cash Drawer
-        const payMethodStr = prompt(`Authorize Official Salary Payout?\n\nEmployee: ${empName}\nNet Paid: ${formatMoney(amount)}\nEPF Kept: ${formatMoney(epfDeduction)}\nPeriod: ${periodName}\n\nType '1' to Pay via CASH (Deducts from Till)\nType '2' to Pay via BANK TRANSFER`, "1");
-        
-        if (!payMethodStr) return; // User Cancelled
-        const payMethod = payMethodStr === "2" ? "Bank Transfer" : "Cash";
-        const isNonCash = payMethod === "Bank Transfer";
+        const isNonCash = (payMethod === 'Bank Transfer' || payMethod === 'Cheque');
 
         window.isProcessingSalary = true; // LOCK ENGAGED
         toggleLoader(true);
@@ -17145,6 +17206,7 @@ window.togglePromoFields = () => {
             const checkSnap = await getDocs(checkQ);
             
             if (!checkSnap.empty) {
+                closeModal('salaryPaymentModal');
                 toggleLoader(false);
                 window.isProcessingSalary = false;
                 await loadMasterPayroll(); 
@@ -17168,7 +17230,7 @@ window.togglePromoFields = () => {
                 empId: empId
             });
 
-            // 🚨 CHARTERED ACCOUNTANT FIX: Log EPF as a Non-Cash Liability to reflect True P&L Cost!
+            // Entry B: Log EPF as a Non-Cash Liability to reflect True P&L Cost!
             if (epfDeduction > 0) {
                 const epfExpRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`));
                 batch.set(epfExpRef, {
@@ -17188,6 +17250,7 @@ window.togglePromoFields = () => {
 
             if(window.writeSystemLog) writeSystemLog("SALARY_DISBURSED", `Disbursed ${formatMoney(amount)} (${payMethod}) and retained EPF of ${formatMoney(epfDeduction)} for ${empName} (${periodName})`);
 
+            closeModal('salaryPaymentModal');
             showToast(`Salary Paid to ${empName} successfully!`, "success");
             await loadMasterPayroll(); 
             updateDashboard(); 
