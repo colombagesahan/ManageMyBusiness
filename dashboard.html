@@ -1574,6 +1574,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                 </div>
                 
                 <div style="display:flex; gap:10px;">
+                    <button class="btn btn-warning" onclick="openSalaryPackageModal()"><i class="ri-money-dollar-box-line"></i> Salary Packages</button>
                     <!-- 🛡️ ENTERPRISE FIX: Manage Roles Button -->
                     <button class="btn btn-ghost" onclick="openModal('empRoleModal')"><i class="ri-git-merge-line"></i> Job Roles</button>
                     <button class="btn btn-primary" onclick="openEmployeeModal()">+ Add Employee</button>
@@ -3150,8 +3151,19 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         
         <div style="border-top:1px solid #eee; margin-top:10px; padding-top:10px;">
             <div style="font-size:12px; font-weight:bold; color:var(--primary); margin-bottom:10px;">Payroll Settings</div>
-            <label style="font-size:12px;">Base Monthly Salary *</label>
-            <input id="meSalary" type="number" placeholder="0.00">
+            
+            <div style="display:flex; gap:10px;">
+                <div style="flex:1;">
+                    <label style="font-size:12px;">Base Monthly Salary *</label>
+                    <input id="meSalary" type="number" placeholder="0.00" style="margin-bottom:10px; font-weight:bold;">
+                </div>
+                <div style="flex:1;">
+                    <label style="font-size:12px; color:var(--warning); font-weight:bold;">Salary Package (Allowances)</label>
+                    <select id="meSalaryPackage" style="margin-bottom:10px; border-color:var(--warning); font-weight:bold;">
+                        <option value="">-- No Package --</option>
+                    </select>
+                </div>
+            </div>
             
             <div style="display:flex; gap:10px;">
                 <div style="flex:1;">
@@ -3288,6 +3300,44 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             
             <!-- 🚨 ULTIMATE BUG FIX 3: Emergency Fallback -->
             <button class="btn btn-warning" style="width:100%; justify-content:center; background:#fefce8; color:#b45309; border:1px solid #fde047;" onclick="emergencyLocalOverride()"><i class="ri-admin-fill"></i> Admin Offline? Emergency Override</button>
+        </div>
+    </div>
+</div>
+
+<!-- 🚀 NEW: DYNAMIC SALARY PACKAGES MODAL -->
+<div id="salaryPackageModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.7); display:none; align-items:center; justify-content:center; z-index:2600; backdrop-filter:blur(3px);">
+    <div class="card" style="width:600px; max-height:90vh; display:flex; flex-direction:column; margin:0; border-top: 5px solid var(--warning);">
+        <div style="display:flex; justify-content:space-between; margin-bottom:10px; border-bottom:1px solid #e5e7eb; padding-bottom:10px;">
+            <h3 style="color:var(--warning); margin:0;"><i class="ri-money-dollar-box-fill"></i> Manage Salary Packages</h3>
+            <i class="ri-close-line" style="cursor:pointer; font-size:24px;" onclick="closeModal('salaryPackageModal')"></i>
+        </div>
+        
+        <div style="display:flex; gap:10px; margin-bottom:15px;">
+            <input id="spPkgName" placeholder="Package Name (e.g. Senior Tech Package)" style="margin:0; font-weight:bold; border-color:var(--warning); flex:1;">
+            <button class="btn btn-warning" onclick="saveSalaryPackage()"><i class="ri-save-line"></i> Save Pkg</button>
+        </div>
+
+        <div style="overflow-y:auto; padding-right:5px; flex:1;">
+            <div style="background:#f0fdf4; border:1px solid #bbf7d0; padding:10px; border-radius:8px; margin-bottom:15px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <h5 style="color:#166534; margin:0;"><i class="ri-add-circle-fill"></i> Allowances (දීමනා)</h5>
+                    <button class="btn btn-success" style="padding:4px 8px; font-size:11px;" onclick="addSpAllowanceRow()"><i class="ri-add-line"></i> Add</button>
+                </div>
+                <div id="spAllowancesList" style="display:flex; flex-direction:column; gap:8px;"></div>
+            </div>
+
+            <div style="background:#fef2f2; border:1px solid #fecaca; padding:10px; border-radius:8px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <h5 style="color:#b91c1c; margin:0;"><i class="ri-subtract-line"></i> Deductions (අඩු කිරීම්)</h5>
+                    <button class="btn btn-danger" style="padding:4px 8px; font-size:11px;" onclick="addSpDeductionRow()"><i class="ri-add-line"></i> Add</button>
+                </div>
+                <div id="spDeductionsList" style="display:flex; flex-direction:column; gap:8px;"></div>
+            </div>
+        </div>
+
+        <div style="margin-top:15px; border-top:1px solid #e5e7eb; padding-top:10px;">
+            <h5 style="margin-bottom:10px; color:#4b5563;">Saved Packages</h5>
+            <div id="spSavedPackages" style="max-height:150px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px;"></div>
         </div>
     </div>
 </div>
@@ -4021,6 +4071,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
     let assignedShopId = null; 
     let currentCurrency = "$";
     let productsCache =[];
+    let salaryPackagesCache = []; // 🚀 NEW: Cache for Salary Packages
     let servicesCache =[]; // NEW: To store services
     let catalogCache = []; 
     let categoriesCache = []; 
@@ -4677,7 +4728,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 
             // PERFORMANCE FIX: Parallel Loading (Promise.all) - Phase 1: Critical Path
             await Promise.all([
-                loadProfile(), loadCategories(), loadServiceCategories(), loadCatalog(), loadProducts(), loadServices(), loadEmpRoles()
+                loadProfile(), loadCategories(), loadServiceCategories(), loadCatalog(), loadProducts(), loadServices(), loadEmpRoles(), loadSalaryPackages()
             ]);
 
             // ENTERPRISE FIX: Set Default View to POS on Initial Boot
@@ -11912,6 +11963,7 @@ window.autoFillDocCustomer = (name) => {
         document.getElementById('mePhone').value = '';
         document.getElementById('meRole').value = '';
         document.getElementById('meSalary').value = '';
+        document.getElementById('meSalaryPackage').value = ''; // 🚀 NEW
         document.getElementById('meHours').value = '8';
         document.getElementById('meOTRate').value = '0';
         document.getElementById('meTarget').value = '0'; 
@@ -11940,6 +11992,7 @@ window.autoFillDocCustomer = (name) => {
         document.getElementById('mePhone').disabled = true; 
         document.getElementById('meRole').value = e.role || '';
         document.getElementById('meSalary').value = e.baseSalary || 0;
+        document.getElementById('meSalaryPackage').value = e.salaryPackageId || ''; // 🚀 NEW
         document.getElementById('meHours').value = e.standardHours || 8;
         document.getElementById('meOTRate').value = e.otRate || 0;
         document.getElementById('meTarget').value = e.targetAmount || 0; 
@@ -12068,6 +12121,7 @@ window.autoFillDocCustomer = (name) => {
         const phone = document.getElementById('mePhone').value.trim().toUpperCase(); 
         const role = document.getElementById('meRole').value.trim();
         const salary = Number(document.getElementById('meSalary').value) || 0;
+        const salaryPackageId = document.getElementById('meSalaryPackage').value; // 🚀 NEW
         const hours = Number(document.getElementById('meHours').value) || 8;
         const otRate = Number(document.getElementById('meOTRate').value) || 0;
         const targetAmt = Number(document.getElementById('meTarget').value) || 0;
@@ -12097,7 +12151,7 @@ window.autoFillDocCustomer = (name) => {
             }
 
             await setDoc(empRef, {
-                name, phone, role, baseSalary: salary, standardHours: hours, otRate: otRate,
+                name, phone, role, baseSalary: salary, salaryPackageId: salaryPackageId, standardHours: hours, otRate: otRate,
                 targetAmount: targetAmt, commissionRate: commRate, isSalesRep: isSalesRep,
                 nic: nic, epfNo: epfNo, isEpfEligible: isEpfEligible,
                 photo: currentEmpPhotoBase64 
@@ -13046,6 +13100,132 @@ window.setQuickCash = (amount) => {
         // If it's a Cheque/Transfer, all quick buttons remain 'ghost' (unselected look),
         // showing the user that a custom dropdown option is currently active.
     };
+
+// ==========================================
+    // 🚀 ENTERPRISE: DYNAMIC SALARY PACKAGES ENGINE
+    // ==========================================
+    async function loadSalaryPackages() {
+        const snap = await getDocs(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/salary_packages`));
+        salaryPackagesCache = [];
+        snap.forEach(d => salaryPackagesCache.push({ id: d.id, ...d.data() }));
+        
+        // Populate Employee Modal Dropdown
+        const dp = document.getElementById('meSalaryPackage');
+        if(dp) {
+            dp.innerHTML = '<option value="">-- No Package (Basic Only) --</option>' + 
+                salaryPackagesCache.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+        }
+    }
+
+    window.openSalaryPackageModal = () => {
+        document.getElementById('spPkgName').value = '';
+        document.getElementById('spAllowancesList').innerHTML = '';
+        document.getElementById('spDeductionsList').innerHTML = '';
+        renderSavedPackages();
+        openModal('salaryPackageModal');
+    };
+
+    function renderSavedPackages() {
+        const list = document.getElementById('spSavedPackages');
+        if(salaryPackagesCache.length === 0) {
+            list.innerHTML = '<div style="padding:10px; text-align:center; color:#999; font-size:12px;">No packages saved yet.</div>';
+            return;
+        }
+        list.innerHTML = `<table style="width:100%; font-size:12px; text-align:left;">
+            ${salaryPackagesCache.map(p => `
+                <tr style="border-bottom:1px solid #eee;">
+                    <td style="padding:8px; font-weight:bold; color:var(--primary);">${p.name}</td>
+                    <td style="padding:8px; color:#666;">+${p.allowances.length} Alw | -${p.deductions.length} Ded</td>
+                    <td style="padding:8px; text-align:right;">
+                        <button class="btn btn-danger" style="padding:2px 6px; font-size:10px;" onclick="deleteSalaryPackage('${p.id}')"><i class="ri-delete-bin-line"></i></button>
+                    </td>
+                </tr>
+            `).join('')}
+        </table>`;
+    }
+
+    window.addSpAllowanceRow = () => {
+        const list = document.getElementById('spAllowancesList');
+        const div = document.createElement('div');
+        div.className = "sp-alw-row";
+        div.style = "display:flex; gap:5px; align-items:center;";
+        div.innerHTML = `
+            <input type="text" class="alw-name" placeholder="Name (e.g. Transport)" style="margin:0; flex:2; font-size:11px; padding:6px;">
+            <select class="alw-type" style="margin:0; flex:2; font-size:11px; padding:6px;">
+                <option value="fixed">Fixed (Monthly)</option>
+                <option value="daily">Daily (Per Day Present)</option>
+                <option value="condition">Bonus (If 0 LWP & No Lates)</option>
+            </select>
+            <input type="number" class="alw-amt" placeholder="Amt" style="margin:0; flex:1.5; font-size:11px; padding:6px;">
+            <label style="font-size:9px; font-weight:bold; color:#0f766e; flex:1; text-align:center;"><input type="checkbox" class="alw-epf" style="vertical-align:middle;"> EPF?</label>
+            <i class="ri-close-circle-fill" style="color:#ef4444; font-size:18px; cursor:pointer;" onclick="this.parentElement.remove()"></i>
+        `;
+        list.appendChild(div);
+    };
+
+    window.addSpDeductionRow = () => {
+        const list = document.getElementById('spDeductionsList');
+        const div = document.createElement('div');
+        div.className = "sp-ded-row";
+        div.style = "display:flex; gap:5px; align-items:center;";
+        div.innerHTML = `
+            <input type="text" class="ded-name" placeholder="Name (e.g. Welfare Fund)" style="margin:0; flex:2; font-size:11px; padding:6px;">
+            <input type="number" class="ded-amt" placeholder="Amount" style="margin:0; flex:1; font-size:11px; padding:6px;">
+            <i class="ri-close-circle-fill" style="color:#ef4444; font-size:18px; cursor:pointer;" onclick="this.parentElement.remove()"></i>
+        `;
+        list.appendChild(div);
+    };
+
+    window.saveSalaryPackage = async () => {
+        if(userRole !== 'admin') return showToast("Admin Only!", "error");
+        
+        const name = document.getElementById('spPkgName').value.trim();
+        if(!name) return showToast("Package name required", "error");
+
+        const allowances = [];
+        document.querySelectorAll('.sp-alw-row').forEach(row => {
+            const aName = row.querySelector('.alw-name').value.trim();
+            const aType = row.querySelector('.alw-type').value;
+            const aAmt = parseFloat(row.querySelector('.alw-amt').value) || 0;
+            const aEpf = row.querySelector('.alw-epf').checked;
+            if(aName && aAmt > 0) allowances.push({ name: aName, type: aType, amount: aAmt, isEpf: aEpf });
+        });
+
+        const deductions = [];
+        document.querySelectorAll('.sp-ded-row').forEach(row => {
+            const dName = row.querySelector('.ded-name').value.trim();
+            const dAmt = parseFloat(row.querySelector('.ded-amt').value) || 0;
+            if(dName && dAmt > 0) deductions.push({ name: dName, amount: dAmt });
+        });
+
+        toggleLoader(true);
+        try {
+            await addDoc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/salary_packages`), {
+                name, allowances, deductions, createdAt: window.getSecureTime().toISOString()
+            });
+            document.getElementById('spPkgName').value = '';
+            document.getElementById('spAllowancesList').innerHTML = '';
+            document.getElementById('spDeductionsList').innerHTML = '';
+            await loadSalaryPackages();
+            renderSavedPackages();
+            showToast("Package Saved Successfully!");
+        } catch (e) { showToast("Error saving package", "error"); }
+        toggleLoader(false);
+    };
+
+    window.deleteSalaryPackage = async (id) => {
+        if(userRole !== 'admin') return;
+        const inUse = employeesCache.some(e => e.salaryPackageId === id);
+        if(inUse) return showToast("Cannot delete! Some employees are actively using this package.", "error");
+        
+        if(!confirm("Delete this Salary Package?")) return;
+        toggleLoader(true);
+        await deleteDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/salary_packages`, id));
+        await loadSalaryPackages();
+        renderSavedPackages();
+        toggleLoader(false);
+    };
+
 // --- CASHIER MANAGEMENT LOGIC ---
     window.loadCashiersUI = async () => {
         const tbody = document.querySelector('#cashiersTable tbody');
@@ -15251,22 +15431,19 @@ window.setQuickCash = (amount) => {
                 const s = d.data();
                 if(s.salesRepId) {
                     let eligibleValue = 0;
-                    const netSaleValue = (s.subtotal || 0) - (s.discountAmt || 0);
+                    const netSaleValue = Math.max(0, (s.subtotal || 0) - (s.discountAmt || 0));
 
                     if (commPolicy === 'REALIZED_ONLY') {
-                        // Option B: Exclude Pay Later Debt and Cheque Payments!
                         const isCreditOrCheque = (s.paymentMethod === 'Pay Later' || s.paymentMethod === 'Cheque');
-                        
                         if (!isCreditOrCheque) {
-                            // Deduct any partial debt if exists
                             const unpaidDebt = s.creditBalance || 0;
-                            eligibleValue = netSaleValue - unpaidDebt;
+                            // 🚨 CA FIX: Prevent Overpayment Exploit! Cannot earn commission on Wallet Overpayments.
+                            eligibleValue = Math.min(netSaleValue, Math.max(0, netSaleValue - unpaidDebt));
                         } else {
-                            // If advance paid on Pay Later bill, count ONLY the advance
-                            eligibleValue = s.cashGiven || 0;
+                            // 🚨 CA FIX: If advance paid is greater than net value, cap it at netSaleValue!
+                            eligibleValue = Math.min(netSaleValue, s.cashGiven || 0);
                         }
                     } else {
-                        // Option A: Pay on ALL Sales (Accrual Basis)
                         eligibleValue = netSaleValue;
                     }
                     
@@ -15283,9 +15460,10 @@ window.setQuickCash = (amount) => {
             });
 
             let html = '';
-            // Process each employee securely
+            // 🚨 CA & ARCHITECT FIX: Process each employee securely with strict Try-Catch Isolation
             for(let emp of allEmployees) {
-                const logsRef = collection(db, `users/${dbOwnerId}/shops/${currentShopId}/employees/${emp.id}/logs`);
+                try {
+                    const logsRef = collection(db, `users/${dbOwnerId}/shops/${currentShopId}/employees/${emp.id}/logs`);
                 const lastDay = new Date(year, month + 1, 0).getDate();
                 const startOfMonth = `${year}-${String(month + 1).padStart(2, '0')}-01`;
                 const endOfMonth = `${year}-${String(month + 1).padStart(2, '0')}-${lastDay}`;
@@ -15309,90 +15487,124 @@ window.setQuickCash = (amount) => {
                 let pDays = 0, plDays = 0, halfDays = 0, lwpDays = 0;
                 let totWorked = 0, totExtra = 0, totAdvance = 0, deficitDeduction = 0;
 
-                // ENTERPRISE FIX 2: Prevent Division by Zero & NaN crashes for old/corrupted records
+                // 🚀 CA & ARCHITECT FIX: THE BULLETPROOF PAYROLL ENGINE (IFRS Compliant)
                 const baseSal = Number(emp.baseSalary) || 0;
                 const stdHours = Math.max(1, Number(emp.standardHours) || 8); 
-                
-                // MATH FIX: Dynamic Days in Month Calculation (Prevents 31st Day Overpayment / Feb Underpayment)
                 const daysInMonth = new Date(year, month + 1, 0).getDate();
                 const dailyRate = baseSal / daysInMonth; 
                 const hourlyRate = dailyRate / stdHours;
 
+                // Loop logs to get attendance values
                 processedLogs.forEach(l => {
                     if(l.status === 'P') {
                         pDays++;
                         const worked = Number(l.workedHours) || 0;
-                        
-                        // 🛡️ ENTERPRISE FIX: Smart Penalty Engine (Prevents Free Salary Loopholes)
                         const isScannerLog = l.clockInTime ? true : false;
                         const isMissingOutPunch = isScannerLog && !l.clockOutTime;
 
-                        if (isMissingOutPunch) {
-                            // 1. Forgot to Clock-out! (Deduct full day's pay to prevent free salary. Manager must verify and override manually.)
-                            deficitDeduction += (stdHours * hourlyRate);
-                        } else if (isScannerLog && l.clockOutTime && worked < stdHours) {
-                            // 2. Properly clocked out, but worked less than standard hours
-                            deficitDeduction += ((stdHours - worked) * hourlyRate);
-                        }
-                        // 3. If NOT a scanner log (i.e., Manager manually marked 'P' via Daily Log), we trust the manager and deduct nothing!
+                        if (isMissingOutPunch) deficitDeduction += (stdHours * hourlyRate);
+                        else if (isScannerLog && l.clockOutTime && worked < stdHours) deficitDeduction += ((stdHours - worked) * hourlyRate);
                     }
                     else if(l.status === 'PL') plDays++;
                     else if(l.status === 'H') halfDays++;
                     else if(l.status === 'LWP') lwpDays++;
 
-                    totWorked += (Number(l.workedHours) || 0);
-                    totExtra += (Number(l.ot) || 0);
-                    totAdvance += (Number(l.advance) || 0);
+                    totWorked += Math.max(0, Number(l.workedHours) || 0);
+                    totExtra += Math.max(0, Number(l.ot) || 0);
+                    totAdvance += Math.max(0, Number(l.advance) || 0);
                 });
 
-                // 🚨 HR LABOUR LAW FIX: Employees MUST be paid for Official Closed Days!
-                const payableDays = pDays + plDays + (halfDays * 0.5) + closedDaysCount;
+                // [ A. අනිවාර්ය ඉපයීම් (Statutory Earnings) ]
+                const payableDays = Math.min(daysInMonth, pDays + plDays + (halfDays * 0.5) + closedDaysCount);
+                const grossBasic = payableDays * dailyRate;
                 
-                // Failsafe: Cannot exceed actual days in month
-                const finalPayableDays = Math.min(payableDays, daysInMonth);
-                const earnedBasic = finalPayableDays * dailyRate;
+                // සැබෑ EPF පදනම (නොපැමිණීම් සහ ප්‍රමාද වීම් අඩු කළ පසු)
+                const trueEarnedBasic = Math.max(0, grossBasic - deficitDeduction);
 
-                const otRate = Number(emp.otRate) || 0;
-                const otPay = totExtra * otRate;
-                
-                // 🚀 CA FIX: CALCULATE GAMIFICATION COMMISSION
-                const targetAmt = Number(emp.targetAmount) || 0;
-                const commRate = Number(emp.commissionRate) || 0;
-                const repNetSales = repSalesMap[emp.id] || 0;
-                let commissionPay = 0;
+                // [ B. ගතික දීමනා එකතු කිරීම (Dynamic Allowances) ]
+                const pkg = salaryPackagesCache.find(p => p.id === emp.salaryPackageId) || { allowances: [], deductions: [] };
+                let epfLiableAllowances = 0;
+                let nonEpfAllowances = 0;
+                let alwBreakdown = []; // For Payslip
 
-                if (commRate > 0) {
-                    if (targetAmt > 0) {
-                        if (repNetSales > targetAmt) {
-                            commissionPay = (repNetSales - targetAmt) * (commRate / 100);
+                if(pkg.allowances) {
+                    pkg.allowances.forEach(alw => {
+                        let amt = 0;
+                        if(alw.type === 'fixed') {
+                            amt = Number(alw.amount);
+                        } else if (alw.type === 'daily') {
+                            amt = Number(alw.amount) * payableDays; // පැමිණි දිනට පමණි
+                        } else if (alw.type === 'condition') {
+                            // නිවාඩු බිංදුවයි නම් සහ ප්‍රමාද වීම් මුදලින් බිංදුවයි නම් පමණි!
+                            if (lwpDays === 0 && deficitDeduction === 0) amt = Number(alw.amount);
                         }
+
+                        if (amt > 0) {
+                            if (alw.isEpf) epfLiableAllowances += amt;
+                            else nonEpfAllowances += amt;
+                            alwBreakdown.push({ name: alw.name, amount: amt });
+                        }
+                    });
+                }
+
+                // 🚨 IFRS FIX: නිවැරදිම EPF Base එක!
+                const totalEpfBase = trueEarnedBasic + epfLiableAllowances;
+
+                // OT සහ කොමිස් (Ring-Fenced Engine)
+                const otPay = totExtra * (Number(emp.otRate) || 0);
+                
+                let commissionPay = 0;
+                const commRate = Number(emp.commissionRate) || 0;
+                if (commRate > 0) {
+                    const targetAmt = Number(emp.targetAmount) || 0;
+                    const repNetSales = repSalesMap[emp.id] || 0;
+                    if (targetAmt > 0) {
+                        if (repNetSales > targetAmt) commissionPay = (repNetSales - targetAmt) * (commRate / 100);
                     } else {
-                        // ටාගට් එකක් දීලා නැත්නම් විකුණන මුළු ගාණටම කොමිස් ලැබේ
                         commissionPay = repNetSales * (commRate / 100);
                     }
                 }
                 commissionPay = Math.round(commissionPay * 100) / 100;
 
-                // 🚨 IFRS & STATUTORY FIX: Dynamic EPF/ETF Calculation based on Eligibility
-                let epfEmployeeDed = 0;
-                let epfEmployerCont = 0;
-                let etfEmployerCont = 0;
+                // මුළු ඉපයීම (Gross Salary)
+                const grossEarnings = trueEarnedBasic + epfLiableAllowances + nonEpfAllowances + otPay + commissionPay;
 
-                const isEligible = emp.isEpfEligible !== false; // Default true
-                if (isEligible && earnedBasic > 0) {
+                // [ C. අඩු කිරීම් (Deductions) ]
+                let epfEmployeeDed = 0, epfEmployerCont = 0, etfEmployerCont = 0;
+                if (emp.isEpfEligible !== false && totalEpfBase > 0) {
                     const pctEmp = profileCache?.epfEmployee !== undefined ? profileCache.epfEmployee : 8;
                     const pctEmpr = profileCache?.epfEmployer !== undefined ? profileCache.epfEmployer : 12;
                     const pctEtf = profileCache?.etfEmployer !== undefined ? profileCache.etfEmployer : 3;
                     
-                    epfEmployeeDed = Math.round((earnedBasic * (pctEmp / 100)) * 100) / 100;
-                    epfEmployerCont = Math.round((earnedBasic * (pctEmpr / 100)) * 100) / 100;
-                    etfEmployerCont = Math.round((earnedBasic * (pctEtf / 100)) * 100) / 100;
+                    // හැදෙන්නේ අලුත් Total EPF Base එකෙනි!
+                    epfEmployeeDed = Math.round((totalEpfBase * (pctEmp / 100)) * 100) / 100;
+                    epfEmployerCont = Math.round((totalEpfBase * (pctEmpr / 100)) * 100) / 100;
+                    etfEmployerCont = Math.round((totalEpfBase * (pctEtf / 100)) * 100) / 100;
                 }
-                
-                const netSalary = Math.round((earnedBasic - deficitDeduction - totAdvance - epfEmployeeDed + otPay + commissionPay) * 100) / 100;
+
+                let dynamicDeductionsAmt = 0;
+                let dedBreakdown = []; // For payslip
+                if(pkg.deductions) {
+                    pkg.deductions.forEach(ded => {
+                        const amt = Number(ded.amount);
+                        if(amt > 0) {
+                            dynamicDeductionsAmt += amt;
+                            dedBreakdown.push({ name: ded.name, amount: amt });
+                        }
+                    });
+                }
+
+                // [ D. අවසාන ප්‍රතිඵලය ]
+                // Earned Basic එකෙන් කලින්ම Short hours කපලා (trueEarnedBasic) තියෙන නිසා ආයෙත් අඩු කරන්නේ නෑ
+                const netSalary = Math.round((grossEarnings - epfEmployeeDed - dynamicDeductionsAmt - totAdvance) * 100) / 100;
 
                 // Save to Global RAM Cache for Payment Processing & Views!
                 currentPayrollData.push({
+                    alwBreakdown: alwBreakdown, // NEW
+                    dedBreakdown: dedBreakdown, // NEW
+                    trueEarnedBasic: trueEarnedBasic, // NEW
+                    grossEarnings: grossEarnings, // NEW
+                    totalEpfBase: totalEpfBase, // NEW
                     emp: emp, logs: processedLogs, pDays, plDays, halfDays, lwpDays,
                     totWorked, totExtra, totAdvance, otPay, deficitDeduction, earnedBasic, 
                     epfEmployeeDed, epfEmployerCont, etfEmployerCont, commissionPay, netSalary
@@ -15426,7 +15638,12 @@ window.setQuickCash = (amount) => {
                         </div>
                     </td>
                 </tr>`;
-            }
+                
+                } catch (empErr) {
+                    console.error(`Payroll isolation error for ${emp.id}:`, empErr);
+                    html += `<tr><td colspan="9" style="color:red; text-align:center; font-weight:bold; background:#fee2e2;">Error calculating payroll for Employee: ${emp.name} (${emp.id})</td></tr>`;
+                }
+            } // End of Employee Loop
             
             tbody.innerHTML = html;
             if(window.writeSystemLog) writeSystemLog("PAYROLL_VIEWED", `Generated and viewed Master Payroll on screen for Month: ${month + 1}, Year: ${year}`);
@@ -15466,24 +15683,40 @@ window.setQuickCash = (amount) => {
             }).join('');
         }
 
-        // 2. Render Slip
+        // 2. Render Slip (Dynamic Engine)
         const slip = document.getElementById('payslipSummary');
+        
+        let alwHtml = data.alwBreakdown.map(a => `<div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>${a.name}:</span> <strong style="color:var(--success);">+${formatMoney(a.amount)}</strong></div>`).join('');
+        let dedHtml = data.dedBreakdown.map(d => `<div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>${d.name}:</span> <strong style="color:var(--danger);">-${formatMoney(d.amount)}</strong></div>`).join('');
+
         slip.innerHTML = `
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
                 <div>
-                    <h5 style="margin-bottom:10px; color:#666;">EARNINGS</h5>
+                    <h5 style="margin-bottom:10px; color:#666;">EARNINGS (ඉපයීම්)</h5>
                     <div style="display:flex; justify-content:space-between; margin-bottom:5px; font-size:11px; color:#999;"><span>Contract Base:</span> <span>${formatMoney(data.emp.baseSalary)} / 30 Days</span></div>
-                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>Earned Basic (${data.pDays} P, ${data.plDays} PL, ${data.halfDays} H):</span> <strong>${formatMoney(data.earnedBasic)}</strong></div>
-                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>OT Pay (${data.totExtra.toFixed(1)} hrs @ ${formatMoney(data.emp.otRate)}/hr):</span> <strong style="color:var(--success);">+${formatMoney(data.otPay)}</strong></div>
-                    <!-- 🚨 NEW: Sales Commission Display -->
-                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>Sales Commission:</span> <strong style="color:var(--primary);">+${formatMoney(data.commissionPay || 0)}</strong></div>
+                    
+                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                        <span>Earned Basic <br><span style="font-size:9px; color:#666;">(${data.pDays}P, ${data.plDays}PL, ${data.halfDays}H - No Lates)</span>:</span> 
+                        <strong>${formatMoney(data.trueEarnedBasic)}</strong>
+                    </div>
+                    
+                    <div style="border-top:1px dashed #ccc; margin:8px 0;"></div>
+                    ${alwHtml} <!-- Dynamic Allowances -->
+                    <div style="border-top:1px dashed #ccc; margin:8px 0;"></div>
+                    
+                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>OT Pay (${data.totExtra.toFixed(1)} hrs):</span> <strong style="color:var(--success);">+${formatMoney(data.otPay)}</strong></div>
+                    ${data.commissionPay > 0 ? `<div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>Sales Commission:</span> <strong style="color:var(--primary);">+${formatMoney(data.commissionPay)}</strong></div>` : ''}
                 </div>
+                
                 <div>
-                    <h5 style="margin-bottom:10px; color:#666;">DEDUCTIONS</h5>
-                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>Short Hours Penalty:</span> <strong style="color:var(--danger);">-${formatMoney(data.deficitDeduction)}</strong></div>
-                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>EPF Deduction (Employee):</span> <strong style="color:var(--danger);">-${formatMoney(data.epfEmployeeDed)}</strong></div>
-<div style="font-size:10px; color:#0f766e; margin-top:10px; border-top:1px dashed #ccc; padding-top:5px;">* Employer contributes additional ${formatMoney(data.epfEmployerCont)} to EPF & ${formatMoney(data.etfEmployerCont)} to ETF on your behalf.</div>
-                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>Cash Advances:</span> <strong style="color:var(--danger);">-${formatMoney(data.totAdvance)}</strong></div>
+                    <h5 style="margin-bottom:10px; color:#666;">DEDUCTIONS (අඩු කිරීම්)</h5>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>EPF Deduction (Employee 8%):</span> <strong style="color:var(--danger);">-${formatMoney(data.epfEmployeeDed)}</strong></div>
+                    <div style="font-size:10px; color:#0f766e; margin-top:2px; margin-bottom:8px; line-height:1.2;">* 8% deducted from EPF Base of ${formatMoney(data.totalEpfBase)}. Employer contributes additional ${formatMoney(data.epfEmployerCont)} to EPF & ${formatMoney(data.etfEmployerCont)} to ETF.</div>
+                    
+                    ${dedHtml} <!-- Dynamic Deductions -->
+                    
+                    <div style="border-top:1px dashed #ccc; margin:8px 0;"></div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>Cash Advances Drawn:</span> <strong style="color:var(--danger);">-${formatMoney(data.totAdvance)}</strong></div>
                 </div>
             </div>
             <div style="margin-top:15px; padding-top:15px; border-top:2px dashed #bbf7d0; display:flex; justify-content:space-between; align-items:center;">
@@ -17392,7 +17625,9 @@ window.togglePromoFields = () => {
             const netExpRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`));
             batch.set(netExpRef, {
                 description: `Staff Salary Payout: ${data.emp.name} (${periodName})`,
-                amount: data.netSalary, isIncome: false, payMethod: payMethod, date: secureTimeNow,
+                // 🚨 CA FIX: Enforce absolute float precision before database commit!
+                amount: Math.round(data.netSalary * 100) / 100, 
+                isIncome: false, payMethod: payMethod, date: secureTimeNow,
                 isPayroll: true, isNonCashExpense: isNonCash, payrollPeriod: periodName, empId: empId
             });
 
@@ -17459,6 +17694,16 @@ window.togglePromoFields = () => {
             let nextMonth = month + 1;
             let nextYear = year;
             if (nextMonth > 11) { nextMonth = 0; nextYear++; }
+            
+            // 🚨 SYSTEM ARCHITECT FIX: Verify Next Month's Roster Exists Before Writing!
+            const nextRosterRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/settings`, `roster_${nextYear}_${String(nextMonth + 1).padStart(2, '0')}`);
+            const nextRosterSnap = await getDoc(nextRosterRef);
+            
+            if (!nextRosterSnap.exists()) {
+                window.isCarryingForward = false;
+                toggleLoader(false);
+                return showToast(`SECURITY HALT: Please configure the Monthly Roster for ${nextYear}-${String(nextMonth + 1).padStart(2, '0')} before carrying debts forward!`, "error");
+            }
             
             const nextMonthDateStr = `${nextYear}-${String(nextMonth + 1).padStart(2, '0')}-01`;
             const logsRef = collection(db, `users/${dbOwnerId}/shops/${currentShopId}/employees/${empId}/logs`);
