@@ -383,6 +383,15 @@ body.pos-fullscreen-mode #view-pos > div > .card {
     </header>
 
     <div class="content" id="appContent">
+        
+        <!-- 🚨 ENTERPRISE ROSTER SMART WARNING BANNER -->
+        <div id="rosterWarningBanner" style="display:none; background:#fee2e2; border:1px solid #ef4444; color:#b91c1c; padding:15px; border-radius:8px; margin-bottom:20px; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; box-shadow:0 4px 6px rgba(0,0,0,0.05);">
+            <div style="flex: 1; min-width: 250px;">
+                <strong style="display:block; margin-bottom:5px; font-size:14px;" id="rosterBannerTitle"><i class="ri-alarm-warning-fill"></i> Action Required: Roster Missing</strong>
+                <span id="rosterBannerMsg" style="font-size:13px; opacity:0.9;"></span>
+            </div>
+            <button class="btn btn-danger" id="rosterBannerBtn" onclick="openRosterFromLock()" style="white-space:nowrap;"><i class="ri-calendar-settings-line"></i> Configure Now</button>
+        </div>
 
         <!-- 1. DASHBOARD HOME -->
         <div id="view-dashboard" class="view active">
@@ -2541,17 +2550,6 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 
 <!-- MODALS -->
 
-<!-- 🚨 ENTERPRISE ROSTER LOCK OVERLAY -->
-<div id="rosterLockOverlay" style="position:fixed; inset:0; background:rgba(15, 23, 42, 0.98); z-index:4900; display:none; flex-direction:column; align-items:center; justify-content:center; color:white; backdrop-filter:blur(15px);">
-    <i class="ri-lock-2-fill" style="font-size:70px; color:var(--danger); margin-bottom:15px; animation: pulse 2s infinite;"></i>
-    <h1 style="margin-bottom:10px; font-weight:900; letter-spacing:1px;">SYSTEM LOCKED!</h1>
-    <p id="rosterLockMsg" style="color:#cbd5e1; font-size:15px; margin-bottom:30px; text-align:center; max-width:500px; line-height:1.6;"></p>
-    
-    <button id="btnUnlockRoster" class="btn btn-primary" style="display:none; padding:15px 30px; font-size:16px; font-weight:800; border-radius:30px; box-shadow:0 10px 25px rgba(59, 130, 246, 0.5);" onclick="openRosterFromLock()">
-        <i class="ri-calendar-settings-line"></i> Configure Monthly Roster Now
-    </button>
-</div>
-
 <!-- 🚀 NEW: MONTHLY HR ROSTER CALENDAR MODAL -->
 <div id="rosterModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.8); display:none; align-items:center; justify-content:center; z-index:5000; backdrop-filter:blur(3px);">
     <div class="card" style="width:100%; max-width:900px; height:90vh; display:flex; flex-direction:column; margin:0; border-top: 5px solid var(--primary);">
@@ -2571,15 +2569,16 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 
         <div style="flex:1; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px;">
             <table id="rosterTable" style="width:100%; font-size:12px; text-align:center;">
-                <thead style="background:#f1f5f9; position:sticky; top:0; z-index:10;">
+                <thead style="background:#f1f5f9; position:sticky; top:0; z-index:10; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
                     <tr>
                         <th style="padding:10px;">දිනය</th>
-                        <th style="padding:10px; color:var(--danger);">ආයතනය වසා ඇත (Closed)</th>
+                        <th style="padding:10px; color:var(--danger);">වසා ඇත (Closed)</th>
                         <th style="padding:10px;">ආරම්භක වෙලාව (In)</th>
                         <th style="padding:10px;">අවසන් වන වෙලාව (Out)</th>
+                        <th style="padding:10px; color:var(--primary);">මුළු පැය ගණන</th> <!-- 🚀 NEW COLUMN -->
                         <th style="padding:10px; color:var(--success); line-height:1.3;">
                             නිවාඩු දින OT <br>
-                            <span style="font-size:9px; color:#64748b; font-weight:normal;">(පෝය, රජයේ නිවාඩු හෝ විශේෂ දිනවලට වැඩ කළොත් මුළු කාලයම OT ලෙස සැලකීමට මෙය Tick කරන්න)</span>
+                            <span style="font-size:9px; color:#64748b; font-weight:normal;">(වැඩ කරන මුළු කාලයම OT වේ)</span>
                         </th>
                     </tr>
                 </thead>
@@ -5291,13 +5290,6 @@ body.pos-fullscreen-mode #view-pos > div > .card {
     });
 
    window.loadView = (viewName) => {
-        // 🚨 AUDITOR FIX: Impenetrable Navigation Lock!
-        // හැකර්වරයෙක් F12 මගින් කළු පාට Lock තිරය මකා දැමුවද, ඔහුට කිසිදු Tab එකකට ඇතුළු විය නොහැක!
-        if (window.isSystemRosterLocked) {
-            showToast("🚨 SYSTEM LOCKED: You must configure the Monthly Roster before accessing the system!", "error");
-            return; // ⛔ සම්පූර්ණයෙන්ම කේතය නැවැත්වීම
-        }
-
         // 🛡️ ENTERPRISE SECURITY FIX: Admin Crash Prevention & Dynamic Hard-Block
         // Cashier කෙනෙක් නම් පමණක් මේ Array එක පරීක්ෂා කරයි. Admin ගේ කේතය කඩා වැටීම 100% ක් නතර වේ.
         if (userRole === 'cashier') {
@@ -15070,6 +15062,13 @@ window.setQuickCash = (amount) => {
     window.handleStaffAttendance = async (e) => {
         if (e.key === 'Enter') {
             const scanner = document.getElementById('staffAttendanceScanner');
+            
+            // 🚨 TARGETED POKA-YOKE: Block Attendance if Roster is missing!
+            if (window.isCurrentRosterLocked) {
+                scanner.value = ''; 
+                return showToast("🚨 Attendance Locked: The monthly roster has not been configured yet. Contact Admin.", "error");
+            }
+            
             const empIdScan = scanner.value.trim().toLowerCase();
             scanner.value = ''; // Clear input instantly
             
@@ -15383,7 +15382,16 @@ window.setQuickCash = (amount) => {
         currentPayrollData =[];
 
         try {
-            // 🛡️ ENTERPRISE FIX REVERT: PAYROLL MUST FETCH EVERYONE! 
+            // 🚨 TARGETED POKA-YOKE: Verify the SELECTED month's roster exists before running calculations!
+            const rCheckRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/settings`, `roster_${year}_${String(month + 1).padStart(2, '0')}`);
+            const rCheckSnap = await getDoc(rCheckRef);
+            if (!rCheckSnap.exists()) {
+                 tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:#b91c1c; font-weight:bold; background:#fee2e2;">Cannot process payroll! The Roster for this month is missing.</td></tr>`;
+                 toggleLoader(false);
+                 return showToast("Payroll Locked: Configure the monthly roster first!", "error");
+            }
+
+            // 🛡️ ENTERPRISE FIX REVERT: PAYROLL MUST FETCH EVERYONE!
             // පඩි හැදීමේදී සේවකයින් මඟහැරීම නීතිමය ප්‍රශ්නයක් බැවින්, මෙතැනින් 'limit' සම්පූර්ණයෙන්ම ඉවත් කර ඇත. සියලුම දෙනාගේ පඩි අනිවාර්යයෙන් හැදේ.
             const empQ = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/employees`));
             const empSnap = await getDocs(empQ);
@@ -17776,6 +17784,17 @@ window.togglePromoFields = () => {
         const [year, month] = monthVal.split('-');
         const daysInMonth = new Date(year, month, 0).getDate();
         
+        // 🚨 IFRS & AUDIT FIX: Check if Payroll is already processed for this month!
+        // Payroll Period is stored as "YYYY_M" (0-indexed month)
+        const payrollPeriodName = `${parseInt(year)}_${parseInt(month) - 1}`;
+        const qPaid = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`), 
+            where("isPayroll", "==", true), 
+            where("payrollPeriod", "==", payrollPeriodName), 
+            limit(1)
+        );
+        const snapPaid = await getDocs(qPaid);
+        const isPayrollLocked = !snapPaid.empty;
+
         // Check if roster already exists in DB
         const rosterRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/settings`, `roster_${year}_${month}`);
         const snap = await getDoc(rosterRef);
@@ -17784,41 +17803,94 @@ window.togglePromoFields = () => {
         const tbody = document.getElementById('rosterBody');
         let html = '';
 
+        if (isPayrollLocked) {
+            html += `<tr><td colspan="6" style="padding:15px; background:#fee2e2; color:#b91c1c; font-weight:bold; text-align:center;"><i class="ri-lock-fill"></i> HISTORICAL RECORD LOCKED: Salaries have already been paid for ${monthVal}. You cannot modify this roster!</td></tr>`;
+        }
+
+        // 🛡️ Get Today at Midnight (00:00:00) for strict historical comparison
+        const todayZero = window.getSecureTime();
+        todayZero.setHours(0,0,0,0);
+
         for (let i = 1; i <= daysInMonth; i++) {
             const dateStr = `${year}-${month}-${String(i).padStart(2, '0')}`;
-            // 🛡️ ENTERPRISE FIX: Absolute Timezone Immunity! (Forces Asia/Colombo)
             const dateObj = new Date(parseInt(year), parseInt(month) - 1, i);
             
-            // පරිගණකයේ OS එක මොකක් වුණත්, ශ්‍රී ලංකාවේ (Asia/Colombo) දවසේ නමම පමණක් බලහත්කාරයෙන් ගනී.
-            const dayName = new Intl.DateTimeFormat('si-LK', {
-                timeZone: 'Asia/Colombo',
-                weekday: 'short'
-            }).format(dateObj);
-            const isSunday = dateObj.getDay() === 0; // ඉරිදා නම් ස්වයංක්‍රීයව Highlight වේ
+            // 🚨 IFRS FIX: Is this day in the past? (Cannot edit history to prevent Database Desync)
+            const isPast = dateObj < todayZero;
+            
+            const dayName = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Colombo', weekday: 'short' }).format(dateObj);
+            const isSunday = dateObj.getDay() === 0; 
             
             const existing = savedData[dateStr] || {};
             const isClosed = existing.isClosed !== undefined ? existing.isClosed : isSunday;
             const startT = existing.shiftStart || '08:00';
-            const endT = existing.shiftEnd || '17:00'; // පැය 9ක සම්මත Shift එක (කෑම පැයද ඇතුළුව)
+            const endT = existing.shiftEnd || '17:00'; 
             const isHolidayOT = existing.isHolidayOT || false;
 
+            // Apply Locks (Past days are completely untouchable!)
+            const isLockedCompletely = isClosed || isPayrollLocked || isPast;
+            const lockState = isLockedCompletely ? 'disabled' : '';
+            const masterLockState = (isPayrollLocked || isPast) ? 'disabled' : '';
+
+            // Visual Indicators
             const rowBg = isClosed ? '#fee2e2' : (isSunday ? '#fff7ed' : 'white');
+            const rowOpacity = (isPayrollLocked || isPast) ? 'opacity:0.6;' : '';
+            const dateDisplay = isPast ? `${dateStr} <i class="ri-lock-line" style="font-size:10px; color:#ef4444;" title="Past Day Locked"></i>` : dateStr;
+
+            // 🚀 SMART MATH: Calculate Initial Hours
+            const startD = new Date(`1970-01-01T${startT}:00`);
+            let endD = new Date(`1970-01-01T${endT}:00`);
+            if (endD < startD) endD.setDate(endD.getDate() + 1); // Overnight Shift Fix
+            let hrs = (endD - startD) / (1000 * 60 * 60);
 
             html += `
-            <tr style="background:${rowBg}; border-bottom:1px solid #e2e8f0;" id="row_${dateStr}">
-                <td style="padding:8px; font-weight:bold;">${dateStr} <br><span style="font-size:10px; color:#64748b;">${dayName}</span></td>
-                <td><input type="checkbox" class="chk-closed" data-date="${dateStr}" ${isClosed ? 'checked' : ''} onchange="toggleRowColor('${dateStr}')" style="width:20px; height:20px; cursor:pointer; accent-color:var(--danger);"></td>
-                <td><input type="time" class="inp-start" data-date="${dateStr}" value="${startT}" style="margin:0; width:120px;" ${isClosed ? 'disabled' : ''}></td>
-                <td><input type="time" class="inp-end" data-date="${dateStr}" value="${endT}" style="margin:0; width:120px;" ${isClosed ? 'disabled' : ''}></td>
+            <tr style="background:${rowBg}; border-bottom:1px solid #e2e8f0; ${rowOpacity}" id="row_${dateStr}">
+                <td style="padding:8px; font-weight:bold;">${dateDisplay} <br><span style="font-size:10px; color:#64748b; text-transform:uppercase;">${dayName}</span></td>
+                
+                <td><input type="checkbox" class="chk-closed" data-date="${dateStr}" ${isClosed ? 'checked' : ''} onchange="toggleRowColor('${dateStr}')" style="width:20px; height:20px; cursor:pointer; accent-color:var(--danger);" ${masterLockState}></td>
+                
+                <td><input type="time" class="inp-start" data-date="${dateStr}" value="${startT}" style="margin:0; width:110px; font-weight:bold;" ${lockState} onchange="calcRosterRowHours('${dateStr}')"></td>
+                
+                <td><input type="time" class="inp-end" data-date="${dateStr}" value="${endT}" style="margin:0; width:110px; font-weight:bold;" ${lockState} onchange="calcRosterRowHours('${dateStr}')"></td>
+                
+                <td style="font-weight:900; font-size:14px; color:var(--primary);" id="hrs_${dateStr}">${isClosed ? '0.0' : hrs.toFixed(1)} h</td>
+                
                 <td>
-                    <label style="display:flex; align-items:center; justify-content:center; gap:5px; font-size:11px; font-weight:bold; color:var(--success); cursor:pointer;" title="මෙම දිනයේ වැඩ කරන සියලුම පැය ගණන් OT ලෙස ගෙවීමට මෙය තෝරන්න">
-                        <input type="checkbox" class="chk-holidayOT" data-date="${dateStr}" ${isHolidayOT ? 'checked' : ''} style="width:16px; height:16px; margin:0; accent-color:var(--success);"> ඔව් 
+                    <label style="display:flex; align-items:center; justify-content:center; gap:5px; font-size:11px; font-weight:bold; color:var(--success); cursor:pointer;">
+                        <input type="checkbox" class="chk-holidayOT" data-date="${dateStr}" ${isHolidayOT ? 'checked' : ''} style="width:16px; height:16px; margin:0; accent-color:var(--success);" ${masterLockState}>
                     </label>
                 </td>
             </tr>`;
         }
+        
         tbody.innerHTML = html;
+        
+        // Hide Save Button if Locked
+        const saveBtn = document.querySelector('#rosterModal .btn-primary');
+        if (saveBtn) saveBtn.style.display = isPayrollLocked ? 'none' : 'inline-flex';
+        
         toggleLoader(false);
+    };
+
+    // 🚀 NEW: Live Hours Calculator for Poka-Yoke Visual Feedback
+    window.calcRosterRowHours = (dateStr) => {
+        const startT = document.querySelector(`.inp-start[data-date="${dateStr}"]`).value;
+        const endT = document.querySelector(`.inp-end[data-date="${dateStr}"]`).value;
+        const display = document.getElementById(`hrs_${dateStr}`);
+        
+        if (!startT || !endT) { display.textContent = "0.0 h"; return; }
+
+        const startD = new Date(`1970-01-01T${startT}:00`);
+        let endD = new Date(`1970-01-01T${endT}:00`);
+        if (endD < startD) endD.setDate(endD.getDate() + 1); // Handling overnight shifts gracefully
+        
+        let hrs = (endD - startD) / (1000 * 60 * 60);
+        
+        display.textContent = hrs.toFixed(1) + " h";
+        
+        // Poka-Yoke: Visual Warning for impossible shifts
+        if (hrs > 16) display.style.color = "var(--danger)";
+        else display.style.color = "var(--primary)";
     };
 
     window.toggleRowColor = (dateStr) => {
@@ -17826,13 +17898,20 @@ window.togglePromoFields = () => {
         const row = document.getElementById(`row_${dateStr}`);
         const start = document.querySelector(`.inp-start[data-date="${dateStr}"]`);
         const end = document.querySelector(`.inp-end[data-date="${dateStr}"]`);
+        const hrsDisplay = document.getElementById(`hrs_${dateStr}`);
         
         if (isClosed) {
             row.style.background = '#fee2e2';
             start.disabled = true; end.disabled = true;
+            hrsDisplay.textContent = '0.0 h';
+            hrsDisplay.style.color = '#9ca3af';
         } else {
-            row.style.background = 'white';
+            // Restore colors and recalculate
+            const dateObj = new Date(dateStr);
+            row.style.background = (dateObj.getDay() === 0) ? '#fff7ed' : 'white';
             start.disabled = false; end.disabled = false;
+            hrsDisplay.style.color = 'var(--primary)';
+            window.calcRosterRowHours(dateStr);
         }
     };
 
@@ -17875,11 +17954,19 @@ window.togglePromoFields = () => {
                 updatedAt: window.getSecureTime().toISOString()
             });
             if(window.writeSystemLog) writeSystemLog("ROSTER_SAVED", `Admin saved monthly roster for ${monthVal}`);
-            closeModal('rosterModal');
+            
             showToast("Roster Settings Saved Successfully!");
             
             // 🚨 AUTO-UNLOCK: Save කළ සැණින් Lock තිරය ඉබේම අතුරුදහන් වීම!
             await window.verifyCurrentMonthRoster();
+            
+            // Restore buttons in case they were hidden by the lock screen trap
+            const closeIcon = document.querySelector('#rosterModal .ri-close-line');
+            const cancelBtn = document.querySelector('#rosterModal .btn-ghost');
+            if(closeIcon) closeIcon.style.display = 'block';
+            if(cancelBtn) cancelBtn.style.display = 'inline-flex';
+            
+            closeModal('rosterModal');
             
         } catch(e) {
             showToast("Error saving roster", "error");
@@ -20260,54 +20347,69 @@ window.emergencyLocalOverride = async () => {
     // 🛡️ ENTERPRISE SYSTEM LOCK (ROSTER ENFORCEMENT)
     // ==========================================
     window.verifyCurrentMonthRoster = async () => {
-        // 1. Secure Time එක හරහා අද සැබෑ මාසය සහ අවුරුද්ද ලබා ගැනීම!
         const now = window.getSecureTime();
         const year = now.getFullYear();
         const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = now.getDate(); // අද දවස
         
-        // මාසයේ නම ලස්සනට පෙන්වීමට
         const monthLabel = now.toLocaleString('en-US', { month: 'long', timeZone: 'Asia/Colombo' });
+        const currentRosterRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/settings`, `roster_${year}_${month}`);
 
-        const rosterRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/settings`, `roster_${year}_${month}`);
+        // ඊළඟ මාසය ගණනය කිරීම (24 න් පසුව මතක් කිරීමට)
+        let nextYear = year;
+        let nextMonth = now.getMonth() + 2; // +1 to convert to 1-index, +1 for next month
+        if (nextMonth > 12) { nextMonth = 1; nextYear++; }
+        const nextMonthStr = String(nextMonth).padStart(2, '0');
+        const nextRosterRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/settings`, `roster_${nextYear}_${nextMonthStr}`);
         
         try {
-                const snap = await getDoc(rosterRef);
-                const lockOverlay = document.getElementById('rosterLockOverlay');
-                const btnUnlock = document.getElementById('btnUnlockRoster');
-                const msg = document.getElementById('rosterLockMsg');
+            const currentSnap = await getDoc(currentRosterRef);
+            const banner = document.getElementById('rosterWarningBanner');
+            const bTitle = document.getElementById('rosterBannerTitle');
+            const bMsg = document.getElementById('rosterBannerMsg');
+            const bBtn = document.getElementById('rosterBannerBtn');
 
-                if (!snap.exists()) {
-                        // 🚨 AUDITOR FIX: Global Memory Lock (Prevents F12 Hacks)
-                        window.isSystemRosterLocked = true; 
-                        
-                        // Roster එක Save කරලා නෑ! සිස්ටම් එක Lock කරන්න!
-                        lockOverlay.style.display = 'flex';
-                    
-                        if (userRole === 'admin') {
-                            msg.innerHTML = `The Monthly Roster for <b style="color:var(--warning);">${monthLabel} ${year}</b> has not been configured yet.<br><br>You must set up the working hours and holidays before you or your staff can use the system.`;
-                            btnUnlock.style.display = 'inline-flex';
-                        } else {
-                            msg.innerHTML = `The Monthly Roster for <b style="color:var(--warning);">${monthLabel} ${year}</b> has not been set up.<br><br><span style="color:var(--danger); font-weight:bold;">Please contact your Administrator to configure it.</span>`;
-                            btnUnlock.style.display = 'none';
-                        }
+            if (!currentSnap.exists()) {
+                // 🔴 SCENARIO A: Current month roster missing (CRITICAL - Targeted Lock Applied)
+                window.isCurrentRosterLocked = true; 
+                
+                if (banner) {
+                    banner.style.display = 'flex';
+                    banner.style.background = '#fee2e2'; banner.style.borderColor = '#ef4444'; banner.style.color = '#b91c1c';
+                    bTitle.innerHTML = `<i class="ri-error-warning-fill"></i> CRITICAL: Current Month Roster Missing!`;
+                    if (userRole === 'admin') {
+                        bMsg.innerHTML = `Attendance Scanner and Payroll Engine are <b>locked</b>. Please configure the roster for ${monthLabel} ${year} to unlock them.`;
+                        bBtn.style.display = 'inline-flex'; bBtn.className = 'btn btn-danger';
+                        bBtn.onclick = () => { document.getElementById('rosterMonthSelect').value = `${year}-${month}`; generateRosterTable(); openModal('rosterModal'); };
                     } else {
-                        // 🚨 AUDITOR FIX: Global Memory Unlock
-                        window.isSystemRosterLocked = false;
-                    
-                    // Roster එක තියෙනවා, Lock එක අරින්න!
-                    lockOverlay.style.display = 'none';
+                        bMsg.innerHTML = `Attendance Scanner is <b>locked</b>. Please ask the Administrator to configure the roster for ${monthLabel} ${year}.`;
+                        bBtn.style.display = 'none';
+                    }
                 }
-            } catch(e) {
-            console.error("Roster Verification Error:", e);
-        }
-    };
-
-    window.openRosterFromLock = () => {
-        // Lock එක උඩ තියෙන බොත්තම එබුවම කෙලින්ම මේ මාසෙට අදාළව Roster Modal එක විවෘත වෙනවා
-        const currentYearMonth = window.getSecureLocalDateStr().slice(0, 7); // "YYYY-MM"
-        document.getElementById('rosterMonthSelect').value = currentYearMonth;
-        generateRosterTable();
-        openModal('rosterModal');
+            } else {
+                // 🟢 SCENARIO B: Current month is OK. 
+                window.isCurrentRosterLocked = false;
+                
+                // 🟡 SCENARIO C: It's past the 24th, check next month's roster (GENTLE WARNING)
+                if (day >= 24) {
+                    const nextSnap = await getDoc(nextRosterRef);
+                    if (!nextSnap.exists()) {
+                        if (banner && userRole === 'admin') {
+                            banner.style.display = 'flex';
+                            banner.style.background = '#fffbeb'; banner.style.borderColor = '#fde68a'; banner.style.color = '#b45309';
+                            bTitle.innerHTML = `<i class="ri-alarm-warning-fill"></i> REMINDER: Next Month Roster Pending`;
+                            bMsg.innerHTML = `Please prepare the roster for ${nextYear}-${nextMonthStr} before the end of this month to avoid system locks.`;
+                            bBtn.style.display = 'inline-flex'; bBtn.className = 'btn btn-warning';
+                            bBtn.onclick = () => { document.getElementById('rosterMonthSelect').value = `${nextYear}-${nextMonthStr}`; generateRosterTable(); openModal('rosterModal'); };
+                        }
+                    } else if (banner) {
+                        banner.style.display = 'none'; // Next month is also done!
+                    }
+                } else if (banner) {
+                    banner.style.display = 'none';
+                }
+            }
+        } catch(e) { console.error("Roster Verification Error:", e); }
     };
 
 // ==========================================
