@@ -3055,6 +3055,11 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                 <label><input type="checkbox" value="suppliers" class="perm-chk"> Suppliers / PO</label>
                 <label><input type="checkbox" value="customers" class="perm-chk"> Customers</label>
                 <label><input type="checkbox" value="alerts" class="perm-chk"> Reminders/Alerts</label>
+                <!-- 🚀 NEW: Missing Operational Modules added to RBAC -->
+                <label><input type="checkbox" value="delivery" class="perm-chk"> Delivery & Dispatch</label>
+                <label><input type="checkbox" value="fleet" class="perm-chk"> Fleet Management</label>
+                <label><input type="checkbox" value="loyalty" class="perm-chk"> Loyalty Rewards</label>
+                <label><input type="checkbox" value="manufacturing" class="perm-chk"> Manufacturing (BOM)</label>
             </div>
         </div>
 
@@ -3488,7 +3493,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 </div>
 
 <!-- CUSTOMER MODAL (ADD/EDIT) -->
-<div id="customerModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.85); display:none; align-items:center; justify-content:center; z-index:2000; backdrop-filter:blur(3px);">
+<div id="customerModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.85); display:none; align-items:center; justify-content:center; z-index:6000; backdrop-filter:blur(3px);">
     <div class="card" style="width:400px; margin:0;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
             <h3 style="margin:0;">Manage Customer</h3>
@@ -3523,7 +3528,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 </div>
 
 <!-- 🚀 NEW: IDENTITY MIGRATION MODAL -->
-<div id="migrateCustomerModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.9); display:none; align-items:center; justify-content:center; z-index:5000; backdrop-filter:blur(5px);">
+<div id="migrateCustomerModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.9); display:none; align-items:center; justify-content:center; z-index:6100; backdrop-filter:blur(5px);">
     <div class="card" style="width:400px; margin:0; border-top:5px solid var(--warning);">
         <h3 style="color:var(--warning); margin-bottom:5px;"><i class="ri-exchange-box-line"></i> Identity Migration</h3>
         <p style="font-size:11px; color:#666; margin-bottom:20px;">Move all past sales, debts, and records securely to a new phone number. The old number will be freed for reuse.</p>
@@ -4475,19 +4480,62 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             dbOwnerId = user.uid;
         }
 
-        // 🛡️ ENTERPRISE FIX: සජීවීව ගිණුම නිරීක්ෂණය කිරීම (Strict Live Kicking)
+        // 🛡️ ENTERPRISE FIX: සජීවීව ගිණුම නිරීක්ෂණය කිරීම (Strict Live Security Sync)
         try {
             onSnapshot(doc(db, `users`, user.uid), (docSnap) => {
                 if (userRole === 'cashier') {
                     if (docSnap && docSnap.exists()) {
-                        // 🚀 දෝෂය 1 විසඳුම: Status එක suspended වූ සැනින් එළවා දැමීම
-                        if (docSnap.data().status === 'suspended') {
+                        const data = docSnap.data();
+                        
+                        // 1. Suspension Check
+                        if (data.status === 'suspended') {
                             alert("Security Alert: Your access has been instantly suspended by the Administrator.");
                             logout();
+                            return;
                         }
+
+                        // 2. 🚨 CRITICAL FIX: Branch Swap Contamination Prevention
+                        if (data.allowedShop && data.allowedShop !== assignedShopId) {
+                            alert("System Update: Your Branch Assignment was just changed by the Admin.\nSystem will now reload to securely synchronize new branch data.");
+                            window.location.reload();
+                            return;
+                        }
+
+                        // 3. 🚨 CRITICAL FIX: Live Permission Revocation Engine
+                        const newTabs = data.allowedTabs || ['pos', 'orders', 'refunds'];
+                        const oldTabsStr = JSON.stringify(window.currentUserTabs || []);
+                        const newTabsStr = JSON.stringify(newTabs);
+
+                        if (oldTabsStr !== newTabsStr) {
+                            window.currentUserTabs = newTabs;
+
+                            // 🛡️ Update the Immutable Watchdog Guard (So it doesn't think the user hacked their own RAM)
+                            window.SecureAuthGuard = Object.freeze({
+                                role: userRole,
+                                owner: dbOwnerId,
+                                shop: assignedShopId,
+                                tabs: newTabsStr
+                            });
+
+                            // 🛡️ Visually update sidebar instantly
+                            applyRoleRestrictions();
+
+                            // 🚨 INTRUDER KICK-OUT: Check if they are currently inside a tab they just lost access to!
+                            const activeViewEl = document.querySelector('.view.active');
+                            if (activeViewEl) {
+                                const activeViewName = activeViewEl.id.replace('view-', '');
+                                if (!newTabs.includes(activeViewName) && activeViewName !== 'dashboard') {
+                                    showToast("Security Alert: Your permission for this module was just revoked by Admin!", "error");
+                                    // Kick them to the first available tab, or dashboard
+                                    loadView(newTabs.length > 0 ? newTabs[0] : 'dashboard');
+                                }
+                            } else {
+                                showToast("Your module access permissions were updated by Admin.", "info");
+                            }
+                        }
+
                     } else if (docSnap && !docSnap.exists()) {
-                        // ගිණුම සම්පූර්ණයෙන් මකා දැමුවහොත්
-                        alert("Security Alert: Your account has been deleted.");
+                        alert("Security Alert: Your account has been deleted by the Admin.");
                         logout();
                     }
                 }
@@ -4731,105 +4779,153 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         localStorage.setItem('posBillSize_' + currentShopId, size);
     };
 
+    // 🛡️ ENTERPRISE CONCURRENCY LOCK
+    window.currentBranchSessionToken = null;
+
     window.changeShop = () => {
         const sel = document.getElementById('shopSelector');
         currentShopId = sel.value;
         const currentShopData = shopsCache.find(s => s.id === currentShopId);
         
+        // 🚨 ANTI-RACE CONDITION: Generate a new token for this specific branch session
+        window.currentBranchSessionToken = Date.now().toString() + Math.random().toString();
+        
         if(window.writeSystemLog && currentShopData) {
             writeSystemLog("BRANCH_SWITCHED", `User switched active dashboard view to branch: ${currentShopData.name}`);
         }
 
-        // 🛡️ ENTERPRISE FIX: Load Default Bill Size from DB, Fallback to LocalStorage
+        // 🛡️ ENTERPRISE FIX: Load Default Bill Size
         let targetBillSize = '80mm';
-        if (profileCache && profileCache.defaultBillSize) targetBillSize = profileCache.defaultBillSize; // 1st Priority: DB Profile
-        
+        if (profileCache && profileCache.defaultBillSize) targetBillSize = profileCache.defaultBillSize; 
         const savedLocalSize = localStorage.getItem('posBillSize_' + currentShopId);
-        if (savedLocalSize) targetBillSize = savedLocalSize; // 2nd Priority: Cashier temporary override
+        if (savedLocalSize) targetBillSize = savedLocalSize; 
         
         const billSizeDropdown = document.getElementById('posBillSize');
         if(billSizeDropdown) billSizeDropdown.value = targetBillSize;
         
         if (currentShopData) {
             currentCurrency = currentShopData.currency || "$";
-            handleDeletionState(currentShopData); // Check for deletion status
+            handleDeletionState(currentShopData); 
         }
-        // අදාළ ශාඛාවට අයත් Carts පමණක් Load කිරීම (ආරක්ෂිත ක්‍රමය)
-        heldCarts = JSON.parse(localStorage.getItem("posHeldCarts_" + currentShopId)) || [  ];
+        
+        // ========================================================
+        // 🚨 THE PURGE (IFRS COMPLIANCE FIX)
+        // Completely annihilate ALL RAM caches to prevent Cross-Branch Financial Fraud!
+        // ========================================================
+        cart = [];
+        currentCartSerials = []; 
+        currentOtherFees = [];
+        salesCache = [];
+        refundsCache = [];
+        expensesCache = [];
+        customersCache = [];
+        employeesCache = [];
+        suppliersCache = [];
+        catalogCache = [];
+        productsCache = [];
+        servicesCache = [];
+        categoriesCache = [];
+        serviceCategoriesCache = [];
+        bomsCache = [];
+        mfgHistoryCache = [];
+        deliveriesCache = [];
+        globalDebtorsCache = [];
+        epfReportCache = [];
+        taxReportDataCache = [];
+        currentPayrollData = [];
+        crmRequestsCache = [];
+        
+        currentFinancialData = null; // 🚨 Protect P&L Export!
+        profileCache = null;         // 🚨 Protect Profile Export!
+        
+        window.cachedStockValue = undefined; 
+        window.cachedLowCount = undefined;
+        window.cachedEmpCount = undefined;
+
+        heldCarts = JSON.parse(localStorage.getItem("posHeldCarts_" + currentShopId)) || [];
         if(typeof updateHeldBadge === 'function') updateHeldBadge();
         
-        // ENTERPRISE FIX: Instantly destroy active cart and checkout variables to prevent Cross-Branch Data Contamination!
-        cart = [  ];
-        currentOtherFees = [  ];
-        window.cachedStockValue = undefined; // 🛡️ Force Dashboard to recalculate stock value for new branch
-        window.cachedLowCount = undefined;
         const discInput = document.getElementById('discountValue');
         if(discInput) discInput.value = '';
         if(typeof clearPosCustomer === 'function') clearPosCustomer();
         if(typeof renderCart === 'function') renderCart();
         
-        // 🛡️ ENTERPRISE SECURITY FIX: Kill all active live listeners from the previous branch!
-        // මෙය සිදු නොකළහොත් පරණ කඩේ දත්ත අලුත් කඩේ තිරයට රිංගා පැමිණේ (Memory Leak & Ghost Data).
+        // 🚨 ZOMBIE UI SANITIZATION (Force clear sensitive screens)
+        if(document.getElementById('eodReportArea')) document.getElementById('eodReportArea').style.display = 'none';
+        if(document.getElementById('financialReportArea')) document.getElementById('accReportPeriod').textContent = "Please select a period and click Process Ledger for the new branch.";
+        if(document.getElementById('taxReportArea')) document.getElementById('taxReportArea').style.display = 'none';
+        const prTable = document.querySelector('#masterPayrollTable tbody');
+        if(prTable) prTable.innerHTML = '<tr><td colspan="9" style="text-align:center; color:#666;">Select month and click Generate for the new branch.</td></tr>';
+        
+        // 🛡️ SECURITY FIX: Kill all active live listeners from the previous branch!
         if (window.unsubCRMReqs) { window.unsubCRMReqs(); window.unsubCRMReqs = null; }
         if (window.unsubCustomers) { window.unsubCustomers(); window.unsubCustomers = null; }
         if (window.unsubEmails) { window.unsubEmails(); window.unsubEmails = null; }
         if (window.wsUnsubChat) { window.wsUnsubChat(); window.wsUnsubChat = null; }
         if (window.wsUnsubTasks) { window.wsUnsubTasks(); window.wsUnsubTasks = null; }
         if (window.activeEmpChatUnsub) { window.activeEmpChatUnsub(); window.activeEmpChatUnsub = null; }
-        crmRequestsCache = [];
         
         refreshData();
     };
 
     async function refreshData() {
         if(!currentShopId) return;
+        
+        // 🛡️ Bind this execution to the current token
+        const mySessionToken = window.currentBranchSessionToken;
+        
         toggleLoader(true);
         
         try {
             // 🚨 CA & AUDITOR FIX: Absolute Top Priority Execution!
-            // Roster Lock එක අනිවාර්යයෙන්ම පළමුව දුවවා තහවුරු කරගත යුතුමය. වෙනත් කිසිදු කේතයක් ඊට පෙර නොදුවයි!
             await window.verifyCurrentMonthRoster();
 
-            // PERFORMANCE FIX: Parallel Loading (Promise.all) - Phase 1: Critical Path
+            // PERFORMANCE FIX: Parallel Loading - Phase 1: Critical Path
             await Promise.all([
                 loadProfile(), loadCategories(), loadServiceCategories(), loadCatalog(), loadProducts(), loadServices(), loadEmpRoles(), loadSalaryPackages()
             ]);
 
+            // 🛡️ CONCURRENCY CHECK 1
+            if (window.currentBranchSessionToken !== mySessionToken) return;
+
             // ENTERPRISE FIX: Set Default View to POS on Initial Boot
-            // අත්‍යවශ්‍ය දත්ත ආ සැණින් ලෝඩරය නවත්වා POS එක විවෘත කරයි
             if(!window.initialLoadDone) {
                 loadView('pos');
                 window.initialLoadDone = true;
             }
-            toggleLoader(false); // POS විවෘත වූ වහාම Spinner එක නවත්වයි!
+            toggleLoader(false); // Drop loader for immediate POS usage
 
-            // Phase 2: Background Sync (බර දත්ත ටික පරිශීලකයාට බාධාවක් නොවන සේ පිටුපසින් Load වීම)
+            // Phase 2: Background Sync
             (async () => {
                 try {
                     const qSales = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`), orderBy('date', 'desc'), limit(50));
                     const qRef = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/refunds`), orderBy('date', 'desc'), limit(50));
                     const qExp = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`), orderBy('date', 'desc'), limit(100));
 
-                   // 1. මේ පේළියට අන්තිමට snapSup සහ suppliers query එක එකතු කරන්න
                     const[ , , , snapSales, snapRef, snapExp, snapSup] = await Promise.all([
                         loadEmployees(), loadAlerts(), loadCustomers(),
                         getDocs(qSales), getDocs(qRef), getDocs(qExp),
-                        // 🛡️ ENTERPRISE FIX: Unbounded Initial Load Prevention
                         getDocs(query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/suppliers`), limit(200)))
                     ]);
 
-                    // 2. පැරණි මේ කොටස් කිසිවක් මකන්න එපා
-                    salesCache = [  ];
+                    // 🛡️ CONCURRENCY CHECK 2: CRITICAL!
+                    // If the admin clicked Kandy while Colombo was still downloading, THIS STOPS COLOMBO DATA FROM ENTERING KANDY'S CACHE!
+                    if (window.currentBranchSessionToken !== mySessionToken) {
+                        console.warn("Background Sync Aborted: Branch was swapped before data arrived.");
+                        return; 
+                    }
+
+                    // Populate Data safely
+                    salesCache = [];
                     snapSales.forEach(d => salesCache.push({id: d.id, ...d.data()}));
 
-                    refundsCache = [  ];
+                    refundsCache = [];
                     snapRef.forEach(d => refundsCache.push({id: d.id, ...d.data()}));
 
-                    expensesCache = [  ];
+                    expensesCache = [];
                     snapExp.forEach(d => expensesCache.push({id: d.id, ...d.data()}));
 
-                    // 3. අලුත් කේතයෙන් මේ කොටස පමණක් අවසානයට එකතු කරන්න
-                    suppliersCache = [  ];
+                    suppliersCache = [];
                     snapSup.forEach(d => suppliersCache.push({id: d.id, ...d.data()}));
 
                     const supDrop = document.getElementById('mpSupplier');
@@ -4838,9 +4934,9 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                         suppliersCache.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
                     }
 
-                    // DASHBOARD FILTER INIT (🛡️ Enterprise Secure Time)
+                    // DASHBOARD FILTER INIT
                     const now = window.getSecureTime();
-                    const localDateStr = window.getSecureLocalDateStr(); // Forced Sri Lanka Time
+                    const localDateStr = window.getSecureLocalDateStr(); 
                     
                     document.getElementById('dashDateInput').value = localDateStr;
                     document.getElementById('dashMonthInput').value = localDateStr.slice(0, 7);
@@ -4852,19 +4948,23 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                     }
                     document.getElementById('dashYearInput').value = now.getFullYear().toString();
 
-                    toggleDashInputs(); // Set visibility
-                    updateDashboard(); // Calculate for 'Today'
+                    toggleDashInputs(); 
+                    updateDashboard(); 
 
-                    // Refresh Orders/Alerts/Documents/Transfers/CRM View if active
-                    if(document.getElementById('view-orders').classList.contains('active')) loadOrders();
-                    if(document.getElementById('view-documents').classList.contains('active')) loadDocumentsHistory();
+                    // Refresh Active Operations Views
+                    if(document.getElementById('view-orders').classList.contains('active')) loadOrders(false);
+                    if(document.getElementById('view-documents').classList.contains('active')) loadDocumentsHistory(false);
                     if(document.getElementById('view-transfers').classList.contains('active')) loadTransfersUI();
                     
-                    // 🛡️ ENTERPRISE FIX: Auto-refresh CRM & Emails on branch switch to prevent Stale State
-                    if(document.getElementById('view-crm').classList.contains('active')) loadCRM(); 
+                    // Auto-refresh CRM & Emails
+                    if(document.getElementById('view-crm').classList.contains('active')) refreshCRM(); 
                     if(document.getElementById('view-emailcenter').classList.contains('active')) loadEmails('inbox');
+                    if(document.getElementById('view-fleet').classList.contains('active')) loadFleetUI();
+                    if(document.getElementById('view-cheques').classList.contains('active')) loadCheques();
+                    if(document.getElementById('view-debt').classList.contains('active')) loadDebts();
+                    if(document.getElementById('view-suppliers').classList.contains('active')) loadSuppliers(false);
+                    if(document.getElementById('view-syslogs').classList.contains('active')) loadSystemLogs(false);
                     
-                    // Populate Customer Datalists for Docs
                     updateCustomerDatalist();
 
                 } catch (bgError) {
@@ -4873,11 +4973,8 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             })();
 
         } catch (error) {
-            // ERROR HANDLING: යම් හෙයකින් අන්තර්ජාලය බිඳවැටුණහොත් හෝ දෝෂයක් ආවොත් එය අල්ලා ගැනීම
             console.error("Error refreshing data:", error);
             showToast("Error loading data. Check your connection.", "error");
-            
-            // BUG FIX: මොන දෝෂය ආවත් අවසානයේ අනිවාර්යයෙන්ම Spinner එක නැවැත්වීම (Infinite Spin Fix)
             toggleLoader(false);
         }
     }
@@ -13085,17 +13182,18 @@ window.clearEntireCart = () => {
     };
 window.applyRoleRestrictions = () => {
         if (userRole === 'cashier') {
-            // 🛡️ ENTERPRISE FIX: DYNAMIC RBAC (Role-Based Access Control)
-            // Admin දුන්නු ටැබ් ටික විතරක් පෙන්වයි. අනිත් ඔක්කොම සඟවයි.
+            // 🛡️ ENTERPRISE FIX: DYNAMIC RBAC (Live Show/Hide Engine)
             document.querySelectorAll('.nav-item').forEach(item => {
                 const action = item.getAttribute('onclick');
                 if (action) {
-                    const match = action.match(/'([^']+)'/); // Extract view name (e.g. 'pos')
+                    const match = action.match(/'([^']+)'/); 
                     if (match && match[1]) {
                         const view = match[1];
-                        // අයිති නැති ටැබ් එකක් නම් සඟවයි
+                        // Admin ගේ අලුත්ම තීරණය අනුව Live Update වීම
                         if (!window.currentUserTabs.includes(view)) {
                             item.style.display = 'none';
+                        } else {
+                            item.style.display = 'flex'; // 👈 🚨 FIX: Re-show if permission is granted live!
                         }
                     }
                 }
