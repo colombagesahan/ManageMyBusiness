@@ -9447,6 +9447,9 @@ window.autoFillDocCustomer = (name) => {
                             saleItemsForLedger.push({
                                 id: data.prod.id,
                                 name: data.item.name,
+                                // 🚨 CA & IFRS FIX: Inject proper BUY PRICE & ITEM TYPE to prevent P&L Profit Inflation!
+                                buy: data.prod.buy, 
+                                itemType: data.prod.itemType || 'serialized',
                                 sell: data.item.dPrice,
                                 qty: take,
                                 total: Math.round((take * data.item.dPrice) * 100) / 100,
@@ -10509,12 +10512,23 @@ window.autoFillDocCustomer = (name) => {
                         const serDesc = isSerialized ? `(S/N: ${serialsToReturn.join(', ')})` : '';
                         transaction.set(logRef, { date: window.getSecureTime().toISOString(), productName: prodName, action: 'REFUND', description: `Restocked ${qty} to Batch ${batchNum} ${serDesc}`, quantityChange: qty, finalQty: pData.qty + qty, batchNumber: batchNum, initialQty: pData.qty });
                     } else if (needsRecreation) {
-                        const existing = productsCache.find(p => p.name === prodName) || {}; 
+                        // 🚨 ARCHITECT FIX: MUST fetch from Immutable Catalog Cache to guarantee ItemType and Master SKU!
+                        const existingBase = catalogCache.find(p => p.name === prodName) || {}; 
+                        
                         const newProdRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`));
                         transaction.set(newProdRef, {
-                            name: prodName, sku: existing.sku || "", image: existing.image || null, categoryId: existing.categoryId || null,
-                            qty: qty, buy: buyPrice, sell: price, unit: existing.unit || '',
-                            dateAdded: window.getSecureTime().toISOString(), batchNumber: batchNum, isRefund: true,
+                            name: prodName, 
+                            sku: existingBase.sku || "", 
+                            image: existingBase.image || null, 
+                            categoryId: existingBase.categoryId || null,
+                            itemType: existingBase.itemType || (isSerialized ? 'serialized' : 'standard'), // 👈 The critical missing link!
+                            qty: qty, 
+                            buy: buyPrice, 
+                            sell: price, 
+                            unit: existingBase.unit || '',
+                            dateAdded: window.getSecureTime().toISOString(), 
+                            batchNumber: batchNum, 
+                            isRefund: true,
                             availableSerials: isSerialized ? serialsToReturn : [], 
                             soldSerials: []
                         });
@@ -13926,7 +13940,11 @@ window.setQuickCash = (amount) => {
                     }
                 }
 
+                // 🚨 CA FIX: Sync absolute financial truths (Buy cost and structural type)
                 item.sell = realProduct.sell; 
+                item.buy = realProduct.buy; 
+                item.itemType = realProduct.itemType; 
+                
                 validCart.push(item);
             } else {
                 stockErrors = true; 
@@ -14426,11 +14444,19 @@ window.setQuickCash = (amount) => {
         
         toggleLoader(true);
         try {
-            await updateDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`, id), { isPending: false });
+            // 🚨 CA FIX: Update the Date to NOW so it deducts from TODAY'S EOD Drawer, not a past closed shift!
+            const approvedTime = window.getSecureTime().toISOString();
+            await updateDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`, id), { 
+                isPending: false,
+                date: approvedTime // Bring the expense to the current accounting period
+            });
             
             // Update local cache
             const exp = expensesCache.find(e => e.id === id);
-            if (exp) exp.isPending = false;
+            if (exp) {
+                exp.isPending = false;
+                exp.date = approvedTime;
+            }
 
             loadExpensesUI();
             updateDashboard(); // Profit updates instantly!
