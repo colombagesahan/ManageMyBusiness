@@ -3036,30 +3036,60 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             
             <!-- 🛡️ ENTERPRISE FIX: DYNAMIC TAB PERMISSIONS -->
             <label style="font-size:12px; font-weight:bold; color:var(--primary); margin-top:10px; display:block; border-bottom:1px dashed #ccc; padding-bottom:5px;">Module Access Permissions (Allowed Tabs)</label>
-            <div id="officerPermissions" style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; background:#f8fafc; padding:12px; border-radius:8px; border:1px solid #e2e8f0; margin-top:10px; font-size:12px; font-weight:600; color:#334155;">
-                <label><input type="checkbox" value="dashboard" class="perm-chk"> Dashboard</label>
-                <label><input type="checkbox" value="pos" class="perm-chk" checked> Smart POS</label>
-                <label><input type="checkbox" value="orders" class="perm-chk" checked> Sales History</label>
-                <label><input type="checkbox" value="refunds" class="perm-chk" checked> Refunds</label>
-                <label><input type="checkbox" value="crm" class="perm-chk"> Service CRM</label>
-                <label><input type="checkbox" value="debt" class="perm-chk"> Debt Collection</label>
-                <label><input type="checkbox" value="cheques" class="perm-chk"> Cheque Registry</label>
-                <label><input type="checkbox" value="expenses" class="perm-chk"> Cash Flow</label>
-                <label><input type="checkbox" value="eod" class="perm-chk"> EOD Report</label>
-                <label><input type="checkbox" value="documents" class="perm-chk"> Invoices/Quotes</label>
-                <label><input type="checkbox" value="catalog" class="perm-chk"> Base Products</label>
-                <label><input type="checkbox" value="products" class="perm-chk"> Add Stock</label>
-                <label><input type="checkbox" value="transfers" class="perm-chk"> Stock Transfers</label>
-                <label><input type="checkbox" value="stocktake" class="perm-chk"> Audit (Stock Take)</label>
-                <label><input type="checkbox" value="services" class="perm-chk"> Services Setup</label>
-                <label><input type="checkbox" value="suppliers" class="perm-chk"> Suppliers / PO</label>
-                <label><input type="checkbox" value="customers" class="perm-chk"> Customers</label>
-                <label><input type="checkbox" value="alerts" class="perm-chk"> Reminders/Alerts</label>
-                <!-- 🚀 NEW: Missing Operational Modules added to RBAC -->
-                <label><input type="checkbox" value="delivery" class="perm-chk"> Delivery & Dispatch</label>
-                <label><input type="checkbox" value="fleet" class="perm-chk"> Fleet Management</label>
-                <label><input type="checkbox" value="loyalty" class="perm-chk"> Loyalty Rewards</label>
-                <label><input type="checkbox" value="manufacturing" class="perm-chk"> Manufacturing (BOM)</label>
+            <!-- 🛡️ ENTERPRISE FIX: Categorized Permissions with internal Scroll to prevent Modal Overflow -->
+            <div id="officerPermissions" style="background:#f8fafc; padding:12px; border-radius:8px; border:1px solid #e2e8f0; margin-top:10px; font-size:12px; font-weight:600; color:#334155; max-height:280px; overflow-y:auto;">
+                
+                <!-- 1. MAIN -->
+                <div style="font-size:10px; color:var(--primary); font-weight:800; border-bottom:1px solid #cbd5e1; margin-bottom:8px; padding-bottom:4px; text-transform:uppercase; letter-spacing:0.5px;">Main & Alerts</div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:15px;">
+                    <label><input type="checkbox" value="dashboard" class="perm-chk"> Dashboard</label>
+                    <label><input type="checkbox" value="alerts" class="perm-chk"> Reminders/Alerts</label>
+                </div>
+
+                <!-- 2. SALES & RETAIL -->
+                <div style="font-size:10px; color:var(--primary); font-weight:800; border-bottom:1px solid #cbd5e1; margin-bottom:8px; padding-bottom:4px; text-transform:uppercase; letter-spacing:0.5px;">Sales & Retail</div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:15px;">
+                    <label><input type="checkbox" value="pos" class="perm-chk" checked> Smart POS</label>
+                    <label><input type="checkbox" value="documents" class="perm-chk"> Invoices/Quotes</label>
+                    <label><input type="checkbox" value="orders" class="perm-chk" checked> Sales History</label>
+                    <label><input type="checkbox" value="refunds" class="perm-chk" checked> Refunds</label>
+                    <label><input type="checkbox" value="eod" class="perm-chk"> End of Day (EOD)</label>
+                </div>
+
+                <!-- 3. INVENTORY & PRODUCTION -->
+                <div style="font-size:10px; color:var(--primary); font-weight:800; border-bottom:1px solid #cbd5e1; margin-bottom:8px; padding-bottom:4px; text-transform:uppercase; letter-spacing:0.5px;">Inventory & Production</div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:15px;">
+                    <label><input type="checkbox" value="catalog" class="perm-chk"> Add Products</label>
+                    <label><input type="checkbox" value="products" class="perm-chk"> Add Stock</label>
+                    <label><input type="checkbox" value="transfers" class="perm-chk"> Stock Transfers</label>
+                    <label><input type="checkbox" value="stocktake" class="perm-chk"> Stock Take (Audit)</label>
+                    <label><input type="checkbox" value="manufacturing" class="perm-chk"> Manufacturing (BOM)</label>
+                    <label><input type="checkbox" value="services" class="perm-chk"> Services Setup</label>
+                </div>
+
+                <!-- 4. FINANCE & ACCOUNTING -->
+                <div style="font-size:10px; color:var(--primary); font-weight:800; border-bottom:1px solid #cbd5e1; margin-bottom:8px; padding-bottom:4px; text-transform:uppercase; letter-spacing:0.5px;">Finance & Cash Flow</div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:15px;">
+                    <label><input type="checkbox" value="expenses" class="perm-chk"> Cash Flow (Expenses)</label>
+                    <label><input type="checkbox" value="cheques" class="perm-chk"> Cheque Registry</label>
+                    <label><input type="checkbox" value="debt" class="perm-chk"> Debt Collection</label>
+                </div>
+
+                <!-- 5. SUPPLY CHAIN & LOGISTICS -->
+                <div style="font-size:10px; color:var(--primary); font-weight:800; border-bottom:1px solid #cbd5e1; margin-bottom:8px; padding-bottom:4px; text-transform:uppercase; letter-spacing:0.5px;">Supply Chain & Logistics</div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:15px;">
+                    <label><input type="checkbox" value="suppliers" class="perm-chk"> Suppliers & RTV</label>
+                    <label><input type="checkbox" value="delivery" class="perm-chk"> Delivery & Dispatch</label>
+                    <label><input type="checkbox" value="fleet" class="perm-chk"> Fleet Management</label>
+                </div>
+
+                <!-- 6. CUSTOMERS & CRM -->
+                <div style="font-size:10px; color:var(--primary); font-weight:800; border-bottom:1px solid #cbd5e1; margin-bottom:8px; padding-bottom:4px; text-transform:uppercase; letter-spacing:0.5px;">Customers & CRM</div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:5px;">
+                    <label><input type="checkbox" value="customers" class="perm-chk"> Customers</label>
+                    <label><input type="checkbox" value="loyalty" class="perm-chk"> Loyalty Rewards</label>
+                    <label><input type="checkbox" value="crm" class="perm-chk"> Service CRM</label>
+                </div>
             </div>
         </div>
 
