@@ -15417,7 +15417,6 @@ window.setQuickCash = (amount) => {
                         if (hrsSinceIn > 16) {
                             // 🛡️ ENTERPRISE HR FIX: "ZERO-TRUST" PENALTY ENGINE (Anti-Time Theft)
                             // වංචාව වැළැක්වීම: Clock-out කර නැතිනම් අනුමාන කර පඩිය දීම සම්පූර්ණයෙන්ම නතර කර ඇත!
-                            // සේවකයාට එදිනට හිමිවන පැය ගණන බිංදුවක් (0) වේ. Manager විසින් Manual Override කළ යුතුමය.
                             
                             await updateDoc(lastLog.ref, {
                                 clockOutTime: new Date(inTimeMs + 60000).toISOString(), // ආපු වෙලාවෙම ගියා සේ සලකා විනාඩියකින් වසා දමයි
@@ -15494,77 +15493,78 @@ window.setQuickCash = (amount) => {
                     const logData = targetLogData;
 
                     if(logData.clockOutTime) {
-                        // This block will practically never be hit with the new logic, but kept for extreme manual edge cases
                         showToast(`${foundEmpName} has already Clocked-OUT!`, "warning");
                         
                     } else if(logData.clockInTime) {
-                        // --- SCENARIO C: CLOCK-OUT & OT CALCULATION (පිටවීමේ ස්කෑන් කිරීම) ---
+                        // --- SCENARIO C: CLOCK-OUT & STRICT OT CALCULATION ---
                         const actualInTime = new Date(logData.clockInTime);
                         const actualOutTime = now; // 🛡️ Secure Time
                         
                         let calculatedOT = 0;
                         let netWorkedHrs = 0;
 
+                        const breakMins = parseInt(todayRoster.breakMins) || 0;
+                        const breakThreshold = parseFloat(todayRoster.breakThreshold) || 4.0;
+                        const isPaidBreak = todayRoster.isBreakPaid || false;
+                        const maxOtHrsAllowed = parseFloat(todayRoster.maxOtHrs) || 0;
+
+                        // 🛡️ POKA-YOKE: Deduct break globally if Unpaid and Threshold met
+                        let totalPhysicalHrs = (actualOutTime - actualInTime) / (1000 * 60 * 60);
+                        if (totalPhysicalHrs < 0) totalPhysicalHrs = 0;
+                        
+                        let breakDeduction = 0;
+                        if (!isPaidBreak && totalPhysicalHrs >= breakThreshold) {
+                            breakDeduction = (breakMins / 60);
+                        }
+
                         // 🛡️ ENTERPRISE HR: STRICT ADHERENCE ENGINE
                         if (todayRoster.isClosed || todayRoster.isHolidayOT) {
-                            // නිවාඩු දවසක් නම් පැමිණි මුළු කාලයම OT වේ!
-                            const diffMs = actualOutTime - actualInTime;
-                            calculatedOT = diffMs / (1000 * 60 * 60);
+                            // නිවාඩු දිනයක් බැවින් මුළු කාලයම OT වේ. (කෑම පැය අඩු කළ යුතුය)
+                            calculatedOT = Math.max(0, totalPhysicalHrs - breakDeduction);
                             netWorkedHrs = 0; 
                         } else {
                             // 1. Roster Shift Times අද දවසට ගලපමු
                             const rosterStart = new Date(`${todayStr}T${todayRoster.shiftStart}:00`);
                             let rosterEnd = new Date(`${todayStr}T${todayRoster.shiftEnd}:00`);
+                            if (rosterEnd < rosterStart) rosterEnd.setDate(rosterEnd.getDate() + 1); // Overnight Shift
                             
-                            if (rosterEnd < rosterStart) rosterEnd.setDate(rosterEnd.getDate() + 1); // Overnight Shift Fix
-                            
-                            // 2. Anti-Exploit Clamp
+                            // 2. Anti-Exploit Clamp for Normal Hours (කලින් ආවත් පඩිය හැදෙන්නේ Roster Start එකේ ඉඳන් පමණයි)
                             const effectiveInTime = new Date(Math.max(actualInTime.getTime(), rosterStart.getTime()));
                             const effectiveOutTime = new Date(Math.min(actualOutTime.getTime(), rosterEnd.getTime()));
                             
                             let baseHrs = (effectiveOutTime - effectiveInTime) / (1000 * 60 * 60);
                             if (baseHrs < 0) baseHrs = 0;
 
-                            // 3. Dynamic Lunch Break Deduction Engine
-                            const breakMins = parseInt(todayRoster.breakMins) || 0;
-                            const breakThreshold = parseFloat(todayRoster.breakThreshold) || 4.0;
-                            const isPaidBreak = todayRoster.isBreakPaid || false;
+                            // Normal වැඩ කළ පැය ගණන (කෑම පැය අඩු කර)
+                            netWorkedHrs = Math.max(0, baseHrs - breakDeduction);
 
-                            if (!isPaidBreak && baseHrs >= breakThreshold) {
-                                baseHrs -= (breakMins / 60);
-                                if (baseHrs < 0) baseHrs = 0;
-                            }
-                            
-                            netWorkedHrs = baseHrs;
-
-                            // 4. Authorized OT Engine (Zero-Trust)
-                            const maxOtHrsAllowed = parseFloat(todayRoster.maxOtHrs) || 0;
-
-                            if (actualOutTime > rosterEnd && maxOtHrsAllowed > 0) {
-                                // කඩේ වැහුවට පස්සේ හිටපු මුළු වෙලාව (Gross)
+                            // 3. Authorized OT Engine (Zero-Trust: Strictly Post-Shift OT)
+                            // OT ගෙවන්නේ Roster End එකට පසුව සිටි කාලයට පමණි!
+                            if (maxOtHrsAllowed > 0 && actualOutTime > rosterEnd) {
                                 let rawOT = (actualOutTime - rosterEnd) / (1000 * 60 * 60);
-                                
-                                // Roster එකේ Admin දීලා තියෙන උපරිම සීමාවට යටත් කිරීම (Capped)
-                                calculatedOT = Math.min(rawOT, maxOtHrsAllowed);
+                                calculatedOT = Math.min(rawOT, maxOtHrsAllowed); // Capped by Admin limit
                             } else {
-                                // Admin 0 දීලා නම්, කොච්චර හිටියත් Auto-OT හැදෙන්නේ බිංදුවයි!
-                                calculatedOT = 0;
+                                calculatedOT = 0; // Blocked completely or no OT done
                             }
                         }
 
-                        // Manager අතින් දුන්න OT එකක් තිබ්බොත් ඒක මකන්නේ නෑ
-                        const finalOT = Math.max((logData.ot || 0), parseFloat(calculatedOT.toFixed(2)));
+                        // 🚨 IFRS FIX: IEEE 754 Floating Point Precision Rounding (සතේටම නිවැරදි කිරීම)
+                        netWorkedHrs = Math.round(netWorkedHrs * 100) / 100;
+                        calculatedOT = Math.round(calculatedOT * 100) / 100;
+                        
+                        // මැනුවල් OT එකක් දී ඇත්නම් එය සුරක්ෂිත කිරීම
+                        const finalOT = Math.max((logData.ot || 0), calculatedOT);
 
                         // Update the database
                         await updateDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/employees/${foundEmpId}/logs`, logDoc.id), {
                             clockOutTime: actualOutTime.toISOString(),
-                            workedHours: parseFloat(netWorkedHrs.toFixed(2)),
+                            workedHours: netWorkedHrs,
                             ot: finalOT,
-                            systemCalcOt: parseFloat(calculatedOT.toFixed(2)) // 👈 Admin ට බලාගන්න වෙනම Save කරනවා
+                            systemCalcOt: calculatedOT // 👈 Admin ට බලාගන්න වෙනම Save කරනවා
                         });
 
                         if(window.writeSystemLog) {
-                            writeSystemLog("ATTENDANCE_OUT", `${foundEmpName} Clocked OUT. Gross: ${grossHrs.toFixed(1)}h | Net: ${netWorkedHrs.toFixed(2)}h | OT: ${calculatedOT.toFixed(2)}h`);
+                            writeSystemLog("ATTENDANCE_OUT", `${foundEmpName} Clocked OUT. Net: ${netWorkedHrs.toFixed(2)}h | OT: ${calculatedOT.toFixed(2)}h`);
                         }
                         showToast(`Goodbye ${foundEmpName}! Clock-OUT recorded. (OT: ${calculatedOT.toFixed(2)} hours)`, "success");
                         
@@ -22663,16 +22663,39 @@ window.emergencyLocalOverride = async () => {
         
         toggleLoader(true);
         try {
-            // Collection Group Query to fetch ALL logs for this specific date across ALL employees instantly!
-            const logsQuery = query(collectionGroup(db, 'logs'), where("date", "==", targetDate));
-            const snap = await getDocs(logsQuery);
+            // 🚨 ENTERPRISE SECURITY FIX: Bypassed both 'collectionGroup' (Data Leak Risk) 
+            // and 'employeesCache' (RAM Incompleteness Risk in Distributed Systems).
+            // STEP 1: Fetch the absolute LIVE list of employee IDs for this specific shop.
+            const empQuery = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/employees`));
+            const empSnap = await getDocs(empQuery);
             
+            const liveEmpIds = [];
+            const liveEmpNames = {};
+            empSnap.forEach(eDoc => {
+                liveEmpIds.push(eDoc.id);
+                liveEmpNames[eDoc.id] = eDoc.data().name || `ID: ${eDoc.id}`;
+            });
+
+            // STEP 2: Use highly concurrent Promise.all scoped strictly to these confirmed IDs
             currentOtLogsCache = [];
-            snap.forEach(d => {
-                // Ensure it belongs to current shop
-                if (d.ref.path.includes(`shops/${currentShopId}`)) {
-                    currentOtLogsCache.push({ id: d.id, refPath: d.ref.path, ...d.data() });
-                }
+            const fetchPromises = liveEmpIds.map(empId => {
+                const q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/employees/${empId}/logs`), where("date", "==", targetDate));
+                return getDocs(q);
+            });
+
+            const logsSnaps = await Promise.all(fetchPromises);
+            
+            logsSnaps.forEach((snap, index) => {
+                const empId = liveEmpIds[index];
+                snap.forEach(d => {
+                    // Injecting live name directly to avoid relying on global cache later
+                    currentOtLogsCache.push({ 
+                        id: d.id, 
+                        refPath: d.ref.path, 
+                        empName: liveEmpNames[empId], 
+                        ...d.data() 
+                    });
+                });
             });
 
             if (currentOtLogsCache.length === 0) {
@@ -22683,10 +22706,8 @@ window.emergencyLocalOverride = async () => {
 
             let html = '';
             currentOtLogsCache.forEach((l, idx) => {
-                // Get Employee Name from path or cache
-                const empId = l.refPath.split('/employees/')[1].split('/')[0];
-                const empData = employeesCache.find(e => e.id === empId);
-                const empName = empData ? empData.name : `ID: ${empId}`;
+                // 🛡️ ZERO-TRUST FIX: Use the rigorously fetched live name from DB, not the RAM Cache
+                const empName = l.empName;
 
                 const inTime = l.clockInTime ? new Date(l.clockInTime).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '-';
                 const outTime = l.clockOutTime ? new Date(l.clockOutTime).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '-';
@@ -22726,18 +22747,34 @@ window.emergencyLocalOverride = async () => {
             const batch = writeBatch(db);
             const targetDate = document.getElementById('otApprovalDate').value;
             let changesMade = 0;
+            let validationError = false;
 
             currentOtLogsCache.forEach((l, idx) => {
                 const inp = document.getElementById(`otApprove_${idx}`);
                 if (inp) {
-                    const newOt = parseFloat(inp.value) || 0;
-                    if (newOt !== l.ot) {
+                    // 🛡️ POKA-YOKE & IFRS FIX: Prevent Negative OT Hacks and Floating Point Leaks
+                    let rawOt = parseFloat(inp.value);
+                    if (isNaN(rawOt) || rawOt < 0) {
+                        validationError = true;
+                        inp.style.borderColor = 'var(--danger)';
+                        return;
+                    }
+                    
+                    const newOt = Math.round(rawOt * 100) / 100; // Strict 2 decimal precision
+                    const oldOt = l.ot !== undefined ? l.ot : (l.systemCalcOt || 0);
+
+                    if (newOt !== oldOt) {
                         const ref = doc(db, l.refPath);
                         batch.update(ref, { ot: newOt });
                         changesMade++;
                     }
                 }
             });
+
+            if (validationError) {
+                toggleLoader(false);
+                return showToast("Security Alert: OT Hours CANNOT be negative or invalid text!", "error");
+            }
 
             if (changesMade > 0) {
                 await batch.commit();
