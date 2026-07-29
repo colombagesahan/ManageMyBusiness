@@ -4911,9 +4911,15 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             // 🚨 CA & AUDITOR FIX: Absolute Top Priority Execution!
             await window.verifyCurrentMonthRoster();
 
+            // 🚨 MASTER PATCH 3: Anti-Crash Wrappers (Graceful Degradation)
+            // එක Promise එකක් කැඩුනත් මුළු පද්ධතියම හිර නොවී ඊළඟ දේවල් Load වීමට ඉඩ සැලසීම!
+            const safeLoad = (promiseFn) => promiseFn.catch(e => console.error("SafeLoad Blocked Error:", e));
+            
             // PERFORMANCE FIX: Parallel Loading - Phase 1: Critical Path
             await Promise.all([
-                loadProfile(), loadCategories(), loadServiceCategories(), loadCatalog(), loadProducts(), loadServices(), loadEmpRoles(), loadSalaryPackages()
+                safeLoad(loadProfile()), safeLoad(loadCategories()), safeLoad(loadServiceCategories()), 
+                safeLoad(loadCatalog()), safeLoad(loadProducts()), safeLoad(loadServices()), 
+                safeLoad(loadEmpRoles()), safeLoad(loadSalaryPackages())
             ]);
 
             // 🛡️ CONCURRENCY CHECK 1
@@ -4933,10 +4939,14 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                     const qRef = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/refunds`), orderBy('date', 'desc'), limit(50));
                     const qExp = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`), orderBy('date', 'desc'), limit(100));
 
+                    // Failsafe Mock Snapshot for Firebase Query Crashes
+                    const emptySnap = { empty: true, forEach: () => {} };
+                    const safeFetch = (q) => getDocs(q).catch(e => { console.error("SafeFetch Error:", e); return emptySnap; });
+
                     const[ , , , snapSales, snapRef, snapExp, snapSup] = await Promise.all([
-                        loadEmployees(), loadAlerts(), loadCustomers(),
-                        getDocs(qSales), getDocs(qRef), getDocs(qExp),
-                        getDocs(query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/suppliers`), limit(200)))
+                        safeLoad(loadEmployees()), safeLoad(loadAlerts()), safeLoad(loadCustomers()),
+                        safeFetch(qSales), safeFetch(qRef), safeFetch(qExp),
+                        safeFetch(query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/suppliers`), limit(200)))
                     ]);
 
                     // 🛡️ CONCURRENCY CHECK 2: CRITICAL!
@@ -12962,9 +12972,17 @@ window.toggleAddressRequirement = () => {
     };
 window.calculatePOSBalance = () => {
         const totalText = document.getElementById('cartTotal').textContent.replace(/[^0-9.-]+/g,"");
-        const total = parseFloat(totalText) || 0;
+        let total = parseFloat(totalText) || 0;
+        
+        // 🚨 MASTER PATCH 1: Wallet Balance Logic Integration
+        // පාරිභෝගිකයාගේ Store Credit (Wallet) එක භාවිතා වෙනවා නම්, අතින් ගන්න ඕනේ ඉතිරි මුදල පමණයි!
+        if (window.currentCustomerWallet && window.currentCustomerWallet > 0) {
+            const walletToUse = Math.min(total, window.currentCustomerWallet);
+            total = total - walletToUse; // 👈 අය කළ යුතු සැබෑ මුදල
+        }
+
         const givenText = document.getElementById('posCashGiven').value;
-        const given = givenText.trim() === '' ? 0 : parseFloat(givenText); // Fix for empty string
+        const given = givenText.trim() === '' ? 0 : parseFloat(givenText); 
         const method = document.getElementById('posPaymentMethod').value;
         
         const balance = given - total;
@@ -21911,7 +21929,19 @@ window.emergencyLocalOverride = async () => {
                 
                 // 1. Deduct Raw Materials
                 for (let rm of rmDocs) {
-                    t.update(rm.ref, { qty: increment(-rm.deductQty) });
+                    let updatePayload = { qty: increment(-rm.deductQty) };
+                    
+                    // 🚨 MASTER PATCH 2: Prevent Serial Leak in BOM Engine
+                    // අමුද්‍රව්‍යය Serialized එකක් නම්, එහි Barcodes ස්වයංක්‍රීයව අයින් කර 'Sold/Consumed' ලැයිස්තුවට දැමීම!
+                    const isSer = rm.data.itemType === 'serialized' || (rm.data.availableSerials && rm.data.availableSerials.length > 0);
+                    if (isSer && rm.data.availableSerials.length >= rm.deductQty) {
+                        // පරණම Barcodes ටික පිළිවෙලින් අරන් නිෂ්පාදනයට යොදවයි
+                        const consumedSerials = rm.data.availableSerials.slice(0, rm.deductQty);
+                        updatePayload.availableSerials = arrayRemove(...consumedSerials);
+                        updatePayload.soldSerials = arrayUnion(...consumedSerials);
+                    }
+                    
+                    t.update(rm.ref, updatePayload);
                     
                     const logRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/inventory_logs`));
                     t.set(logRef, {
