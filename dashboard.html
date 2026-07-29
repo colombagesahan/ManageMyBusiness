@@ -4482,7 +4482,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                     tabs: JSON.stringify(window.currentUserTabs || [])
                 });
 
-                // 2. රහසිගත මුර බල්ලා (තත්පරයෙන් තත්පරය RAM එක පරීක්ෂා කරයි)
+               // 2. රහසිගත මුර බල්ලා (තත්පරයෙන් තත්පරය RAM එක පරීක්ෂා කරයි)
                 // 🛡️ ENTERPRISE FIX: Isolated inside an IIFE closure. Console Hackers CANNOT clear this interval!
                 if (!window._isWatchdogRunning) {
                     window._isWatchdogRunning = true;
@@ -4490,24 +4490,25 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                         setInterval(() => {
                             const currentTabsStr = JSON.stringify(window.currentUserTabs || []);
                         
-                        // යම් හෙයකින් කවුරුන් හෝ Developer Console එක හරහා userRole එක හෝ වෙනත් දත්තයක් වෙනස් කර ඇත්දැයි බලයි.
-                        if (userRole !== window.SecureAuthGuard.role || 
-                            dbOwnerId !== window.SecureAuthGuard.owner || 
-                            currentTabsStr !== window.SecureAuthGuard.tabs) {
-                            
-                            clearInterval(window.authWatchdog); // Stop the watchdog
-                            
-                            // 🚨 හැක් කිරීමට උත්සාහ කළ බව Audit Log එකට ලියයි!
-                            if(window.writeSystemLog) {
-                                writeSystemLog("HACK_ATTEMPT_BLOCKED", `CRITICAL: Memory tampering detected! User attempted to change role or permissions in RAM via Console.`);
+                            // යම් හෙයකින් කවුරුන් හෝ Developer Console එක හරහා userRole එක හෝ වෙනත් දත්තයක් වෙනස් කර ඇත්දැයි බලයි.
+                            if (userRole !== window.SecureAuthGuard.role || 
+                                dbOwnerId !== window.SecureAuthGuard.owner || 
+                                currentTabsStr !== window.SecureAuthGuard.tabs) {
+                                
+                                clearInterval(window.authWatchdog); // Stop the watchdog
+                                
+                                // 🚨 හැක් කිරීමට උත්සාහ කළ බව Audit Log එකට ලියයි!
+                                if(window.writeSystemLog) {
+                                    writeSystemLog("HACK_ATTEMPT_BLOCKED", `CRITICAL: Memory tampering detected! User attempted to change role or permissions in RAM via Console.`);
+                                }
+                                
+                                // ක්ෂණිකව පද්ධතියෙන් එළවා දමයි
+                                alert("🚨 Security Violation Detected!\n\nMemory Tampering (Hacking attempt) is strictly prohibited. Your session has been terminated.");
+                                logout();
                             }
-                            
-                            // ක්ෂණිකව පද්ධතියෙන් එළවා දමයි
-                            alert("🚨 Security Violation Detected!\n\nMemory Tampering (Hacking attempt) is strictly prohibited. Your session has been terminated.");
-                            logout();
-                        }
-                    }, 1000);
-                }
+                        }, 1000);
+                    })(); // <--- ULTIMATE BUG FIX: IIFE එක නිවැරදිව වසා ඇත
+                } // <--- ULTIMATE BUG FIX: IF condition එක නිවැරදිව වසා ඇත
                 // =========================================================
             } else {
                 // ENTERPRISE SECURITY FIX: Prevent broken Cashier accounts from escalating to Admin rights!
