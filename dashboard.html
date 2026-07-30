@@ -2568,13 +2568,13 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 
 <!-- MODALS -->
 
-<!-- 🚀 NEW: DAILY OT APPROVALS MODAL (Pagination & Batch Save) -->
+<!-- 🚀 NEW: DAILY ATTENDANCE & OT APPROVALS DASHBOARD -->
 <div id="otApprovalModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.85); display:none; align-items:center; justify-content:center; z-index:5500; backdrop-filter:blur(3px);">
-    <div class="card" style="width:100%; max-width:800px; height:85vh; display:flex; flex-direction:column; margin:0; border-top: 5px solid #0ea5e9;">
+    <div class="card" style="width:100%; max-width:950px; height:85vh; display:flex; flex-direction:column; margin:0; border-top: 5px solid #0ea5e9;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid #e5e7eb; padding-bottom:10px;">
             <div>
-                <h3 style="color:#0284c7; margin:0;"><i class="ri-time-fill"></i> Daily OT Approvals (Timesheet)</h3>
-                <p style="font-size:11px; color:#64748b; margin-top:3px;">Select a date to view all employees present. Authorize their Overtime manually.</p>
+                <h3 style="color:#0284c7; margin:0;"><i class="ri-dashboard-2-fill"></i> Daily Attendance & Exceptions</h3>
+                <p style="font-size:11px; color:#64748b; margin-top:3px;">Monitor lates, missed punches, and authorize Overtime securely.</p>
             </div>
             <i class="ri-close-line" style="cursor:pointer; font-size:24px; background:#f1f5f9; padding:5px; border-radius:50%;" onclick="closeModal('otApprovalModal')"></i>
         </div>
@@ -2589,11 +2589,11 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             <table style="width:100%; font-size:12px; text-align:left;">
                 <thead style="background:#e0f2fe; position:sticky; top:0; z-index:10; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
                     <tr>
-                        <th style="padding:10px; color:#0369a1;">Employee Name</th>
-                        <th style="padding:10px; color:#0369a1;">Clock In</th>
-                        <th style="padding:10px; color:#0369a1;">Clock Out</th>
-                        <th style="padding:10px; color:#b45309;">System Auto-OT</th>
-                        <th style="padding:10px; color:var(--success);">Approved OT (Payable) *</th>
+                        <th style="padding:10px; color:#0369a1;">Employee</th>
+                        <th style="padding:10px; color:#0369a1;">Punch (In - Out)</th>
+                        <th style="padding:10px; color:#b91c1c;">Exceptions / Lates</th>
+                        <th style="padding:10px; color:#b45309; text-align:center;">System Auto-OT</th>
+                        <th style="padding:10px; color:var(--success); text-align:center;">Authorize OT *</th>
                     </tr>
                 </thead>
                 <tbody id="otApprovalBody">
@@ -2603,7 +2603,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         </div>
         
         <div style="margin-top:15px; display:flex; justify-content:space-between; align-items:center; border-top:1px solid #e5e7eb; padding-top:15px;">
-            <span style="font-size:11px; color:#ef4444; font-weight:bold;"><i class="ri-error-warning-fill"></i> You must save changes before switching dates!</span>
+            <span style="font-size:11px; color:#ef4444; font-weight:bold;"><i class="ri-error-warning-fill"></i> Save changes before switching dates!</span>
             <div style="display:flex; gap:10px;">
                 <button class="btn btn-ghost" onclick="closeModal('otApprovalModal')">Cancel</button>
                 <button class="btn btn-success" onclick="saveDailyOtData()"><i class="ri-check-double-line"></i> Authorize & Save OT</button>
@@ -15503,65 +15503,77 @@ window.setQuickCash = (amount) => {
                         
                         let calculatedOT = 0;
                         let netWorkedHrs = 0;
+                        let lateMins = 0; // 🚀 NEW: Lates Tracker
 
+                        // 🛡️ POKA-YOKE FIX: Prevent NaN
                         const breakMins = parseInt(todayRoster.breakMins) || 0;
                         const breakThreshold = parseFloat(todayRoster.breakThreshold) || 4.0;
                         const isPaidBreak = todayRoster.isBreakPaid || false;
-                        const maxOtHrsAllowed = parseFloat(todayRoster.maxOtHrs) || 0;
 
-                        // 🛡️ POKA-YOKE: Deduct break globally if Unpaid and Threshold met
-                        let totalPhysicalHrs = (actualOutTime - actualInTime) / (1000 * 60 * 60);
-                        if (totalPhysicalHrs < 0) totalPhysicalHrs = 0;
+                        // 1. Roster Shift Times
+                        const rosterStart = new Date(`${todayStr}T${todayRoster.shiftStart}:00`);
+                        let rosterEnd = new Date(`${todayStr}T${todayRoster.shiftEnd}:00`);
+                        if (rosterEnd < rosterStart) rosterEnd.setDate(rosterEnd.getDate() + 1); // Overnight Shift
                         
-                        let breakDeduction = 0;
-                        if (!isPaidBreak && totalPhysicalHrs >= breakThreshold) {
-                            breakDeduction = (breakMins / 60);
+                        // 2. OT Shift Times (The Dead-Zone Avoider)
+                        const otStartStr = todayRoster.otStart || todayRoster.shiftEnd; // Fallback
+                        const otEndStr = todayRoster.otEnd || todayRoster.shiftEnd;
+                        let otStartTime = new Date(`${todayStr}T${otStartStr}:00`);
+                        let otEndTime = new Date(`${todayStr}T${otEndStr}:00`);
+                        if (otStartTime < rosterStart) otStartTime.setDate(otStartTime.getDate() + 1);
+                        if (otEndTime < otStartTime) otEndTime.setDate(otEndTime.getDate() + 1);
+
+                        // 3. Late Calculation (Poka-Yoke: Penalize lates)
+                        if (actualInTime > rosterStart) {
+                            lateMins = Math.floor((actualInTime - rosterStart) / 60000); // විනාඩි වලින්
                         }
 
                         // 🛡️ ENTERPRISE HR: STRICT ADHERENCE ENGINE
                         if (todayRoster.isClosed || todayRoster.isHolidayOT) {
-                            // නිවාඩු දිනයක් බැවින් මුළු කාලයම OT වේ. (කෑම පැය අඩු කළ යුතුය)
+                            // Holiday logic: all physical hours are OT, subject to break deduction.
+                            let totalPhysicalHrs = (actualOutTime - actualInTime) / (1000 * 60 * 60);
+                            if (totalPhysicalHrs < 0) totalPhysicalHrs = 0;
+                            let breakDeduction = (!isPaidBreak && totalPhysicalHrs >= breakThreshold) ? (breakMins / 60) : 0;
+                            
                             calculatedOT = Math.max(0, totalPhysicalHrs - breakDeduction);
                             netWorkedHrs = 0; 
                         } else {
-                            // 1. Roster Shift Times අද දවසට ගලපමු
-                            const rosterStart = new Date(`${todayStr}T${todayRoster.shiftStart}:00`);
-                            let rosterEnd = new Date(`${todayStr}T${todayRoster.shiftEnd}:00`);
-                            if (rosterEnd < rosterStart) rosterEnd.setDate(rosterEnd.getDate() + 1); // Overnight Shift
+                            // Normal Working Day Logic (Two separate ledgers!)
                             
-                            // 2. Anti-Exploit Clamp for Normal Hours (කලින් ආවත් පඩිය හැදෙන්නේ Roster Start එකේ ඉඳන් පමණයි)
-                            const effectiveInTime = new Date(Math.max(actualInTime.getTime(), rosterStart.getTime()));
-                            const effectiveOutTime = new Date(Math.min(actualOutTime.getTime(), rosterEnd.getTime()));
+                            // A. Normal Hours (Overlap with Roster Shift)
+                            const effectiveNormalIn = Math.max(actualInTime.getTime(), rosterStart.getTime());
+                            const effectiveNormalOut = Math.min(actualOutTime.getTime(), rosterEnd.getTime());
+                            let normalHrs = (effectiveNormalOut - effectiveNormalIn) / (1000 * 60 * 60);
+                            if (normalHrs < 0) normalHrs = 0;
                             
-                            let baseHrs = (effectiveOutTime - effectiveInTime) / (1000 * 60 * 60);
-                            if (baseHrs < 0) baseHrs = 0;
-
-                            // Normal වැඩ කළ පැය ගණන (කෑම පැය අඩු කර)
-                            netWorkedHrs = Math.max(0, baseHrs - breakDeduction);
-
-                            // 3. Authorized OT Engine (Zero-Trust: Strictly Post-Shift OT)
-                            // OT ගෙවන්නේ Roster End එකට පසුව සිටි කාලයට පමණි!
-                            if (maxOtHrsAllowed > 0 && actualOutTime > rosterEnd) {
-                                let rawOT = (actualOutTime - rosterEnd) / (1000 * 60 * 60);
-                                calculatedOT = Math.min(rawOT, maxOtHrsAllowed); // Capped by Admin limit
-                            } else {
-                                calculatedOT = 0; // Blocked completely or no OT done
+                            let breakDeduction = 0;
+                            if (!isPaidBreak && normalHrs >= breakThreshold) {
+                                breakDeduction = (breakMins / 60);
                             }
+                            netWorkedHrs = Math.max(0, normalHrs - breakDeduction);
+
+                            // B. OT Hours (Overlap with OT Shift ONLY - Bypasses Dead Zone!)
+                            const effectiveOtIn = Math.max(actualInTime.getTime(), otStartTime.getTime());
+                            const effectiveOtOut = Math.min(actualOutTime.getTime(), otEndTime.getTime());
+                            let rawOT = (effectiveOtOut - effectiveOtIn) / (1000 * 60 * 60);
+                            if (rawOT < 0) rawOT = 0;
+                            
+                            calculatedOT = rawOT;
                         }
 
-                        // 🚨 IFRS FIX: IEEE 754 Floating Point Precision Rounding (සතේටම නිවැරදි කිරීම)
+                        // 🚨 IFRS FIX: IEEE 754 Floating Point Precision Rounding
                         netWorkedHrs = Math.round(netWorkedHrs * 100) / 100;
                         calculatedOT = Math.round(calculatedOT * 100) / 100;
                         
-                        // මැනුවල් OT එකක් දී ඇත්නම් එය සුරක්ෂිත කිරීම
                         const finalOT = Math.max((logData.ot || 0), calculatedOT);
 
                         // Update the database
                         await updateDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/employees/${foundEmpId}/logs`, logDoc.id), {
                             clockOutTime: actualOutTime.toISOString(),
                             workedHours: netWorkedHrs,
+                            lateMins: lateMins, // 👈 🚀 NEW: Saving Lates to DB!
                             ot: finalOT,
-                            systemCalcOt: calculatedOT // 👈 Admin ට බලාගන්න වෙනම Save කරනවා
+                            systemCalcOt: calculatedOT
                         });
 
                         if(window.writeSystemLog) {
@@ -18131,8 +18143,6 @@ window.togglePromoFields = () => {
         const [year, month] = monthVal.split('-');
         const daysInMonth = new Date(year, month, 0).getDate();
         
-        // 🚨 IFRS & AUDIT FIX: Check if Payroll is already processed for this month!
-        // Payroll Period is stored as "YYYY_M" (0-indexed month)
         const payrollPeriodName = `${parseInt(year)}_${parseInt(month) - 1}`;
         const qPaid = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`), 
             where("isPayroll", "==", true), 
@@ -18142,7 +18152,6 @@ window.togglePromoFields = () => {
         const snapPaid = await getDocs(qPaid);
         const isPayrollLocked = !snapPaid.empty;
 
-        // Check if roster already exists in DB
         const rosterRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/settings`, `roster_${year}_${month}`);
         const snap = await getDoc(rosterRef);
         let savedData = snap.exists() ? snap.data().days : {};
@@ -18154,7 +18163,6 @@ window.togglePromoFields = () => {
             html += `<tr><td colspan="6" style="padding:15px; background:#fee2e2; color:#b91c1c; font-weight:bold; text-align:center;"><i class="ri-lock-fill"></i> HISTORICAL RECORD LOCKED: Salaries have already been paid for ${monthVal}. You cannot modify this roster!</td></tr>`;
         }
 
-        // 🛡️ Get Today at Midnight (00:00:00) for strict historical comparison
         const todayZero = window.getSecureTime();
         todayZero.setHours(0,0,0,0);
 
@@ -18162,9 +18170,7 @@ window.togglePromoFields = () => {
             const dateStr = `${year}-${month}-${String(i).padStart(2, '0')}`;
             const dateObj = new Date(parseInt(year), parseInt(month) - 1, i);
             
-            // 🚨 IFRS FIX: Is this day in the past? (Cannot edit history to prevent Database Desync)
             const isPast = dateObj < todayZero;
-            
             const dayName = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Colombo', weekday: 'short' }).format(dateObj);
             const isSunday = dateObj.getDay() === 0; 
             
@@ -18173,25 +18179,24 @@ window.togglePromoFields = () => {
             const startT = existing.shiftStart || '08:00';
             const endT = existing.shiftEnd || '17:00'; 
             
-            // 🚀 NEW: Dynamic Enterprise Break & OT Controls (No Hardcoding!)
             const breakMins = existing.breakMins !== undefined ? existing.breakMins : 60; 
-            const breakThreshold = existing.breakThreshold !== undefined ? existing.breakThreshold : 4.0; // පැය 4ක් වැඩ කළොත් තමයි කෑම පැය කැපෙන්නේ
+            const breakThreshold = existing.breakThreshold !== undefined ? existing.breakThreshold : 4.0;
             const isBreakPaid = existing.isBreakPaid || false; 
-            const maxOtHrs = existing.maxOtHrs !== undefined ? existing.maxOtHrs : 0; // 0 means NO auto-OT allowed!
+            
+            // 🚀 ENTERPRISE FIX: OT Window Configuration
+            const otStartT = existing.otStart || '18:00'; 
+            const otEndT = existing.otEnd || '21:00';
             
             const isHolidayOT = existing.isHolidayOT || false;
 
-            // Apply Locks
             const isLockedCompletely = isClosed || isPayrollLocked || isPast;
             const lockState = isLockedCompletely ? 'disabled' : '';
             const masterLockState = (isPayrollLocked || isPast) ? 'disabled' : '';
 
-            // Visual Indicators
             const rowBg = isClosed ? '#fee2e2' : (isSunday ? '#fff7ed' : 'white');
             const rowOpacity = (isPayrollLocked || isPast) ? 'opacity:0.6;' : '';
             const dateDisplay = isPast ? `${dateStr} <i class="ri-lock-line" style="font-size:10px; color:#ef4444;" title="Locked"></i>` : dateStr;
 
-            // Calculate Initial Hours
             const startD = new Date(`1970-01-01T${startT}:00`);
             let endD = new Date(`1970-01-01T${endT}:00`);
             if (endD < startD) endD.setDate(endD.getDate() + 1); 
@@ -18223,8 +18228,14 @@ window.togglePromoFields = () => {
                     <label style="font-size:9px; font-weight:bold; color:#0f766e;"><input type="checkbox" class="chk-break-paid" data-date="${dateStr}" ${isBreakPaid ? 'checked' : ''} ${lockState} onchange="calcRosterRowHours('${dateStr}')"> Paid Break?</label>
                 </td>
                 
+                <!-- 🚀 ENTERPRISE FIX: OT Start and End Times -->
                 <td style="text-align:center; background:#fef2f2;">
-                    <input type="number" step="any" class="inp-max-ot" data-date="${dateStr}" value="${maxOtHrs}" style="margin:0; width:60px; font-weight:bold; font-size:12px; color:var(--danger); text-align:center;" title="Max OT Allowed (Hrs)" ${lockState}>
+                    <div style="display:flex; align-items:center; justify-content:center; gap:2px; margin-bottom:4px;">
+                        <span style="font-size:9px; color:var(--danger); font-weight:bold;">S:</span> <input type="time" class="inp-ot-start" data-date="${dateStr}" value="${otStartT}" style="margin:0; width:70px; font-size:10px; padding:2px; border-color:#fca5a5;" ${lockState}>
+                    </div>
+                    <div style="display:flex; align-items:center; justify-content:center; gap:2px;">
+                        <span style="font-size:9px; color:var(--danger); font-weight:bold;">E:</span> <input type="time" class="inp-ot-end" data-date="${dateStr}" value="${otEndT}" style="margin:0; width:70px; font-size:10px; padding:2px; border-color:#fca5a5;" ${lockState}>
+                    </div>
                 </td>
                 
                 <td style="font-weight:900; font-size:14px; color:var(--primary); text-align:center;" id="hrs_${dateStr}">${isClosed ? '0.0' : hrs.toFixed(1)} h</td>
@@ -18233,9 +18244,19 @@ window.togglePromoFields = () => {
             </tr>`;
         }
         
+        // Update Table Headers
+        document.querySelector('#rosterTable thead tr').innerHTML = `
+            <th style="padding:8px; font-size:11px;">දිනය</th>
+            <th style="padding:8px; font-size:11px; color:var(--danger);">Closed</th>
+            <th style="padding:8px; font-size:11px;">Shift (In - Out)</th>
+            <th style="padding:8px; font-size:11px; color:#d97706;">කෑම විවේකය <br><span style="font-size:9px;">(Mins / Trigger Hrs / Paid)</span></th>
+            <th style="padding:8px; font-size:11px; color:var(--danger);">OT කවුළුව <br><span style="font-size:9px;">(OT Start - OT End)</span></th>
+            <th style="padding:8px; font-size:11px; color:var(--primary);">මුළු පැය</th>
+            <th style="padding:8px; font-size:11px; color:var(--success);">නිවාඩු OT</th>
+        `;
+
         tbody.innerHTML = html;
         
-        // Hide Save Button if Locked
         const saveBtn = document.querySelector('#rosterModal .btn-primary');
         if (saveBtn) saveBtn.style.display = isPayrollLocked ? 'none' : 'inline-flex';
         
@@ -18246,8 +18267,14 @@ window.togglePromoFields = () => {
     window.calcRosterRowHours = (dateStr) => {
         const startT = document.querySelector(`.inp-start[data-date="${dateStr}"]`).value;
         const endT = document.querySelector(`.inp-end[data-date="${dateStr}"]`).value;
-        const breakMins = parseInt(document.querySelector(`.inp-break[data-date="${dateStr}"]`).value) || 0;
-        const breakThreshold = parseFloat(document.querySelector(`.inp-break-trig[data-date="${dateStr}"]`).value) || 4;
+        
+        // 🛡️ POKA-YOKE FIX: Strict Fallbacks to prevent NaN crashes
+        const breakMinsInput = document.querySelector(`.inp-break[data-date="${dateStr}"]`).value;
+        const breakTrigInput = document.querySelector(`.inp-break-trig[data-date="${dateStr}"]`).value;
+        
+        const breakMins = parseInt(breakMinsInput) || 0; // හිස් නම් 0 වේ
+        const breakThreshold = parseFloat(breakTrigInput) || 4.0; // හිස් නම් පැය 4 වේ
+        
         const isPaid = document.querySelector(`.chk-break-paid[data-date="${dateStr}"]`).checked;
         const display = document.getElementById(`hrs_${dateStr}`);
         
@@ -18318,7 +18345,8 @@ window.togglePromoFields = () => {
                 breakMins: parseInt(tr.querySelector('.inp-break').value) || 0,
                 breakThreshold: parseFloat(tr.querySelector('.inp-break-trig').value) || 4,
                 isBreakPaid: tr.querySelector('.chk-break-paid').checked,
-                maxOtHrs: parseFloat(tr.querySelector('.inp-max-ot').value) || 0, // 👈 THE OT CAP
+                otStart: tr.querySelector('.inp-ot-start').value, // 🚀 NEW: OT Window Start
+                otEnd: tr.querySelector('.inp-ot-end').value,     // 🚀 NEW: OT Window End
                 isHolidayOT: tr.querySelector('.chk-holidayOT').checked
             };
         });
@@ -18332,11 +18360,8 @@ window.togglePromoFields = () => {
             if(window.writeSystemLog) writeSystemLog("ROSTER_SAVED", `Admin saved monthly roster for ${monthVal}`);
             
             showToast("Roster Settings Saved Successfully!");
-            
-            // 🚨 AUTO-UNLOCK: Save කළ සැණින් Lock තිරය ඉබේම අතුරුදහන් වීම!
             await window.verifyCurrentMonthRoster();
             
-            // Restore buttons in case they were hidden by the lock screen trap
             const closeIcon = document.querySelector('#rosterModal .ri-close-line');
             const cancelBtn = document.querySelector('#rosterModal .btn-ghost');
             if(closeIcon) closeIcon.style.display = 'block';
@@ -22664,9 +22689,6 @@ window.emergencyLocalOverride = async () => {
         
         toggleLoader(true);
         try {
-            // 🚨 ENTERPRISE SECURITY FIX: Bypassed both 'collectionGroup' (Data Leak Risk) 
-            // and 'employeesCache' (RAM Incompleteness Risk in Distributed Systems).
-            // STEP 1: Fetch the absolute LIVE list of employee IDs for this specific shop.
             const empQuery = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/employees`));
             const empSnap = await getDocs(empQuery);
             
@@ -22677,7 +22699,6 @@ window.emergencyLocalOverride = async () => {
                 liveEmpNames[eDoc.id] = eDoc.data().name || `ID: ${eDoc.id}`;
             });
 
-            // STEP 2: Use highly concurrent Promise.all scoped strictly to these confirmed IDs
             currentOtLogsCache = [];
             const fetchPromises = liveEmpIds.map(empId => {
                 const q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/employees/${empId}/logs`), where("date", "==", targetDate));
@@ -22689,41 +22710,50 @@ window.emergencyLocalOverride = async () => {
             logsSnaps.forEach((snap, index) => {
                 const empId = liveEmpIds[index];
                 snap.forEach(d => {
-                    // Injecting live name directly to avoid relying on global cache later
-                    currentOtLogsCache.push({ 
-                        id: d.id, 
-                        refPath: d.ref.path, 
-                        empName: liveEmpNames[empId], 
-                        ...d.data() 
-                    });
+                    currentOtLogsCache.push({ id: d.id, refPath: d.ref.path, empName: liveEmpNames[empId], ...d.data() });
                 });
             });
 
             if (currentOtLogsCache.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:20px; color:#ef4444;">No attendance records found for ${targetDate}.</td></tr>`;
-                toggleLoader(false);
-                return;
+                toggleLoader(false); return;
             }
 
             let html = '';
             currentOtLogsCache.forEach((l, idx) => {
-                // 🛡️ ZERO-TRUST FIX: Use the rigorously fetched live name from DB, not the RAM Cache
                 const empName = l.empName;
-
                 const inTime = l.clockInTime ? new Date(l.clockInTime).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '-';
                 const outTime = l.clockOutTime ? new Date(l.clockOutTime).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : '-';
                 
+                // 🚀 ENTERPRISE UX: Exceptions Display
+                let exceptionHtml = `<span style="color:#10b981; font-weight:bold; font-size:11px;"><i class="ri-check-line"></i> Normal</span>`;
+                
+                if (l.lateMins && l.lateMins > 0) {
+                    const hrsLate = Math.floor(l.lateMins / 60);
+                    const minsLate = l.lateMins % 60;
+                    exceptionHtml = `<div style="background:#fee2e2; color:#b91c1c; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold; display:inline-block;"><i class="ri-alarm-warning-line"></i> LATE: ${hrsLate}h ${minsLate}m</div>`;
+                } else if (l.clockInTime && !l.clockOutTime) {
+                    exceptionHtml = `<div style="background:#fefce8; color:#b45309; padding:2px 6px; border-radius:4px; font-size:10px; font-weight:bold; display:inline-block; border:1px solid #fde047;"><i class="ri-error-warning-fill"></i> MISSED OUT-PUNCH</div>`;
+                }
+
+                if (l.systemNote) {
+                    exceptionHtml += `<div style="font-size:10px; color:#b45309; margin-top:2px;">* ${l.systemNote}</div>`;
+                }
+
                 const sysOt = l.systemCalcOt !== undefined ? l.systemCalcOt : 0;
-                const approvedOt = l.ot !== undefined ? l.ot : sysOt; // Default input to current approved or system OT
+                const approvedOt = l.ot !== undefined ? l.ot : sysOt; 
 
                 html += `
                 <tr style="background:white; border-bottom:1px solid #e2e8f0; transition:0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
                     <td style="font-weight:bold; color:#1f2937;">${empName}</td>
-                    <td style="color:#10b981; font-family:monospace; font-weight:bold;">${inTime}</td>
-                    <td style="color:#ef4444; font-family:monospace; font-weight:bold;">${outTime}</td>
-                    <td style="font-weight:bold; color:#d97706; background:#fffbeb; text-align:center;">${sysOt.toFixed(1)} h</td>
-                    <td style="background:#f0fdf4;">
-                        <input type="number" step="any" id="otApprove_${idx}" value="${approvedOt}" style="margin:0; width:100%; border:2px solid #22c55e; font-weight:900; color:#15803d; text-align:center;" min="0">
+                    <td>
+                        <div style="font-family:monospace; font-size:11px; color:#10b981; font-weight:bold;">IN: ${inTime}</div>
+                        <div style="font-family:monospace; font-size:11px; color:#ef4444; font-weight:bold;">OUT: ${outTime}</div>
+                    </td>
+                    <td>${exceptionHtml}</td>
+                    <td style="font-weight:bold; color:#d97706; background:#fffbeb; text-align:center; font-size:14px;">${sysOt.toFixed(1)} <span style="font-size:10px;">h</span></td>
+                    <td style="background:#f0fdf4; text-align:center;">
+                        <input type="number" step="any" id="otApprove_${idx}" value="${approvedOt}" style="margin:0; width:80px; border:2px solid #22c55e; font-weight:900; color:#15803d; text-align:center;" min="0">
                     </td>
                 </tr>`;
             });
