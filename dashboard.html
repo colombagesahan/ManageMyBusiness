@@ -6023,14 +6023,8 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         const manualSku = document.getElementById('bpSkuInput').value.trim(); 
         
         if(!name) return showToast("Product Name Required", "error");
-        // Remove strict image requirement for speed
-        // if(!id && !compressedImageBase64) return showToast("Image Required", "error"); 
 
-        window.isSavingProduct = true; // Lock execution
-        toggleLoader(true);
-        try {
-            if(id) {
-                // 🚀 Grab dynamic values
+        // 🚀 Grab dynamic values
         const minStock = parseFloat(document.getElementById('bpMinStock').value) || 0;
         const maxStock = parseFloat(document.getElementById('bpMaxStock').value) || 0;
         const moq = parseFloat(document.getElementById('bpMoq').value) || 1;
@@ -6040,6 +6034,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 
         window.isSavingProduct = true; // Lock execution
         toggleLoader(true);
+        
         try {
             if(id) {
                 // ENTERPRISE FIX: Update Rules
@@ -6061,7 +6056,6 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                     const snapStock = await getDocs(qStock);
                     if(!snapStock.empty) {
                         // 🛡️ ENTERPRISE FIX: Batch Chunking to bypass Firebase 500-Write Limit
-                        // වාර්තා දහස් ගණනක් තිබුණද, ඒවා 450 බැගින් වූ කුඩා ගොඩවල් (Chunks) වලට කඩා Update කිරීම.
                         const docsArray = snapStock.docs;
                         const CHUNK_SIZE = 450; // Safety margin below 500
                         
@@ -6111,7 +6105,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                     scalePlu: document.getElementById('bpScalePlu').value.trim(),
                     created: window.getSecureTime().toISOString()
                 });
-}
+            }
             closeModal('baseProductModal');
             await loadCatalog();
             if(window.writeSystemLog) writeSystemLog(id ? "BASE_PRODUCT_UPDATED" : "BASE_PRODUCT_CREATED", `${id ? 'Updated' : 'Created'} Base Product: ${name} (SKU: ${manualSku || 'Auto'})`);
