@@ -11060,16 +11060,23 @@ window.autoFillDocCustomer = (name) => {
                         
                         const date = o.date ? new Date(o.date).toLocaleString() : "N/A";
                         const isPayLaterOriginal = o.paymentMethod === 'Pay Later';
-                        const isSettled = (isPayLaterOriginal && (o.creditBalance === 0 || o.creditBalance === undefined)) || o.paymentMethod === 'Cash (Settled)' || o.paymentMethod === 'Cheque';
+                        const isCreditSettled = isPayLaterOriginal && (o.creditBalance === 0 || o.creditBalance === undefined);
+                        const isCashSettled = o.paymentMethod === 'Cash (Settled)' || o.paymentMethod === 'Cash (Overpaid & Settled)' || o.paymentMethod === 'Cash (Auto-Settled)';
                         
-                        const rowClass = (isPayLaterOriginal && !isSettled) ? 'row-danger' : (isSettled ? 'row-success' : '');
+                        // Row highlight styling
+                        const rowClass = (isPayLaterOriginal && !isCreditSettled) ? 'row-danger' : ((isCreditSettled || isCashSettled) ? 'row-success' : '');
                         
                         let payMethodDisplay = o.paymentMethod || "Unknown";
-                        if (isSettled && isPayLaterOriginal) {
+                        
+                        if (isCreditSettled) {
                             payMethodDisplay = `<span style="text-decoration: line-through; color: #ef4444; font-weight:bold;">Pay Later</span><br><span style="font-size:11px; color:#10b981; font-weight:800;"><i class="ri-check-double-fill"></i> SETTLED</span>`;
-                        } else if (isSettled) {
-                            payMethodDisplay = `<span style="font-size:11px; color:#10b981; font-weight:800;"><i class="ri-check-double-fill"></i> SETTLED</span>`;
+                        } else if (isCashSettled) {
+                            payMethodDisplay = `<span style="font-size:11px; color:#10b981; font-weight:800;"><i class="ri-check-double-fill"></i> SETTLED IN CASH</span>`;
+                        } else if (o.paymentMethod === 'Cheque') {
+                            // 🚀 FIX: Cheque නම් පැහැදිලිවම පෙන්වන්න
+                            payMethodDisplay = `<span style="font-weight:bold; color:#d97706;">Cheque</span><br><span style="font-size:9px; color:#6b7280;">(See Registry)</span>`;
                         }
+                        // Any other method (Card, Transfer, Koko) will just display its normal name.
 
                         const orderIdDisplay = o.customOrderId || o.id.substring(0,8);
                         const custName = (o.customer && o.customer.name) ? o.customer.name : "Walk-in Customer";
