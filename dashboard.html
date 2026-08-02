@@ -5514,8 +5514,8 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 
 // 🚀 Load Custom Payments
         window.customPaymentsCache = p.customPayments || [];
-        renderCustomPayments();
-        populatePosPaymentMethods(); // Update POS Dropdown instantly
+        if(window.renderCustomPayments) window.renderCustomPayments();
+        if(window.populatePosPaymentMethods) window.populatePosPaymentMethods(); // Update POS Dropdown instantly
 
         const container = document.getElementById('profLogoContainer');
         if(p.logoImage) {
@@ -5718,17 +5718,17 @@ customPayments: window.customPaymentsCache || [],
         window.customPaymentsCache.push({ name, type, fee, strategy });
         document.getElementById('newPayName').value = '';
         document.getElementById('newPayFee').value = '';
-        renderCustomPayments();
-        populatePosPaymentMethods(); // Live Update
+        window.renderCustomPayments();
+        window.populatePosPaymentMethods(); // Live Update
     };
 
     window.removeCustomPaymentMethod = (idx) => {
         window.customPaymentsCache.splice(idx, 1);
-        renderCustomPayments();
-        populatePosPaymentMethods(); // Live Update
+        window.renderCustomPayments();
+        window.populatePosPaymentMethods(); // Live Update
     };
 
-    function renderCustomPayments() {
+    window.renderCustomPayments = () => {
         const tbody = document.getElementById('customPaymentsList');
         if(!tbody) return;
         
@@ -15650,7 +15650,8 @@ window.setQuickCash = (amount) => {
 
         snapSales.forEach(docSnap => {
             const s = docSnap.data();
-            const payM = s.paymentMethod;
+            // 🚨 SAFETY FIX: Fallback to 'Cash' if old legacy database records are missing the payment method!
+            const payM = s.paymentMethod || 'Cash'; 
             
             // Look up custom configuration
             const customP = (window.customPaymentsCache || []).find(c => c.name === payM);
