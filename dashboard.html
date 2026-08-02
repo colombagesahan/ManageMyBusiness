@@ -1851,6 +1851,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                  </div>
 
                  <div style="display:flex; gap:10px;">
+                     <button class="btn btn-ghost" onclick="openExpenseCategoryModal()"><i class="ri-list-settings-line"></i> Chart of Accounts</button>
                      <button class="btn btn-success" onclick="openExpenseModal(true)">+ Add Income</button>
                      <button class="btn btn-danger" onclick="openExpenseModal(false)">- Add Expense</button>
                  </div>
@@ -2568,6 +2569,44 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 
 <!-- MODALS -->
 
+<!-- 🚀 NEW: DRAFT PO REVIEW MODAL -->
+<div id="autoPoDraftModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.85); display:none; align-items:center; justify-content:center; z-index:5500; backdrop-filter:blur(4px);">
+    <div class="card" style="width:100%; max-width:800px; height:85vh; display:flex; flex-direction:column; margin:0; border-top: 5px solid #4f46e5;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid #e5e7eb; padding-bottom:10px;">
+            <div>
+                <h3 style="color:#4f46e5; margin:0;"><i class="ri-file-list-3-fill"></i> Review Draft Purchase Order</h3>
+                <p style="font-size:11px; color:#64748b; margin-top:3px;">System has calculated optimal quantities. You can adjust them before generating the final PDF.</p>
+            </div>
+            <i class="ri-close-line" style="cursor:pointer; font-size:24px; background:#f1f5f9; padding:5px; border-radius:50%;" onclick="closeModal('autoPoDraftModal')"></i>
+        </div>
+
+        <div style="flex:1; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; background:#f8fafc;">
+            <table style="width:100%; font-size:12px; text-align:left;">
+                <thead style="background:#e0e7ff; position:sticky; top:0; z-index:10; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
+                    <tr>
+                        <th style="padding:10px; color:#3730a3;">Product Details</th>
+                        <th style="padding:10px; color:#3730a3; text-align:center;">Current Stock</th>
+                        <th style="padding:10px; color:#3730a3; text-align:center;">Rules (Min/Max/MOQ)</th>
+                        <th style="padding:10px; color:var(--success); text-align:center;">Order Qty (Edit)</th>
+                        <th style="padding:10px; text-align:center;">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="poDraftBody">
+                    <!-- Data injected via JS -->
+                </tbody>
+            </table>
+        </div>
+        
+        <div style="margin-top:15px; display:flex; justify-content:space-between; align-items:center; border-top:1px solid #e5e7eb; padding-top:15px;">
+            <span style="font-size:11px; color:#ef4444; font-weight:bold;"><i class="ri-information-fill"></i> Quantities can only be adjusted in multiples of Supplier MOQ.</span>
+            <div style="display:flex; gap:10px;">
+                <button class="btn btn-ghost" onclick="closeModal('autoPoDraftModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="confirmAndGeneratePO()"><i class="ri-check-double-line"></i> Confirm & Generate PDF</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- 🚀 NEW: DAILY ATTENDANCE & OT APPROVALS DASHBOARD -->
 <div id="otApprovalModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.85); display:none; align-items:center; justify-content:center; z-index:5500; backdrop-filter:blur(3px);">
     <div class="card" style="width:100%; max-width:950px; height:85vh; display:flex; flex-direction:column; margin:0; border-top: 5px solid #0ea5e9;">
@@ -2680,13 +2719,16 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         <label style="font-size:12px;">Description / Reason *</label>
         <input id="expDesc" placeholder="e.g. Lunch for staff, or Selling Scrap">
         
-        <!-- 🚨 CA FIX: Expense Category to prevent Double Deduction -->
+        <!-- 🚀 ENTERPRISE FIX: Dynamic Chart of Accounts Dropdown -->
         <div id="expCategoryWrapper" style="display:none;">
-            <label style="font-size:12px; font-weight:bold; color:var(--primary); margin-top:10px; display:block;">Expense Type (Accounting) *</label>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px; margin-bottom:5px;">
+                <label style="font-size:12px; font-weight:bold; color:var(--primary);">Expense Category *</label>
+                <button class="btn btn-ghost" style="padding:2px 6px; font-size:10px;" onclick="openExpenseCategoryModal()">+ Manage</button>
+            </div>
             <select id="expCategory" style="margin-bottom:10px; border-color:var(--primary); font-weight:bold;">
-                <option value="OPEX">Business Expense (Bills, Fuel) - Reduces Profit</option>
-                <option value="CAPEX">Supplier Payment / Stock Buy - DOES NOT reduce Profit</option>
+                <!-- Dynamically Populated -->
             </select>
+            <div id="expCatWarning" style="font-size:10px; color:#b91c1c; font-weight:bold; margin-bottom:10px; display:none;"></div>
         </div>
         
         <label style="font-size:12px; margin-top:10px; display:block;">Amount *</label>
@@ -2699,6 +2741,41 @@ body.pos-fullscreen-mode #view-pos > div > .card {
     </div>
 </div>
 <!-- NOTE: Old expenseHistoryModal is completely removed as we now have a dedicated Tab! -->
+
+<!-- 🚀 NEW: CHART OF ACCOUNTS (EXPENSE CATEGORIES) MODAL -->
+<div id="expenseCategoryModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.6); display:none; align-items:center; justify-content:center; z-index:4000; backdrop-filter:blur(3px);">
+    <div class="card" style="width:450px; margin:0; border-top:5px solid var(--primary); max-height:85vh; display:flex; flex-direction:column;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid #e2e8f0; padding-bottom:10px;">
+            <h3 style="color:var(--primary); margin:0;"><i class="ri-list-settings-fill"></i> Chart of Accounts</h3>
+            <i class="ri-close-line" style="cursor:pointer; font-size:24px;" onclick="closeModal('expenseCategoryModal')"></i>
+        </div>
+        <p style="font-size:11px; color:#64748b; margin-bottom:15px;">Create custom expense categories. <b>Crucial:</b> Link them correctly so the P&L Profit calculation remains accurate!</p>
+        
+        <div style="display:flex; gap:10px; margin-bottom:15px; align-items:flex-end;">
+            <div style="flex:1;">
+                <label style="font-size:11px; font-weight:bold;">Category Name *</label>
+                <input id="newExpCatName" placeholder="e.g. Marketing, Legal, Office Meals" style="margin:0; font-weight:bold; font-size:12px;">
+            </div>
+            <div style="flex:1;">
+                <label style="font-size:11px; font-weight:bold; color:var(--danger);">මූල්‍ය වර්ගය (Account Type) *</label>
+                <select id="newExpCatRoot" style="margin:0; font-weight:bold; font-size:11px; border-color:var(--danger);">
+                    <option value="OPEX">එදිනෙදා වියදමකි (ලාභයෙන් කැපේ. උදා: බිල්, කෑම, ඉන්ධන)</option>
+                    <option value="CAPEX">වත්කමක් හෝ ණය පියවීමකි (CAPEX/Liability - ලාභයෙන් නොකැපේ)</option>
+                </select>
+            </div>
+            <button class="btn btn-primary" onclick="saveExpenseCategory()"><i class="ri-add-line"></i> Add</button>
+        </div>
+
+        <div style="flex:1; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; background:#f8fafc;">
+            <table style="width:100%; font-size:12px; text-align:left;">
+                <thead style="background:#f1f5f9; position:sticky; top:0; box-shadow:0 1px 2px rgba(0,0,0,0.05);">
+                    <tr><th style="padding:8px;">Category Name</th><th style="padding:8px; width:100px;">Root Type</th><th style="padding:8px; text-align:right;">Action</th></tr>
+                </thead>
+                <tbody id="expCatTbody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
 
 <!-- STOCK DEDUCTION WARNING MODAL -->
 <div id="docStockWarningModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:3000;">
@@ -2848,6 +2925,26 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 
         <input id="bpName" placeholder="Product Name (Required)">
         
+        <!-- 🚀 ENTERPRISE INVENTORY ENGINE: Min/Max/MOQ Settings -->
+        <div style="background:#f0fdf4; padding:10px; border-radius:8px; border:1px solid #bbf7d0; margin-top:10px; margin-bottom:10px;">
+            <div style="font-size:11px; font-weight:bold; color:#166534; margin-bottom:8px;"><i class="ri-settings-4-fill"></i> Auto-PO & Inventory Rules (Hardcode Bypass)</div>
+            <div style="display:flex; gap:10px;">
+                <div style="flex:1;">
+                    <label style="font-size:10px; font-weight:bold; color:#15803d;">Low Stock Alert (Min)</label>
+                    <input type="number" id="bpMinStock" value="5" placeholder="e.g. 5" style="margin:0; font-size:12px; border-color:#86efac; font-weight:bold; text-align:center;">
+                </div>
+                <div style="flex:1;">
+                    <label style="font-size:10px; font-weight:bold; color:#15803d;">Target Stock (Max)</label>
+                    <input type="number" id="bpMaxStock" value="20" placeholder="e.g. 20" style="margin:0; font-size:12px; border-color:#86efac; font-weight:bold; text-align:center;">
+                </div>
+                <div style="flex:1;">
+                    <label style="font-size:10px; font-weight:bold; color:#15803d;">Supplier MOQ</label>
+                    <input type="number" id="bpMoq" value="1" placeholder="e.g. 1" style="margin:0; font-size:12px; border-color:#86efac; font-weight:bold; text-align:center;">
+                </div>
+            </div>
+            <div style="font-size:9px; color:#166534; margin-top:5px; line-height:1.2;">* Min: Alert Level | Max: Target to fill | MOQ: Supplier Box Size (Multiples)</div>
+        </div>
+
         <!-- 🛡️ ENTERPRISE FIX: Clarified Labels to prevent Human Error -->
         <label style="font-size:12px; margin-top:10px; display:block; font-weight:bold; color:var(--primary);">Master Barcode / Global SKU (Optional)</label>
         <input id="bpSkuInput" placeholder="Scan the original box barcode here..." style="margin-bottom:5px; border-color:var(--primary);">
@@ -5806,6 +5903,11 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         document.getElementById('bpSkuInput').value = ''; 
         document.getElementById('bpSkuInput').disabled = false; 
         
+        // Reset dynamic limits
+        document.getElementById('bpMinStock').value = '5';
+        document.getElementById('bpMaxStock').value = '20';
+        document.getElementById('bpMoq').value = '1';
+        
         // 🚀 Reset Types
         document.getElementById('bpItemType').value = 'standard';
         document.getElementById('bpItemType').disabled = false;
@@ -5828,6 +5930,11 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         document.getElementById('bpCategory').value = p.categoryId || '';
         document.getElementById('bpCategory').disabled = false; 
         document.getElementById('bpSkuInput').value = p.sku || ''; 
+        
+        // Load dynamic limits (Fallback to defaults if old product)
+        document.getElementById('bpMinStock').value = p.minStock !== undefined ? p.minStock : '5';
+        document.getElementById('bpMaxStock').value = p.maxStock !== undefined ? p.maxStock : '20';
+        document.getElementById('bpMoq').value = p.moq !== undefined ? p.moq : '1';
         document.getElementById('bpSkuInput').disabled = true; 
         
         // 🚀 Load Types (Default to serialized for backward compatibility of old items)
@@ -5923,9 +6030,22 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         toggleLoader(true);
         try {
             if(id) {
-                // ENTERPRISE FIX: නම සහ පින්තූරය වෙනස් කළ විට එය දැනට ඇති සියලුම තොග වලටද අදාළ කිරීම
+                // 🚀 Grab dynamic values
+        const minStock = parseFloat(document.getElementById('bpMinStock').value) || 0;
+        const maxStock = parseFloat(document.getElementById('bpMaxStock').value) || 0;
+        const moq = parseFloat(document.getElementById('bpMoq').value) || 1;
+
+        if (maxStock <= minStock) return showToast("Max Stock MUST be greater than Min Stock!", "error");
+        if (moq <= 0) return showToast("MOQ must be at least 1", "error");
+
+        window.isSavingProduct = true; // Lock execution
+        toggleLoader(true);
+        try {
+            if(id) {
+                // ENTERPRISE FIX: Update Rules
                 await updateDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/base_products`, id), {
-                    name: name, image: compressedImageBase64, categoryId: categoryId
+                    name: name, image: compressedImageBase64, categoryId: categoryId,
+                    minStock: minStock, maxStock: maxStock, moq: moq // 👈 New Rules
                 });
                 
                 const pInfo = catalogCache.find(x => x.id === id);
@@ -5984,8 +6104,9 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                 await addDoc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/base_products`), {
                     name, 
                     image: compressedImageBase64,
-                    sku: finalSku, // 👈 භාවිත කරන්නේ අවසන් තහවුරු කළ අංකයයි
+                    sku: finalSku, 
                     categoryId,
+                    minStock: minStock, maxStock: maxStock, moq: moq, // 👈 New Rules Saved!
                     itemType: document.getElementById('bpItemType').value, 
                     scalePlu: document.getElementById('bpScalePlu').value.trim(),
                     created: window.getSecureTime().toISOString()
@@ -6129,6 +6250,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         
         // 1. Group by SKU or Name to find statistics (Dynamic Latest Logic)
         const skuStats = {}; 
+        const stockAggregator = {}; // 🚀 NEW: Aggregate Total Stock for accurate Low Stock checking
 
         productsCache.forEach(p => {
             const groupId = p.sku || p.name; // Fallback to name if SKU is empty
@@ -6137,6 +6259,9 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             if(!skuStats[groupId]) {
                 skuStats[groupId] = { maxWithStock: -1, minWithStock: Infinity };
             }
+            
+            // 🚀 Aggregate Total Stock across all batches
+            stockAggregator[groupId] = (stockAggregator[groupId] || 0) + (parseFloat(p.qty) || 0);
             
             // Only consider batches with actual stock > 0 for Green/Red logic
             if(p.qty > 0) {
@@ -6151,7 +6276,16 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             
             let matchCat = false;
             if (catFilter === 'LOW_STOCK') {
-                matchCat = (p.qty > 0 && p.qty < 5);
+                // 🚨 ARCHITECT FIX: Use aggregated stock & dynamic Min Rule!
+                const groupId = p.sku || p.name;
+                const totalQty = stockAggregator[groupId] || 0;
+                
+                // Base Product එකේ Admin ලබාදුන් නීති ගෙන ඒම
+                const bp = catalogCache.find(c => (c.sku && c.sku === p.sku) || c.name === p.name);
+                const minLvl = bp && bp.minStock !== undefined ? parseFloat(bp.minStock) : 5;
+                
+                // මුළු තොගයම අදාළ භාණ්ඩයේ Min සීමාවට සමාන හෝ ඊට අඩු නම් පමණක් පෙන්වයි!
+                matchCat = (totalQty <= minLvl);
             } else if (catFilter === 'EXPIRING') {
                 // අලුත්: දින 30 කට අඩුවෙන් ඇති සහ කල් ඉකුත් වූ දේවල් ෆිල්ටර් කිරීම
                 if(!p.expiryDate || p.qty <= 0) {
@@ -12632,16 +12766,35 @@ window.autoFillDocCustomer = (name) => {
                     window.cachedEmpCount = empCountSnap.data().count;
                     document.getElementById('dashEmp').textContent = window.cachedEmpCount;
 
-                    // 2. Stock Value & Low Stock Count
+                    // 2. Stock Value & Low Stock Count (Architectural Fix)
                     const qStock = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`), where("qty", ">", 0));
                     const snap = await getDocs(qStock);
-                    let lowCount = 0; let stockVal = 0;
+                    let stockVal = 0;
+                    const stockAggregator = {};
+
                     snap.forEach(d => {
                         const p = d.data();
                         const itemVal = (parseFloat(p.buy) || 0) * (parseFloat(p.qty) || 0);
                         stockVal += itemVal;
-                        if(p.qty < 5) lowCount++;
+                        
+                        // Aggregate total qty by Master SKU or Name
+                        const key = p.sku || p.name;
+                        stockAggregator[key] = (stockAggregator[key] || 0) + p.qty;
                     });
+                    
+                    // Count how many base products have total stock <= their specific Min Level
+                    let lowCount = 0;
+                    catalogCache.forEach(bp => {
+                        const key = bp.sku || bp.name;
+                        const currentTotQty = stockAggregator[key] || 0;
+                        const minLvl = bp.minStock !== undefined ? parseFloat(bp.minStock) : 5;
+                        
+                        // 🚨 Exclude Services and check against specific Min Limit
+                        if (bp.itemType !== 'service' && currentTotQty <= minLvl) {
+                            lowCount++;
+                        }
+                    });
+
                     window.cachedStockValue = Math.round(stockVal * 100) / 100;
                     window.cachedLowCount = lowCount;
                     
@@ -13088,25 +13241,15 @@ window.viewLowStockItems = () => {
             catFilter.appendChild(opt);
         }
         
-        // Set dropdown to Low Stock and Trigger Filter
+        // Set dropdown to Low Stock
         catFilter.value = 'LOW_STOCK';
         document.getElementById('prodSearch').value = ''; // Clear search bar
         
-        // Bypass debounce for immediate action
-        document.querySelector('#prodTable tbody').innerHTML = productsCache.filter(p => p.qty > 0 && p.qty < 5).map(p => {
-             return `<tr class="row-danger">
-                 <td><img src="${p.image}" class="prod-thumb"></td>
-                 <td>-</td>
-                 <td>${p.name}<br><span style="font-size:11px;">${p.sku||''}</span></td>
-                 <td>-</td>
-                 <td>${formatMoney(p.buy)}</td>
-                 <td>${formatMoney(p.sell)}</td>
-                 <td style="color:red; font-weight:bold;">${p.qty} ${p.unit||''}</td>
-                 <td>
-                    <button class="btn btn-warning" style="padding:4px 8px;" onclick="editStock('${p.id}')">Update</button>
-                 </td>
-             </tr>`;
-        }).join('') || '<tr><td colspan="8" style="text-align:center;">No Low Stock Items!</td></tr>';
+        // 🚀 ARCHITECT FIX: Duplicate UI Code ඉවත් කර, නිල Render Engine එකම අමතයි!
+        // මෙය මගින් අලුත් "Aggregated Min Level" තර්කය 100% ක් නිවැරදිව ක්‍රියාත්මක වේ.
+        if (typeof renderProducts === 'function') {
+            renderProducts(); 
+        }
         
         showToast("Filtered to Low Stock Items", "info");
     };
@@ -14388,8 +14531,23 @@ window.setQuickCash = (amount) => {
         document.getElementById('expAmount').value = '';
         // 🚨 CA FIX: Show dropdown only for Expenses
         const catWrap = document.getElementById('expCategoryWrapper');
+        const catSelect = document.getElementById('expCategory');
         if(catWrap) catWrap.style.display = isIncome ? 'none' : 'block';
-        if(document.getElementById('expCategory')) document.getElementById('expCategory').value = 'OPEX';
+        
+        if (!isIncome && catSelect) {
+            // Populate Dynamic Categories
+            if (window.expenseCategoriesCache && window.expenseCategoriesCache.length > 0) {
+                catSelect.innerHTML = window.expenseCategoriesCache.map(c => 
+                    `<option value="${c.name}" data-root="${c.rootType}">${c.name} (${c.rootType})</option>`
+                ).join('');
+            } else {
+                // Fallback safe default
+                catSelect.innerHTML = `<option value="General Expense" data-root="OPEX">General Expense (OPEX)</option>`;
+            }
+            // Trigger dynamic warning UI
+            window.checkExpCatWarning();
+        }
+        
         openModal('expenseModal');
     };
 
@@ -14433,10 +14591,17 @@ window.setQuickCash = (amount) => {
 
             // 🚀 If approved (or below limit), save directly as Authorized!
             const expCatEl = document.getElementById('expCategory');
-            const isCapex = (!isIncome && expCatEl && expCatEl.value === 'CAPEX');
+            let isCapex = false;
+            let customCategoryName = "General";
+            
+            if (!isIncome && expCatEl && expCatEl.options.length > 0) {
+                const opt = expCatEl.options[expCatEl.selectedIndex];
+                customCategoryName = opt.value;
+                isCapex = (opt.dataset.root === 'CAPEX');
+            }
 
             const expData = {
-                description: isCapex ? `[SUPPLIER PAY] ${desc}` : desc,
+                description: !isIncome ? `[${customCategoryName}] ${desc}` : desc,
                 amount: amount,
                 isIncome: isIncome,
                 date: window.getSecureTime().toISOString(),
@@ -15600,54 +15765,170 @@ window.setQuickCash = (amount) => {
 // ==========================================
     // 🛡️ ENTERPRISE AUTO PURCHASE ORDER (PO) ENGINE
     // ==========================================
-    window.generateAutoPO = async () => {
-        if(!confirm("Generate Auto Purchase Order?\n\nThis will find items with low stock (< 5) and create a PDF.\n\nItems that were ALREADY ordered recently will be skipped to prevent double-ordering!")) return;
+   // 🛡️ ENTERPRISE AUTO PO ENGINE (Draft Review & Smart Math)
+    window.currentPoDraftItems = []; // Global RAM state for Draft
 
+    window.generateAutoPO = async () => {
         toggleLoader(true);
         try {
-            // 1. Fetch ALL Base Products to catch 0 stock items correctly
+            // 1. Fetch ALL Base Products (To get Admin Rules)
             const qBase = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/base_products`));
             const snapBase = await getDocs(qBase);
             const baseProducts = [];
             snapBase.forEach(d => baseProducts.push({ id: d.id, ...d.data() }));
 
-            // 2. Fetch Active Stock to calculate current quantities
+            // 2. Fetch Active Stock and Aggregate Total Quantity
             const qStock = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`), where("qty", ">", 0));
             const snapStock = await getDocs(qStock);
-            const stockMap = {};
+            const totalStockMap = {};
+            
             snapStock.forEach(d => {
                 const p = d.data();
                 const key = p.sku || p.name;
-                stockMap[key] = (stockMap[key] || 0) + p.qty;
+                totalStockMap[key] = (totalStockMap[key] || 0) + p.qty;
             });
 
-            const lowStockItems = [];
-            const baseProductsToUpdate = [];
+            window.currentPoDraftItems = [];
 
-            // 3. Filter Logic (The Double-Order Prevention Engine & 0-Stock Catch)
+            // 3. The Math Engine (Min-Max-MOQ Logic)
             baseProducts.forEach(bp => {
                 const key = bp.sku || bp.name;
-                const currentQty = stockMap[key] || 0; // 0 (Out of Stock) අයිතමද මෙහිදී නිවැරදිව හසුවේ!
+                const currentQty = totalStockMap[key] || 0; 
+                
+                const minLvl = bp.minStock !== undefined ? parseFloat(bp.minStock) : 5;
+                const maxLvl = bp.maxStock !== undefined ? parseFloat(bp.maxStock) : 20;
+                const moq = bp.moq !== undefined ? parseFloat(bp.moq) : 1;
 
-                // 🛡️ ENTERPRISE FIX: Check if stock is low AND not already pending an order
-                if (currentQty < 5 && bp.poPending !== true) {
-                    lowStockItems.push({
-                        id: bp.id,
-                        sku: bp.sku || '-',
-                        name: bp.name,
+                // Rule 1: Trigger only if below Min Level AND not already pending
+                if (currentQty <= minLvl && bp.poPending !== true) {
+                    
+                    let requiredToFill = maxLvl - currentQty;
+                    
+                    // Rule 2: SMART MOQ MATH (The Overstock Preventer)
+                    // පහළට වටයනවා (Round Down) Max එක පනින්නේ නැති වෙන්න!
+                    let moqMultiplier = Math.floor(requiredToFill / moq);
+                    let finalOrderQty = moqMultiplier * moq;
+                    
+                    let warningNote = "";
+
+                    // Rule 3: The Zero-Trust Failsafe! 
+                    // පහළට වැටයූ නිසා Order එක 0 ක් වුණොත්, හෝ ඒක ආවට පස්සෙත් තොගය Min සීමාවට වඩා අඩුයි නම්..
+                    if (finalOrderQty === 0 || (currentQty + finalOrderQty) <= minLvl) {
+                        finalOrderQty = moq; // අනිවාර්යයෙන්ම අවම වශයෙන් 1 MOQ පැකට්ටුවක් හෝ ගන්නවා!
+                        if ((currentQty + finalOrderQty) > maxLvl) {
+                            warningNote = `*Forced 1 MOQ to prevent zero-stock.`;
+                        }
+                    }
+
+                    window.currentPoDraftItems.push({
+                        id: bp.id, sku: bp.sku || '-', name: bp.name,
                         currentQty: currentQty,
-                        reqQty: currentQty === 0 ? 20 : 10 // Smart reorder recommendation
+                        reqQty: finalOrderQty,
+                        min: minLvl, max: maxLvl, moq: moq,
+                        note: warningNote
                     });
-                    baseProductsToUpdate.push(bp.id); // Add to lock list
                 }
             });
 
-            if(lowStockItems.length === 0) {
+            if(window.currentPoDraftItems.length === 0) {
                 toggleLoader(false);
-                return showToast("No new items to order! (Low stock items might already be in a 'Pending' PO).", "warning");
+                return showToast("Inventory levels are healthy! No items have dropped below their specific Minimum limits.", "warning");
             }
 
-            // 4. Generate PDF
+            // 4. Render Draft PO Modal
+            const tbody = document.getElementById('poDraftBody');
+            tbody.innerHTML = window.currentPoDraftItems.map((p, idx) => `
+                <tr id="draftRow_${idx}" style="background:white; border-bottom:1px solid #e2e8f0;">
+                    <td style="padding:10px;">
+                        <div style="font-weight:bold; color:#1f2937;">${p.name}</div>
+                        <div style="font-family:monospace; font-size:10px; color:#64748b;">${p.sku}</div>
+                        ${p.note ? `<div style="font-size:9px; color:#d97706; font-weight:bold;">${p.note}</div>` : ''}
+                    </td>
+                    <td style="padding:10px; text-align:center; font-weight:bold; color:${p.currentQty === 0 ? '#ef4444' : '#4b5563'};">${p.currentQty}</td>
+                    <td style="padding:10px; text-align:center;">
+                        <div style="font-size:10px; color:#6b7280;">Min: ${p.min} | Max: ${p.max}</div>
+                        <div style="font-size:10px; font-weight:bold; color:var(--primary); margin-top:2px;">MOQ: ${p.moq}</div>
+                    </td>
+                    <td style="padding:10px; text-align:center; background:#f0fdf4;">
+                        <!-- 🚀 ARCHITECT FIX: Removed strict locks. Empowering Admin with Soft-Validation -->
+                        <input type="number" id="draftQty_${idx}" value="${p.reqQty}" onkeyup="validatePoDraftMoq(${idx})" onchange="validatePoDraftMoq(${idx})" style="margin:0; width:80px; text-align:center; border:2px solid #22c55e; font-weight:900; color:#15803d;">
+                        <div id="moqWarning_${idx}" style="display:none; font-size:9px; color:#d97706; font-weight:bold; margin-top:4px; line-height:1.1;">
+                            <i class="ri-alarm-warning-fill"></i> Not a multiple of MOQ (${p.moq})
+                        </div>
+                    </td>
+                    <td style="padding:10px; text-align:center;">
+                        <button class="btn btn-ghost" style="padding:4px 8px; color:#ef4444; border-color:#fecaca; background:#fef2f2;" onclick="removePoDraftItem(${idx})" title="Skip this item"><i class="ri-delete-bin-line"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+
+            openModal('autoPoDraftModal');
+
+        } catch (error) {
+            console.error("Draft PO Error:", error);
+            showToast("Error generating Draft PO", "error");
+        } finally {
+            toggleLoader(false);
+        }
+    };
+
+    // 🛡️ ARCHITECT FIX: Soft Advisory Validation (Admin maintains ultimate executive power)
+    window.validatePoDraftMoq = (idx) => {
+        const item = window.currentPoDraftItems[idx];
+        const input = document.getElementById(`draftQty_${idx}`);
+        const warningTxt = document.getElementById(`moqWarning_${idx}`);
+        let val = parseFloat(input.value);
+
+        // 1. Basic sanity check
+        if (isNaN(val) || val <= 0) {
+            input.style.borderColor = '#ef4444'; // Red
+            warningTxt.innerHTML = `<i class="ri-error-warning-fill"></i> Invalid Qty!`;
+            warningTxt.style.color = '#ef4444';
+            warningTxt.style.display = 'block';
+            return;
+        }
+
+        // 2. Advisory MOQ Check (Soft Warning ONLY, NO forced alteration!)
+        // Modulo operator (%) checks if there's a remainder. If so, it's not a perfect multiple.
+        if (val % item.moq !== 0) {
+            input.style.borderColor = '#f59e0b'; // Orange Warning
+            input.style.color = '#b45309';
+            warningTxt.innerHTML = `<i class="ri-alarm-warning-fill"></i> Not a multiple of ${item.moq} (Loose items)`;
+            warningTxt.style.color = '#d97706';
+            warningTxt.style.display = 'block';
+        } else {
+            // Perfect Match!
+            input.style.borderColor = '#22c55e'; // Green Safe
+            input.style.color = '#15803d';
+            warningTxt.style.display = 'none';
+        }
+    };
+
+    // Skip item from ordering
+    window.removePoDraftItem = (idx) => {
+        document.getElementById(`draftRow_${idx}`).style.display = 'none';
+        window.currentPoDraftItems[idx].skipped = true; // Mark as skipped, do not delete from array to keep index intact
+    };
+
+    // 5. Final Confirmation & Execution
+    window.confirmAndGeneratePO = async () => {
+        // Extract final valid items from UI
+        const finalItemsToOrder = [];
+        window.currentPoDraftItems.forEach((p, idx) => {
+            if (!p.skipped) {
+                const finalQty = parseFloat(document.getElementById(`draftQty_${idx}`).value);
+                finalItemsToOrder.push({ ...p, reqQty: finalQty });
+            }
+        });
+
+        if (finalItemsToOrder.length === 0) {
+            closeModal('autoPoDraftModal');
+            return showToast("All items were skipped. PO Cancelled.", "info");
+        }
+
+        toggleLoader(true);
+        try {
+            // A. Generate Professional PDF
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
             const shop = profileCache || {};
@@ -15658,23 +15939,27 @@ window.setQuickCash = (amount) => {
             doc.text(`Contact: ${(shop.phone1 || "")}`, 14, 35);
             doc.text(`Date: ${window.getSecureTime().toLocaleDateString()}`, 150, 30);
 
-            doc.text("Please supply the following low-stock items at your earliest convenience:", 14, 45);
+            doc.text("Please supply the following items as per our established MOQ agreements:", 14, 45);
 
-            const tableData = lowStockItems.map(p => [ p.sku, p.name, p.currentQty, p.reqQty ]);
+            const tableData = finalItemsToOrder.map(p => [ p.sku, p.name, p.currentQty, p.reqQty ]);
 
             doc.autoTable({
                 startY: 50,
-                head: [['SKU / Barcode', 'Product Name', 'Current Stock', 'Req. Order Qty']],
-                body: tableData, theme: 'grid', headStyles: { fillColor:[79, 70, 229] }
+                head: [['SKU / Barcode', 'Product Name', 'Current Stock', 'Order Qty']],
+                body: tableData, theme: 'grid', 
+                headStyles: { fillColor:[79, 70, 229] },
+                columnStyles: { 3: { fontStyle: 'bold', halign: 'center' } }
             });
 
             doc.text("Authorized Signature: ....................................", 14, doc.lastAutoTable.finalY + 20);
             doc.save(`Purchase_Order_${new Date().getTime()}.pdf`);
 
-            // 5. Update DB: Mark as Pending using Batch Chunking (Protects Firebase 500 Limit)
+            // B. Update DB: Mark ONLY finalized items as Pending
             const CHUNK_SIZE = 450;
-            for (let i = 0; i < baseProductsToUpdate.length; i += CHUNK_SIZE) {
-                const chunk = baseProductsToUpdate.slice(i, i + CHUNK_SIZE);
+            const itemIdsToUpdate = finalItemsToOrder.map(p => p.id);
+            
+            for (let i = 0; i < itemIdsToUpdate.length; i += CHUNK_SIZE) {
+                const chunk = itemIdsToUpdate.slice(i, i + CHUNK_SIZE);
                 const batch = writeBatch(db);
                 chunk.forEach(id => {
                     batch.update(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/base_products`, id), { poPending: true });
@@ -15682,12 +15967,14 @@ window.setQuickCash = (amount) => {
                 await batch.commit();
             }
 
-            if(window.writeSystemLog) writeSystemLog("AUTO_PO_GENERATED", `Generated PO for ${lowStockItems.length} items. Marked as pending.`);
+            if(window.writeSystemLog) writeSystemLog("AUTO_PO_GENERATED", `Smart Auto-PO generated for ${finalItemsToOrder.length} items after Admin review.`);
+            
+            closeModal('autoPoDraftModal');
             showToast("Purchase Order Generated & Items Marked as Ordered!", "success");
 
         } catch (error) {
-            console.error(error);
-            showToast("Error generating Auto PO", "error");
+            console.error("PO Gen Error:", error);
+            showToast("Error generating PO", "error");
         } finally {
             toggleLoader(false);
         }
@@ -21030,7 +21317,12 @@ window.emergencyLocalOverride = async () => {
 
             // --- 2. INCOME STATEMENT (P&L FOR PERIOD) ---
             let grossSales = 0, cogs = 0, salesReturns = 0;
-            let otherIncome = 0, payroll = 0, fleetOpex = 0, generalOpex = 0, writeOffLoss = 0;
+            let otherIncome = 0, payroll = 0, fleetOpex = 0, writeOffLoss = 0;
+            
+            // 🚀 ENTERPRISE FIX: Dynamic Object to capture custom OPEX Categories!
+            let dynamicOpexCategories = {}; 
+            let totalGeneralOpex = 0; // Total of all dynamic OPEX
+
             let ledgerHtml = '';
 
             // Fetch Sales
@@ -21042,7 +21334,6 @@ window.emergencyLocalOverride = async () => {
                 let itemCogs = 0;
                 s.items.forEach(i => { itemCogs += (parseFloat(i.buy) || 0) * (parseFloat(i.qty) || 1); });
                 cogs += itemCogs;
-
                 ledgerHtml += `<tr><td>${new Date(s.date).toLocaleDateString()}</td><td>${s.customOrderId || d.id.substring(0,8)}</td><td>Sales Revenue</td><td style="text-align:right;">${formatMoney(s.total)}</td><td>-</td></tr>`;
             });
 
@@ -21054,37 +21345,53 @@ window.emergencyLocalOverride = async () => {
                 salesReturns += r.amount;
                 if (r.restock !== false) {
                     const refundedCost = (parseFloat(r.amount) - (parseFloat(r.profitReversal) || 0));
-                    cogs -= refundedCost; // Reduce COGS because item is back in asset
+                    cogs -= refundedCost; 
                 }
                 ledgerHtml += `<tr><td>${new Date(r.date).toLocaleDateString()}</td><td>RET-${r.orderId}</td><td style="color:#b91c1c;">Sales Return / Refund</td><td>-</td><td style="text-align:right; color:#b91c1c;">${formatMoney(r.amount)}</td></tr>`;
             });
 
-            // Fetch Expenses & Incomes
+            // Fetch Expenses & Incomes (THE DYNAMIC CLASSIFIER)
             const qExp = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`), where("date", ">=", startIso), where("date", "<=", endIso));
             const snapExp = await getDocs(qExp);
             snapExp.forEach(d => {
                 const e = d.data();
                 if (e.isPending) return;
 
-                const desc = e.description ? e.description.toLowerCase() : "";
+                const desc = e.description ? e.description : ""; // Keep original case
+                const descLower = desc.toLowerCase();
                 const dateStr = new Date(e.date).toLocaleDateString();
 
                 if (e.isIncome) {
-                    const isCustomerLiability = desc.includes('debt') || desc.includes('cheque') || desc.includes('liability') || (desc.includes('advance') && !e.isAdvanceEvent) || e.isLiability;
+                    const isCustomerLiability = descLower.includes('debt') || descLower.includes('cheque') || descLower.includes('liability') || (descLower.includes('advance') && !e.isAdvanceEvent) || e.isLiability;
                     if (!isCustomerLiability) {
                         otherIncome += e.amount;
-                        ledgerHtml += `<tr><td>${dateStr}</td><td>INC</td><td>${e.description}</td><td style="text-align:right;">${formatMoney(e.amount)}</td><td>-</td></tr>`;
+                        ledgerHtml += `<tr><td>${dateStr}</td><td>INC</td><td>${desc}</td><td style="text-align:right;">${formatMoney(e.amount)}</td><td>-</td></tr>`;
                     }
                 } else {
-                    const isCapex = e.isCapex || desc.includes('[owner_drawing]');
+                    const isCapex = e.isCapex || descLower.includes('[owner_drawing]');
                     if (!isCapex) {
-                        // 🚨 CA FIX: Staff Advances (isAdvanceEvent) MUST be strictly categorized under Payroll, NOT General Expenses!
-                        if (e.isPayroll || e.isAdvanceEvent) payroll += e.amount;
-                        else if (e.isFleetExpense) fleetOpex += e.amount;
-                        else if (e.isNonCashExpense && desc.includes('write-off')) writeOffLoss += e.amount;
-                        else generalOpex += e.amount;
+                        // It is an OPEX. Categorize it!
+                        if (e.isPayroll || e.isAdvanceEvent) {
+                            payroll += e.amount;
+                        } else if (e.isFleetExpense) {
+                            fleetOpex += e.amount;
+                        } else if (e.isNonCashExpense && descLower.includes('write-off')) {
+                            writeOffLoss += e.amount;
+                        } else {
+                            // 🚀 DYNAMIC OPEX ENGINE
+                            // Check if description has a Custom Category tag e.g., "[Marketing] Paid for FB Ads"
+                            let catName = "Uncategorized OPEX";
+                            const match = desc.match(/^\[(.*?)\]/); // Extracts text inside brackets [ ]
+                            
+                            if (match && match[1]) {
+                                catName = match[1]; // Found custom category!
+                            }
+
+                            dynamicOpexCategories[catName] = (dynamicOpexCategories[catName] || 0) + e.amount;
+                            totalGeneralOpex += e.amount;
+                        }
                         
-                        ledgerHtml += `<tr><td>${dateStr}</td><td>EXP</td><td>${e.description}</td><td>-</td><td style="text-align:right; color:#b91c1c;">${formatMoney(e.amount)}</td></tr>`;
+                        ledgerHtml += `<tr><td>${dateStr}</td><td>EXP</td><td>${desc}</td><td>-</td><td style="text-align:right; color:#b91c1c;">${formatMoney(e.amount)}</td></tr>`;
                     }
                 }
             });
@@ -21092,7 +21399,7 @@ window.emergencyLocalOverride = async () => {
             // Math execution
             const netRev = grossSales - salesReturns;
             const grossProfit = netRev - cogs;
-            const totalOpex = payroll + generalOpex + fleetOpex + writeOffLoss;
+            const totalOpex = payroll + totalGeneralOpex + fleetOpex + writeOffLoss;
             const netProfit = grossProfit + otherIncome - totalOpex;
 
             // Update UI
@@ -21103,8 +21410,26 @@ window.emergencyLocalOverride = async () => {
             document.getElementById('accCogs').textContent = formatMoney(cogs);
             document.getElementById('accGp').textContent = formatMoney(grossProfit);
             
+            // 🚀 Inject Dynamic OPEX Rows into the P&L Table
+            const opexRowElement = document.getElementById('accOpex').closest('tr');
+            
+            // 1. Generate HTML for dynamic categories
+            let dynamicRowsHtml = '';
+            if (Object.keys(dynamicOpexCategories).length > 0) {
+                for (const [catName, amt] of Object.entries(dynamicOpexCategories)) {
+                    dynamicRowsHtml += `<tr><td style="padding-left:20px; color:#4b5563;"><i class="ri-corner-down-right-line"></i> ${catName}</td><td style="text-align:right; font-weight:bold;">${formatMoney(amt)}</td></tr>`;
+                }
+            } else {
+                dynamicRowsHtml = `<tr><td style="padding-left:20px; color:#4b5563;"><i class="ri-corner-down-right-line"></i> General / Uncategorized</td><td style="text-align:right; font-weight:bold;">${formatMoney(0)}</td></tr>`;
+            }
+
+            // 2. Replace the static "General Expenses" row with our dynamic block
+            opexRowElement.outerHTML = `
+                <tr><td colspan="2" style="padding-left:20px; font-weight:bold; color:#374151;">General Business OPEX (Total: ${formatMoney(totalGeneralOpex)})</td></tr>
+                ${dynamicRowsHtml}
+            `;
+            
             document.getElementById('accPayroll').textContent = formatMoney(payroll);
-            document.getElementById('accOpex').textContent = formatMoney(generalOpex);
             document.getElementById('accFleet').textContent = formatMoney(fleetOpex);
             document.getElementById('accWriteoff').textContent = formatMoney(writeOffLoss);
             document.getElementById('accTotOpex').textContent = formatMoney(totalOpex);
@@ -21117,7 +21442,15 @@ window.emergencyLocalOverride = async () => {
                 period: periodText,
                 revenue: { grossSales, otherIncome, salesReturns, netRev },
                 costOfSales: { cogs, grossProfit },
-                expenses: { payroll, generalOpex, fleetOpex, writeOffLoss, totalOpex },
+                // 🚀 ENTERPRISE FIX: We pass the dynamic Categories to the global memory so AI can read it!
+                expenses: { 
+                    payroll, 
+                    totalGeneralOpex, 
+                    dynamicOpex: dynamicOpexCategories, // 👈 අලුත් කෑල්ල!
+                    fleetOpex, 
+                    writeOffLoss, 
+                    totalOpex 
+                },
                 netProfit: netProfit,
                 balanceSheet: { inventoryAsset, totalReceivables, totalPayables, storeCredits }
             };
@@ -21204,8 +21537,16 @@ window.emergencyLocalOverride = async () => {
             // 🚨 CA FIX: Injecting the Secure System Clock into the AI Prompt
             const secureDateStr = window.getSecureLocalDateStr();
 
+            // BUILD DYNAMIC OPEX STRING FOR AI
+let opexBreakdownStr = "";
+if (currentFinancialData.expenses.dynamicOpex) {
+    for (const [catName, amt] of Object.entries(currentFinancialData.expenses.dynamicOpex)) {
+        opexBreakdownStr += `- ${catName}: Rs. ${amt}\n`;
+    }
+}
+
             const promptData = `
-                I am the business owner. Act as an expert Chartered Accountant and Business Auditor. Analyze the following financial data and provide a highly professional, easy-to-understand Audit Report in Sinhala. Tell me where I am losing money, how to improve profit, and if my inventory/debt is risky.
+                I am the business owner. Act as an expert Chartered Accountant and Business Auditor. Analyze the following financial data and provide a highly professional, easy-to-understand Audit Report in Sinhala. Tell me exactly where I am losing money, how to improve profit, and if my inventory/debt is risky.
                 
                 CRITICAL INSTRUCTION: Today's exact date is ${secureDateStr}. You MUST use this date when referring to "Today" or putting a date on the report! Do not invent or guess dates.
                 
@@ -21215,13 +21556,23 @@ window.emergencyLocalOverride = async () => {
                 Net Revenue: Rs. ${currentFinancialData.revenue.netRev}
                 COGS: Rs. ${currentFinancialData.costOfSales.cogs}
                 Gross Profit: Rs. ${currentFinancialData.costOfSales.grossProfit}
+                
+                [EXPENSE BREAKDOWN]
                 Total OPEX: Rs. ${currentFinancialData.expenses.totalOpex}
+                - Staff Payroll & Advances: Rs. ${currentFinancialData.expenses.payroll}
+                - Fleet/Transport: Rs. ${currentFinancialData.expenses.fleetOpex}
+                - Inventory Write-offs (Loss): Rs. ${currentFinancialData.expenses.writeOffLoss}
+                - General OPEX (Total: Rs. ${currentFinancialData.expenses.totalGeneralOpex}) consists of:
+${opexBreakdownStr}
+
                 NET PROFIT: Rs. ${currentFinancialData.netProfit}
                 
                 Assets/Liabilities:
                 Stock Value: Rs. ${currentFinancialData.balanceSheet.inventoryAsset}
                 Debtors (Owe us): Rs. ${currentFinancialData.balanceSheet.totalReceivables}
                 Creditors (We owe): Rs. ${currentFinancialData.balanceSheet.totalPayables}
+                
+                *Pay special attention to the Expense Breakdown and advise me if any specific category (like Marketing, Meals, Fleet, etc.) is consuming too much of the Gross Profit.*
             `;
 
             const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
@@ -22821,6 +23172,181 @@ window.emergencyLocalOverride = async () => {
             showToast("Failed to save OT data", "error");
         }
         toggleLoader(false);
+    };
+// ==========================================
+    // 🚀 ENTERPRISE: CHART OF ACCOUNTS (EXPENSE CATEGORIES)
+    // ==========================================
+    window.expenseCategoriesCache = [];
+
+    window.loadExpenseCategories = async () => {
+        try {
+            const q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expense_categories`));
+            const snap = await getDocs(q);
+            window.expenseCategoriesCache = [];
+            snap.forEach(d => window.expenseCategoriesCache.push({ id: d.id, ...d.data() }));
+            
+            // Sort alphabetical
+            window.expenseCategoriesCache.sort((a,b) => a.name.localeCompare(b.name));
+            
+            // Render Table if modal is open
+            const tbody = document.getElementById('expCatTbody');
+            if (tbody) {
+                tbody.innerHTML = window.expenseCategoriesCache.map(c => `
+                    <tr style="border-bottom:1px solid #e2e8f0;">
+                        <td style="padding:8px; font-weight:bold; color:#334155;">${c.name}</td>
+                        <td style="padding:8px;">
+                            <span style="font-size:10px; font-weight:900; padding:2px 6px; border-radius:4px; ${c.rootType==='OPEX' ? 'background:#fee2e2; color:#b91c1c;' : 'background:#e0e7ff; color:#3730a3;'}">${c.rootType}</span>
+                        </td>
+                        <td style="padding:8px; text-align:right;">
+                            <button class="btn btn-danger" style="padding:2px 6px; font-size:11px;" onclick="deleteExpenseCategory('${c.id}')"><i class="ri-delete-bin-line"></i></button>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+        } catch(e) { console.error("Error loading exp categories", e); }
+    };
+
+    window.openExpenseCategoryModal = () => {
+        if (userRole !== 'admin') return showToast("Only Admin can manage Chart of Accounts!", "error");
+        document.getElementById('newExpCatName').value = '';
+        document.getElementById('newExpCatRoot').value = 'OPEX';
+        window.loadExpenseCategories();
+        openModal('expenseCategoryModal');
+    };
+
+    window.saveExpenseCategory = async () => {
+        if (userRole !== 'admin') return;
+        const name = document.getElementById('newExpCatName').value.trim();
+        const root = document.getElementById('newExpCatRoot').value;
+        
+        if(!name) return showToast("Category Name is required!", "error");
+        
+        if (window.expenseCategoriesCache.some(c => c.name.toLowerCase() === name.toLowerCase())) {
+            return showToast("Category already exists!", "error");
+        }
+
+        toggleLoader(true);
+        try {
+            // ========================================================
+            // 🤖 AI ACCOUNTING ASSISTANT (SANITY CHECK)
+            // ========================================================
+            document.querySelector('#globalLoader div:nth-child(2)').textContent = "AI Auditor is reviewing your accounting choice...";
+            
+            // 1. Fetch our existing API Key safely
+            const keyDocRef = doc(db, `users/${dbOwnerId}/settings/api_keys`);
+            const keySnap = await getDoc(keyDocRef);
+            let apiKey = null;
+            if (keySnap.exists()) {
+                const dbData = keySnap.data();
+                apiKey = dbData.gemini || dbData['gemini '] || dbData[' gemini'] || dbData['Gemini'];
+            }
+
+            if (apiKey) {
+                // 2. Secret Prompt to the AI (Enterprise Smart Educator)
+                const prompt = `Act as an expert IFRS Chartered Accountant. 
+                A small business owner is creating a new expense category named: "${name}". 
+                They categorized it as: "${root}". 
+                (Note: OPEX = Operational Expense that reduces Net Profit. CAPEX = Capital Expenditure or Liability Payment that does NOT reduce Net Profit).
+                
+                CRITICAL RULES:
+                1. If the word implies a Loan, Lease, Bank Payment, or ණය (Debt), and they haven't explicitly separated "Interest" and "Principal", you MUST flag it as WRONG. 
+                2. Is the classification technically correct based on normal accounting?
+                
+                If Correct & No Risk: Reply EXACTLY with the word "YES".
+                If Wrong OR a Loan/Lease payment: Reply EXACTLY with the word "NO", followed by a comma, and a very short, polite Sinhala explanation. 
+                (If it's a loan, explain in Sinhala: "බැංකු ණය හෝ ලීසිං ගෙවීමකදී, මූලික ණය මුදල (CAPEX) සහ ණය පොලිය (OPEX) ලෙස ගිණුම් 2ක් වෙන වෙනම සෑදිය යුතුය. එසේ නොකළහොත් ශුද්ධ ලාභය වැරදි අගයක් ගනු ඇත.")`;
+
+                const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                });
+
+                if (aiResponse.ok) {
+                    const result = await aiResponse.json();
+                    const aiText = result.candidates[0].content.parts[0].text.trim();
+                    
+                    // 3. Evaluate AI's logic
+                    if (aiText.toUpperCase().startsWith("NO")) {
+                        const reason = aiText.substring(aiText.indexOf(',') + 1).trim() || "මෙම වියදම් වර්ගය ගිණුම්කරණ ප්‍රමිතීන්ට අනුව වැරදියි.";
+                        
+                        toggleLoader(false);
+                        document.querySelector('#globalLoader div:nth-child(2)').textContent = "Processing..."; // Reset loader text
+                        
+                        // 🛡️ PRATHI-THARKA: System Advice, but Admin is the Boss!
+                        const userDecision = confirm(`🤖 AI Auditor Warning:\n\n${reason}\n\nDo you still want to force save it as ${root}?`);
+                        if (!userDecision) {
+                            return; // Admin accepted AI's advice and stopped saving.
+                        }
+                        toggleLoader(true); // Admin forced it, resume saving.
+                    }
+                }
+            }
+            // ========================================================
+
+            document.querySelector('#globalLoader div:nth-child(2)').textContent = "Saving...";
+
+            // Save to Database
+            await addDoc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expense_categories`), {
+                name: name,
+                rootType: root,
+                createdAt: window.getSecureTime().toISOString()
+            });
+            
+            document.getElementById('newExpCatName').value = '';
+            await window.loadExpenseCategories();
+            showToast("Category Added Successfully!", "success");
+            if(window.writeSystemLog) writeSystemLog("EXP_CAT_ADDED", `Created new expense category: ${name} (${root})`);
+            
+        } catch(e) { 
+            console.error(e);
+            showToast("Error saving category", "error"); 
+        } finally {
+            document.querySelector('#globalLoader div:nth-child(2)').textContent = "Processing..."; // Reset loader text
+            toggleLoader(false);
+        }
+    };
+
+    window.deleteExpenseCategory = async (id) => {
+        if (userRole !== 'admin') return;
+        if (!confirm("Delete this category? (Past expenses will keep their data, but this won't appear in dropdowns anymore).")) return;
+        
+        toggleLoader(true);
+        try {
+            await deleteDoc(doc(db, `users/${dbOwnerId}/shops/${currentShopId}/expense_categories`, id));
+            await window.loadExpenseCategories();
+            showToast("Category Deleted");
+        } catch(e) { showToast("Error", "error"); }
+        toggleLoader(false);
+    };
+
+    // UI Feedback for Cashier
+    window.checkExpCatWarning = () => {
+        const sel = document.getElementById('expCategory');
+        const warn = document.getElementById('expCatWarning');
+        if(!sel || !warn) return;
+        
+        const opt = sel.options[sel.selectedIndex];
+        if(opt && opt.dataset.root === 'CAPEX') {
+            warn.innerHTML = `<i class="ri-information-fill"></i> වත්කමක් බැවින් මෙය Dashboard එකේ ශුද්ධ ලාභයෙන් (Net Profit) අඩුවෙන්නේ නැත.`;
+            warn.style.color = '#3730a3';
+            warn.style.display = 'block';
+        } else {
+            warn.innerHTML = `<i class="ri-arrow-down-line"></i> සාමාන්‍ය වියදමක් බැවින් මෙය Dashboard එකේ ශුද්ධ ලාභයෙන් (Net Profit) අඩුවෙනු ඇත.`;
+            warn.style.color = '#b91c1c';
+            warn.style.display = 'block';
+        }
+    };
+    
+    // Bind change event
+    document.addEventListener('change', (e) => {
+        if (e.target && e.target.id === 'expCategory') window.checkExpCatWarning();
+    });
+
+    // 🚨 Ensure it loads when shop data refreshes
+    const originalRefreshData = window.refreshData;
+    window.refreshData = async () => {
+        if(originalRefreshData) await originalRefreshData();
+        await window.loadExpenseCategories(); // Call new function
     };
 </script>
 
