@@ -5514,8 +5514,13 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 
 // 🚀 Load Custom Payments
         window.customPaymentsCache = p.customPayments || [];
-        if(window.renderCustomPayments) window.renderCustomPayments();
-        if(window.populatePosPaymentMethods) window.populatePosPaymentMethods(); // Update POS Dropdown instantly
+        // 🛡️ ENTERPRISE FIX: Safe function calls to prevent ReferenceErrors
+        if (typeof window.renderCustomPayments === 'function') {
+            window.renderCustomPayments();
+        }
+        if (typeof window.populatePosPaymentMethods === 'function') {
+            window.populatePosPaymentMethods();
+        }
 
         const container = document.getElementById('profLogoContainer');
         if(p.logoImage) {
@@ -5728,7 +5733,8 @@ customPayments: window.customPaymentsCache || [],
         window.populatePosPaymentMethods(); // Live Update
     };
 
-    window.renderCustomPayments = () => {
+    // 🛡️ ENTERPRISE FIX: Attached to window to ensure global availability
+    window.renderCustomPayments = function() {
         const tbody = document.getElementById('customPaymentsList');
         if(!tbody) return;
         
@@ -5754,7 +5760,7 @@ customPayments: window.customPaymentsCache || [],
         }).join('');
     }
 
-    window.populatePosPaymentMethods = () => {
+    window.populatePosPaymentMethods = function() {
         const select = document.getElementById('posPaymentMethod');
         if(!select) return;
         
@@ -11015,7 +11021,8 @@ window.autoFillDocCustomer = (name) => {
                 if (dateFilter) {
                     const startOfDay = new Date(dateFilter + "T00:00:00.000Z").toISOString();
                     const endOfDay = new Date(dateFilter + "T23:59:59.999Z").toISOString();
-                    q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`), where("date", ">=", startOfDay), where("date", "<=", endOfDay), orderBy("date", "desc"), limit(300));
+                    // 🛡️ ENTERPRISE FIX: Removed orderBy to bypass Firebase Index Error!
+                    q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`), where("date", ">=", startOfDay), where("date", "<=", endOfDay), limit(300));
                 }
             } else {
                 // 🚀 INFINITE SCROLL LOGIC
@@ -11036,14 +11043,19 @@ window.autoFillDocCustomer = (name) => {
                 if(!isLoadMore) tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:20px;">No sales records found.</td></tr>';
                 hasMoreOrders = false;
             } else {
-                // ඊළඟ වතාවේ ගන්න ඕනේ කොතන ඉඳන්ද කියලා මතක තියාගන්නවා
                 lastOrderDoc = snap.docs[snap.docs.length - 1]; 
-                if (snap.docs.length < 30) hasMoreOrders = false; // 30ට අඩුවෙන් ආවා නම් ඒ කියන්නේ තව දත්ත නෑ
+                if (snap.docs.length < 30) hasMoreOrders = false;
+
+                // 🚀 RAM SORTING ENGINE
+                let rawData = [];
+                snap.forEach(d => rawData.push({id: d.id, ...d.data()}));
+                if(dateFilter) {
+                    rawData.sort((a,b) => new Date(b.date) - new Date(a.date)); // Sort newest first
+                }
 
                 let newHtml = '';
-                snap.forEach(d => {
+                rawData.forEach(o => {
                     try {
-                        const o = {id: d.id, ...d.data()};
                         salesCache.push(o);
                         
                         const date = o.date ? new Date(o.date).toLocaleString() : "N/A";
@@ -14646,7 +14658,8 @@ window.setQuickCash = (amount) => {
                 const startIso = new Date(monthFilter + "-01T00:00:00.000Z").toISOString();
                 const y = parseInt(monthFilter.split('-')[0]), m = parseInt(monthFilter.split('-')[1]);
                 const endIso = new Date(y, m, 0, 23, 59, 59, 999).toISOString();
-                q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`), where("date", ">=", startIso), where("date", "<=", endIso), orderBy("date", "desc"));
+                // 🛡️ ENTERPRISE FIX: Removed orderBy to bypass Firebase Index Error! We sort in RAM.
+                q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`), where("date", ">=", startIso), where("date", "<=", endIso));
             } else {
                 if (lastExpDoc) {
                     q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`), orderBy("date", "desc"), startAfter(lastExpDoc), limit(30));
@@ -14665,9 +14678,15 @@ window.setQuickCash = (amount) => {
                 lastExpDoc = snap.docs[snap.docs.length - 1];
                 if (snap.docs.length < 30) hasMoreExp = false;
 
+                // 🚀 RAM SORTING ENGINE: Sort data in browser memory to avoid Firebase Indexes
+                let rawData = [];
+                snap.forEach(d => rawData.push({id: d.id, ...d.data()}));
+                if(monthFilter) {
+                    rawData.sort((a,b) => new Date(b.date) - new Date(a.date)); // Sort newest first
+                }
+
                 let newHtml = '';
-                snap.forEach(d => {
-                    const exp = {id: d.id, ...d.data()};
+                rawData.forEach(exp => {
                     if(!expensesCache.find(x => x.id === exp.id)) expensesCache.push(exp); // Safely push to cache for deletions
                     
                     const isSystemGen = exp.isAdvanceEvent || exp.isPayroll || exp.isLiability || (exp.description && exp.description.toLowerCase().match(/(debt settled|cheque cleared|write-off loss|advance correction)/));
