@@ -803,6 +803,46 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                     </div>
                 </div>
 
+                <!-- 🚀 NEW: DYNAMIC PAYMENT GATEWAYS & AGGREGATORS ENGINE -->
+                <div style="margin-top:30px; padding-top:20px; border-top:2px dashed #e5e7eb;">
+                    <h4 style="margin-bottom:5px; color:var(--primary);"><i class="ri-secure-payment-line"></i> Payment Gateways & Aggregators</h4>
+                    <p style="font-size:11px; color:#64748b; margin-bottom:15px;">Koko, Mintpay, Uber Eats වැනි අලුත් ගෙවීම් ක්‍රම සහ බැංකු කාඩ්පත් සඳහා අයවන කොමිස් මුදල් නිවැරදිව කළමනාකරණය කරන්න.</p>
+                    
+                    <div style="background:#f8fafc; padding:15px; border-radius:8px; border:1px solid #e2e8f0; margin-bottom:15px; display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+                        <div style="flex:1; min-width:120px;">
+                            <label style="font-size:11px; font-weight:bold;">Method Name *</label>
+                            <input type="text" id="newPayName" placeholder="e.g. Koko, Uber Eats, Amex" style="margin:0; font-size:12px; border-color:var(--primary);">
+                        </div>
+                        <div style="flex:1.5; min-width:150px;">
+                            <label style="font-size:11px; font-weight:bold;">Fund Destination (Money Map) *</label>
+                            <select id="newPayType" style="margin:0; font-size:12px; border-color:var(--primary);">
+                                <option value="bank">Bank / Digital (e.g. Card, Transfer)</option>
+                                <option value="pending">Pending / Receivable (e.g. Koko, Uber)</option>
+                                <option value="cash">Physical Cash Drawer</option>
+                            </select>
+                        </div>
+                        <div style="width:80px;">
+                            <label style="font-size:11px; font-weight:bold;">Fee (%)</label>
+                            <input type="number" id="newPayFee" placeholder="e.g. 3" style="margin:0; font-size:12px; border-color:var(--warning);">
+                        </div>
+                        <div style="flex:1.5; min-width:150px;">
+                            <label style="font-size:11px; font-weight:bold;">Fee Strategy (Who pays?)</label>
+                            <select id="newPayStrategy" style="margin:0; font-size:12px; border-color:var(--warning);">
+                                <option value="expense">Shop Pays (Cuts Net Profit)</option>
+                                <option value="surcharge">Customer Pays (Adds to Bill)</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-primary" onclick="addCustomPaymentMethod()"><i class="ri-add-line"></i> Add</button>
+                    </div>
+
+                    <table style="width:100%; font-size:12px; background:white; border:1px solid #e2e8f0;">
+                        <thead style="background:#f1f5f9;">
+                            <tr><th style="padding:8px;">Payment Method</th><th style="padding:8px;">Destination</th><th style="padding:8px;">Fee Rate</th><th style="padding:8px;">Strategy</th><th style="padding:8px; text-align:right;">Action</th></tr>
+                        </thead>
+                        <tbody id="customPaymentsList"></tbody>
+                    </table>
+                </div>
+
                 <div style="text-align:right; margin-top:20px; border-top:1px solid #eee; padding-top:20px;">
                     <button class="btn btn-primary" id="btnSaveProfile" onclick="saveProfile()" style="padding:10px 30px;">Save Profile</button>
                 </div>
@@ -1460,6 +1500,9 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                         <div style="display:flex; justify-content:space-between; font-size:14px; margin-bottom:10px; color:var(--primary);"><span>Fees:</span><span id="cartFees" style="font-weight:600;">0.00</span></div>
                         <!-- 🛡️ Tax HTML -->
                         <div id="cartTaxRow" style="display:none; justify-content:space-between; font-size:14px; margin-bottom:10px; color:#b91c1c;"><span>Tax:</span><span id="cartTax" style="font-weight:600;">0.00</span></div>
+                        <!-- 🚀 Payment Surcharge HTML -->
+                        <div id="cartSurchargeRow" style="display:none; justify-content:space-between; font-size:14px; margin-bottom:10px; color:#d97706;"><span>Gateway Fee:</span><span id="cartSurcharge" style="font-weight:600;">0.00</span></div>
+                        
                         <div style="display:flex; justify-content:space-between; font-weight:900; font-size:22px; margin-bottom: 15px; border-bottom:1px solid #e5e7eb; padding-bottom:10px;">
                             <span>Total</span><span id="cartTotal">0.00</span>
                         </div>
@@ -1893,30 +1936,48 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                     <button class="btn btn-ghost" onclick="printEOD()"><i class="ri-printer-line"></i> Print</button>
                 </div>
             </div>
-            <div class="card" id="eodReportArea" style="max-width:600px; display:none;">
-                <h4 style="text-align:center; border-bottom:1px solid #eee; padding-bottom:10px; margin-bottom:15px;">Cash Drawer Summary</h4>
+            <div class="card" id="eodReportArea" style="max-width:900px; display:none;">
+                <h3 style="text-align:center; color:var(--primary); margin-bottom:20px;"><i class="ri-map-pin-line"></i> The Money Map (Fund Allocations)</h3>
                 
-                <!-- 🛡️ ENTERPRISE FIX: Interactive Morning Float Input -->
-                <div style="display:flex; justify-content:space-between; margin-bottom:10px; font-size:14px; align-items:center; background:#fefce8; padding:8px; border-radius:8px;">
-                    <span style="font-weight:bold; color:#a16207;">Opening Cash (Float):</span> 
-                    <input type="number" id="eodMorningFloat" value="0" style="width:120px; margin:0; padding:6px; text-align:right; font-weight:bold; border-color:#fde047;" onkeyup="recalculateEODTotal()">
-                </div>
-                
-                <div style="display:flex; justify-content:space-between; margin-bottom:10px; font-size:14px;"><span>(+) Cash Sales:</span> <strong id="eodCashSales" style="color:green;">0.00</strong></div>
-                <div style="display:flex; justify-content:space-between; margin-bottom:10px; font-size:14px;"><span>(+) Debt Collections (Cash):</span> <strong id="eodDebt" style="color:green;">0.00</strong></div>
-                <div style="display:flex; justify-content:space-between; margin-bottom:10px; font-size:14px;"><span>(-) Cash Refunds:</span> <strong id="eodRefunds" style="color:red;">0.00</strong></div>
-                <div style="display:flex; justify-content:space-between; margin-bottom:10px; font-size:14px;"><span>(-) Daily Expenses:</span> <strong id="eodExpenses" style="color:red;">0.00</strong></div>
-                <div style="display:flex; justify-content:space-between; margin-bottom:10px; font-size:14px;"><span>(-) Staff Cash Advances:</span> <strong id="eodAdvances" style="color:red;">0.00</strong></div>
-                
-                <div style="display:flex; justify-content:space-between; margin-top:15px; padding-top:15px; border-top:2px dashed #ccc; font-size:18px; font-weight:800; color:var(--primary);">
-                    <span>EXPECTED CASH IN DRAWER:</span> <span id="eodExpectedCash">0.00</span>
-                </div>
-                
-                <div style="margin-top:20px; padding-top:15px; border-top:1px solid #eee;">
-                    <div style="font-weight:bold; margin-bottom:10px;">Other Non-Cash Transactions</div>
-                    <div style="display:flex; justify-content:space-between; font-size:13px; color:#666;"><span>Card Sales:</span> <span id="eodCardSales">0.00</span></div>
-                    <div style="display:flex; justify-content:space-between; font-size:13px; color:#666;"><span>Other (Bank/Cheque/Online):</span> <span id="eodOtherSales">0.00</span></div>
-                    <div style="display:flex; justify-content:space-between; font-size:13px; color:#666;"><span>New Credit Given Today:</span> <span id="eodNewCredit">0.00</span></div>
+                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap:20px;">
+                    
+                    <!-- PILLAR 1: PHYSICAL CASH -->
+                    <div style="background:#f0fdf4; border:2px solid #22c55e; border-radius:12px; padding:15px; box-shadow:0 4px 6px rgba(0,0,0,0.05);">
+                        <h4 style="text-align:center; color:#166534; margin-bottom:15px; border-bottom:1px solid #bbf7d0; padding-bottom:5px;">1. Physical Cash (ලාච්චුවේ)</h4>
+                        
+                        <div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:13px; align-items:center;">
+                            <span style="font-weight:bold; color:#166534;">Morning Float:</span> 
+                            <input type="number" id="eodMorningFloat" value="0" style="width:90px; margin:0; padding:4px; text-align:right; font-weight:bold; border:1px solid #86efac; border-radius:4px; background:white;" onkeyup="recalculateEODTotal()">
+                        </div>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:12px;"><span>(+) Cash Sales:</span> <strong id="eodCashSales" style="color:#15803d;">0.00</strong></div>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:12px;"><span>(+) Debt Collections:</span> <strong id="eodDebt" style="color:#15803d;">0.00</strong></div>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:12px;"><span>(-) Refunds Given:</span> <strong id="eodRefunds" style="color:#b91c1c;">0.00</strong></div>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:12px;"><span>(-) Petty Expenses:</span> <strong id="eodExpenses" style="color:#b91c1c;">0.00</strong></div>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:12px;"><span>(-) Staff Advances:</span> <strong id="eodAdvances" style="color:#b91c1c;">0.00</strong></div>
+                        
+                        <div style="display:flex; justify-content:space-between; margin-top:15px; padding-top:10px; border-top:2px dashed #22c55e; font-size:14px; font-weight:900; color:#14532d;">
+                            <span>EXPECTED IN DRAWER:</span> <span id="eodExpectedCash">0.00</span>
+                        </div>
+                    </div>
+
+                    <!-- PILLAR 2: BANK / DIGITAL -->
+                    <div style="background:#eff6ff; border:2px solid #3b82f6; border-radius:12px; padding:15px; box-shadow:0 4px 6px rgba(0,0,0,0.05);">
+                        <h4 style="text-align:center; color:#1e40af; margin-bottom:15px; border-bottom:1px solid #bfdbfe; padding-bottom:5px;">2. Bank / Digital (ගිණුම් වලට)</h4>
+                        <div id="eodBankBreakdown" style="min-height:100px;"></div>
+                        <div style="display:flex; justify-content:space-between; margin-top:15px; padding-top:10px; border-top:2px dashed #3b82f6; font-size:14px; font-weight:900; color:#1e3a8a;">
+                            <span>TOTAL TO BANK:</span> <span id="eodTotalBank">0.00</span>
+                        </div>
+                    </div>
+
+                    <!-- PILLAR 3: PENDING / AGGREGATORS -->
+                    <div style="background:#fffbeb; border:2px solid #f59e0b; border-radius:12px; padding:15px; box-shadow:0 4px 6px rgba(0,0,0,0.05);">
+                        <h4 style="text-align:center; color:#b45309; margin-bottom:15px; border-bottom:1px solid #fde68a; padding-bottom:5px;">3. Pending / Receivables (ණය)</h4>
+                        <div id="eodPendingBreakdown" style="min-height:100px;"></div>
+                        <div style="display:flex; justify-content:space-between; margin-top:15px; padding-top:10px; border-top:2px dashed #f59e0b; font-size:14px; font-weight:900; color:#78350f;">
+                            <span>TOTAL OUTSTANDING:</span> <span id="eodTotalPending">0.00</span>
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </div>
@@ -5451,6 +5512,11 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         document.getElementById('profScaleMode').value = p.scaleMode || 'manual';
         document.getElementById('profScalePrefix').value = p.scalePrefix || '21';
 
+// 🚀 Load Custom Payments
+        window.customPaymentsCache = p.customPayments || [];
+        renderCustomPayments();
+        populatePosPaymentMethods(); // Update POS Dropdown instantly
+
         const container = document.getElementById('profLogoContainer');
         if(p.logoImage) {
             container.innerHTML = `<img src="${p.logoImage}">`;
@@ -5591,6 +5657,8 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             scaleMode: document.getElementById('profScaleMode').value,
             scalePrefix: document.getElementById('profScalePrefix').value.trim() || '21',
 
+customPayments: window.customPaymentsCache || [],
+
             // Visibility Toggles
             showBizName: document.getElementById('showBizName').checked,
             showOwner: document.getElementById('showOwner').checked,
@@ -5632,6 +5700,88 @@ body.pos-fullscreen-mode #view-pos > div > .card {
     };
 
     document.getElementById('profLogoFile').addEventListener('change', async (e) => {
+
+// 🚀 ENTERPRISE PAYMENT AGGREGATOR FUNCTIONS
+    window.customPaymentsCache = [];
+
+    window.addCustomPaymentMethod = () => {
+        const name = document.getElementById('newPayName').value.trim();
+        const type = document.getElementById('newPayType').value;
+        const fee = parseFloat(document.getElementById('newPayFee').value) || 0;
+        const strategy = document.getElementById('newPayStrategy').value;
+
+        if(!name) return showToast("Payment Method Name is required!", "error");
+        if(window.customPaymentsCache.find(c => c.name.toLowerCase() === name.toLowerCase())) {
+            return showToast("This name already exists!", "error");
+        }
+
+        window.customPaymentsCache.push({ name, type, fee, strategy });
+        document.getElementById('newPayName').value = '';
+        document.getElementById('newPayFee').value = '';
+        renderCustomPayments();
+        populatePosPaymentMethods(); // Live Update
+    };
+
+    window.removeCustomPaymentMethod = (idx) => {
+        window.customPaymentsCache.splice(idx, 1);
+        renderCustomPayments();
+        populatePosPaymentMethods(); // Live Update
+    };
+
+    function renderCustomPayments() {
+        const tbody = document.getElementById('customPaymentsList');
+        if(!tbody) return;
+        
+        if (window.customPaymentsCache.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:10px; color:#666;">No custom methods added. Defaults (Cash, Card, Cheque, Pay Later) will be used.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = window.customPaymentsCache.map((c, idx) => {
+            const destLabel = c.type === 'bank' ? '<span style="color:#1d4ed8; font-weight:bold;">Bank / Digital</span>' : (c.type === 'pending' ? '<span style="color:#d97706; font-weight:bold;">Pending / Receivable</span>' : 'Physical Cash');
+            const stratLabel = c.fee > 0 ? (c.strategy === 'expense' ? '<span style="color:#b91c1c;">Shop Pays (Expense)</span>' : '<span style="color:#15803d;">Customer Pays (Surcharge)</span>') : 'No Fee';
+            
+            return `
+            <tr style="border-bottom:1px solid #eee;">
+                <td style="font-weight:bold;">${c.name}</td>
+                <td>${destLabel}</td>
+                <td style="font-weight:bold; color:var(--warning);">${c.fee}%</td>
+                <td style="font-size:11px; font-weight:bold;">${stratLabel}</td>
+                <td style="text-align:right;">
+                    <button class="btn btn-danger" style="padding:2px 6px; font-size:11px;" onclick="removeCustomPaymentMethod(${idx})"><i class="ri-delete-bin-line"></i></button>
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    window.populatePosPaymentMethods = () => {
+        const select = document.getElementById('posPaymentMethod');
+        if(!select) return;
+        
+        // Retain System Defaults (Crucial for Hardcoded Logic mapping)
+        let html = `
+            <option value="Cash">Cash (Physical Till)</option>
+            <option value="Debit Card">Debit Card</option>
+            <option value="Credit Card">Credit Card</option>
+            <option value="Online Transfer">Online Bank Transfer</option>
+            <option value="Bank Deposit">Cash Deposit at Bank</option>
+            <option value="Pay Later">Pay Later (Customer Credit)</option>
+            <option value="Cheque">Cheque Payment</option>
+        `;
+
+        if (window.customPaymentsCache && window.customPaymentsCache.length > 0) {
+            html += `<optgroup label="--- Custom Integrations ---">`;
+            window.customPaymentsCache.forEach(c => {
+                html += `<option value="${c.name}">${c.name}</option>`;
+            });
+            html += `</optgroup>`;
+        }
+        
+        // Preserve selection if possible
+        const oldVal = select.value;
+        select.innerHTML = html;
+        if(Array.from(select.options).some(o => o.value === oldVal)) select.value = oldVal;
+    };
         const file = e.target.files[0];
         if(file) {
             const base64 = await compressImageTo100KB(file);
@@ -8043,8 +8193,24 @@ window.onTransferProductSelect = () => {
             taxAmt = Math.round((taxableBase * (taxPercentSaved / 100)) * 100) / 100;
         }
 
-        // 🛡️ Add taxAmt to the Final Total
-        let total = subtotal - discountAmt + feesTotal + taxAmt;
+        // 🚀 DYNAMIC PAYMENT SURCHARGE ENGINE
+        let surchargeAmt = 0;
+        const currentPayMethod = document.getElementById('posPaymentMethod').value;
+        const customP = (window.customPaymentsCache || []).find(c => c.name === currentPayMethod);
+        
+        if (customP && customP.fee > 0 && customP.strategy === 'surcharge') {
+            // Surcharge is applied to the final calculated amount (Including Tax & Normal Fees)
+            const preSurchargeTotal = subtotal - discountAmt + feesTotal + taxAmt;
+            surchargeAmt = Math.round((preSurchargeTotal * (customP.fee / 100)) * 100) / 100;
+            
+            document.getElementById('cartSurchargeRow').style.display = 'flex';
+            document.getElementById('cartSurcharge').textContent = `+${formatMoney(surchargeAmt)} (${customP.fee}%)`;
+        } else {
+            document.getElementById('cartSurchargeRow').style.display = 'none';
+        }
+
+        // 🛡️ Final Total Calculation
+        let total = subtotal - discountAmt + feesTotal + taxAmt + surchargeAmt;
 
         document.getElementById('cartSubtotal').textContent = formatMoney(subtotal);
         document.getElementById('cartDiscount').textContent = `-${formatMoney(discountAmt)}`;
@@ -8572,11 +8738,27 @@ window.checkout = async () => {
             const taxableBase = subtotal - discountAmt + feesTotal; // 👈 Fees එකතු කර ඇත
             taxAmt = Math.round((taxableBase * (taxPercentSaved / 100)) * 100) / 100;
         }
+
+        // 🚀 RE-CALCULATE SURCHARGE AT CHECKOUT FOR SECURITY
+        let surchargeAmt = 0;
+        let gatewayExpenseAmt = 0; // If the shop absorbs the cost
+        const customP = (window.customPaymentsCache || []).find(c => c.name === paymentMethod);
+        
+        if (customP && customP.fee > 0) {
+            const baseForFee = subtotal - discountAmt + feesTotal + taxAmt;
+            const calculatedFee = Math.round((baseForFee * (customP.fee / 100)) * 100) / 100;
+            
+            if (customP.strategy === 'surcharge') {
+                surchargeAmt = calculatedFee; // Add to customer's bill
+            } else if (customP.strategy === 'expense') {
+                gatewayExpenseAmt = calculatedFee; // Shop absorbs it, reduce profit
+            }
+        }
         
         let loyaltyRedeemed = window.pendingLoyaltyRedeemed || 0;
         
         // 🛡️ ENTERPRISE BUG FIX: Loyalty Blackhole Prevention!
-        const totalBeforeLoyalty = roundToTwo(subtotal - discountAmt + feesTotal + taxAmt);
+        const totalBeforeLoyalty = roundToTwo(subtotal - discountAmt + feesTotal + taxAmt + surchargeAmt);
         if (loyaltyRedeemed > totalBeforeLoyalty) {
             loyaltyRedeemed = totalBeforeLoyalty; // බිලේ ගාණට වඩා Points කැපීමට නොදෙයි!
             window.pendingLoyaltyRedeemed = loyaltyRedeemed; // Update the global state
@@ -8706,6 +8888,7 @@ window.checkout = async () => {
             feesTotal: roundToTwo(feesTotal),
             taxPercent: taxPercentSaved,
             taxAmt: roundToTwo(taxAmt), 
+            surchargeAmt: roundToTwo(surchargeAmt), // 👈 Save Surcharge
             total: roundToTwo(total),
             paymentMethod: finalPaymentMethod, 
             cashGiven: roundToTwo(cashGiven), 
@@ -8962,6 +9145,20 @@ window.checkout = async () => {
                     transaction.update(customerRef, { walletBalance: increment(overpaidAmount) });
                 }
                 
+// 🚨 CA FIX: Automatically Record Gateway Expenses (Commission Absorbed by Shop)
+                if (gatewayExpenseAmt > 0 && customP) {
+                    const expRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`));
+                    transaction.set(expRef, {
+                        description: `[PLATFORM FEE] ${customP.name} Commission (${customP.fee}%) for Inv #${customOrderId}`,
+                        amount: gatewayExpenseAmt,
+                        isIncome: false,
+                        payMethod: 'None', // Bank deducts it directly
+                        date: window.getSecureTime().toISOString(),
+                        isPending: false,
+                        isCapex: false, // It reduces net profit!
+                        isNonCashExpense: true // Does not leave the physical cash drawer
+                    });
+                }
                 transaction.set(saleRef, saleData);
 
                 // 🛡️ ENTERPRISE FIX: Direct POS Cheque Registration
@@ -12107,6 +12304,13 @@ window.autoFillDocCustomer = (name) => {
                     <tr>
                         <td style="text-align: left; padding: 2px 0;">${shop.taxName || 'TAX'} (${order.taxPercent || 0}%)</td>
                         <td style="text-align: right; padding: 2px 0;">+${formatMoney(order.taxAmt)}</td>
+                    </tr>` : ''}
+
+                    <!-- 🚀 Surcharge Row for POS Print -->
+                    ${order.surchargeAmt > 0 ? `
+                    <tr>
+                        <td style="text-align: left; padding: 2px 0;">Gateway Surcharge Fee</td>
+                        <td style="text-align: right; padding: 2px 0;">+${formatMoney(order.surchargeAmt)}</td>
                     </tr>` : ''}
 
                     ${feesHtml}
@@ -15434,24 +15638,56 @@ window.setQuickCash = (amount) => {
         const startDate = new Date(startInput).toISOString();
         const endDate = new Date(endInput).toISOString();
 
+        // 🚀 MONEY MAP DATA CONTAINERS
+        let bankMethodsData = {};
+        let pendingMethodsData = { 'Pay Later': 0, 'Cheque': 0 }; // Initialize defaults
+        let bankTotal = 0;
+        let pendingTotal = 0;
+
         // 1. Process Sales from Server
         const qSales = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`), where("date", ">=", startDate), where("date", "<=", endDate));
         const snapSales = await getDocs(qSales);
 
         snapSales.forEach(docSnap => {
             const s = docSnap.data();
-            // Database Query එක 100% ක් නිවැරදි බැවින් අමතර OS-Dependent Date Check කිරීම් අවශ්‍ය නැත!
-            if(s.paymentMethod.includes('Cash') && s.paymentMethod !== 'Cash (Settled)') {
-                // 🚨 BUG FIX 2: Only count ACTUAL Cash received into the drawer!
-                // Store Credit (Wallet) වලින් ගෙවූ ගාණ ලාච්චුවට එන්නේ නැති බැවින් එය අඩු කළ යුතුමය.
-                cashSales += (s.total - (s.walletApplied || 0));
-            } else if(s.paymentMethod.includes('Card')) {
-                cardSales += s.total;
-            } else if(s.paymentMethod === 'Pay Later') {
+            const payM = s.paymentMethod;
+            
+            // Look up custom configuration
+            const customP = (window.customPaymentsCache || []).find(c => c.name === payM);
+            
+            // Calculate exact contribution
+            const saleNetValue = s.total - (s.walletApplied || 0); // Remove wallet usage
+
+            if(payM.includes('Cash') && payM !== 'Cash (Settled)') {
+                cashSales += saleNetValue;
+            } else if(payM === 'Pay Later') {
                 cashSales += (s.cashGiven || 0);
                 newCredit += s.creditBalance;
+                pendingMethodsData['Pay Later'] += s.creditBalance;
+                pendingTotal += s.creditBalance;
+            } else if(payM === 'Cheque') {
+                pendingMethodsData['Cheque'] += saleNetValue;
+                pendingTotal += saleNetValue;
             } else {
-                otherSales += s.total; 
+                // Determine Pillar based on Custom Setup or Defaults
+                let targetPillar = 'bank';
+                if (customP) {
+                    targetPillar = customP.type;
+                } else if (payM.includes('Card') || payM.includes('Transfer') || payM.includes('Deposit')) {
+                    targetPillar = 'bank';
+                } else {
+                    targetPillar = 'bank'; // Fallback
+                }
+
+                if (targetPillar === 'cash') {
+                    cashSales += saleNetValue;
+                } else if (targetPillar === 'pending') {
+                    pendingMethodsData[payM] = (pendingMethodsData[payM] || 0) + saleNetValue;
+                    pendingTotal += saleNetValue;
+                } else {
+                    bankMethodsData[payM] = (bankMethodsData[payM] || 0) + saleNetValue;
+                    bankTotal += saleNetValue;
+                }
             }
         });
 
@@ -15495,17 +15731,34 @@ window.setQuickCash = (amount) => {
         // This eliminates the 'dateInput' crash and securely tracks overnight shifts correctly.
         window.currentEodBaseCash = Math.round((cashSales + debtCollections - refunds - expenses - staffAdvances) * 100) / 100;
 
-        // Update UI
+        // Update UI - Pillar 1 (Cash)
         document.getElementById('eodCashSales').textContent = formatMoney(cashSales);
-        document.getElementById('eodCardSales').textContent = formatMoney(cardSales);
-        document.getElementById('eodOtherSales').textContent = formatMoney(otherSales);
-        document.getElementById('eodNewCredit').textContent = formatMoney(newCredit);
         document.getElementById('eodDebt').textContent = formatMoney(debtCollections);
         document.getElementById('eodRefunds').textContent = formatMoney(refunds);
         document.getElementById('eodExpenses').textContent = formatMoney(expenses);
         document.getElementById('eodAdvances').textContent = formatMoney(staffAdvances);
         
         window.recalculateEODTotal(); 
+
+        // Update UI - Pillar 2 (Bank)
+        let bankHtml = '';
+        for (const [method, amount] of Object.entries(bankMethodsData)) {
+            if (amount > 0) {
+                bankHtml += `<div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:12px; border-bottom:1px dashed #bfdbfe; padding-bottom:3px;"><span>${method}:</span> <strong style="color:#1d4ed8;">${formatMoney(amount)}</strong></div>`;
+            }
+        }
+        document.getElementById('eodBankBreakdown').innerHTML = bankHtml || '<div style="font-size:12px; color:#6b7280; text-align:center; padding-top:20px;">No Bank/Digital transactions.</div>';
+        document.getElementById('eodTotalBank').textContent = formatMoney(bankTotal);
+
+        // Update UI - Pillar 3 (Pending)
+        let pendingHtml = '';
+        for (const [method, amount] of Object.entries(pendingMethodsData)) {
+            if (amount > 0) {
+                pendingHtml += `<div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:12px; border-bottom:1px dashed #fde68a; padding-bottom:3px;"><span>${method}:</span> <strong style="color:#b45309;">${formatMoney(amount)}</strong></div>`;
+            }
+        }
+        document.getElementById('eodPendingBreakdown').innerHTML = pendingHtml || '<div style="font-size:12px; color:#6b7280; text-align:center; padding-top:20px;">No Pending/Receivable transactions.</div>';
+        document.getElementById('eodTotalPending').textContent = formatMoney(pendingTotal);
         document.getElementById('eodReportArea').style.display = 'block';
         // 🚨 CA FIX: Fixed legacy dateInput variable crash!
         if(window.writeSystemLog) writeSystemLog("EOD_REPORT_VIEWED", `Generated and viewed EOD Shift Summary on screen from: ${startInput} to ${endInput}`);
