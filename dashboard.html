@@ -13624,6 +13624,33 @@ window.setQuickCash = (amount) => {
 
         toggleLoader(true);
         try {
+            // 🤖 AI LABOR LAW OFFICER
+            let alwDetails = allowances.map(a => `${a.name} (EPF Deducted: ${a.isEpf ? 'Yes' : 'No'})`).join(', ');
+            
+            const prompt = `Act as an expert in Sri Lankan Labor Law (EPF/ETF Act).
+            A company is creating a salary package. The allowances are:
+            [${alwDetails}]
+            
+            Rule: Fixed allowances like Cost of Living Allowance (COLA), ජීවන වියදම් දීමනාව, or anything tied to the basic cost of living MUST be subjected to EPF. 
+            Are any of these allowances illegally bypassing EPF?
+            If it is completely legal and safe, reply EXACTLY with "YES".
+            If there is a clear labor law violation, reply "NO", followed by a comma, and a 1-sentence warning in Sinhala explaining the legal risk and fine.`;
+
+            const aiResult = await window.callEnterpriseAI(prompt, "AI Legal Officer checking Labor Laws...");
+            
+            if (aiResult && aiResult.toUpperCase().startsWith("NO")) {
+                const warningMsg = aiResult.substring(aiResult.indexOf(',') + 1).trim();
+                toggleLoader(false);
+                document.querySelector('#globalLoader div:nth-child(2)').textContent = "Processing...";
+                
+                if (!confirm(`⚖️ AI නීතිමය අවවාදයි!\n\n${warningMsg}\n\nනීතිමය අවදානම ගැන දැනුවත්ව ඔබට මෙය Save කිරීමට අවශ්‍යද?`)) {
+                    return; 
+                }
+                toggleLoader(true); 
+            }
+
+            document.querySelector('#globalLoader div:nth-child(2)').textContent = "Saving...";
+
             await addDoc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/salary_packages`), {
                 name, allowances, deductions, createdAt: window.getSecureTime().toISOString()
             });
@@ -17118,6 +17145,36 @@ window.setQuickCash = (amount) => {
 
         toggleLoader(true);
         try {
+            // 🤖 AI FRAUD DETECTOR
+            const pInfo = productsCache.find(x => x.id === id);
+            const pNameStr = pInfo ? pInfo.name : "Unknown Item";
+            
+            const prompt = `Act as a strict Loss Prevention Auditor for a retail store in Sri Lanka.
+            An employee is writing off (removing from stock) the following:
+            Item: "${pNameStr}"
+            Quantity: ${qty}
+            Reason category: "${reason}"
+            Cashier Note: "${note}"
+            
+            Is this highly suspicious, illogical, or a potential theft? 
+            If it looks normal/acceptable (e.g. 1 damaged item), reply EXACTLY with "YES".
+            If it looks highly suspicious (e.g. large quantity of expensive items like 5 ACs, or absurd reason), reply "NO", followed by a comma, and a 1-sentence warning in Sinhala explaining why the manager should investigate this immediately.`;
+            
+            const aiResult = await window.callEnterpriseAI(prompt, "AI Auditor is scanning for potential fraud...");
+            
+            if (aiResult && aiResult.toUpperCase().startsWith("NO")) {
+                const warningMsg = aiResult.substring(aiResult.indexOf(',') + 1).trim();
+                toggleLoader(false);
+                document.querySelector('#globalLoader div:nth-child(2)').textContent = "Processing...";
+                
+                if (!confirm(`🚨 AI වංචා නිවාරණ අනතුරු ඇඟවීමයි!\n\n${warningMsg}\n\nඔබට විශ්වාසද මෙම අලාභය සටහන් කළ යුතුමයි කියා?`)) {
+                    return; // Admin බය වෙලා Cancel කළා
+                }
+                toggleLoader(true); // Admin බලහත්කාරයෙන් Save කරනවා
+            }
+
+            document.querySelector('#globalLoader div:nth-child(2)').textContent = "Saving...";
+
             await runTransaction(db, async (t) => {
                 const ref = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/products`, id);
                 const snap = await t.get(ref);
@@ -22210,6 +22267,40 @@ ${opexBreakdownStr}
 
         toggleLoader(true);
         try {
+            // 🤖 AI COST ACCOUNTANT (TYPO CATCHER)
+            const fgNameDisplay = document.getElementById('bomTargetProduct').options[document.getElementById('bomTargetProduct').selectedIndex].text;
+            let matListText = "";
+            document.querySelectorAll('#bomMaterialsBody tr').forEach(tr => {
+                const matSel = tr.querySelector('.bom-mat-select');
+                const qInput = tr.querySelector('.bom-mat-qty').value;
+                if(matSel.value && qInput > 0) matListText += `- ${matSel.options[matSel.selectedIndex].text} : Qty ${qInput}\n`;
+            });
+
+            const prompt = `Act as an expert Cost Accountant and Production Manager.
+            A user is creating a Bill of Materials (BOM/Recipe) to manufacture: "${fgNameDisplay}".
+            The raw materials used are:
+            ${matListText}
+            The labor/overhead cost added is: Rs. ${overheadCost}
+            
+            Check for glaring typos (e.g., 200 meters of pipe for a small bracket, or Rs. 50,000 labor for a simple Rs. 500 item).
+            If the recipe proportions and costs look reasonably logical, reply EXACTLY with "YES".
+            If there is a highly obvious typo or absurd proportion, reply "NO", followed by a comma, and a 1-sentence warning in Sinhala explaining the suspected mistake.`;
+
+            const aiResult = await window.callEnterpriseAI(prompt, "AI Cost Accountant analyzing recipe...");
+            
+            if (aiResult && aiResult.toUpperCase().startsWith("NO")) {
+                const warningMsg = aiResult.substring(aiResult.indexOf(',') + 1).trim();
+                toggleLoader(false);
+                document.querySelector('#globalLoader div:nth-child(2)').textContent = "Processing...";
+                
+                if (!confirm(`🏭 AI පිරිවැය සහ නිෂ්පාදන අවවාදයි!\n\n${warningMsg}\n\nඔබට විශ්වාසද මෙම වට්ටෝරුව නිවැරදියි කියා?`)) {
+                    return; 
+                }
+                toggleLoader(true); 
+            }
+
+            document.querySelector('#globalLoader div:nth-child(2)').textContent = "Saving...";
+
             await addDoc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/boms`), {
                 fgBaseId, overheadCost, scrapBaseId, expectedScrapQty: scrapQty, materials,
                 createdAt: window.getSecureTime().toISOString()
@@ -23347,6 +23438,38 @@ ${opexBreakdownStr}
     window.refreshData = async () => {
         if(originalRefreshData) await originalRefreshData();
         await window.loadExpenseCategories(); // Call new function
+    };
+
+// ==========================================
+    // 🧠 ENTERPRISE AI CORE ENGINE (Reusable Microservice)
+    // ==========================================
+    window.callEnterpriseAI = async (promptText, loaderMsg = "AI is verifying...") => {
+        document.querySelector('#globalLoader div:nth-child(2)').textContent = loaderMsg;
+        
+        try {
+            const keyDocRef = doc(db, `users/${dbOwnerId}/settings/api_keys`);
+            const keySnap = await getDoc(keyDocRef);
+            let apiKey = null;
+            if (keySnap.exists()) {
+                const dbData = keySnap.data();
+                apiKey = dbData.gemini || dbData['gemini '] || dbData[' gemini'] || dbData['Gemini'];
+            }
+            
+            if (!apiKey) return null; // API Key නැත්නම් බාධාවකින් තොරව සාමාන්‍ය පරිදි වැඩ කරයි
+
+            const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }] })
+            });
+
+            if (aiResponse.ok) {
+                const result = await aiResponse.json();
+                return result.candidates[0].content.parts[0].text.trim();
+            }
+        } catch (e) {
+            console.error("AI Core Error:", e);
+        }
+        return null;
     };
 </script>
 
