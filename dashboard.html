@@ -270,7 +270,10 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 
 <!-- ALERT POPUP ON DASHBOARD -->
 <div class="alert-dashboard-popup" id="dashboardAlertPopup">
-    <h4><span><i class="ri-alarm-warning-line"></i> Alert Triggered</span> <i class="ri-close-line" style="cursor:pointer; color:black;" onclick="closeDashboardPopup()"></i></h4>
+    <div style="margin-bottom: 5px; color: var(--warning); display: flex; justify-content: space-between; align-items: center; font-weight: bold; font-size: 16px;">
+        <span><i class="ri-alarm-warning-line"></i> Alert Triggered</span> 
+        <i class="ri-close-line" style="cursor:pointer; color:black;" onclick="closeDashboardPopup()"></i>
+    </div>
     <p id="dashboardAlertMsg">You have a new reminder.</p>
     <button class="btn btn-warning" style="width:100%; justify-content:center;" onclick="loadView('alerts')">View Alerts</button>
 </div>
@@ -279,7 +282,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 <aside class="sidebar" id="sidebar">
     <div class="brand">
         <!-- 🛡️ UI FIX: Dynamic Logo & Name -->
-        <img id="sidebarBrandLogo" src="" style="display:none; max-height:40px; max-width:40px; margin-right:12px; border-radius:6px; object-fit:contain; background:#fff;">
+        <img id="sidebarBrandLogo" src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" alt="Brand Logo" style="display:none; max-height:40px; max-width:40px; margin-right:12px; border-radius:6px; object-fit:contain; background:#fff;">
         <span id="sidebarBrandName" style="white-space:normal; word-wrap:break-word; line-height:1.3; font-size:14px; font-weight:800; display:block;" title="YOUR BUSINESS NAME">YOUR BUSINESS NAME</span>
     </div>
     <div class="nav">
@@ -341,7 +344,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
     <!-- 🛡️ UI FIX: Dynamic User Avatar Profile Area -->
     <div style="padding: 20px; border-top: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2);">
         <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
-            <img id="userAuthAvatar" src="" style="display:none; width:38px; height:38px; border-radius:50%; object-fit:cover; border:2px solid #4b5563;">
+            <img id="userAuthAvatar" src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" alt="User Avatar" style="display:none; width:38px; height:38px; border-radius:50%; object-fit:cover; border:2px solid #4b5563;">
             <div id="userAuthInitial" style="width:38px; height:38px; border-radius:50%; background:var(--primary); color:white; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:18px; box-shadow:0 2px 5px rgba(0,0,0,0.3);">U</div>
             <div style="flex:1; overflow:hidden;">
                 <div style="font-size: 10px; color: #9ca3af; text-transform:uppercase; letter-spacing:1px; margin-bottom:2px;">Logged in as</div>
@@ -358,7 +361,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
     <header class="header" style="padding:0 20px;">
         <div style="display:flex; align-items:center; gap: 15px;">
             <i class="ri-menu-2-line mobile-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')"></i>
-            <h3 id="pageTitle" style="font-weight:800; color:var(--secondary); min-width:120px;">Overview</h3>
+            <h1 id="pageTitle" style="font-weight:800; font-size:1.17em; margin:0; color:var(--secondary); min-width:120px;">Overview</h1>
             
             <!-- 🛡️ ENTERPRISE FIX: SECURE LIVE CLOCK (Perfectly aligned) -->
             <div style="background: #1e293b; color: #10b981; padding: 0 15px; border-radius: 8px; font-family: monospace; font-weight: 800; font-size: 12px; letter-spacing: 1px; display: flex; align-items: center; gap: 8px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5); border: 1px solid #0f172a; height: 36px; box-sizing: border-box; white-space:nowrap;">
@@ -370,7 +373,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             <!-- STAFF ATTENDANCE SCANNER -->
             <div style="background:#f1f5f9; padding:0 10px; border-radius:8px; display:flex; align-items:center; gap:5px; border:1px solid #cbd5e1; height: 36px; box-sizing: border-box;">
                 <i class="ri-fingerprint-line" style="color:var(--primary); font-size:16px;"></i>
-                <input id="staffAttendanceScanner" type="text" autocomplete="new-password" name="attendance_dummy_field" role="presentation" spellcheck="false" placeholder="Scan Staff ID..." style="margin:0; width:120px; height:100%; font-size:12px; border:none; background:transparent; outline:none; font-weight:bold;" onkeypress="handleStaffAttendance(event)">
+                <input id="staffAttendanceScanner" type="text" autocomplete="new-password" name="attendance_dummy_field" spellcheck="false" placeholder="Scan Staff ID..." aria-label="Staff Attendance Scanner" style="margin:0; width:120px; height:100%; font-size:12px; border:none; background:transparent; outline:none; font-weight:bold;" onkeypress="handleStaffAttendance(event)">
             </div>
             
             <select class="shop-select" id="shopSelector" onchange="changeShop()" style="height: 36px; box-sizing: border-box; margin:0; padding: 0 10px; font-weight:bold; border-color:#cbd5e1;">
@@ -409,7 +412,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             <!-- UPDATED DASHBOARD DATE FILTER -->
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 20px; flex-wrap: wrap; gap:10px;">
                 <div style="display:flex; gap:10px; align-items:center;">
-                    <h4 style="margin:0;">Performance Overview</h4>
+                    <h2 style="margin:0; font-size:16px;">Performance Overview</h2>
                 </div>
                 <button onclick="viewExpiringItems()">Check Expiring Items</button>
                 <div style="display:flex; gap:10px; align-items:center;">
@@ -455,12 +458,12 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             <!-- 🛡️ ENTERPRISE DASHBOARD: Chart & Live Personnel Status -->
             <div style="display:grid; grid-template-columns: 2.5fr 1fr; gap:24px; margin-top:24px;">
                 <div class="card" style="margin:0;">
-                    <h4 style="margin-bottom:15px; color:var(--secondary); font-size:15px;"><i class="ri-bar-chart-grouped-line" style="color:var(--primary);"></i> ආදායම් ප්‍රස්ථාරය (Revenue Trends)</h4>
+                    <h3 style="margin-bottom:15px; color:var(--secondary); font-size:15px;"><i class="ri-bar-chart-grouped-line" style="color:var(--primary);"></i> ආදායම් ප්‍රස්ථාරය (Revenue Trends)</h3>
                     <div style="height: 300px; position:relative;"><canvas id="salesChart"></canvas></div>
                 </div>
                 
                 <div class="card" style="margin:0; display:flex; flex-direction:column; border-top:4px solid var(--primary);">
-                    <h4 style="margin-bottom:15px; color:var(--secondary); font-size:14px; border-bottom:1px solid #e2e8f0; padding-bottom:10px;"><i class="ri-user-follow-line" style="color:var(--success);"></i> Branch Personnel Status</h4>
+                    <h3 style="margin-bottom:15px; color:var(--secondary); font-size:14px; border-bottom:1px solid #e2e8f0; padding-bottom:10px;"><i class="ri-user-follow-line" style="color:var(--success);"></i> Branch Personnel Status</h3>
                     <div id="dashCashierStatus" style="flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:8px; padding-right:5px;">
                         <div style="text-align:center; color:#64748b; font-size:12px; margin-top:40px;"><i class="ri-loader-4-line ri-spin" style="font-size:24px; display:block; margin-bottom:10px;"></i> සේවක තත්ත්වය පරීක්ෂා කරමින්...</div>
                     </div>
@@ -1063,7 +1066,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                                 <input type="date" id="docDate">
                             </div>
                             <div style="display:flex; gap:5px; margin-top:5px;">
-                                <input type="date" id="docDueDate" placeholder="Due Date">
+                                <input type="date" id="docDueDate" title="Due Date">
                             </div>
                         </div>
                     </div>
@@ -2283,7 +2286,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             
             <!-- General Ledger List (Paginated) -->
             <div class="card" style="margin-top:20px;">
-                <h4 style="margin-bottom:10px; color:var(--primary);">General Ledger (Transactions Journal)</h4>
+                <h3 style="margin-bottom:10px; color:var(--primary); font-size:16px;">General Ledger (Transactions Journal)</h3>
                 <div id="ledgerScrollArea" style="max-height:400px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px;">
                     <table style="width:100%; font-size:12px; text-align:left;">
                         <thead style="background:#f1f5f9; position:sticky; top:0;">
@@ -2520,7 +2523,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                     </div>
 
                     <div id="prodExecutionArea" style="display:none;">
-                        <h5 style="margin-bottom:10px; color:#374151;">1. Consume Raw Materials (අමුද්‍රව්‍ය අඩු කිරීම)</h5>
+                        <h4 style="margin-bottom:10px; color:#374151; font-size:13px;">1. Consume Raw Materials (අමුද්‍රව්‍ය අඩු කිරීම)</h4>
                         <div class="note-box" style="margin-top:0; margin-bottom:10px; font-size:11px;">
                             අවවාදයි: භෞතිකව පාවිච්චි කළ අමුද්‍රව්‍ය ප්‍රමාණයම අදාළ තොගයෙන් (Batch) තෝරන්න. අමතරව අපතේ ගිය දේවලුත් (Wastage) එකතු කර සැබෑ ප්‍රමාණයම ගහන්න.
                         </div>
@@ -2682,7 +2685,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                     </tr>
                 </thead>
                 <tbody id="rosterBody">
-                    <tr><td colspan="5" style="padding:30px; color:#64748b;">කරුණාකර ඉහළින් මාසය තෝරන්න...</td></tr>
+                    <tr><td colspan="7" style="padding:30px; color:#64748b;">කරුණාකර ඉහළින් මාසය තෝරන්න...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -2903,7 +2906,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
              <button class="btn btn-danger" id="btnRemoveBpImage" onclick="removeBaseProductImage()" style="display:none; padding: 6px 10px; font-size: 11px;">Remove</button>
         </div>
         <div id="bpImageInfo" style="font-size:11px; color:#666;"></div>
-        <img id="bpPhotoPreview" class="prod-preview" alt="Preview">
+        <img id="bpPhotoPreview" src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" class="prod-preview" alt="Product Preview">
 
         <label style="font-size:12px; font-weight:bold; color:var(--primary);">Inventory Tracking Type *</label>
         <select id="bpItemType" style="border:2px solid var(--primary); font-weight:bold;" onchange="togglePLUField()">
@@ -3000,7 +3003,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 
         <!-- Preview for Update Mode or Selected Item -->
         <div id="stockPreview" style="display:none; margin-bottom:10px; text-align:center;">
-            <img id="mpPhotoPreview" class="prod-preview" style="display:block; margin:0 auto 10px auto; width:100px; height:100px;" alt="Preview">
+            <img id="mpPhotoPreview" src="data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=" class="prod-preview" style="display:block; margin:0 auto 10px auto; width:100px; height:100px;" alt="Stock Preview">
             <div id="mpNameDisplay" style="font-weight:600; font-size:14px;"></div>
         </div>
 
@@ -3408,7 +3411,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         <textarea id="etTaskDesc" rows="2" placeholder="Additional Details / Instructions..." style="margin-bottom:10px;"></textarea>
         <button class="btn btn-success" style="width:100%; justify-content:center; margin-bottom:20px;" onclick="assignTaskToEmployee()">Assign Task</button>
 
-        <h5 style="margin-bottom:10px; color:#64748b;">Active & Recent Tasks</h5>
+        <h4 style="margin-bottom:10px; color:#64748b; font-size:13px;">Active & Recent Tasks</h4>
         <div id="etTasksList" style="flex:1; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px; padding:10px; background:#f8fafc;">
             <!-- Tasks loaded here -->
         </div>
@@ -3419,7 +3422,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 <div id="empChatModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.6); display:none; align-items:center; justify-content:center; z-index:4500; backdrop-filter:blur(3px);">
     <div class="card" style="width:400px; margin:0; border-top:5px solid var(--primary); max-height:85vh; display:flex; flex-direction:column; padding:0;">
         <div style="display:flex; justify-content:space-between; align-items:center; padding:15px; background:#f1f5f9; border-bottom:1px solid #e2e8f0;">
-            <h3 style="color:var(--primary); margin:0; font-size:16px;"><i class="ri-chat-3-fill"></i> <span id="ecEmpName"></span></h3>
+            <h3 style="color:var(--primary); margin:0; font-size:16px;"><i class="ri-chat-3-fill"></i> <span id="ecEmpName">Loading...</span></h3>
             <i class="ri-close-line" style="cursor:pointer; font-size:24px;" onclick="closeEmpChat()"></i>
         </div>
         
@@ -3512,7 +3515,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         <div style="overflow-y:auto; padding-right:5px; flex:1;">
             <div style="background:#f0fdf4; border:1px solid #bbf7d0; padding:10px; border-radius:8px; margin-bottom:15px;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                    <h5 style="color:#166534; margin:0;"><i class="ri-add-circle-fill"></i> Allowances (දීමනා)</h5>
+                    <h4 style="color:#166534; margin:0; font-size:13px;"><i class="ri-add-circle-fill"></i> Allowances (දීමනා)</h4>
                     <button class="btn btn-success" style="padding:4px 8px; font-size:11px;" onclick="addSpAllowanceRow()"><i class="ri-add-line"></i> Add</button>
                 </div>
                 <div id="spAllowancesList" style="display:flex; flex-direction:column; gap:8px;"></div>
@@ -3520,7 +3523,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 
             <div style="background:#fef2f2; border:1px solid #fecaca; padding:10px; border-radius:8px;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                    <h5 style="color:#b91c1c; margin:0;"><i class="ri-subtract-line"></i> Deductions (අඩු කිරීම්)</h5>
+                    <h4 style="color:#b91c1c; margin:0; font-size:13px;"><i class="ri-subtract-line"></i> Deductions (අඩු කිරීම්)</h4>
                     <button class="btn btn-danger" style="padding:4px 8px; font-size:11px;" onclick="addSpDeductionRow()"><i class="ri-add-line"></i> Add</button>
                 </div>
                 <div id="spDeductionsList" style="display:flex; flex-direction:column; gap:8px;"></div>
@@ -3528,7 +3531,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         </div>
 
         <div style="margin-top:15px; border-top:1px solid #e5e7eb; padding-top:10px;">
-            <h5 style="margin-bottom:10px; color:#4b5563;">Saved Packages</h5>
+            <h4 style="margin-bottom:10px; color:#4b5563; font-size:13px;">Saved Packages</h4>
             <div id="spSavedPackages" style="max-height:150px; overflow-y:auto; border:1px solid #e2e8f0; border-radius:8px;"></div>
         </div>
     </div>
@@ -4045,7 +4048,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             <h3 style="margin:0; color:var(--primary);"><i class="ri-history-line"></i> Customer History</h3>
             <i class="ri-close-line" style="cursor:pointer; font-size:24px;" onclick="closeModal('customerHistoryModal')"></i>
         </div>
-        <h4 id="chName" style="margin-bottom:15px; color:#4b5563;"></h4>
+        <h4 id="chName" style="margin-bottom:15px; color:#4b5563;">Loading...</h4>
         <div id="chTimeline" style="flex:1; overflow-y:auto; padding-right:10px;"></div>
     </div>
 </div>
@@ -4057,7 +4060,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             <h3 style="margin:0; color:var(--primary);"><i class="ri-history-line"></i> Employee Records</h3>
             <i class="ri-close-line" style="cursor:pointer; font-size:24px;" onclick="closeModal('employeeHistoryModal')"></i>
         </div>
-        <h4 id="ehName" style="margin-bottom:15px; color:#4b5563;"></h4>
+        <h4 id="ehName" style="margin-bottom:15px; color:#4b5563;">Loading...</h4>
         <div id="ehTimeline" style="flex:1; overflow-y:auto; padding-right:10px;"></div>
     </div>
 </div>
@@ -18498,7 +18501,7 @@ window.togglePromoFields = () => {
         let html = '';
 
         if (isPayrollLocked) {
-            html += `<tr><td colspan="6" style="padding:15px; background:#fee2e2; color:#b91c1c; font-weight:bold; text-align:center;"><i class="ri-lock-fill"></i> HISTORICAL RECORD LOCKED: Salaries have already been paid for ${monthVal}. You cannot modify this roster!</td></tr>`;
+            html += `<tr><td colspan="7" style="padding:15px; background:#fee2e2; color:#b91c1c; font-weight:bold; text-align:center;"><i class="ri-lock-fill"></i> HISTORICAL RECORD LOCKED: Salaries have already been paid for ${monthVal}. You cannot modify this roster!</td></tr>`;
         }
 
         const todayZero = window.getSecureTime();
