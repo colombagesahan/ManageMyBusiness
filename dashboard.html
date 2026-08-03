@@ -442,7 +442,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             </select>
             <button class="btn btn-primary" onclick="openModal('shopModal')" style="height: 36px; padding: 0 12px; box-sizing: border-box; font-size:12px; border-radius:8px;"><i class="ri-add-line"></i> Branch</button>
             <!-- 🚀 Smart Assistant Button (Replaced Delete Button) -->
-            <button class="btn btn-primary" onclick="openCommandPalette()" title="Smart Assistant (Ctrl + Space)" style="height: 36px; width: 44px; padding: 0; box-sizing: border-box; display:flex; align-items:center; justify-content:center; border-radius:8px; background: #111827; border: 1px solid #374151; transition:0.2s;" onmouseover="this.style.background='#1f2937'" onmouseout="this.style.background='#111827'"><i class="ri-robot-2-line" style="font-size: 18px;"></i></button>
+            <button class="btn btn-primary" onclick="openCommandPalette()" title="Smart Assistant (Ctrl + Space)" style="height: 36px; width: 54px; padding: 0; box-sizing: border-box; display:flex; align-items:center; justify-content:center; border-radius:8px; background: #111827; border: 1px solid #374151; transition:0.2s;" onmouseover="this.style.background='#1f2937'" onmouseout="this.style.background='#111827'"><i class="ri-robot-2-line" style="font-size: 18px;"></i></button>
         </div>
     </header>	
 
@@ -5598,8 +5598,8 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         const sBrandName = document.getElementById('sidebarBrandName');
         const sBrandLogo = document.getElementById('sidebarBrandLogo');
         
-        sBrandName.textContent = p.bizName || "YOUR BUSINESS NAME";
-        sBrandName.title = p.bizName || "Loading..."; // Add tooltip for long names
+        sBrandName.textContent = p.bizName || "Loading...";
+        sBrandName.title = p.bizName || "YOUR BUSINESS NAME"; // Add tooltip for long names  
         
         if (p.logoImage) {
             sBrandLogo.src = p.logoImage;
