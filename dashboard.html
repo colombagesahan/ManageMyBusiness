@@ -257,9 +257,57 @@ body.pos-fullscreen-mode #view-pos > div > .card {
     border-radius: 0 !important;
     margin: 0 !important;
 }
+/* --- 🚀 COMMAND PALETTE & VOICE ENGINE --- */
+.cmd-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); z-index: 99999; display: none; align-items: flex-start; justify-content: center; padding-top: 12vh; animation: fadeIn 0.2s; }
+.cmd-box { width: 100%; max-width: 650px; background: #ffffff; border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.4); overflow: hidden; border: 1px solid #e5e7eb; transform: translateY(-20px); animation: slideDown 0.2s forwards; }
+.cmd-input-wrapper { display: flex; align-items: center; padding: 15px 20px; border-bottom: 1px solid #f3f4f6; }
+.cmd-icon { font-size: 24px; color: var(--primary); margin-right: 15px; }
+#cmdInput { flex: 1; border: none; font-size: 18px; outline: none; background: transparent; font-weight: 600; color: #1f2937; }
+#cmdInput::placeholder { color: #9ca3af; font-weight: 400; }
+.cmd-mic-btn { background: #f1f5f9; border: none; width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; color: #64748b; cursor: pointer; transition: 0.2s; }
+.cmd-mic-btn.active { background: #fee2e2; color: #ef4444; animation: pulseMic 1.5s infinite; }
+.cmd-esc { font-size: 10px; font-weight: bold; color: #9ca3af; border: 1px solid #e5e7eb; padding: 4px 8px; border-radius: 6px; margin-left: 10px; background: #f9fafb; }
+.cmd-results { max-height: 400px; overflow-y: auto; padding: 15px; background: #f8fafc; }
+.cmd-hint { font-size: 13px; color: #64748b; line-height: 1.6; }
+.cmd-badge { background: #e0e7ff; color: var(--primary); padding: 2px 6px; border-radius: 4px; font-weight: bold; font-family: monospace; font-size: 11px; margin-right: 5px; }
+@keyframes pulseMic { 0% { box-shadow: 0 0 0 0 rgba(239,68,68,0.4); } 70% { box-shadow: 0 0 0 10px rgba(239,68,68,0); } 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); } }
+@keyframes slideDown { to { transform: translateY(0); } }
+
+/* Floating Magic Button for Mouse/Mobile Users */
+.cmd-fab { position: fixed; bottom: 30px; right: 30px; width: 60px; height: 60px; border-radius: 50%; background: #111827; color: white; display: flex; align-items: center; justify-content: center; font-size: 26px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); z-index: 9000; cursor: pointer; border: 2px solid #374151; transition: 0.3s; }
+.cmd-fab:hover { transform: scale(1.1); background: var(--primary); border-color: #c7d2fe; box-shadow: 0 0 20px rgba(79, 70, 229, 0.5); }
 </style>
 </head>
 <body>
+<!-- 🚀 ENTERPRISE COMMAND PALETTE & VOICE ASSISTANT -->
+<div id="commandPaletteOverlay" class="cmd-overlay" onclick="closeCommandPalette(event)">
+    <div class="cmd-box" onclick="event.stopPropagation()">
+        <div class="cmd-input-wrapper">
+            <i class="ri-magic-line cmd-icon"></i>
+            <input type="text" id="cmdInput" placeholder="Type command or use Voice (e.g. /pos, 'Pay water bill 500')" autocomplete="off" onkeydown="executeCommandPalette(event)">
+            <button id="cmdVoiceBtn" class="cmd-mic-btn" onclick="toggleVoiceCommand()" title="Click to Speak (Sinhala/English)"><i class="ri-mic-line"></i></button>
+            <div class="cmd-esc">ESC</div>
+        </div>
+        <div id="cmdResults" class="cmd-results">
+            <div class="cmd-hint">
+                <b>⚡ Fast Routing (Type & Press Enter):</b><br>
+                <span class="cmd-badge">/pos</span> Open Smart POS<br>
+                <span class="cmd-badge">/eod</span> Open End of Day<br>
+                <span class="cmd-badge">/add</span> Add New Stock<br><br>
+                
+                <b>🤖 AI Assistant (Natural Language):</b><br>
+                <i>"කමල්ට 2000ක ඇඩ්වාන්ස් එකක් දෙන්න"</i><br>
+                <i>"Pay electricity bill 4500"</i><br>
+                <i>"Open POS"</i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Floating Action Button for Magic Palette -->
+<div class="cmd-fab" onclick="openCommandPalette()" title="Open Command Palette (Ctrl + Space)">
+    <i class="ri-magic-line"></i>
+</div>
 
 <!-- TOAST & LOADER -->
 <div class="toast-container" id="toastContainer"></div>
@@ -23784,6 +23832,240 @@ ${opexBreakdownStr}
             console.error("AI Core Error:", e);
         }
         return null;
+    };
+// ==========================================
+    // 🚀 ENTERPRISE COMMAND PALETTE & VOICE ENGINE
+    // ==========================================
+
+    window.openCommandPalette = () => {
+        document.getElementById('commandPaletteOverlay').style.display = 'flex';
+        const inp = document.getElementById('cmdInput');
+        inp.value = '';
+        setTimeout(() => inp.focus(), 100);
+        resetCmdResults();
+    };
+
+    window.closeCommandPalette = (e) => {
+        // Overlay එකේ කළු පාට හරිය click කරොත් විතරක් වැහෙනවා
+        if (e && e.target.id !== 'commandPaletteOverlay') return;
+        document.getElementById('commandPaletteOverlay').style.display = 'none';
+        if(speechRec) { speechRec.stop(); document.getElementById('cmdVoiceBtn').classList.remove('active'); }
+    };
+
+    // Keyboard Shortcut (Ctrl + Space) or (Cmd + Space for Mac)
+    document.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.code === 'Space') {
+            e.preventDefault();
+            const overlay = document.getElementById('commandPaletteOverlay');
+            if (overlay.style.display === 'flex') window.closeCommandPalette({target: {id: 'commandPaletteOverlay'}});
+            else window.openCommandPalette();
+        }
+        if (e.key === 'Escape') {
+            window.closeCommandPalette({target: {id: 'commandPaletteOverlay'}});
+        }
+    });
+
+    function resetCmdResults() {
+        document.getElementById('cmdResults').innerHTML = `
+            <div class="cmd-hint">
+                <b>⚡ Fast Routing (Type & Press Enter):</b><br>
+                <span class="cmd-badge">/pos</span> <span class="cmd-badge">/orders</span> <span class="cmd-badge">/catalog</span> <span class="cmd-badge">/eod</span> <span class="cmd-badge">/expenses</span> <span class="cmd-badge">/payroll</span><br><br>
+                <b>🤖 AI Engine (Natural Language):</b><br>
+                <i>"කමල්ට 2000ක ඇඩ්වාන්ස් එකක් දෙන්න"</i><br>
+                <i>"Pay electricity bill 4500"</i><br>
+            </div>
+        `;
+    }
+
+    // 🎙️ VOICE RECOGNITION ENGINE (Sinhala & English Support)
+    let speechRec = null;
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        speechRec = new SpeechRecognition();
+        speechRec.continuous = false;
+        // සිංහල සහ ඉංග්‍රීසි මිශ්‍රව අල්ලගන්න පුළුවන් විදිහට සකසමු (Singlish/Sinhala)
+        speechRec.lang = 'si-LK'; 
+        speechRec.interimResults = false;
+
+        speechRec.onresult = function(event) {
+            const transcript = event.results[0][0].transcript;
+            document.getElementById('cmdInput').value = transcript;
+            document.getElementById('cmdVoiceBtn').classList.remove('active');
+            // 🛡️ POKA-YOKE: අපි Auto Enter වෙන්න දෙන්නේ නෑ. ඇහැට දැකලා User ම Enter ගහන්න ඕනේ.
+        };
+        speechRec.onerror = function(event) {
+            document.getElementById('cmdVoiceBtn').classList.remove('active');
+            showToast("Voice recognition failed. Please try typing.", "warning");
+        };
+        speechRec.onend = function() {
+            document.getElementById('cmdVoiceBtn').classList.remove('active');
+        };
+    }
+
+    window.toggleVoiceCommand = () => {
+        if (!speechRec) return showToast("Your browser does not support Voice Commands. Please use Chrome.", "error");
+        
+        const btn = document.getElementById('cmdVoiceBtn');
+        if (btn.classList.contains('active')) {
+            speechRec.stop();
+            btn.classList.remove('active');
+        } else {
+            speechRec.start();
+            btn.classList.add('active');
+            document.getElementById('cmdInput').placeholder = "Listening... (කතා කරන්න)";
+        }
+    };
+
+    // 🧠 THE EXECUTION LOGIC (TIER 1 & TIER 2)
+    window.executeCommandPalette = async (e) => {
+        if (e.key !== 'Enter') return;
+        const text = document.getElementById('cmdInput').value.trim();
+        if (!text) return;
+
+        const resultsArea = document.getElementById('cmdResults');
+
+        // =====================================
+        // TIER 1: FAST LOCAL ROUTING (Lightning Fast)
+        // =====================================
+        if (text.startsWith('/')) {
+            const cmd = text.toLowerCase();
+            const routeMap = {
+                '/pos': 'pos', '/orders': 'orders', '/dashboard': 'dashboard',
+                '/eod': 'eod', '/expenses': 'expenses', '/payroll': 'payroll',
+                '/add': 'products', '/catalog': 'catalog', '/customers': 'customers'
+            };
+            
+            if (routeMap[cmd]) {
+                window.closeCommandPalette({target: {id: 'commandPaletteOverlay'}});
+                loadView(routeMap[cmd]);
+                showToast(`Navigated to ${cmd}`);
+            } else {
+                resultsArea.innerHTML = `<div style="color:red; font-size:13px; padding:10px;">Unknown fast command: ${cmd}</div>`;
+            }
+            return;
+        }
+
+        // =====================================
+        // TIER 2: GEMINI AI INTENT EXTRACTION
+        // =====================================
+        resultsArea.innerHTML = `<div style="color:var(--primary); font-size:13px; font-weight:bold; text-align:center; padding:20px;"><i class="ri-loader-4-line ri-spin"></i> AI is processing your request...</div>`;
+        
+        try {
+            // 1. Get API Key
+            const keyDocRef = doc(db, `users/${dbOwnerId}/settings/api_keys`);
+            const keySnap = await getDoc(keyDocRef);
+            if (!keySnap.exists()) throw new Error("API Key Missing!");
+            const dbData = keySnap.data();
+            const apiKey = dbData.gemini || dbData['gemini '] || dbData['Gemini'];
+            
+            // 2. Prepare Context (Let the AI know who exists in our DB!)
+            let empNames = employeesCache.map(emp => emp.name).join(", ");
+            let expCats = window.expenseCategoriesCache ? window.expenseCategoriesCache.map(c => c.name).join(", ") : "General Expense";
+
+            const prompt = `You are an Intent Extractor for a POS system. Extract the user's intent and return a STRICT JSON object ONLY. Do not write markdown or explanations.
+            
+            Employees available in system: [${empNames}]
+            Expense Categories available: [${expCats}]
+
+            Possible Intents:
+            1. "GIVE_ADVANCE" (If user wants to give a cash advance or pay salary to an employee)
+            2. "ADD_EXPENSE" (If user wants to record a bill, fee, or expense)
+            3. "NAVIGATE" (If user wants to go to a specific page like POS, Dashboard, Payroll)
+            4. "UNKNOWN" (If you don't understand)
+
+            Return JSON format exactly like this:
+            {
+               "intent": "INTENT_NAME",
+               "targetName": "Extracted Employee Name or Category Name or Page Name (Leave empty if none)",
+               "amount": 1500 (Extracted number, 0 if none),
+               "description": "Short english translation of the reason"
+            }
+
+            User Input: "${text}"`;
+
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+            });
+
+            const result = await response.json();
+            let aiText = result.candidates[0].content.parts[0].text.trim();
+            
+            // Clean markdown if AI stubbornly adds it
+            aiText = aiText.replace(/```json/g, '').replace(/```/g, '').trim();
+            const aiData = JSON.parse(aiText);
+
+            // =====================================
+            // TIER 3: POKA-YOKE ACTION MAPPING (Pre-filling Modals)
+            // =====================================
+            if (aiData.intent === 'NAVIGATE') {
+                let targetView = 'dashboard';
+                const t = aiData.targetName.toLowerCase();
+                if(t.includes('pos')) targetView = 'pos';
+                else if(t.includes('pay')) targetView = 'payroll';
+                else if(t.includes('stock') || t.includes('add')) targetView = 'products';
+                else if(t.includes('exp')) targetView = 'expenses';
+                
+                window.closeCommandPalette({target: {id: 'commandPaletteOverlay'}});
+                loadView(targetView);
+                showToast(`AI routed you to ${targetView}`);
+            } 
+            else if (aiData.intent === 'GIVE_ADVANCE') {
+                if (userRole !== 'admin') {
+                    resultsArea.innerHTML = `<div style="color:red; font-size:13px; padding:10px;"><b>Access Denied:</b> Only Admin can process advances via AI.</div>`;
+                    return;
+                }
+                
+                // Find matching employee ID
+                const emp = employeesCache.find(e => e.name.toLowerCase() === aiData.targetName.toLowerCase());
+                if (!emp) {
+                    resultsArea.innerHTML = `<div style="color:#d97706; font-size:13px; padding:10px; background:#fefce8; border:1px solid #fde047; border-radius:8px;">
+                        <b><i class="ri-error-warning-fill"></i> Employee Not Found!</b><br>
+                        AI extracted the name "${aiData.targetName}", but this person is not in the system.
+                    </div>`;
+                    return;
+                }
+
+                window.closeCommandPalette({target: {id: 'commandPaletteOverlay'}});
+                loadView('employees');
+                // Auto-fill the Daily Log Modal using existing functions!
+                openDailyLogModal(emp.id, emp.name);
+                document.getElementById('payAdv').value = aiData.amount || 0;
+                
+                showToast(`AI pre-filled Advance for ${emp.name}. Please verify and click Save!`, "info");
+            }
+            else if (aiData.intent === 'ADD_EXPENSE') {
+                window.closeCommandPalette({target: {id: 'commandPaletteOverlay'}});
+                loadView('expenses');
+                // Auto-fill the Expense Modal!
+                openExpenseModal(false); // false = It's an expense
+                
+                document.getElementById('expDesc').value = aiData.description;
+                document.getElementById('expAmount').value = aiData.amount || 0;
+                
+                // Try to map Category
+                const catDropdown = document.getElementById('expCategory');
+                if(catDropdown) {
+                    for (let i = 0; i < catDropdown.options.length; i++) {
+                        if (catDropdown.options[i].text.toLowerCase().includes(aiData.targetName.toLowerCase())) {
+                            catDropdown.selectedIndex = i;
+                            window.checkExpCatWarning();
+                            break;
+                        }
+                    }
+                }
+                showToast(`AI pre-filled the Expense. Please verify and click Save!`, "info");
+            }
+            else {
+                resultsArea.innerHTML = `<div style="color:#4b5563; font-size:13px; padding:10px; background:#f3f4f6; border-radius:8px;">
+                    <i class="ri-robot-2-line"></i> AI couldn't figure out exactly what you want to do. Please try wording it differently.
+                </div>`;
+            }
+
+        } catch (e) {
+            console.error(e);
+            resultsArea.innerHTML = `<div style="color:red; font-size:13px; padding:10px;"><b>AI Parsing Error:</b> ${e.message}</div>`;
+        }
     };
 </script>
 
