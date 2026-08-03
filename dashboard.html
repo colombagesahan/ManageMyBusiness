@@ -15737,7 +15737,6 @@ window.setQuickCash = (amount) => {
             }
 
             // 🚨 CA FIX: Removed `e.isAdvanceEvent` from the exclusion list!
-            // Advances are physically given from the Cash Drawer, so they MUST be calculated in EOD.
             if (e.isPending || e.isNonCashExpense) return;
 
             if(e.isIncome) {
@@ -15746,7 +15745,6 @@ window.setQuickCash = (amount) => {
                     debtCollections += e.amount;
                 } else {
                     // It's an income via Bank (e.g. Debt settled via Bank Transfer/Koko)
-                    // We must add this to the Bank/Pending Pillar dynamically!
                     const customP = (window.customPaymentsCache || []).find(c => c.name === e.payMethod);
                     let targetPillar = customP ? customP.type : 'bank';
                     
@@ -15758,9 +15756,8 @@ window.setQuickCash = (amount) => {
                         pendingTotal += e.amount;
                     }
                 }
-                else otherSales += e.amount;
             } else {
-                // e.g., General Expenses, Staff Advances, Salary Payouts
+                // e.g., General Expenses, Staff Advances, Salary Payouts (Money Going OUT)
                 if(!e.payMethod || e.payMethod === 'Cash') {
                     if (e.isAdvanceEvent) {
                         staffAdvances += e.amount; // Categorize purely for UI display
