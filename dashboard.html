@@ -15690,10 +15690,10 @@ window.setQuickCash = (amount) => {
             } else if(payM === 'Pay Later') {
                 cashSales += (s.cashGiven || 0);
                 newCredit += s.creditBalance;
-                pendingMethodsData['Pay Later'] += s.creditBalance;
+                pendingMethodsData['New Pay Later Debt'] = (pendingMethodsData['New Pay Later Debt'] || 0) + s.creditBalance;
                 pendingTotal += s.creditBalance;
             } else if(payM === 'Cheque') {
-                pendingMethodsData['Cheque'] += saleNetValue;
+                pendingMethodsData['New Cheques Received'] = (pendingMethodsData['New Cheques Received'] || 0) + saleNetValue;
                 pendingTotal += saleNetValue;
             } else {
                 // Determine Pillar based on Custom Setup or Defaults
@@ -15724,13 +15724,40 @@ window.setQuickCash = (amount) => {
         snapExp.forEach(docSnap => {
             const e = docSnap.data();
             
+            // 🚀 EOD MONEY MAP ENGINE: Catch Cleared and Bounced Cheques first!
+            if (e.isClearedCheque) {
+                bankMethodsData['Past Cheques Cleared Today'] = (bankMethodsData['Past Cheques Cleared Today'] || 0) + e.amount;
+                bankTotal += e.amount;
+                return; // Done with this record for EOD
+            }
+            if (e.isBouncedCheque) {
+                pendingMethodsData['Debt Restored (Bounced Chq)'] = (pendingMethodsData['Debt Restored (Bounced Chq)'] || 0) + e.amount;
+                pendingTotal += e.amount;
+                return; // Done with this record for EOD
+            }
+
             // 🚨 CA FIX: Removed `e.isAdvanceEvent` from the exclusion list!
             // Advances are physically given from the Cash Drawer, so they MUST be calculated in EOD.
             if (e.isPending || e.isNonCashExpense) return;
 
             if(e.isIncome) {
                 // e.g., Cash Debt Settlements, Advance Corrections
-                if(!e.payMethod || e.payMethod === 'Cash') debtCollections += e.amount;
+                if(!e.payMethod || e.payMethod === 'Cash') {
+                    debtCollections += e.amount;
+                } else {
+                    // It's an income via Bank (e.g. Debt settled via Bank Transfer/Koko)
+                    // We must add this to the Bank/Pending Pillar dynamically!
+                    const customP = (window.customPaymentsCache || []).find(c => c.name === e.payMethod);
+                    let targetPillar = customP ? customP.type : 'bank';
+                    
+                    if (targetPillar === 'bank') {
+                        bankMethodsData[e.payMethod || 'Online Transfer'] = (bankMethodsData[e.payMethod || 'Online Transfer'] || 0) + e.amount;
+                        bankTotal += e.amount;
+                    } else if (targetPillar === 'pending') {
+                        pendingMethodsData[e.payMethod] = (pendingMethodsData[e.payMethod] || 0) + e.amount;
+                        pendingTotal += e.amount;
+                    }
+                }
                 else otherSales += e.amount;
             } else {
                 // e.g., General Expenses, Staff Advances, Salary Payouts
@@ -19079,7 +19106,6 @@ window.togglePromoFields = () => {
                 if (action === 'CLEARED') {
                     t.update(chqRef, { status: 'CLEARED', clearedDate: secureNow });
                     
-                    // 🚨 ULTIMATE BUG FIX 2 (Part B): If cheque was an overpayment, add the extra to Wallet NOW!
                     let totalDebtSettled = 0;
                     Object.values(cData.breakdown).forEach(amt => totalDebtSettled += amt);
                     const overpaidAmt = cData.amount - totalDebtSettled;
@@ -19090,15 +19116,16 @@ window.togglePromoFields = () => {
                         if(window.writeSystemLog) writeSystemLog("CHEQUE_OVERPAYMENT_CLEARED", `Cheque cleared! Added overpaid ${formatMoney(overpaidAmt)} to Wallet of ${cData.customerPhone}.`);
                     }
 
-                    // Add to Cash Flow as Income (Online/Bank Transfer)
+                    // 🚀 Add to Cash Flow as Income WITH FLAG FOR EOD MONEY MAP
                     const expRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`));
                     t.set(expRef, {
                         description: `Cheque Cleared (${cData.chequeNo} - ${cData.bank}) [Orders: ${cData.linkedOrders.join(', ')}]`,
                         amount: cData.amount,
                         isIncome: true,
-                        payMethod: 'Online Transfer', // Hits Bank/Other in EOD, not Cash Drawer!
+                        payMethod: 'Bank Transfer', // 👈 Update to standard naming
                         customerPhone: cData.customerPhone,
-                        date: secureNow
+                        date: secureNow,
+                        isClearedCheque: true // 🚀 EOD CATCHER FLAG
                     });
                     if(window.writeSystemLog) writeSystemLog("CHEQUE_CLEARED", `Cheque ${cData.chequeNo} of ${formatMoney(cData.amount)} Cleared & Added to Income.`);
                 } 
@@ -19108,16 +19135,29 @@ window.togglePromoFields = () => {
                     
                     // Restore Debt to original orders!
                     for (const [orderId, allocatedAmt] of Object.entries(cData.breakdown)) {
-                        // Find the exact order Document ID (It could be custom ID or Firebase ID)
                         const qOrder = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`), where("customOrderId", "==", orderId), limit(1));
                         const orderSnap = await getDocs(qOrder);
                         
                         let targetRef = null;
                         if (!orderSnap.empty) targetRef = orderSnap.docs[0].ref;
-                        else targetRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`, orderId); // Fallback to Document ID
+                        else targetRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`, orderId); 
                         
                         t.update(targetRef, { creditBalance: increment(allocatedAmt) }); // Adds the debt back!
                     }
+                    
+                    // 🚀 CREATE LEDGER ENTRY TO CATCH BOUNCED DEBT IN EOD MONEY MAP
+                    const expRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`));
+                    t.set(expRef, {
+                        description: `Cheque Bounced (${cData.chequeNo} - ${cData.bank}) - Debt Restored`,
+                        amount: cData.amount,
+                        isIncome: true, 
+                        payMethod: 'None', 
+                        customerPhone: cData.customerPhone,
+                        date: secureNow,
+                        isBouncedCheque: true, // 🚀 EOD CATCHER FLAG
+                        isNonCashExpense: true
+                    });
+
                     if(window.writeSystemLog) writeSystemLog("CHEQUE_BOUNCED", `Cheque ${cData.chequeNo} BOUNCED! Restored ${formatMoney(cData.amount)} debt to customer ${cData.customerPhone}.`);
                 }
             });
