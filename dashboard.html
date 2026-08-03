@@ -284,9 +284,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 
 @keyframes pulseMicDrawer { 0% { transform: scale(1); } 50% { transform: scale(1.2); } 100% { transform: scale(1); } }
 
-/* Floating Magic Button */
-.cmd-fab { position: fixed; bottom: 30px; right: 30px; width: 60px; height: 60px; border-radius: 50%; background: #111827; color: white; display: flex; align-items: center; justify-content: center; font-size: 26px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3); z-index: 9000; cursor: pointer; border: 2px solid #374151; transition: 0.3s; }
-.cmd-fab:hover { transform: scale(1.1); background: var(--primary); border-color: #c7d2fe; box-shadow: 0 0 20px rgba(79, 70, 229, 0.5); }
+
 </style>
 </head>
 <body>
@@ -322,10 +320,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
     </div>
 </div>
 
-<!-- Floating Action Button -->
-<div class="cmd-fab" onclick="openCommandPalette()" title="Open Smart Assistant (Ctrl + Space)">
-    <i class="ri-robot-2-line"></i>
-</div>
+
 
 <!-- TOAST & LOADER -->
 <div class="toast-container" id="toastContainer"></div>
@@ -446,10 +441,10 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                 <option value="">Loading Branches...</option>
             </select>
             <button class="btn btn-primary" onclick="openModal('shopModal')" style="height: 36px; padding: 0 12px; box-sizing: border-box; font-size:12px; border-radius:8px;"><i class="ri-add-line"></i> Branch</button>
-            <!-- 🛡️ UI FIX: පළල (Width) 44px දක්වා වැඩි කර ඇත -->
-            <button class="btn btn-danger" onclick="deleteCurrentShop()" title="Delete Branch" style="height: 36px; width: 44px; padding: 0; box-sizing: border-box; display:flex; align-items:center; justify-content:center; border-radius:8px;"><i class="ri-delete-bin-line"></i></button>
+            <!-- 🚀 Smart Assistant Button (Replaced Delete Button) -->
+            <button class="btn btn-primary" onclick="openCommandPalette()" title="Smart Assistant (Ctrl + Space)" style="height: 36px; width: 44px; padding: 0; box-sizing: border-box; display:flex; align-items:center; justify-content:center; border-radius:8px; background: #111827; border: 1px solid #374151; transition:0.2s;" onmouseover="this.style.background='#1f2937'" onmouseout="this.style.background='#111827'"><i class="ri-robot-2-line" style="font-size: 18px;"></i></button>
         </div>
-    </header>
+    </header>	
 
     <div class="content" id="appContent">
         
@@ -542,7 +537,10 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             <div class="card">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
                     <h3 style="margin:0;">Branch Profile</h3>
-                    <button class="btn btn-warning" id="btnEditProfile" onclick="unlockProfile()">Edit Profile</button>
+                    <div style="display:flex; gap:10px;">
+                        <button class="btn btn-warning" id="btnEditProfile" onclick="unlockProfile()"><i class="ri-edit-line"></i> Edit Profile</button>
+                        <button class="btn btn-danger" id="btnDeleteBranchProf" onclick="deleteCurrentShop()" title="Delete this branch permanently"><i class="ri-delete-bin-line"></i> Delete Branch</button>
+                    </div>
                 </div>
                 <div id="profileWarning" class="note-box" style="background:#fee2e2; border-color:#fecaca; color:#991b1b; display:none;">
                     <i class="ri-error-warning-fill"></i> Please complete your profile to enable all features.
@@ -5601,7 +5599,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         const sBrandLogo = document.getElementById('sidebarBrandLogo');
         
         sBrandName.textContent = p.bizName || "YOUR BUSINESS NAME";
-        sBrandName.title = p.bizName || "YOUR BUSINESS NAME"; // Add tooltip for long names
+        sBrandName.title = p.bizName || "Loading..."; // Add tooltip for long names
         
         if (p.logoImage) {
             sBrandLogo.src = p.logoImage;
@@ -13754,8 +13752,8 @@ window.applyRoleRestrictions = () => {
                 }
             });
 
-            // Delete Shop බොත්තම සැඟවීම
-            const deleteShopBtn = document.querySelector('.header .btn-danger');
+            // Delete Shop බොත්තම සැඟවීම (Now in Profile Tab)
+            const deleteShopBtn = document.getElementById('btnDeleteBranchProf');
             if (deleteShopBtn) deleteShopBtn.style.display = 'none';
 
             // පළමු වරට ලොග් වෙද්දී ඔහුට අයිති පළමු ටැබ් එකට ඔහුව ගෙන යාම
