@@ -283,7 +283,14 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 .cmd-badge { background: #e0e7ff; color: var(--primary); padding: 2px 6px; border-radius: 4px; font-weight: bold; font-family: monospace; font-size: 11px; margin-right: 5px; }
 
 @keyframes pulseMicDrawer { 0% { transform: scale(1); } 50% { transform: scale(1.2); } 100% { transform: scale(1); } }
-
+/* --- PREDICTIVE AI DASHBOARD --- */
+.ai-insight-panel { background: linear-gradient(135deg, #111827 0%, #1e1b4b 100%); border-radius: 16px; padding: 20px; color: white; margin-bottom: 24px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.3); position: relative; overflow: hidden; border: 1px solid #3730a3; }
+.ai-insight-panel::before { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(circle, rgba(99,102,241,0.15) 0%, transparent 60%); animation: aiSpin 15s linear infinite; pointer-events: none; }
+@keyframes aiSpin { 100% { transform: rotate(360deg); } }
+.ai-card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; margin-top: 15px; position: relative; z-index: 2; }
+.ai-pred-card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; padding: 15px; backdrop-filter: blur(10px); transition: 0.3s; }
+.ai-pred-card:hover { transform: translateY(-3px); border-color: rgba(99,102,241,0.5); background: rgba(255,255,255,0.1); }
+.ai-pred-icon { width: 35px; height: 35px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; margin-bottom: 10px; }
 
 </style>
 </head>
@@ -459,7 +466,26 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 
         <!-- 1. DASHBOARD HOME -->
         <div id="view-dashboard" class="view active">
-            
+           <!-- 🚀 PREDICTIVE AI INTELLIGENCE PANEL -->
+            <div class="ai-insight-panel" id="predictiveAiPanel">
+                <div style="display:flex; justify-content:space-between; align-items:center; position:relative; z-index:2;">
+                    <div>
+                        <h2 style="margin:0; font-size:18px; display:flex; align-items:center; gap:8px;">
+                            <i class="ri-radar-line" style="color:#a5b4fc; animation: pulseMicDrawer 2s infinite;"></i> 
+                            Predictive Intelligence
+                        </h2>
+                        <div style="font-size:11px; color:#9ca3af; margin-top:4px;">AI Analysis of historical data to predict future trends and risks.</div>
+                    </div>
+                    <button class="btn btn-primary" style="background:linear-gradient(90deg, #4f46e5, #9333ea); border:none;" onclick="generatePredictiveInsights()" id="btnRunPrediction">
+                        <i class="ri-magic-line"></i> Run Analysis
+                    </button>
+                </div>
+                
+                <div class="ai-card-grid" id="predictiveCardsArea" style="display:none;">
+                    <!-- AI Predictions will load here -->
+                </div>
+            </div> 
+
             <!-- NEW: DELETION WARNING BANNER -->
             <div id="deletionBanner" style="display:none; background:#fee2e2; border:1px solid #ef4444; color:#b91c1c; padding:15px; border-radius:8px; margin-bottom:20px; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
                 <div style="flex: 1; min-width: 250px;">
@@ -24221,6 +24247,194 @@ ${opexBreakdownStr}
             resultsArea.scrollTop = resultsArea.scrollHeight;
         }
     };
+// ==========================================
+    // 🔮 ENTERPRISE PREDICTIVE AI ENGINE
+    // ==========================================
+    window.generatePredictiveInsights = async () => {
+        const btn = document.getElementById('btnRunPrediction');
+        const cardsArea = document.getElementById('predictiveCardsArea');
+        
+        btn.innerHTML = '<i class="ri-loader-4-line ri-spin"></i> Analyzing Data...';
+        btn.disabled = true;
+        cardsArea.style.display = 'grid';
+        cardsArea.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:20px; color:#a5b4fc;"><i class="ri-brain-line" style="font-size:30px; display:block; margin-bottom:10px; animation: pulseMicDrawer 1.5s infinite;"></i> Deep analyzing inventory velocity, cash flow, and sales patterns...</div>`;
+
+        try {
+            // 1. DATA GATHERING (The Fuel for the AI)
+            const now = window.getSecureTime();
+            const todayIso = now.toISOString();
+            
+            // අපි දවස් 14 ක Trend එකක් ගන්නවා
+            const past14Days = new Date(now);
+            past14Days.setDate(past14Days.getDate() - 14);
+            const pastIso = past14Days.toISOString();
+
+            // Fetch last 14 days of sales
+            const qSales = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`), where("date", ">=", pastIso));
+            const snapSales = await getDocs(qSales);
+            
+            // සේල්ස් දවස් අනුව වෙන් කිරීම
+            const dailySalesMap = {};
+            const productVelocity = {}; // කොයි බඩුවද වේගෙන්ම විකිණෙන්නේ?
+
+            snapSales.forEach(d => {
+                const s = d.data();
+                const dayKey = s.date.split('T')[0];
+                dailySalesMap[dayKey] = (dailySalesMap[dayKey] || 0) + s.total;
+
+                s.items.forEach(i => {
+                    productVelocity[i.name] = (productVelocity[i.name] || 0) + i.qty;
+                });
+            });
+
+            // දැනට තියෙන තොගය (Current Stock)
+            const currentStockInfo = [];
+            productsCache.forEach(p => {
+                if(p.qty > 0) currentStockInfo.push({ name: p.name, qty: p.qty, cost: p.buy });
+            });
+
+            // ඉදිරියට ගෙවන්න තියෙන චෙක්පත් (Cash Flow Risk)
+            let upcomingPdcValue = 0;
+            const qChq = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/issued_cheques`), where("status", "==", "PENDING"));
+            const snapChq = await getDocs(qChq);
+            snapChq.forEach(d => {
+                const cDate = new Date(d.data().chequeDate);
+                const diffDays = (cDate - now) / (1000 * 60 * 60 * 24);
+                if(diffDays >= 0 && diffDays <= 7) { // ඊළඟ දවස් 7 ඇතුළත වදින චෙක්
+                    upcomingPdcValue += d.data().amount;
+                }
+            });
+
+            // 2. BUILD THE PROMPT FOR DATA SCIENTIST AI
+            // We stringify the data minimally to save tokens
+            const dataContext = JSON.stringify({
+                daily_sales_last_14_days: dailySalesMap,
+                top_moving_items_qty: Object.entries(productVelocity).sort((a,b)=>b[1]-a[1]).slice(0, 10).map(x => `${x[0]}: ${x[1]}`),
+                current_inventory_snapshot: currentStockInfo.sort((a,b)=>a.qty-b.qty).slice(0, 15), // Send only lowest 15
+                upcoming_supplier_cheques_7_days: upcomingPdcValue
+            });
+
+            const prompt = `You are a Predictive AI Data Scientist for a retail/ERP system. Analyze this data and predict the future.
+            DATA: ${dataContext}
+            
+            TASK: Return a STRICT JSON object with predictions.
+            REQUIREMENTS:
+            1. Predict the total sales value for the NEXT 7 days based on the 14-day trend.
+            2. Identify 2 specific products that will likely run out of stock in the next 5 days based on their sales velocity vs current stock.
+            3. Assess the cash flow risk (Warning if upcoming cheques are high compared to average daily sales).
+            
+            Format exactly like this (Sinhala explanations):
+            {
+               "predictedNext7DaysRevenue": 150000,
+               "trendStatus": "Upward" | "Downward" | "Stable",
+               "inventoryWarnings": [
+                  {"itemName": "Soap", "predictedOutDays": 2, "advice": "හෙටම ඕඩර් කරන්න"}
+               ],
+               "cashFlowAlert": "ලබන සතියේ රු.50,000 ක චෙක්පත් බැංකුවට යන බැවින්, අලෙවිය මදක් වැඩිකර මුදල් එකතු කරගන්න."
+            }`;
+
+            // Fetch API Key safely
+            const keyDocRef = doc(db, `users/${dbOwnerId}/settings/api_keys`);
+            const keySnap = await getDoc(keyDocRef);
+            const apiKey = keySnap.exists() ? (keySnap.data().gemini || keySnap.data()['gemini '] || keySnap.data()['Gemini']) : null;
+            if(!apiKey) throw new Error("API Key Missing!");
+
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+            });
+
+            const result = await response.json();
+            let aiText = result.candidates[0].content.parts[0].text.replace(/```json/g, '').replace(/```/g, '').trim();
+            const aiData = JSON.parse(aiText);
+
+            // 3. RENDER THE INSIGHTS
+            let trendColor = aiData.trendStatus === 'Upward' ? '#34d399' : (aiData.trendStatus === 'Downward' ? '#f87171' : '#fbbf24');
+            let trendIcon = aiData.trendStatus === 'Upward' ? 'ri-line-chart-fill' : 'ri-bar-chart-grouped-line';
+
+            let invHtml = aiData.inventoryWarnings.map(w => `
+                <div style="background:rgba(239,68,68,0.1); border-left:3px solid #ef4444; padding:8px; margin-bottom:8px; border-radius:4px;">
+                    <div style="font-weight:bold; font-size:12px; color:#fca5a5;">${w.itemName}</div>
+                    <div style="font-size:10px; color:#d1d5db;">Out of stock in ~${w.predictedOutDays} days. ${w.advice}</div>
+                </div>
+            `).join('');
+            if(!invHtml) invHtml = `<div style="font-size:12px; color:#a5b4fc;">Inventory looks healthy for the next week!</div>`;
+
+            cardsArea.innerHTML = `
+                <!-- Forecast Card -->
+                <div class="ai-pred-card">
+                    <div class="ai-pred-icon" style="background:rgba(52, 211, 153, 0.2); color:#34d399;"><i class="${trendIcon}"></i></div>
+                    <div style="font-size:11px; color:#9ca3af; text-transform:uppercase; font-weight:bold;">Next 7 Days Forecast</div>
+                    <div style="font-size:24px; font-weight:900; color:white; margin:5px 0;">Rs. ${aiData.predictedNext7DaysRevenue.toLocaleString()}</div>
+                    <div style="font-size:12px; color:${trendColor};"><i class="ri-pulse-line"></i> Trend is ${aiData.trendStatus}</div>
+                </div>
+
+                <!-- Inventory Risk Card -->
+                <div class="ai-pred-card">
+                    <div class="ai-pred-icon" style="background:rgba(239, 68, 68, 0.2); color:#ef4444;"><i class="ri-alarm-warning-fill"></i></div>
+                    <div style="font-size:11px; color:#9ca3af; text-transform:uppercase; font-weight:bold; margin-bottom:10px;">Stock Depletion Risk</div>
+                    ${invHtml}
+                    <button class="btn btn-ghost" style="width:100%; border-color:rgba(255,255,255,0.2); color:white; font-size:11px; margin-top:5px; padding:4px;" onclick="generateAutoPO()">Generate Auto-PO Now</button>
+                </div>
+
+                <!-- Cash Flow Card -->
+                <div class="ai-pred-card">
+                    <div class="ai-pred-icon" style="background:rgba(245, 158, 11, 0.2); color:#f59e0b;"><i class="ri-wallet-3-fill"></i></div>
+                    <div style="font-size:11px; color:#9ca3af; text-transform:uppercase; font-weight:bold; margin-bottom:10px;">Cash Flow Intelligence</div>
+                    <div style="font-size:12px; color:#e2e8f0; line-height:1.5;">${aiData.cashFlowAlert}</div>
+                    ${upcomingPdcValue > 0 ? `<div style="font-size:13px; font-weight:bold; color:#fca5a5; margin-top:10px;">Pending Cheques: Rs. ${upcomingPdcValue.toLocaleString()}</div>` : ''}
+                </div>
+            `;
+
+            // 🚀 4. INJECT PREDICTIONS INTO THE CHART.JS GRAPH
+            // අපි Chart එකේ අගට දවස් 3ක් "අනුමාන (Predicted)" විදිහට එකතු කරනවා
+            injectPredictionIntoChart(aiData.predictedNext7DaysRevenue);
+
+            if(window.writeSystemLog) writeSystemLog("PREDICTIVE_AI_RUN", `Generated future predictions for next 7 days.`);
+
+        } catch (e) {
+            console.error(e);
+            cardsArea.innerHTML = `<div style="grid-column:1/-1; color:#fca5a5; padding:10px; background:rgba(239,68,68,0.1); border-radius:8px;"><b>Error:</b> ${e.message}</div>`;
+        } finally {
+            btn.innerHTML = '<i class="ri-magic-line"></i> Refresh Insights';
+            btn.disabled = false;
+        }
+    };
+
+    function injectPredictionIntoChart(next7DaysTotal) {
+        if (!window.myChart) return;
+        
+        // සාමාන්‍ය දවසක අනුමාන ආදායම (Average Predicted Daily)
+        const avgDailyPred = Math.round(next7DaysTotal / 7);
+
+        const currentLabels = window.myChart.data.labels;
+        const currentData = window.myChart.data.datasets[0].data;
+        
+        // අපි අගට තව දවස් 3ක් එකතු කරමු
+        const now = window.getSecureTime();
+        for(let i=1; i<=3; i++) {
+            const nextDay = new Date(now);
+            nextDay.setDate(nextDay.getDate() + i);
+            const dateStr = nextDay.toISOString().split('T')[0] + " (Pred)";
+            
+            // Chart එකේ Labels වලට අනාගත දවස් එකතු කරනවා
+            if(!currentLabels.includes(dateStr)) {
+                currentLabels.push(dateStr);
+                currentData.push(avgDailyPred); // අනුමාන අගය
+            }
+        }
+
+        // අනාගත දත්ත වලට වෙනම පාටක් (කහ පාටින්) දෙන්න අපි Dataset එකේ BackgroundColor Array එකක් කරනවා
+        const bgColors = currentLabels.map(l => l.includes('(Pred)') ? 'rgba(245, 158, 11, 0.5)' : '#4F46E5');
+        const borderColors = currentLabels.map(l => l.includes('(Pred)') ? '#f59e0b' : 'transparent');
+        
+        window.myChart.data.datasets[0].backgroundColor = bgColors;
+        window.myChart.data.datasets[0].borderColor = borderColors;
+        window.myChart.data.datasets[0].borderWidth = 1;
+        
+        // Update Graph
+        window.myChart.update();
+    }
 </script>
 
 </body>
