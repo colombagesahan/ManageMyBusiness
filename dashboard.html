@@ -612,6 +612,10 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                                 <input type="checkbox" id="showBizName" checked> Show on Docs
                             </label>
                         </div>
+                        
+                        <!-- 🚀 BRAND PREFIX -->
+                        <label style="font-size:12px; color:var(--primary); font-weight:bold;">Company Short Code / Prefix (e.g. NCE)</label>
+                        <input id="profShortCode" placeholder="Leave blank for none" maxlength="5" style="margin-bottom:10px; border-color:var(--primary); text-transform:uppercase;">
 
                         <!-- Owner Name -->
                         <label style="font-size:12px;">Business Owner Name *</label>
@@ -5563,6 +5567,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 
     function fillProfileData(p) {
         document.getElementById('profBizName').value = p.bizName || '';
+        document.getElementById('profShortCode').value = p.shortCode || '';
         document.getElementById('profOwner').value = p.ownerName || '';
         document.getElementById('profReg').value = p.regNo || '';
         document.getElementById('profAddress').value = p.address || '';
@@ -5672,7 +5677,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 
     window.lockProfile = (lock) => {
         // 🛡️ ENTERPRISE FIX: Strict State Locking for all UI elements
-        document.querySelectorAll('#profFields input:not([type="checkbox"]), #profFields textarea, #profDefaultBillSize, #profLogoFont, #profExpenseLimit, #profLogoColor, #profLogoFile, #profScaleMode, #profScalePrefix, #profManagerPin, #profTaxName, #profTaxPercent, #profRefundPolicy, #profReturnDays, #profTermsThermal, #profLoyaltySpend, #profLoyaltyEarn, #profLoyaltyEnabled, #profAutoDiscThreshold, #profAutoDiscType, #profAutoDiscValue, #profLoyaltyCashOnly, #profTermsA4, #profTermsInvoice, #profTermsQuote, #profGracePeriod, #profLatePenalty').forEach(i => {
+        document.querySelectorAll('#profFields input:not([type="checkbox"]), #profFields textarea, #profDefaultBillSize, #profLogoFont, #profExpenseLimit, #profLogoColor, #profLogoFile, #profScaleMode, #profScalePrefix, #profManagerPin, #profTaxName, #profTaxPercent, #profRefundPolicy, #profReturnDays, #profTermsThermal, #profLoyaltySpend, #profShortCode, #profLoyaltyEarn, #profLoyaltyEnabled, #profAutoDiscThreshold, #profAutoDiscType, #profAutoDiscValue, #profLoyaltyCashOnly, #profTermsA4, #profTermsInvoice, #profTermsQuote, #profGracePeriod, #profLatePenalty').forEach(i => {
             if (i) i.disabled = lock;
         });
         
@@ -5748,6 +5753,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         
         const data = {
             bizName: document.getElementById('profBizName').value.trim(),
+            shortCode: document.getElementById('profShortCode').value.trim().toUpperCase(),
             ownerName: document.getElementById('profOwner').value.trim(),
             regNo: document.getElementById('profReg').value.trim(),
             address: document.getElementById('profAddress').value.trim(),
@@ -9004,7 +9010,8 @@ window.checkout = async () => {
         const dateKey = localDateStr.replace(/-/g, '');
         const timeSeq = String(now.getHours()).padStart(2, '0') + String(now.getMinutes()).padStart(2, '0') + String(now.getSeconds()).padStart(2, '0');
         const randomSalt = Math.floor(1000 + Math.random() * 9000); 
-        const customOrderId = `${dateKey}${timeSeq}-${randomSalt}`;
+        const prefix = (profileCache && profileCache.shortCode) ? `${profileCache.shortCode}-` : '';
+        const customOrderId = `${prefix}${dateKey}${timeSeq}-${randomSalt}`;
 
         // 2. Prepare CRM fields before transaction
         const serviceDate = document.getElementById('modalServiceDate') ? document.getElementById('modalServiceDate').value : '';
@@ -9480,6 +9487,9 @@ window.checkout = async () => {
         const type = document.getElementById('docTypeToggle').value;
         const btn = document.querySelector('#view-documents .btn-primary');
         btn.textContent = type === 'invoice' ? "Save & Generate PDF" : "Save Quotation";
+        
+        // 🚀 SMART UX: Invoice/Quote මාරු කරන විට අංකය ඉබේම අලුත් වේ
+        loadDocumentsHistory(false);
     }
 
     // ==========================================
@@ -10127,6 +10137,25 @@ window.autoFillDocCustomer = (name) => {
 
         if (!isLoadMore) {
             lastDocRecord = null; hasMoreDocs = true;
+            
+            // 🚀 SMART UX: Auto-suggest the next Document Number based on the latest record!
+            try {
+                const currentType = document.getElementById('docTypeToggle').value;
+                const qLast = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/documents`), where("type", "==", currentType), orderBy('createdAt', 'desc'), limit(1));
+                const snapLast = await getDocs(qLast);
+                
+                if (!snapLast.empty) {
+                    const lastId = snapLast.docs[0].data().docId;
+                    // අකුරු සහ අංක වෙන් කර අගට ඇති අංකය +1 කිරීම (e.g. NCE-INV-100 -> NCE-INV-101)
+                    const match = lastId.match(/^(.*?)(\d+)$/);
+                    if (match) {
+                        const strPart = match[1];
+                        const numPart = match[2];
+                        const nextNum = String(parseInt(numPart, 10) + 1).padStart(numPart.length, '0');
+                        document.getElementById('docId').value = `${strPart}${nextNum}`;
+                    }
+                }
+            } catch(e) { console.warn("Auto-suggest failed", e); }
             list.innerHTML = '<div style="text-align:center; padding:20px; color:var(--primary); font-weight:bold;">Querying Database... <i class="ri-loader-4-line ri-spin"></i></div>';
         } else {
             if(loaderUi) loaderUi.style.display = 'block';
