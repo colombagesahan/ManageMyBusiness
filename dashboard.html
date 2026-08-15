@@ -785,6 +785,22 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                             <div style="font-size:10px; color:#0f766e;">මෙම ප්‍රතිශත වෙනස් කළහොත්, මින් ඉදිරියට ගණනය වන පඩිපත් සඳහා එය බලපානු ඇත.</div>
                         </div>
 
+                        <!-- 🚀 ENTERPRISE LATE PENALTY SETTINGS -->
+                        <div style="margin-top: 15px; padding: 15px; background: #fff1f2; border: 2px solid #fecaca; border-radius: 8px;">
+                            <h4 style="color:#991b1b; margin-bottom:10px;"><i class="ri-time-line"></i> Late Attendance Penalty Policy</h4>
+                            <div style="display:flex; gap:10px;">
+                                <div style="flex:1;">
+                                    <label style="font-size:11px; font-weight:bold; color:#7f1d1d;">Monthly Grace Period (Mins)</label>
+                                    <input type="number" id="profGracePeriod" value="30" placeholder="e.g. 30" style="margin-bottom:5px; font-weight:bold; border-color:#fca5a5;">
+                                </div>
+                                <div style="flex:1;">
+                                    <label style="font-size:11px; font-weight:bold; color:#7f1d1d;">Penalty Rate Per Hour (Rs)</label>
+                                    <input type="number" id="profLatePenalty" value="0" placeholder="e.g. 150" style="margin-bottom:5px; font-weight:bold; border-color:#fca5a5;">
+                                </div>
+                            </div>
+                            <div style="font-size:10px; color:#991b1b;">සේවකයෙකු මාසයකට මෙම සහන කාලය (Grace Period) ඉක්මවා පරක්කු වුවහොත්, අමතර සෑම පැයකටම මෙම මුදල පඩියෙන් කැපේ. (0 ලබා දුනහොත් දඩයක් අයකෙරෙන්නේ නැත)</div>
+                        </div>
+
                         <!-- 🛡️ ENTERPRISE FIX: EXPENSE APPROVAL LIMIT -->
                         <div style="margin-top: 15px; padding: 10px; background: #fef2f2; border: 1px solid #fca5a5; border-radius: 8px;">
                             <label style="font-size:12px; font-weight:bold; color:#b91c1c;"><i class="ri-shield-keyhole-line"></i> Petty Cash Approval Limit (රු.)</label>
@@ -5572,6 +5588,9 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         document.getElementById('profEpfEmployer').value = p.epfEmployer !== undefined ? p.epfEmployer : '12';
         document.getElementById('profEtfEmployer').value = p.etfEmployer !== undefined ? p.etfEmployer : '3'; 
         
+        document.getElementById('profGracePeriod').value = p.gracePeriod !== undefined ? p.gracePeriod : '30';
+        document.getElementById('profLatePenalty').value = p.latePenaltyRate !== undefined ? p.latePenaltyRate : '0';
+        
         // Load Auto Discount Rules
         document.getElementById('profAutoDiscEnabled').checked = p.autoDiscEnabled === true;
         document.getElementById('profAutoDiscThreshold').value = p.autoDiscThreshold || '';
@@ -5653,7 +5672,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 
     window.lockProfile = (lock) => {
         // 🛡️ ENTERPRISE FIX: Strict State Locking for all UI elements
-        document.querySelectorAll('#profFields input:not([type="checkbox"]), #profFields textarea, #profDefaultBillSize, #profLogoFont, #profExpenseLimit, #profLogoColor, #profLogoFile, #profScaleMode, #profScalePrefix, #profManagerPin, #profTaxName, #profTaxPercent, #profRefundPolicy, #profReturnDays, #profTermsThermal, #profLoyaltySpend, #profLoyaltyEarn, #profLoyaltyEnabled, #profAutoDiscThreshold, #profAutoDiscType, #profAutoDiscValue, #profLoyaltyCashOnly, #profTermsA4, #profTermsInvoice, #profTermsQuote').forEach(i => {
+        document.querySelectorAll('#profFields input:not([type="checkbox"]), #profFields textarea, #profDefaultBillSize, #profLogoFont, #profExpenseLimit, #profLogoColor, #profLogoFile, #profScaleMode, #profScalePrefix, #profManagerPin, #profTaxName, #profTaxPercent, #profRefundPolicy, #profReturnDays, #profTermsThermal, #profLoyaltySpend, #profLoyaltyEarn, #profLoyaltyEnabled, #profAutoDiscThreshold, #profAutoDiscType, #profAutoDiscValue, #profLoyaltyCashOnly, #profTermsA4, #profTermsInvoice, #profTermsQuote, #profGracePeriod, #profLatePenalty').forEach(i => {
             if (i) i.disabled = lock;
         });
         
@@ -5745,6 +5764,8 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             epfEmployee: parseFloat(document.getElementById('profEpfEmployee').value) || 8,
             epfEmployer: parseFloat(document.getElementById('profEpfEmployer').value) || 12,
             etfEmployer: parseFloat(document.getElementById('profEtfEmployer').value) || 3,
+            gracePeriod: parseFloat(document.getElementById('profGracePeriod').value) || 0,
+            latePenaltyRate: parseFloat(document.getElementById('profLatePenalty').value) || 0,
             commissionPolicy: document.getElementById('profCommissionPolicy').value,
             // Save Auto Discount Rules
             autoDiscEnabled: document.getElementById('profAutoDiscEnabled').checked,
@@ -6582,6 +6603,10 @@ customPayments: window.customPaymentsCache || [],
                 let rowClass = '';
                 let stockDisplay = `${p.qty} ${p.unit||''}`;
 
+                // 🚀 DYNAMIC LOW STOCK ENGINE: අදාළ භාණ්ඩයේ නියමිත Min සීමාව Catalog එකෙන් සොයා ගැනීම
+                const baseProd = catalogCache.find(c => (c.sku && c.sku === p.sku) || c.name === p.name);
+                const actualMinStock = baseProd && baseProd.minStock !== undefined ? parseFloat(baseProd.minStock) : 5;
+
                 if (p.qty <= 0) {
                     // OUT OF STOCK LOGIC
                     stockDisplay = `<span class="label-out-stock">Out of Stock</span>`;
@@ -6619,7 +6644,7 @@ customPayments: window.customPaymentsCache || [],
                     <td style="font-size:12px;">${categoryName}</td>
                     <td>${formatMoney(p.buy)}</td>
                     <td>${formatMoney(p.sell)}</td>
-                    <td style="color:${p.qty<5 && p.qty>0 ?'red':'inherit'}">${stockDisplay}</td>
+                    <td style="color:${p.qty <= actualMinStock && p.qty > 0 ? 'var(--danger)' : 'inherit'}; font-weight:${p.qty <= actualMinStock ? 'bold' : 'normal'};">${stockDisplay}</td>
                     <td>
                         <td>
         <button class="btn btn-info" style="padding:4px 8px; margin-bottom:4px;" onclick="openBatchSerials('${p.id}')"><i class="ri-barcode-box-line"></i> Serials</button><br>
@@ -12479,9 +12504,9 @@ window.autoFillDocCustomer = (name) => {
             </head>
             <body>
                 <div class="center">
-                    <div class="bold fs-16">${bizName}</div>
-                    ${address ? `<div>${address}</div>` : ''}
-                    ${phone ? `<div>Tel: ${phone}</div>` : ''}
+                    ${shop.showBizName !== false && bizName ? `<div class="bold fs-16">${bizName}</div>` : ''}
+                    ${shop.showAddress !== false && address ? `<div>${address}</div>` : ''}
+                    ${shop.showPhone1 !== false && phone ? `<div>Tel: ${phone}</div>` : ''}
                     <div class="divider"></div>
                         <!-- 🛡️ ENTERPRISE FIX: Dynamic Thermal Title -->
                         <div class="bold fs-14 brand-text">${mainTitle}</div>
@@ -16637,7 +16662,7 @@ window.setQuickCash = (amount) => {
                 const processedLogs = Object.values(uniqueLogs);
 
                 let pDays = 0, plDays = 0, halfDays = 0, lwpDays = 0;
-                let totWorked = 0, totExtra = 0, totAdvance = 0, deficitDeduction = 0;
+                let totWorked = 0, totExtra = 0, totAdvance = 0, deficitDeduction = 0, totalLateMins = 0;
 
                 // 🚀 CA & ARCHITECT FIX: THE BULLETPROOF PAYROLL ENGINE (IFRS Compliant)
                 const baseSal = Number(emp.baseSalary) || 0;
@@ -16654,8 +16679,15 @@ window.setQuickCash = (amount) => {
                         const isScannerLog = l.clockInTime ? true : false;
                         const isMissingOutPunch = isScannerLog && !l.clockOutTime;
 
-                        if (isMissingOutPunch) deficitDeduction += (stdHours * hourlyRate);
-                        else if (isScannerLog && l.clockOutTime && worked < stdHours) deficitDeduction += ((stdHours - worked) * hourlyRate);
+                        if (isMissingOutPunch) {
+                            deficitDeduction += (stdHours * hourlyRate);
+                        } else if (isScannerLog && l.clockOutTime && worked < stdHours) {
+                            // 🚨 DOUBLE DEDUCTION FIX: If they were late, we handle it in the Late Penalty Engine.
+                            // Here, we only deduct standard hourly rate if they left EARLY!
+                            const lateTimeHrs = (Number(l.lateMins) || 0) / 60;
+                            const earlyLeftHrs = Math.max(0, (stdHours - worked) - lateTimeHrs);
+                            deficitDeduction += (earlyLeftHrs * hourlyRate);
+                        }
                     }
                     else if(l.status === 'PL') plDays++;
                     else if(l.status === 'H') halfDays++;
@@ -16664,7 +16696,18 @@ window.setQuickCash = (amount) => {
                     totWorked += Math.max(0, Number(l.workedHours) || 0);
                     totExtra += Math.max(0, Number(l.ot) || 0);
                     totAdvance += Math.max(0, Number(l.advance) || 0);
+                    totalLateMins += Math.max(0, Number(l.lateMins) || 0); // 👈 Aggregate late mins
                 });
+
+                // --- 🚀 NEW: LATE PENALTY ENGINE ---
+                const graceMins = profileCache?.gracePeriod !== undefined ? parseFloat(profileCache.gracePeriod) : 30;
+                const penaltyRate = profileCache?.latePenaltyRate !== undefined ? parseFloat(profileCache.latePenaltyRate) : 0;
+                let latePenaltyAmount = 0;
+                
+                if (totalLateMins > graceMins && penaltyRate > 0) {
+                    const chargeableMins = totalLateMins - graceMins;
+                    latePenaltyAmount = Math.round((chargeableMins / 60) * penaltyRate * 100) / 100;
+                }
 
                 // [ A. අනිවාර්ය ඉපයීම් (Statutory Earnings) ]
                 const payableDays = Math.min(daysInMonth, pDays + plDays + (halfDays * 0.5) + closedDaysCount);
@@ -16748,10 +16791,12 @@ window.setQuickCash = (amount) => {
 
                 // [ D. අවසාන ප්‍රතිඵලය ]
                 // Earned Basic එකෙන් කලින්ම Short hours කපලා (trueEarnedBasic) තියෙන නිසා ආයෙත් අඩු කරන්නේ නෑ
-                const netSalary = Math.round((grossEarnings - epfEmployeeDed - dynamicDeductionsAmt - totAdvance) * 100) / 100;
+                const netSalary = Math.round((grossEarnings - epfEmployeeDed - dynamicDeductionsAmt - totAdvance - latePenaltyAmount) * 100) / 100;
 
                 // Save to Global RAM Cache for Payment Processing & Views!
                 currentPayrollData.push({
+                    latePenaltyAmount: latePenaltyAmount, // NEW
+                    totalLateMins: totalLateMins, // NEW
                     alwBreakdown: alwBreakdown, // NEW
                     dedBreakdown: dedBreakdown, // NEW
                     trueEarnedBasic: trueEarnedBasic, // NEW
@@ -16781,7 +16826,10 @@ window.setQuickCash = (amount) => {
                     <td>${totWorked.toFixed(1)} h</td>
                     <td>${totExtra.toFixed(1)} h</td>
                     <td><span style="color:var(--success);">+${formatMoney(otPay)}</span></td>
-                    <td><span style="color:var(--danger);">-${formatMoney(deficitDeduction + totAdvance)}</span></td>
+                    <td>
+                        <span style="color:var(--danger);">-${formatMoney(deficitDeduction + totAdvance + latePenaltyAmount)}</span>
+                        ${latePenaltyAmount > 0 ? `<br><span style="font-size:9px; color:#b91c1c;">(Lates: -${formatMoney(latePenaltyAmount)})</span>` : ''}
+                    </td>
                     <td style="font-weight:900; font-size:16px; color:${netSalary < 0 ? 'red' : 'inherit'}">${formatMoney(netSalary)}</td>
                     <td>
                         <div style="display:flex; flex-direction:column; gap:5px;">
@@ -16864,6 +16912,8 @@ window.setQuickCash = (amount) => {
                     <h5 style="margin-bottom:10px; color:#666;">DEDUCTIONS (අඩු කිරීම්)</h5>
                     <div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>EPF Deduction (Employee 8%):</span> <strong style="color:var(--danger);">-${formatMoney(data.epfEmployeeDed)}</strong></div>
                     <div style="font-size:10px; color:#0f766e; margin-top:2px; margin-bottom:8px; line-height:1.2;">* 8% deducted from EPF Base of ${formatMoney(data.totalEpfBase)}. Employer contributes additional ${formatMoney(data.epfEmployerCont)} to EPF & ${formatMoney(data.etfEmployerCont)} to ETF.</div>
+                    
+                    ${data.latePenaltyAmount > 0 ? `<div style="display:flex; justify-content:space-between; margin-bottom:5px;"><span>Late Penalty (${data.totalLateMins} mins late):</span> <strong style="color:var(--danger);">-${formatMoney(data.latePenaltyAmount)}</strong></div>` : ''}
                     
                     ${dedHtml} <!-- Dynamic Deductions -->
                     
