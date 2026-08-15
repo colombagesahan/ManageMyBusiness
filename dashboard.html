@@ -789,6 +789,22 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                             <div style="font-size:10px; color:#0f766e;">මෙම ප්‍රතිශත වෙනස් කළහොත්, මින් ඉදිරියට ගණනය වන පඩිපත් සඳහා එය බලපානු ඇත.</div>
                         </div>
 
+                        <!-- 🚀 ENTERPRISE GLOBAL LEAVE POLICY -->
+                        <div style="margin-top: 15px; padding: 15px; background: #faf5ff; border: 2px solid #d8b4fe; border-radius: 8px;">
+                            <h4 style="color:#7e22ce; margin-bottom:10px;"><i class="ri-calendar-check-fill"></i> Global Leave Policy (වාර්ෂික නිවාඩු)</h4>
+                            <div style="display:flex; gap:10px;">
+                                <div style="flex:1;">
+                                    <label style="font-size:11px; font-weight:bold; color:#6b21a8;">1st Year Quota (අලුත් අයට)</label>
+                                    <input type="number" id="profFirstYearLeave" value="7" placeholder="e.g. 7" style="margin-bottom:5px; font-weight:bold; border-color:#e9d5ff;">
+                                </div>
+                                <div style="flex:1;">
+                                    <label style="font-size:11px; font-weight:bold; color:#6b21a8;">Standard Quota (පරණ අයට)</label>
+                                    <input type="number" id="profStandardLeave" value="21" placeholder="e.g. 21" style="margin-bottom:5px; font-weight:bold; border-color:#e9d5ff;">
+                                </div>
+                            </div>
+                            <div style="font-size:10px; color:#7e22ce;">සේවකයා වැඩට බැඳුණු දිනය (Join Date) මත පදනම්ව, වසරක් සම්පූර්ණ වූ පසු පද්ධතිය විසින් ස්වයංක්‍රීයවම Standard Quota එක ලබා දෙනු ඇත.</div>
+                        </div>
+
                         <!-- 🚀 ENTERPRISE LATE PENALTY SETTINGS -->
                         <div style="margin-top: 15px; padding: 15px; background: #fff1f2; border: 2px solid #fecaca; border-radius: 8px;">
                             <h4 style="color:#991b1b; margin-bottom:10px;"><i class="ri-time-line"></i> Late Attendance Penalty Policy</h4>
@@ -3510,6 +3526,11 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                 <label style="font-size:12px;">EPF Number</label>
                 <input id="meEpfNo" placeholder="e.g. 12345" style="margin-bottom:5px;">
             </div>
+            <!-- 🚀 NEW: Join Date for Auto-Leave Engine -->
+            <div style="flex:1;">
+                <label style="font-size:12px; color:var(--primary); font-weight:bold;">Join Date *</label>
+                <input id="meJoinDate" type="date" style="margin-bottom:5px; border-color:var(--primary);">
+            </div>
         </div>
         
         <label style="display:flex; align-items:center; gap:8px; font-size:12px; font-weight:bold; color:#0f766e; margin-bottom:10px; cursor:pointer; background:#f0fdfa; padding:8px; border-radius:6px; border:1px solid #ccfbf1;">
@@ -5593,6 +5614,9 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         document.getElementById('profEpfEmployer').value = p.epfEmployer !== undefined ? p.epfEmployer : '12';
         document.getElementById('profEtfEmployer').value = p.etfEmployer !== undefined ? p.etfEmployer : '3'; 
         
+        document.getElementById('profFirstYearLeave').value = p.firstYearLeave !== undefined ? p.firstYearLeave : '7';
+        document.getElementById('profStandardLeave').value = p.standardLeave !== undefined ? p.standardLeave : '21'; 
+        
         document.getElementById('profGracePeriod').value = p.gracePeriod !== undefined ? p.gracePeriod : '30';
         document.getElementById('profLatePenalty').value = p.latePenaltyRate !== undefined ? p.latePenaltyRate : '0';
         
@@ -5677,7 +5701,7 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 
     window.lockProfile = (lock) => {
         // 🛡️ ENTERPRISE FIX: Strict State Locking for all UI elements
-        document.querySelectorAll('#profFields input:not([type="checkbox"]), #profFields textarea, #profDefaultBillSize, #profLogoFont, #profExpenseLimit, #profLogoColor, #profLogoFile, #profScaleMode, #profScalePrefix, #profManagerPin, #profTaxName, #profTaxPercent, #profRefundPolicy, #profReturnDays, #profTermsThermal, #profLoyaltySpend, #profShortCode, #profLoyaltyEarn, #profLoyaltyEnabled, #profAutoDiscThreshold, #profAutoDiscType, #profAutoDiscValue, #profLoyaltyCashOnly, #profTermsA4, #profTermsInvoice, #profTermsQuote, #profGracePeriod, #profLatePenalty').forEach(i => {
+        document.querySelectorAll('#profFields input:not([type="checkbox"]), #profFields textarea, #profDefaultBillSize, #profLogoFont, #profExpenseLimit, #profLogoColor, #profLogoFile, #profScaleMode, #profScalePrefix, #profManagerPin, #profTaxName, #profTaxPercent, #profRefundPolicy, #profReturnDays, #profTermsThermal, #profLoyaltySpend, #profShortCode, #profLoyaltyEarn, #profLoyaltyEnabled, #profAutoDiscThreshold, #profAutoDiscType, #profAutoDiscValue, #profLoyaltyCashOnly, #profTermsA4, #profTermsInvoice, #profTermsQuote, #profGracePeriod, #profLatePenalty, #profFirstYearLeave, #profStandardLeave').forEach(i => {
             if (i) i.disabled = lock;
         });
         
@@ -5770,6 +5794,8 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             epfEmployee: parseFloat(document.getElementById('profEpfEmployee').value) || 8,
             epfEmployer: parseFloat(document.getElementById('profEpfEmployer').value) || 12,
             etfEmployer: parseFloat(document.getElementById('profEtfEmployer').value) || 3,
+            firstYearLeave: parseFloat(document.getElementById('profFirstYearLeave').value) || 7,
+            standardLeave: parseFloat(document.getElementById('profStandardLeave').value) || 21,
             gracePeriod: parseFloat(document.getElementById('profGracePeriod').value) || 0,
             latePenaltyRate: parseFloat(document.getElementById('profLatePenalty').value) || 0,
             commissionPolicy: document.getElementById('profCommissionPolicy').value,
@@ -12856,6 +12882,7 @@ window.autoFillDocCustomer = (name) => {
         document.getElementById('meNIC').value = '';
         document.getElementById('meEpfNo').value = '';
         document.getElementById('meIsEpfEligible').checked = true; // Default true for new employees
+        document.getElementById('meJoinDate').value = window.getSecureLocalDateStr(); // Default to today
         
         // Reset Photo
         document.getElementById('empPhotoFile').value = '';
@@ -12886,6 +12913,7 @@ window.autoFillDocCustomer = (name) => {
         document.getElementById('meEpfNo').value = e.epfNo || '';
         // POKA-YOKE: For old existing employees without this field, assume they are eligible
         document.getElementById('meIsEpfEligible').checked = e.isEpfEligible !== false;
+        document.getElementById('meJoinDate').value = e.joinDate || '';
         
         // Load Photo
         document.getElementById('empPhotoFile').value = '';
@@ -13014,6 +13042,7 @@ window.autoFillDocCustomer = (name) => {
         const nic = document.getElementById('meNIC').value.trim();
         const epfNo = document.getElementById('meEpfNo').value.trim();
         const isEpfEligible = document.getElementById('meIsEpfEligible').checked;
+        const joinDate = document.getElementById('meJoinDate').value;
         
         // ENTERPRISE FIX: Strict Validation for Financial/Math Fields
         if(!name || !phone) return showToast("Name and Phone (ID) are required", "error");
@@ -13037,7 +13066,7 @@ window.autoFillDocCustomer = (name) => {
             await setDoc(empRef, {
                 name, phone, role, baseSalary: salary, salaryPackageId: salaryPackageId, standardHours: hours, otRate: otRate,
                 targetAmount: targetAmt, commissionRate: commRate, isSalesRep: isSalesRep,
-                nic: nic, epfNo: epfNo, isEpfEligible: isEpfEligible,
+                nic: nic, epfNo: epfNo, isEpfEligible: isEpfEligible, joinDate: joinDate,
                 photo: currentEmpPhotoBase64 
             }, { merge: true });
             
@@ -13150,6 +13179,44 @@ window.autoFillDocCustomer = (name) => {
             let advanceDiff = newAdv;
             let logDocRef = null;
             const batch = writeBatch(db);
+
+            // --- 🚀 ENTERPRISE HR: SMART TENURE-BASED LEAVE QUOTA ENFORCEMENT ---
+            const currentYear = dateVal.split('-')[0];
+            const finalStatusToCheck = newStatus === 'NO_CHANGE' ? (snap.empty ? 'LWP' : snap.docs[0].data().status) : newStatus;
+
+            if (finalStatusToCheck === 'PL') {
+                document.querySelector('#globalLoader div:nth-child(2)').textContent = "Checking Leave Quota...";
+                
+                // 1. Calculate Employee's Tenure
+                let allowedLeaves = 21; // Fallback to Standard
+                if (empData.joinDate) {
+                    const joinYear = empData.joinDate.split('-')[0];
+                    const yearsOfService = parseInt(currentYear) - parseInt(joinYear);
+                    
+                    const firstYrQuota = profileCache?.firstYearLeave !== undefined ? parseInt(profileCache.firstYearLeave) : 7;
+                    const standardQuota = profileCache?.standardLeave !== undefined ? parseInt(profileCache.standardLeave) : 21;
+                    
+                    allowedLeaves = (yearsOfService >= 1) ? standardQuota : firstYrQuota;
+                }
+
+                // 2. Count already used Paid Leaves (PL) for this year
+                const startOfYear = `${currentYear}-01-01`;
+                const endOfYear = `${currentYear}-12-31`;
+                const qLeaves = query(logsRef, where("date", ">=", startOfYear), where("date", "<=", endOfYear), where("status", "==", "PL"));
+                const snapLeaves = await getDocs(qLeaves);
+                
+                let usedLeaves = snapLeaves.size;
+                // If editing today's log which is ALREADY a PL, don't double count it
+                if (!snap.empty && snap.docs[0].data().status === 'PL') usedLeaves -= 1; 
+
+                // 3. The Poka-Yoke Block!
+                if (usedLeaves >= allowedLeaves) {
+                    toggleLoader(false);
+                    return showToast(`🚨 Quota Exceeded! ${empName} has already used ${usedLeaves}/${allowedLeaves} Paid Leaves for ${currentYear}. You MUST mark this as Leave Without Pay (LWP).`, "error");
+                }
+            }
+            document.querySelector('#globalLoader div:nth-child(2)').textContent = "Processing...";
+            // --------------------------------------------------------------------
 
             if (!snap.empty) {
                 const existingLog = snap.docs[0].data();
