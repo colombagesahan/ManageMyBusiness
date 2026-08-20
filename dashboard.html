@@ -3588,13 +3588,19 @@ body.pos-fullscreen-mode #view-pos > div > .card {
             
             <div style="display:flex; gap:10px;">
                 <div style="flex:1;">
-                    <label style="font-size:12px;">Standard Work Hours/Day</label>
+                    <label style="font-size:12px;">Standard Work Hrs</label>
                     <input id="meHours" type="number" value="8" placeholder="e.g. 8">
                 </div>
-                <div style="flex:1;">
-                    <label style="font-size:12px;">OT Rate (Rs) <span style="font-size:9px; color:#ef4444;">* 0 = Auto Statutory</span></label>
-                    <input id="meOTRate" type="number" value="0" placeholder="e.g. 300" style="border-color:#10b981; font-weight:bold;">
-                    <div style="font-size:9px; color:#15803d; line-height:1.2; margin-top:-5px;">ඔබ මෙහි අගයක් ගැසුවහොත් Fixed Rate ගණනය වේ. <b>0</b> ලෙස තැබුවහොත් නීත්‍යානුකූල Basic/240 * (1.5x / 2.0x) ක්‍රමයට දින අනුව ගණනය වේ.</div>
+                <div style="flex:1.5;">
+                    <label style="font-size:12px; color:var(--primary); font-weight:bold;">OT Method (අතිකාල ක්‍රමය) *</label>
+                    <div style="display:flex; gap:5px;">
+                        <select id="meOtType" style="margin-bottom:0; font-weight:bold; border-color:var(--primary); flex:1;" onchange="toggleOtInput()">
+                            <option value="auto">Auto (Law: Basic/240)</option>
+                            <option value="fixed">Fixed Rate (Manual)</option>
+                            <option value="none">Not Eligible (No OT)</option>
+                        </select>
+                        <input id="meOTRate" type="number" value="0" placeholder="Rs." style="margin-bottom:0; width:80px; display:none; border-color:#10b981; font-weight:bold;" title="Fixed Rate Amount">
+                    </div>
                 </div>
             </div>
             
@@ -12908,6 +12914,8 @@ window.autoFillDocCustomer = (name) => {
         document.getElementById('meSalaryPackage').value = ''; // 🚀 NEW
         document.getElementById('meHours').value = '8';
         document.getElementById('meOTRate').value = '0';
+        document.getElementById('meOtType').value = 'auto'; // Default to Law
+        window.toggleOtInput();
         document.getElementById('meTarget').value = '0'; 
         document.getElementById('meCommission').value = '0'; 
         document.getElementById('meIsSalesRep').checked = false;
@@ -12938,6 +12946,9 @@ window.autoFillDocCustomer = (name) => {
         document.getElementById('meSalaryPackage').value = e.salaryPackageId || ''; // 🚀 NEW
         document.getElementById('meHours').value = e.standardHours || 8;
         document.getElementById('meOTRate').value = e.otRate || 0;
+        // Backward compatibility: If old data exists, guess the intended type safely
+        document.getElementById('meOtType').value = e.otType || (e.otRate > 0 ? 'fixed' : 'auto'); 
+        window.toggleOtInput();
         document.getElementById('meTarget').value = e.targetAmount || 0; 
         document.getElementById('meCommission').value = e.commissionRate || 0; 
         document.getElementById('meIsSalesRep').checked = e.isSalesRep || false;
@@ -13067,7 +13078,8 @@ window.autoFillDocCustomer = (name) => {
         const salary = Number(document.getElementById('meSalary').value) || 0;
         const salaryPackageId = document.getElementById('meSalaryPackage').value; // 🚀 NEW
         const hours = Number(document.getElementById('meHours').value) || 8;
-        const otRate = Number(document.getElementById('meOTRate').value) || 0;
+        const otType = document.getElementById('meOtType').value;
+        const otRate = (otType === 'fixed') ? (Number(document.getElementById('meOTRate').value) || 0) : 0;
         const targetAmt = Number(document.getElementById('meTarget').value) || 0;
         const commRate = Number(document.getElementById('meCommission').value) || 0;
         const isSalesRep = document.getElementById('meIsSalesRep').checked;
@@ -13097,6 +13109,7 @@ window.autoFillDocCustomer = (name) => {
 
             await setDoc(empRef, {
                 name, phone, role, baseSalary: salary, salaryPackageId: salaryPackageId, standardHours: hours, otRate: otRate,
+                otType: otType, // 👈 අලුත් Field එක සේව් වේ
                 targetAmount: targetAmt, commissionRate: commRate, isSalesRep: isSalesRep,
                 nic: nic, epfNo: epfNo, isEpfEligible: isEpfEligible, joinDate: joinDate,
                 photo: currentEmpPhotoBase64 
@@ -16892,16 +16905,22 @@ window.setQuickCash = (amount) => {
                 // 🚨 IFRS FIX: නිවැරදිම EPF Base එක!
                 const totalEpfBase = trueEarnedBasic + epfLiableAllowances;
 
-                // 🚀 DYNAMIC OT MATH ENGINE (Statutory vs Fixed)
+                // 🚀 DYNAMIC OT MATH ENGINE (Statutory vs Fixed vs None)
                 let otPay = 0;
                 const totExtra = totNormalOtHrs + totHolidayOtHrs; // For UI display
+                
+                // පරණ Data තියෙනවා නම් ඒකට ගැළපෙන විදිහට Fallback එකක් තියාගන්නවා
+                const empOtType = emp.otType || (Number(emp.otRate) > 0 ? 'fixed' : 'auto'); 
                 const empFixedOtRate = Number(emp.otRate) || 0;
 
-                if (empFixedOtRate > 0) {
-                    // MODE 1: Fixed Rate (Kade / Hardware Mode - Avoids Basic Salary math)
+                if (empOtType === 'none') {
+                    // MODE 1: Not Eligible (Manager / Executive Level) - අනිවාර්යයෙන්ම බිංදුවයි!
+                    otPay = 0;
+                } else if (empOtType === 'fixed') {
+                    // MODE 2: Fixed Rate (Kade / Hardware Mode - Avoids Basic Salary math)
                     otPay = totExtra * empFixedOtRate;
-                } else {
-                    // MODE 2: Sri Lankan Statutory Auto OT (Corporate Mode)
+                } else if (empOtType === 'auto') {
+                    // MODE 3: Sri Lankan Statutory Auto OT (Corporate Mode)
                     const divisor = profileCache?.otDivisor ? parseFloat(profileCache.otDivisor) : 240;
                     const normalMult = profileCache?.normalOtMult ? parseFloat(profileCache.normalOtMult) : 1.5;
                     const holidayMult = profileCache?.holidayOtMult ? parseFloat(profileCache.holidayOtMult) : 2.0;
@@ -16960,35 +16979,34 @@ window.setQuickCash = (amount) => {
                 // Earned Basic එකෙන් කලින්ම Short hours කපලා (trueEarnedBasic) තියෙන නිසා ආයෙත් අඩු කරන්නේ නෑ
                 const netSalary = Math.round((grossEarnings - epfEmployeeDed - dynamicDeductionsAmt - totAdvance - latePenaltyAmount) * 100) / 100;
 
-                        // // Save to Global RAM Cache for Payment Processing & Views!
-        currentPayrollData.push({
-          emp: emp,
-          logs: processedLogs,
-          pDays,
-          p1Days,
-          halfDays,
-          lwpDays,
-          totWorked,
-          totExtra,
-          totNormalOtHrs,   // මෙන්න මේවා පිළිවෙළට object එක ඇතුළට ආවා
-          totHolidayOtHrs,  // මෙන්න මේවා පිළිවෙළට object එක ඇතුළට ආවා
-          totAdvance,
-          otPay,
-          deficitDeduction,
-          trueEarnedBasic,
-          epfEmployeeDed,
-          epfEmployerCont,
-          etfEmployerCont,
-          commissionPay,
-          netSalary,
-          latePenaltyAmount: latePenaltyAmount, // // NEW
-          totalLateMins: totalLateMins, // // NEW
-          alwBreakdown: alwBreakdown, // // NEW
-          dedBreakdown: dedBreakdown, // // NEW
-          trueEarnedBasic: trueEarnedBasic, // // NEW
-          grossthreEarnings: grossEarnings, // // NEW
-          totalEpfBase: totalEpfBase // // NEW
-        });
+                        // Save to Global RAM Cache for Payment Processing & Views!
+currentPayrollData.push({
+    emp: emp,
+    logs: processedLogs,
+    pDays,
+    plDays,
+    halfDays,
+    lwpDays,
+    totWorked,
+    totExtra,
+    totNormalOtHrs,
+    totHolidayOtHrs,
+    totAdvance,
+    otPay,
+    deficitDeduction,
+    epfEmployeeDed,
+    epfEmployerCont,
+    etfEmployerCont,
+    commissionPay,
+    netSalary,
+    latePenaltyAmount: latePenaltyAmount,
+    totalLateMins: totalLateMins,
+    alwBreakdown: alwBreakdown,
+    dedBreakdown: dedBreakdown,
+    trueEarnedBasic: trueEarnedBasic,
+    grossEarnings: grossEarnings, 
+    totalEpfBase: totalEpfBase 
+});
 
 
                 const isPaid = paidSalariesMap[emp.id];
@@ -24672,6 +24690,16 @@ ${opexBreakdownStr}
         // Update Graph
         window.myChart.update();
     }
+window.toggleOtInput = () => {
+        const type = document.getElementById('meOtType').value;
+        const inp = document.getElementById('meOTRate');
+        if (type === 'fixed') {
+            inp.style.display = 'block';
+        } else {
+            inp.style.display = 'none';
+            inp.value = '0';
+        }
+    };
 </script>
 
 </body>
