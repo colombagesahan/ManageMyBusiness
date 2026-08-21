@@ -1824,9 +1824,8 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                      <button class="btn btn-ghost" style="padding:4px 8px; font-size:16px;" onclick="document.getElementById('orderDateFilter').value=''; loadOrders();" title="Clear Filter"><i class="ri-close-circle-line"></i></button>
                  </div>
 
-                 <div class="search-container">
-                    <input id="orderIdSearch" placeholder="Exact Sale ID..." style="margin:0;" onkeypress="if(event.key === 'Enter') searchOrderById()">
-                    <button class="btn btn-primary" onclick="searchOrderById()"><i class="ri-search-line"></i></button>
+                 <div class="search-container" style="max-width:350px;">
+                    <input id="orderIdSearch" placeholder="Search Sale ID, Cust Name or Phone..." style="margin:0; width:100%; border-color:var(--primary);" onkeyup="omniSearchOrders()">
                  </div>
                  <div style="display:flex; gap:10px;">
                      <button class="btn btn-info" onclick="openItemAnalytics()"><i class="ri-bar-chart-box-line"></i> Item Analytics</button>
@@ -7942,21 +7941,27 @@ window.onTransferProductSelect = () => {
         }
 
         if (term.length >= 2) {
-            document.getElementById('posGrid').innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: var(--primary); padding: 20px;">Searching Database...</div>';
+            // 🚀 ENTERPRISE HYBRID ENGINE: 
+            // මුලින්ම බලනවා RAM Cache එකේ ගැලපෙන බඩු (අඩුම තරමේ 5ක් වත්) තියෙනවද කියලා.
+            const ramMatches = productsCache.filter(p => p.name.toLowerCase().includes(term) || (p.sku && p.sku.toLowerCase().includes(term)));
             
-            // Base SKU එක පමණක් Database එකට යවා සෙවීම (Firebase Cost ඉතිරි වේ)
-            const qSku = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`), where('sku', '==', term), limit(20));
-            
-            const capTerm = term.charAt(0).toUpperCase() + term.slice(1);
-            const qName = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`), where('name', '>=', capTerm), where('name', '<=', capTerm + '\uf8ff'), limit(30));
-
-            const itemType = document.getElementById('posItemType').value;
-            
-            if(itemType === 'product' || itemType === 'all') {
-                const [snapSku, snapName] = await Promise.all([getDocs(qSku), getDocs(qName)]);
+            // RAM එකේ බඩු 5කට වඩා තියෙනවා නම්, Database එකට Call කරන්නේ නෑ! (Save 90% Firebase Costs)
+            if (ramMatches.length < 5) {
+                document.getElementById('posGrid').innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: var(--primary); padding: 20px;">Searching Deep Database... <i class="ri-loader-4-line ri-spin"></i></div>';
                 
-                snapSku.forEach(d => { if(!productsCache.find(p => p.id === d.id)) productsCache.unshift({id: d.id, ...d.data()}); });
-                snapName.forEach(d => { if(!productsCache.find(p => p.id === d.id)) productsCache.unshift({id: d.id, ...d.data()}); });
+                const qSku = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`), where('sku', '==', term), limit(20));
+                const capTerm = term.charAt(0).toUpperCase() + term.slice(1);
+                const qName = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`), where('name', '>=', capTerm), where('name', '<=', capTerm + '\uf8ff'), limit(30));
+
+                const itemType = document.getElementById('posItemType').value;
+                
+                if(itemType === 'product' || itemType === 'all') {
+                    try {
+                        const [snapSku, snapName] = await Promise.all([getDocs(qSku), getDocs(qName)]);
+                        snapSku.forEach(d => { if(!productsCache.find(p => p.id === d.id)) productsCache.unshift({id: d.id, ...d.data()}); });
+                        snapName.forEach(d => { if(!productsCache.find(p => p.id === d.id)) productsCache.unshift({id: d.id, ...d.data()}); });
+                    } catch(e) { console.warn("POS Deep Search Failed", e); }
+                }
             }
         }
         renderPosGrid();
@@ -10296,32 +10301,68 @@ window.autoFillDocCustomer = (name) => {
         }
     }
 
-    // 🛡️ ENTERPRISE FIX: Database-Level Document Search Engine
-    window.searchDocument = async () => {
+    // 🚀 ENTERPRISE OMNI-SEARCH: DOCUMENTS (Invoices & Quotes)
+    window.searchDocument = debounceSearch(async () => {
         const term = document.getElementById('docSearchInput').value.trim();
-        if (!term) return loadDocumentsHistory(); // හිස් නම් සාමාන්‍ය විදිහට Load කරයි
-
-        toggleLoader(true);
-        const list = document.getElementById('docHistoryList');
-        list.innerHTML = '<div style="text-align:center; padding:20px; color:var(--primary); font-weight:bold;">Searching Database... <i class="ri-loader-4-line ri-spin"></i></div>';
+        if (!term) return loadDocumentsHistory(false); 
         
-        try {
-            // 🚀 Sanitize input & Deep query by Exact Doc ID
-            const safeTerm = term.replace(/[\/\\]/g, '-');
-            const exactRef = doc(db, `users/${dbOwnerId}/shops/${currentShopId}/documents`, safeTerm);
-            const docSnap = await getDoc(exactRef);
+        if (term.length >= 2) {
+            const list = document.getElementById('docHistoryList');
+            hasMoreDocs = false; // Stop scroll
+            list.innerHTML = '<div style="text-align:center; padding:20px; color:var(--primary); font-weight:bold;">Searching Omni-Database... <i class="ri-loader-4-line ri-spin"></i></div>';
+            
+            try {
+                const safeTerm = term.replace(/[\/\\]/g, '-');
+                const capTerm = term.charAt(0).toUpperCase() + term.slice(1);
+                
+                // 1. Search by Doc ID
+                const qId = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/documents`), where('docId', '>=', safeTerm), where('docId', '<=', safeTerm + '\uf8ff'), limit(15));
+                
+                // 2. Search by Customer Name
+                const qName = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/documents`), where('customer.name', '>=', capTerm), where('customer.name', '<=', capTerm + '\uf8ff'), limit(15));
 
-            if (docSnap.exists()) {
-                renderDocumentCard(list, { id: docSnap.id, ...docSnap.data() }, true);
-            } else {
-                list.innerHTML = '<div style="text-align:center; padding:20px; color:#ef4444;">No document found with this ID!</div>';
+                const [snapId, snapName] = await Promise.all([getDocs(qId), getDocs(qName)]);
+                
+                const uniqueDocs = new Map();
+                snapId.forEach(d => uniqueDocs.set(d.id, { id: d.id, ...d.data() }));
+                snapName.forEach(d => uniqueDocs.set(d.id, { id: d.id, ...d.data() }));
+
+                if (uniqueDocs.size === 0) {
+                    list.innerHTML = '<div style="text-align:center; padding:20px; color:#ef4444;">No documents found!</div>';
+                    return;
+                }
+
+                // Convert map to array and Sort by Date
+                const sortedDocs = Array.from(uniqueDocs.values()).sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+                let htmlStr = '';
+                sortedDocs.forEach(docData => {
+                    htmlStr += `
+                    <div class="card" style="padding:12px; margin-bottom:10px; border:1px solid #e5e7eb; border-left:4px solid ${docData.type==='invoice'?'var(--success)':'var(--warning)'}; box-shadow:0 2px 4px rgba(0,0,0,0.02);">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <strong style="font-size:15px; color:#111827;">${docData.docId}</strong>
+                            <span style="font-size:10px; font-weight:800; padding:2px 6px; border-radius:4px; background:${docData.type==='invoice'?'#dcfce7':'#fef3c7'}; color:${docData.type==='invoice'?'#15803d':'#d97706'};">${docData.type.toUpperCase()}</span>
+                        </div>
+                        <div style="font-size:12px; color:#6b7280; margin-top:4px;">
+                            <i class="ri-user-3-line"></i> ${String(docData.customer?.name || 'Unknown').replace(/</g,"&lt;")} <br>
+                            <i class="ri-calendar-line"></i> ${docData.date}
+                        </div>
+                        <div style="font-weight:900; font-size:16px; margin-top:8px; color:var(--primary);">${formatMoney(docData.total)}</div>
+                        
+                        <div style="margin-top:10px; display:flex; gap:8px; border-top:1px dashed #e5e7eb; padding-top:10px;">
+                            <button class="btn btn-ghost" style="flex:1; padding:6px; font-size:11px; border-color:var(--primary); color:var(--primary);" onclick="window.triggerDocAction('pdf', '${docData.id}')"><i class="ri-printer-line"></i> View / PDF</button>
+                            ${docData.type === 'quotation' && docData.status !== 'converted' ? `<button class="btn btn-info" style="flex:1; padding:6px; font-size:11px;" onclick="window.triggerDocAction('convert', '${docData.id}')"><i class="ri-exchange-line"></i> Make Invoice</button>` : ''}
+                        </div>
+                    </div>`;
+                });
+                list.innerHTML = htmlStr;
+
+            } catch (e) {
+                console.error("Doc Omni Search Error:", e);
+                list.innerHTML = '<div style="text-align:center; color:red;">Search failed.</div>';
             }
-        } catch (e) {
-            console.error("Doc Search Error:", e);
-            list.innerHTML = '<div style="text-align:center; color:red;">Search failed.</div>';
         }
-        toggleLoader(false);
-    };
+    }, 500); // 👈 500ms delay protects against keyboard mashing
     // ==========================================
     // 🛡️ ENTERPRISE INFINITE SCROLL: DOCUMENTS
     // ==========================================
@@ -11588,29 +11629,97 @@ window.autoFillDocCustomer = (name) => {
         }
     };
 
-    // --- SEARCH ORDER BY ID ---
-    window.searchOrderById = async () => {
-        const inputId = document.getElementById('orderIdSearch').value.replace(/\s+/g, '').trim();
-        if(!inputId) return showToast("Enter Order ID", "error");
+    // 🚀 ENTERPRISE OMNI-SEARCH: SALES HISTORY
+    window.omniSearchOrders = debounceSearch(async () => {
+        const term = document.getElementById('orderIdSearch').value.trim();
+        if (term === '') return loadOrders(false); // Reset to pagination if empty
         
-        toggleLoader(true);
-        // Search by 'customOrderId' field
-        const q = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`), where("customOrderId", "==", inputId));
-        const snap = await getDocs(q);
-        
-        if(snap.empty) {
-            toggleLoader(false);
-            showToast("Sale ID not found", "error");
-            return;
-        }
+        if (term.length >= 3) {
+            const tbody = document.getElementById('ordersTbody');
+            hasMoreOrders = false; // Stop infinite scroll while searching
+            tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:var(--primary); font-weight:bold;">Searching Omni-Database... <i class="ri-loader-4-line ri-spin"></i></td></tr>';
+            
+            try {
+                // 1. Search by Order ID (Exact or Starts With)
+                const qId = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`), where('customOrderId', '>=', term), where('customOrderId', '<=', term + '\uf8ff'), limit(15));
+                
+                // 2. Search by Customer Phone
+                let phoneTerm = term.replace(/[^0-9]/g, '');
+                let qPhone = null;
+                if (phoneTerm.length >= 3) {
+                    qPhone = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`), where('customer.phone', '>=', phoneTerm), where('customer.phone', '<=', phoneTerm + '\uf8ff'), limit(15));
+                }
 
-        // Assume unique ID, take first result
-        const d = snap.docs[0];
-        const orderData = {id: d.id, ...d.data()};
-        
-        toggleLoader(false);
-        showOrderDetailsModal(orderData);
-    };
+                // 3. Search by Customer Name
+                const capTerm = term.charAt(0).toUpperCase() + term.slice(1);
+                const qName = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/sales`), where('customer.name', '>=', capTerm), where('customer.name', '<=', capTerm + '\uf8ff'), limit(15));
+
+                const promises = [getDocs(qId), getDocs(qName)];
+                if (qPhone) promises.push(getDocs(qPhone));
+
+                const results = await Promise.all(promises);
+                
+                salesCache = []; // Clear cache to show only search results
+                const uniqueIds = new Set();
+
+                results.forEach(snap => {
+                    snap.forEach(d => {
+                        if (!uniqueIds.has(d.id)) {
+                            uniqueIds.add(d.id);
+                            salesCache.push({ id: d.id, ...d.data() });
+                        }
+                    });
+                });
+
+                // RAM Sorting (Newest First)
+                salesCache.sort((a,b) => new Date(b.date) - new Date(a.date));
+
+                if (salesCache.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#ef4444;">No sales found matching your search!</td></tr>';
+                    return;
+                }
+
+                // Render the results manually (Re-using the rendering logic)
+                let newHtml = '';
+                salesCache.forEach(o => {
+                    const date = o.date ? new Date(o.date).toLocaleString() : "N/A";
+                    const isPayLaterOriginal = o.paymentMethod === 'Pay Later';
+                    const isCreditSettled = isPayLaterOriginal && (!o.creditBalance || o.creditBalance === 0);
+                    const isCashSettled = o.paymentMethod.includes('Settled');
+                    
+                    const rowClass = (isPayLaterOriginal && !isCreditSettled) ? 'row-danger' : ((isCreditSettled || isCashSettled) ? 'row-success' : '');
+                    
+                    let payMethodDisplay = o.paymentMethod || "Unknown";
+                    if (isCreditSettled) payMethodDisplay = `<span style="text-decoration: line-through; color: #ef4444; font-weight:bold;">Pay Later</span><br><span style="font-size:11px; color:#10b981; font-weight:800;"><i class="ri-check-double-fill"></i> SETTLED</span>`;
+                    else if (isCashSettled) payMethodDisplay = `<span style="font-size:11px; color:#10b981; font-weight:800;"><i class="ri-check-double-fill"></i> SETTLED IN CASH</span>`;
+                    else if (o.paymentMethod === 'Cheque') payMethodDisplay = `<span style="font-weight:bold; color:#d97706;">Cheque</span>`;
+
+                    const orderIdDisplay = o.customOrderId || o.id.substring(0,8);
+                    const custName = (o.customer && o.customer.name) ? o.customer.name : "Walk-in";
+                    const badgeBg = (isPayLaterOriginal && !isCreditSettled) ? '#fee2e2' : '#dcfce7';
+                    const badgeText = (isPayLaterOriginal && !isCreditSettled) ? 'Credit' : 'Paid';
+
+                    newHtml += `
+                    <tr class="${rowClass}" onclick="viewOrderDetails('${o.id}')" style="cursor:pointer; transition:0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background=''">
+                        <td><span class="order-id-badge">${orderIdDisplay}</span></td>
+                        <td>${date}</td>
+                        <td><div style="font-weight:600;">${custName.replace(/</g, "&lt;")}</div><div style="font-size:11px; color:#666;">${o.customer?.phone || ''}</div></td>
+                        <td>${payMethodDisplay}</td>
+                        <td style="font-weight:900; color:var(--primary); font-size:15px;">${formatMoney(o.total || 0)}</td>
+                        <td><span style="font-size:11px; padding:2px 6px; background:${badgeBg}; border-radius:4px; font-weight:bold;">${badgeText}</span></td>
+                        <td>
+                            <div style="display:flex; gap:5px;" onclick="event.stopPropagation()">
+                                <button class="btn btn-ghost" style="padding:4px;" onclick="openNoteModal('${o.id}')"><i class="ri-sticky-note-line"></i></button>
+                                <button class="btn btn-ghost" style="padding:4px; color:var(--primary);" onclick="reprintOrderById('${o.id}')"><i class="ri-printer-line"></i></button>
+                            </div>
+                        </td>
+                    </tr>`;
+                });
+                tbody.innerHTML = newHtml;
+
+            } catch (err) { console.error("Sales Omni Search Error:", err); }
+        }
+    }, 500);
     
     // Bridge from table click (uses Firestore ID to fetch, then show)
     window.viewOrderDetails = async (firestoreId) => {
