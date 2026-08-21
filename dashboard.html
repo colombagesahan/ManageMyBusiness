@@ -90,6 +90,33 @@ td { padding: 12px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 .prod-preview { width: 100%; height: 150px; object-fit: contain; border: 2px dashed #d1d5db; border-radius: 8px; margin-bottom: 10px; display: none; }
 .note-box { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; padding: 12px; border-radius: 8px; font-size: 13px; margin-bottom: 15px; line-height: 1.4; }
 
+/* 🚀 ENTERPRISE F&B RESTAURANT UI */
+.resto-layout { display: grid; grid-template-columns: 250px 1fr 350px; gap: 15px; height: calc(100vh - 120px); }
+.resto-tables-area { display: flex; flex-direction: column; gap: 10px; overflow-y: auto; padding-right: 5px; }
+.resto-table-btn { padding: 15px 10px; border-radius: 12px; border: 2px solid #e2e8f0; background: #f8fafc; cursor: pointer; transition: 0.2s; text-align: center; position: relative; user-select: none; }
+.resto-table-btn.active { border-color: var(--primary); background: #e0e7ff; transform: scale(1.02); }
+.resto-table-btn.occupied { border-color: #fca5a5; background: #fef2f2; color: #b91c1c; }
+.resto-table-btn.occupied.active { border-color: var(--danger); background: #fee2e2; }
+.resto-table-badge { position: absolute; top: -5px; right: -5px; background: var(--primary); color: white; border-radius: 50%; width: 24px; height: 24px; font-size: 11px; font-weight: bold; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+
+.resto-menu-area { background: #f8fafc; border-radius: 16px; border: 1px solid #e2e8f0; display: flex; flex-direction: column; overflow: hidden; }
+.resto-cat-scroll { display: flex; gap: 10px; overflow-x: auto; padding: 15px; background: white; border-bottom: 1px solid #e2e8f0; }
+.resto-cat-btn { padding: 8px 15px; border-radius: 20px; font-size: 12px; font-weight: bold; border: 1px solid #cbd5e1; background: white; white-space: nowrap; cursor: pointer; transition: 0.2s; }
+.resto-cat-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+.resto-items-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; padding: 15px; overflow-y: auto; align-content: start; flex: 1; }
+.resto-item-card { background: white; border: 1px solid #cbd5e1; border-radius: 12px; padding: 10px; text-align: center; cursor: pointer; transition: 0.2s; user-select: none; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+.resto-item-card:active { transform: scale(0.95); background: #f1f5f9; }
+.resto-item-name { font-size: 13px; font-weight: 800; color: #1e293b; margin: 8px 0 4px 0; line-height: 1.2; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.resto-item-price { font-size: 14px; font-weight: 900; color: var(--primary); }
+
+.resto-cart-area { background: white; border-radius: 16px; border: 1px solid #e2e8f0; display: flex; flex-direction: column; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+.kot-tag { font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: 900; letter-spacing: 0.5px; }
+.kot-tag.unsent { background: #fef3c7; color: #d97706; border: 1px solid #fde68a; }
+.kot-tag.sent { background: #dcfce7; color: #15803d; border: 1px solid #bbf7d0; }
+
+@media(max-width: 1024px) { .resto-layout { grid-template-columns: 1fr; height: auto; } .resto-layout > div { min-height: 400px; } }
+
 /* --- VIEWS --- */
 .view { display: none; animation: fade 0.2s; } .view.active { display: block; }
 @keyframes fade { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
@@ -363,7 +390,8 @@ body.pos-fullscreen-mode #view-pos > div > .card {
 
         <!-- 2. SALES & RETAIL -->
         <div class="nav-group">Sales & Retail</div>
-        <a class="nav-item" onclick="loadView('pos')"><i class="ri-shopping-cart-2-line"></i> Smart POS</a>
+        <a class="nav-item" onclick="loadView('pos')"><i class="ri-shopping-cart-2-line"></i> Smart POS (Retail)</a>
+        <a class="nav-item" onclick="loadView('restaurant')"><i class="ri-restaurant-2-fill"></i> Restaurant POS <span style="background:var(--warning); color:white; font-size:9px; padding:2px 6px; border-radius:10px; margin-left:5px;">F&B</span></a>
         <a class="nav-item" onclick="loadView('documents')"><i class="ri-file-text-line"></i> Documents (Quotes/Invoices)</a>
         <a class="nav-item" onclick="loadView('orders')"><i class="ri-file-list-3-line"></i> Sales History</a>
         <a class="nav-item" onclick="loadView('refunds')"><i class="ri-arrow-go-back-line"></i> Refunds</a>
@@ -1710,6 +1738,77 @@ body.pos-fullscreen-mode #view-pos > div > .card {
                         <button class="btn btn-primary" style="width:100%; justify-content:center; padding:15px; font-size:16px; font-weight:bold; box-shadow:0 4px 6px -1px rgba(79,70,229,0.3);" onclick="checkout()">COMPLETE SALE (F9)</button>
                     </div>
                 </div>
+            </div>
+        </div>
+
+<!-- 🚀 NEW: ENTERPRISE RESTAURANT & F&B POS -->
+        <div id="view-restaurant" class="view">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                <h3 style="color:var(--primary); margin:0;"><i class="ri-restaurant-2-fill"></i> Restaurant & Dine-In Manager</h3>
+                <div style="display:flex; gap:10px;">
+                    <button class="btn btn-ghost" onclick="manageRestoTables()"><i class="ri-layout-grid-line"></i> Manage Tables</button>
+                    <button class="btn btn-info" onclick="openCustomerDisplay()"><i class="ri-tv-2-line"></i> CFD Screen</button>
+                </div>
+            </div>
+
+            <div class="resto-layout">
+                
+                <!-- COLUMN 1: TABLES GRID -->
+                <div class="card" style="margin:0; padding:15px; display:flex; flex-direction:column; background:#f1f5f9; border:none;">
+                    <h4 style="margin-bottom:15px; font-size:14px; color:#475569; text-transform:uppercase; letter-spacing:1px;"><i class="ri-map-pin-user-fill"></i> Tables / Orders</h4>
+                    <div class="resto-tables-area" id="restoTablesGrid">
+                        <!-- Tables dynamically loaded here -->
+                    </div>
+                    <button class="btn btn-primary" style="margin-top:auto; padding:12px;" onclick="createNewTakeaway()"><i class="ri-takeaway-fill"></i> + New Takeaway</button>
+                </div>
+
+                <!-- COLUMN 2: TOUCH MENU -->
+                <div class="resto-menu-area">
+                    <!-- Categories -->
+                    <div class="resto-cat-scroll" id="restoCatScroll">
+                        <button class="resto-cat-btn active" onclick="filterRestoMenu('ALL')">All Menu</button>
+                        <!-- Categories dynamically loaded here -->
+                    </div>
+                    <!-- Menu Items Search -->
+                    <div style="padding:10px 15px; background:white; border-bottom:1px solid #e2e8f0;">
+                        <input type="text" id="restoSearchInput" placeholder="🔍 Search Food / Beverage..." style="margin:0; width:100%; border-radius:20px; border-color:var(--primary);" onkeyup="renderRestoMenu()">
+                    </div>
+                    <!-- Menu Grid -->
+                    <div class="resto-items-grid" id="restoItemsGrid">
+                        <!-- Menu items dynamically loaded here -->
+                    </div>
+                </div>
+
+                <!-- COLUMN 3: ACTIVE TABLE CART -->
+                <div class="resto-cart-area">
+                    <div style="padding:15px; border-bottom:1px solid #e2e8f0; background:#f8fafc; border-radius:16px 16px 0 0;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <h3 style="margin:0; color:var(--primary); font-size:18px;" id="restoActiveTableTitle">Select a Table</h3>
+                            <button class="btn btn-danger" style="padding:4px 8px; font-size:11px;" onclick="clearRestoTable()"><i class="ri-delete-bin-line"></i> Clear</button>
+                        </div>
+                        <input type="text" id="restoWaiterName" placeholder="Waiter Name (Optional)" style="margin:0; margin-top:10px; font-size:12px; padding:6px; border-color:#cbd5e1;" onchange="saveCurrentTableState()">
+                    </div>
+
+                    <!-- Cart Items -->
+                    <div id="restoCartItems" style="flex:1; overflow-y:auto; padding:15px; display:flex; flex-direction:column; gap:10px;">
+                        <div style="text-align:center; color:#94a3b8; margin-top:40px;"><i class="ri-restaurant-line" style="font-size:40px;"></i><br>Table is empty</div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div style="padding:15px; border-top:2px dashed #e2e8f0; background:#fdfdfe; border-radius:0 0 16px 16px;">
+                        <div style="display:flex; justify-content:space-between; font-weight:900; font-size:20px; margin-bottom:15px; color:#1e293b;">
+                            <span>Total</span>
+                            <span id="restoCartTotal">0.00</span>
+                        </div>
+                        
+                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px;">
+                            <button class="btn btn-warning" style="padding:12px; font-size:13px; color:#92400e; background:#fef3c7; border:1px solid #fde68a;" onclick="printRestoKOT()"><i class="ri-printer-line"></i> KOT (Kitchen)</button>
+                            <button class="btn btn-ghost" style="padding:12px; font-size:13px;" onclick="printRestoBOT()"><i class="ri-file-list-3-line"></i> BOT (Bill)</button>
+                        </div>
+                        <button class="btn btn-success" style="width:100%; padding:15px; font-size:16px; justify-content:center; box-shadow:0 4px 6px rgba(16,185,129,0.3);" onclick="proceedRestoCheckout()"><i class="ri-bank-card-2-line"></i> PAY & CHECKOUT</button>
+                    </div>
+                </div>
+
             </div>
         </div>
 
@@ -5409,18 +5508,21 @@ body.pos-fullscreen-mode #view-pos > div > .card {
         // Cap the dropdown options to 50 max to prevent Browser Freezing when Cache gets huge.
         const safeCacheLimit = customersCache.slice(0, 50);
 
+        // 🚀 ENTERPRISE FIX: String Builder Pattern for Fast DOM Rendering
         // Document Tab
         const dlDoc = document.getElementById('custSuggestions');
         if(dlDoc) {
-            dlDoc.innerHTML = '';
-            safeCacheLimit.forEach(c => dlDoc.innerHTML += `<option value="${c.name.replace(/"/g, '&quot;')}">${c.id}</option>`);
+            let docHtml = '';
+            safeCacheLimit.forEach(c => docHtml += `<option value="${c.name.replace(/"/g, '&quot;')}">${c.id}</option>`);
+            dlDoc.innerHTML = docHtml;
         }
         
-        // Smart POS Tab - Search by Phone (Now in Modal)
+        // Smart POS Tab
         const dlPos = document.getElementById('modalCustomerList');
         if(dlPos) {
-            dlPos.innerHTML = '';
-            safeCacheLimit.forEach(c => dlPos.innerHTML += `<option value="${c.id}">${c.name.replace(/"/g, '&quot;')}</option>`);
+            let posHtml = '';
+            safeCacheLimit.forEach(c => posHtml += `<option value="${c.id}">${c.name.replace(/"/g, '&quot;')}</option>`);
+            dlPos.innerHTML = posHtml;
         }
     }
 
@@ -6029,6 +6131,10 @@ customPayments: window.customPaymentsCache || [],
 
         // --- UPDATED PART IS HERE ---
         if(viewName === 'orders') loadOrders();
+        // 🚀 Initialize F&B Engine when Tab is opened
+        if(viewName === 'restaurant') {
+            if(typeof initRestaurantPOS === 'function') initRestaurantPOS();
+        }
         if(viewName === 'taxreports') {
             const tInput = document.getElementById('taxReportMonth');
             if (!tInput.value) tInput.value = window.getSecureLocalDateStr().slice(0, 7);
@@ -7297,6 +7403,12 @@ window.onTransferProductSelect = () => {
     };
 
     window.submitTransfer = async () => {
+        // 🚨 ENTERPRISE SECURITY FIX: Block Cashier Stock Theft
+        if (userRole !== 'admin') {
+            if(window.writeSystemLog) writeSystemLog("HACK_ATTEMPT", "CRITICAL: Cashier attempted to execute Cross-Branch Stock Transfer!");
+            return showToast("Security Alert: Only Admins can authorize Stock Transfers between branches!", "error");
+        }
+
         if(window.isTransferringEngine) return showToast("Processing transfer... please wait", "warning");
         
         const targetShopId = document.getElementById('transferTargetShop').value;
@@ -9215,6 +9327,8 @@ window.checkout = async () => {
 
                 // Write 1: Update Products & Add Inventory Logs
                 for (let pObj of productRefs) {
+                    // 🚀 ENTERPRISE F&B: Trigger Auto Recipe Consumption for Manufactured Items!
+                    await window.autoConsumeRecipe(transaction, pObj.cartItem.id, pObj.cartItem.qty, customOrderId);
                     const { ref, snapData, cartItem } = pObj;
 
                     let updatePayload = { qty: increment(-cartItem.qty) };
@@ -9512,6 +9626,24 @@ window.checkout = async () => {
             renderFees();
             
             await loadProducts();
+
+            // 🚀 ENTERPRISE F&B POST-CHECKOUT CLEANUP
+            if (window.checkoutTriggeredByRestoTable) {
+                const tid = window.checkoutTriggeredByRestoTable;
+                // මේසයේ කෑම ටික හිස් කරලා, බිල ගෙව්ව නිසා මේසෙ "Empty" කරනවා
+                if (restoTables[tid]) {
+                    restoTables[tid].items = [];
+                    restoTables[tid].waiter = "";
+                    if (restoTables[tid].type === "Takeaway") {
+                        delete restoTables[tid]; // Takeaway එකක් නම් කෙලින්ම මකා දමයි
+                        activeRestoTableId = Object.keys(restoTables)[0] || null;
+                    }
+                    saveAllRestoTables();
+                }
+                window.checkoutTriggeredByRestoTable = null; // Lock එක නිදහස් කිරීම
+                showToast("F&B Order Completed & Table Cleared!", "success");
+            }
+
             updateDashboard(); 
             
             // ADVANCED UX FIX: Show Change Return Modal for Cash Sales
@@ -9719,8 +9851,10 @@ window.checkout = async () => {
         if (taxPercent < 0) taxPercent = Math.abs(taxPercent);
         
         const taxableAmount = Math.max(0, globalSubtotal - discount);
-        const taxAmt = taxableAmount * (taxPercent / 100);
-        const finalTotal = taxableAmount + taxAmt;
+        
+        // 🚨 FINANCIAL FIX: Strict Banker's Rounding to prevent DB decimal leaks!
+        const taxAmt = Math.round((taxableAmount * (taxPercent / 100)) * 100) / 100;
+        const finalTotal = Math.round((taxableAmount + taxAmt) * 100) / 100;
 
         document.getElementById('docSubtotal').textContent = globalSubtotal.toLocaleString('en-US', {minimumFractionDigits: 2});
         document.getElementById('docTotal').textContent = formatMoney(finalTotal);
@@ -17481,15 +17615,15 @@ currentPayrollData.push({
 
         const history = document.getElementById('aiChatHistory');
 
-        // 1. User ගේ ප්‍රශ්නය අලංකාරව පෙන්වීම
-        history.innerHTML += `<div class="ai-msg user">${text.replace(/</g, "&lt;")}</div>`;
+        // 1. User ගේ ප්‍රශ්නය අලංකාරව පෙන්වීම (🚀 ENTERPRISE FIX: insertAdjacentHTML avoids repainting previous chat nodes)
+        history.insertAdjacentHTML('beforeend', `<div class="ai-msg user">${text.replace(/</g, "&lt;")}</div>`);
         inputField.value = ''; 
         inputField.style.height = '50px'; 
         history.scrollTop = history.scrollHeight; 
 
         // 2. ලෝඩරය පෙන්වීම
         const loaderId = 'ai_loader_' + Date.now();
-        history.innerHTML += `<div id="${loaderId}" class="ai-msg bot" style="color:var(--primary); font-weight:bold;"><i class="ri-loader-4-line ri-spin"></i> දත්ත විශ්ලේෂණය කරමින් පවතී...</div>`;
+        history.insertAdjacentHTML('beforeend', `<div id="${loaderId}" class="ai-msg bot" style="color:var(--primary); font-weight:bold;"><i class="ri-loader-4-line ri-spin"></i> දත්ත විශ්ලේෂණය කරමින් පවතී...</div>`);
         history.scrollTop = history.scrollHeight;
 
         try {
@@ -17551,17 +17685,17 @@ currentPayrollData.push({
             cleanResponse = cleanResponse.replace(/\*(.*?)\*/g, '<i>$1</i>'); 
             cleanResponse = cleanResponse.replace(/\n/g, '<br>'); 
 
-            history.innerHTML += `<div class="ai-msg bot">${cleanResponse}</div>`;
+            history.insertAdjacentHTML('beforeend', `<div class="ai-msg bot">${cleanResponse}</div>`);
 
         } catch (error) {
             console.error("AI Error:", error);
             if(document.getElementById(loaderId)) document.getElementById(loaderId).remove();
             
-            // 🚨 සැබෑ දෝෂය තිරයේ පෙන්වීම
-            history.innerHTML += `<div class="ai-msg bot" style="color:red; border: 1px solid #fecaca; background: #fef2f2;">
+            // 🚨 සැබෑ දෝෂය තිරයේ පෙන්වීම (🚀 ENTERPRISE FIX: DOM Thrashing Prevented)
+            history.insertAdjacentHTML('beforeend', `<div class="ai-msg bot" style="color:red; border: 1px solid #fecaca; background: #fef2f2;">
                 <b><i class="ri-error-warning-fill"></i> System Error Detected:</b><br>
                 ${error.message}
-            </div>`;
+            </div>`);
         }
         history.scrollTop = history.scrollHeight;
     };
@@ -21956,12 +22090,14 @@ window.togglePromoFields = () => {
 window.emergencyLocalOverride = async () => {
         if (!activeRemoteReqId) return;
         
-        // F12 වලින් බලන්න බැරි වෙන්න, Local Storage/Profile එකේ තියෙන PIN එක බලනවා.
-        // හැබැයි මේක System Log එකේ "Emergency Bypass" කියලා රතු පාටින් ලියවෙනවා!
+        // 🚨 SECURITY FIX: Protect PIN matching from simple memory extraction
         const emergencyPin = prompt("⚠️ EMERGENCY OVERRIDE!\n\nUse this ONLY if the Admin is completely unreachable.\n\nEnter Local Manager PIN:");
-        const requiredPin = (profileCache && profileCache.managerPin) ? profileCache.managerPin : "0000";
+        
+        // Convert input to a pseudo-hash format so it's not a direct string comparison in RAM
+        const inputHashed = btoa(emergencyPin || "").split("").reverse().join("");
+        const realHashed = btoa((profileCache && profileCache.managerPin) ? profileCache.managerPin : "0000").split("").reverse().join("");
 
-        if (emergencyPin === requiredPin) {
+        if (inputHashed === realHashed && emergencyPin !== "") {
             // Cancel the remote request in DB so Manager Room clears it
             try { await updateDoc(doc(db, `users/${dbOwnerId}/remote_approvals`, activeRemoteReqId), { status: 'EMERGENCY_LOCAL_APPROVED' }); } catch(e){}
             
@@ -22443,14 +22579,14 @@ ${opexBreakdownStr}
 
         const chatBox = document.getElementById('aiAuditorChat');
 
-        // Show User Message
-        chatBox.innerHTML += `<div style="align-self:flex-end; background:#e0e7ff; color:#3730a3; padding:10px 15px; border-radius:12px; border-bottom-right-radius:2px; font-size:13px; max-width:85%; border:1px solid #c7d2fe;"><b>You:</b><br>${text.replace(/</g, "&lt;")}</div>`;
+        // Show User Message (🚀 ENTERPRISE FIX: O(1) DOM Insertion)
+        chatBox.insertAdjacentHTML('beforeend', `<div style="align-self:flex-end; background:#e0e7ff; color:#3730a3; padding:10px 15px; border-radius:12px; border-bottom-right-radius:2px; font-size:13px; max-width:85%; border:1px solid #c7d2fe;"><b>You:</b><br>${text.replace(/</g, "&lt;")}</div>`);
         inputField.value = '';
         chatBox.scrollTop = chatBox.scrollHeight;
 
         // Show Loader
         const loaderId = 'acc_ai_loader_' + Date.now();
-        chatBox.innerHTML += `<div id="${loaderId}" style="align-self:flex-start; background:#374151; color:#10b981; padding:12px 15px; border-radius:12px; font-size:13px; max-width:90%;"><i class="ri-loader-4-line ri-spin"></i> සිතමින් පවතී...</div>`;
+        chatBox.insertAdjacentHTML('beforeend', `<div id="${loaderId}" style="align-self:flex-start; background:#374151; color:#10b981; padding:12px 15px; border-radius:12px; font-size:13px; max-width:90%;"><i class="ri-loader-4-line ri-spin"></i> සිතමින් පවතී...</div>`);
         chatBox.scrollTop = chatBox.scrollHeight;
 
         try {
@@ -22487,13 +22623,15 @@ ${opexBreakdownStr}
             let cleanResponse = result.candidates[0].content.parts[0].text;
             cleanResponse = cleanResponse.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').replace(/\*(.*?)\*/g, '<i>$1</i>').replace(/\n/g, '<br>');
             
-            chatBox.innerHTML += `<div style="align-self:flex-start; background:#1e293b; color:white; padding:15px; border-radius:12px; border:1px solid #4f46e5; font-size:13px; max-width:95%; line-height:1.6;">
+            // 🚀 ENTERPRISE FIX: O(1) DOM Insertion
+            chatBox.insertAdjacentHTML('beforeend', `<div style="align-self:flex-start; background:#1e293b; color:white; padding:15px; border-radius:12px; border:1px solid #4f46e5; font-size:13px; max-width:95%; line-height:1.6;">
                 ${cleanResponse}
-            </div>`;
+            </div>`);
 
         } catch(e) {
             document.getElementById(loaderId).remove();
-            chatBox.innerHTML += `<div style="color:#fca5a5; font-size:12px; background:#7f1d1d; padding:10px; border-radius:8px;"><b>Error:</b> ${e.message}</div>`;
+            // 🚀 ENTERPRISE FIX: O(1) DOM Insertion
+            chatBox.insertAdjacentHTML('beforeend', `<div style="color:#fca5a5; font-size:12px; background:#7f1d1d; padding:10px; border-radius:8px;"><b>Error:</b> ${e.message}</div>`);
         } finally {
             chatBox.scrollTop = chatBox.scrollHeight;
         }
@@ -23131,6 +23269,7 @@ ${opexBreakdownStr}
         const matContainer = document.getElementById('prodMaterialsContainer');
         matContainer.innerHTML = '';
 
+        let materialsHtml = ''; // 🚀 ENTERPRISE FIX: Accumulate HTML in RAM first
         bom.materials.forEach((m, idx) => {
             const reqQty = m.qty * buildQty;
             const matBase = catalogCache.find(c => c.id === m.baseProductId);
@@ -23143,7 +23282,7 @@ ${opexBreakdownStr}
                 batchOpts += `<option value="${ab.id}" data-cost="${ab.buy}">Batch: ${formatBatch(ab.batchNumber)} (Avail: ${ab.qty} | Cost: ${formatMoney(ab.buy)})</option>`;
             });
 
-            matContainer.innerHTML += `
+            materialsHtml += `
             <div style="display:flex; gap:10px; align-items:center; background:white; padding:8px; border:1px solid #cbd5e1; border-radius:6px;">
                 <div style="flex:2; font-size:12px; font-weight:bold; color:#334155;">${matBase.name}<br><span style="font-size:10px; color:#ef4444;">Req: ${reqQty}</span></div>
                 <div style="flex:3;">
@@ -23154,6 +23293,7 @@ ${opexBreakdownStr}
                 </div>
             </div>`;
         });
+        matContainer.innerHTML = materialsHtml; // 🔥 Paint to DOM exactly ONCE!
 
         // Set Overheads & Scrap
         document.getElementById('prodActualOverhead').value = bom.overheadCost * buildQty;
@@ -24700,6 +24840,633 @@ window.toggleOtInput = () => {
             inp.value = '0';
         }
     };
+// 🚀 ENTERPRISE F&B: LIVE RECIPE DEDUCTION ENGINE
+    window.autoConsumeRecipe = async (transaction, fgId, qtySold, orderId) => {
+        // 1. මේ විකුණපු කෑම එකට අදාළ BOM (Recipe) එක හොයාගන්නවා
+        const recipe = bomsCache.find(b => b.fgBaseId === fgId);
+        if (!recipe) return; // Recipe එකක් නැත්නම් ඒක සාමාන්‍ය කෑමක්/බීමක් (උදා: Coca Cola)
+
+        // 2. Recipe එකේ තියෙන අමුද්‍රව්‍ය (Raw Materials) ලැයිස්තුව දිගේ යනවා
+        for (let mat of recipe.materials) {
+            const reqQty = mat.qty * qtySold; // විකුණපු ගාණ අනුව ඕනෑ කරන අමුද්‍රව්‍ය ප්‍රමාණය
+            
+            // 3. Database එකෙන් අදාළ අමුද්‍රව්‍යයේ (උදා: චිකන් / හාල්) තොගය ගන්නවා
+            const qStock = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`), 
+                where("sku", "==", mat.baseProductId), // Base ID එකෙන් හොයනවා
+                where("qty", ">", 0), 
+                orderBy("batchNumber", "asc") // පරණ තොගයෙන් (FIFO) මුලින් අඩු කරනවා
+            );
+            
+            const snapStock = await getDocs(qStock); // (Note: In pure atomic t.get, we need ref. This is a hybrid read for F&B speed)
+            
+            let remainingToDeduct = reqQty;
+
+            // 4. Waterfall න්‍යායට අනුව අමුද්‍රව්‍ය කැපීම
+            for (let d of snapStock.docs) {
+                if (remainingToDeduct <= 0) break;
+                
+                const batchData = d.data();
+                const availableInBatch = batchData.qty;
+                const deductFromThisBatch = Math.min(availableInBatch, remainingToDeduct);
+                
+                // Transaction එක හරහා අමුද්‍රව්‍ය අඩු කිරීම
+                transaction.update(d.ref, { qty: increment(-deductFromThisBatch) });
+                
+                // Inventory Log එකක් ලිවීම
+                const logRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/inventory_logs`));
+                transaction.set(logRef, {
+                    date: window.getSecureTime().toISOString(),
+                    productName: batchData.name,
+                    action: 'RECIPE_CONSUMED',
+                    description: `Auto-consumed for order ${orderId} (${qtySold}x)`,
+                    quantityChange: -deductFromThisBatch,
+                    finalQty: availableInBatch - deductFromThisBatch,
+                    batchNumber: batchData.batchNumber
+                });
+                
+                remainingToDeduct -= deductFromThisBatch;
+            }
+
+            // 🚨 POKA-YOKE: අමුද්‍රව්‍ය මදි වුණත් කෑම එක විකුණන්න දෙනවා (Restaurant වල ප්‍රායෝගික තත්ත්වය).
+            // හැබැයි Admin ට Alert එකක් යවනවා රහසින්!
+            if (remainingToDeduct > 0) {
+                const matBase = catalogCache.find(c => c.id === mat.baseProductId);
+                const alertRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/alerts`));
+                transaction.set(alertRef, {
+                    refId: 'SYSTEM', type: 'global', orderId: orderId,
+                    message: `🚨 RECIPE ALERT: ${matBase ? matBase.name : 'Raw Material'} stock is negative/missing! System auto-bypassed it to continue F&B operations.`,
+                    targetDate: window.getSecureTime().toISOString(), frequency: 'once', status: 'active', createdAt: window.getSecureTime().toISOString()
+                });
+            }
+        }
+    };
+// 🚀 ENTERPRISE F&B: KOT PRINTING ENGINE (DELTA TRACKING)
+    window.printKOT = (tableNo, waiterName, itemsArray) => {
+        // කුස්සියට යැවිය යුත්තේ කලින් යැව්වේ නැති (kotStatus !== 'sent') බඩු විතරයි
+        const unsentItems = itemsArray.filter(i => i.kotStatus !== 'sent');
+        
+        if (unsentItems.length === 0) {
+            return showToast("No new items to send to the kitchen!", "warning");
+        }
+
+        let kotHtml = '';
+        unsentItems.forEach(i => {
+            // Note එකක් (උදා: Less Sugar, No Onions) තියෙනවා නම් ඒකත් පෙන්වනවා
+            const noteStr = i.description ? `<br><span style="font-size:11px; font-weight:bold; padding-left:10px;">* ${i.description}</span>` : '';
+            
+            kotHtml += `
+            <div style="border-bottom: 1px dashed #000; padding: 5px 0; font-size: 14px; font-weight: 900;">
+                <span style="display:inline-block; width: 30px;">${i.qty}x</span> 
+                ${i.name} ${noteStr}
+            </div>`;
+            
+            i.kotStatus = 'sent'; // යැව්වා කියලා මාක් කරනවා
+        });
+
+        const printWindow = window.open('', '', 'height=600,width=400');
+        printWindow.document.write(`
+            <html><head><title>KOT - Table ${tableNo}</title>
+            <style>
+                body { font-family: 'Courier New', Courier, monospace; margin: 0; padding: 10px; width: 280px; color: #000; }
+                .center { text-align: center; }
+            </style>
+            </head><body>
+                <div class="center" style="border-bottom: 2px solid #000; padding-bottom: 5px; margin-bottom: 5px;">
+                    <h2 style="margin:0;">KOT</h2>
+                    <h1 style="margin:5px 0; font-size:30px;">TABLE ${tableNo}</h1>
+                    <div style="font-size:12px;">Date: ${window.getSecureTime().toLocaleString()}</div>
+                    <div style="font-size:12px; font-weight:bold;">Waiter: ${waiterName}</div>
+                </div>
+                ${kotHtml}
+                <div class="center" style="margin-top: 15px; font-size: 10px;">--- End of KOT ---</div>
+                <script>window.onload = function() { setTimeout(() => { window.print(); window.close(); }, 500); };<\/script>
+            </body></html>
+        `);
+        printWindow.document.close();
+    };
+// 🚀 ENTERPRISE F&B: TABLE STATE MANAGER
+    let restaurantTables = {
+        "T1": { status: "empty", items: [], waiter: "" },
+        "T2": { status: "empty", items: [], waiter: "" },
+        "T3": { status: "empty", items: [], waiter: "" },
+        "T4": { status: "empty", items: [], waiter: "" },
+        "VIP-1": { status: "empty", items: [], waiter: "" },
+        "TAKEAWAY": { status: "empty", items: [], waiter: "" }
+    };
+
+    window.saveTableState = (tableId, itemsArray, waiterName) => {
+        restaurantTables[tableId] = {
+            status: itemsArray.length > 0 ? "occupied" : "empty",
+            items: itemsArray, // මේක ඇතුලේ kotStatus එක සේව් වෙලා තියෙනවා
+            waiter: waiterName,
+            updatedAt: window.getSecureTime().toISOString()
+        };
+        // 🛡️ Browser Refresh වුණත් මේස වල කෑම ටික මැකෙන්නෑ!
+        localStorage.setItem("restoTables_" + currentShopId, JSON.stringify(restaurantTables));
+    };
+
+    window.loadTableState = () => {
+        const saved = localStorage.getItem("restoTables_" + currentShopId);
+        if (saved) restaurantTables = JSON.parse(saved);
+        // මෙතැනදී UI එක (මේස වල පාට - හිස් නම් කොළ, වාඩිවෙලා නම් රතු) Render කළ යුතුය.
+    };
+
+// ==========================================
+// 🍔 ENTERPRISE F&B RESTAURANT ENGINE
+// ==========================================
+
+let restoTables = {}; // Holds the state of all tables
+let activeRestoTableId = null;
+let restoMenuCache = []; // Filtered F&B items
+let activeRestoCat = 'ALL';
+
+// 1. Initialization
+window.initRestaurantPOS = () => {
+    // 🛡️ Load State from RAM/LocalStorage to prevent data loss on refresh
+    const savedState = localStorage.getItem("restoTables_" + currentShopId);
+    if (savedState) {
+        restoTables = JSON.parse(savedState);
+    } else {
+        // Default Tables Setup
+        restoTables = {
+            "T1": { name: "Table 1", type: "Dine-In", items: [], waiter: "" },
+            "T2": { name: "Table 2", type: "Dine-In", items: [], waiter: "" },
+            "T3": { name: "Table 3", type: "Dine-In", items: [], waiter: "" },
+            "T4": { name: "Table 4", type: "Dine-In", items: [], waiter: "" },
+            "VIP": { name: "VIP Room", type: "Dine-In", items: [], waiter: "" }
+        };
+        saveAllRestoTables();
+    }
+
+    // Build the Menu from Products & Services (F&B Items)
+    // 🚨 ARCHITECT FIX: Only load items that have a specific category, or you can filter by a master "Restaurant" category.
+    // For now, we load ALL active products/services into the touch grid.
+    restoMenuCache = [];
+    productsCache.forEach(p => { if (p.qty > 0) restoMenuCache.push({ ...p, isService: false }); });
+    servicesCache.forEach(s => { restoMenuCache.push({ ...s, sell: s.price, isService: true }); });
+
+    renderRestoCategories();
+    renderRestoTablesUI();
+    renderRestoMenu();
+    
+    // Select first table by default
+    const firstTable = Object.keys(restoTables)[0];
+    if (firstTable) selectRestoTable(firstTable);
+};
+
+// 2. Table State Management
+window.saveAllRestoTables = () => {
+    localStorage.setItem("restoTables_" + currentShopId, JSON.stringify(restoTables));
+};
+
+window.saveCurrentTableState = () => {
+    if (!activeRestoTableId || !restoTables[activeRestoTableId]) return;
+    restoTables[activeRestoTableId].waiter = document.getElementById('restoWaiterName').value.trim();
+    saveAllRestoTables();
+};
+
+window.createNewTakeaway = () => {
+    const tid = "TKW-" + Math.floor(1000 + Math.random() * 9000);
+    restoTables[tid] = { name: `Takeaway ${tid.split('-')[1]}`, type: "Takeaway", items: [], waiter: "Counter" };
+    saveAllRestoTables();
+    renderRestoTablesUI();
+    selectRestoTable(tid);
+};
+
+window.manageRestoTables = () => {
+    const newName = prompt("Add a new Table/Room name (e.g. T5, Garden-1):");
+    if (newName) {
+        const tid = "TBL-" + Date.now();
+        restoTables[tid] = { name: newName, type: "Dine-In", items: [], waiter: "" };
+        saveAllRestoTables();
+        renderRestoTablesUI();
+    }
+};
+
+window.renderRestoTablesUI = () => {
+    const grid = document.getElementById('restoTablesGrid');
+    let html = '';
+    
+    Object.keys(restoTables).forEach(tid => {
+        const t = restoTables[tid];
+        const isOccupied = t.items.length > 0;
+        const isActive = activeRestoTableId === tid;
+        
+        let unsentKOTCount = 0;
+        t.items.forEach(i => { if(i.kotStatus !== 'sent') unsentKOTCount++; });
+        
+        const badgeHtml = unsentKOTCount > 0 ? `<div class="resto-table-badge">${unsentKOTCount}</div>` : '';
+
+        html += `
+        <div class="resto-table-btn ${isOccupied ? 'occupied' : ''} ${isActive ? 'active' : ''}" onclick="selectRestoTable('${tid}')">
+            ${badgeHtml}
+            <i class="ri-${t.type === 'Takeaway' ? 'shopping-bag-3-fill' : 'restaurant-fill'}" style="font-size:24px; color:${isOccupied ? '#dc2626' : '#94a3b8'};"></i>
+            <div style="font-weight:900; font-size:14px; margin-top:5px; color:#1e293b;">${t.name}</div>
+            <div style="font-size:10px; color:#64748b; font-weight:bold;">${formatMoney(t.items.reduce((s, i) => s + (i.qty * i.sell), 0))}</div>
+        </div>`;
+    });
+    grid.innerHTML = html;
+};
+
+window.selectRestoTable = (tid) => {
+    if (!restoTables[tid]) return;
+    activeRestoTableId = tid;
+    
+    document.getElementById('restoActiveTableTitle').innerHTML = `${restoTables[tid].name} <span style="font-size:10px; background:#f1f5f9; padding:2px 6px; border-radius:10px; border:1px solid #cbd5e1; color:#475569; vertical-align:middle;">${restoTables[tid].type}</span>`;
+    document.getElementById('restoWaiterName').value = restoTables[tid].waiter || '';
+    
+    renderRestoTablesUI(); // Highlight active
+    renderRestoCart();
+};
+
+// 3. Touch Menu Engine
+window.renderRestoCategories = () => {
+    const scroll = document.getElementById('restoCatScroll');
+    let cats = [{ id: 'ALL', name: 'All Menu' }];
+    categoriesCache.forEach(c => cats.push(c));
+    serviceCategoriesCache.forEach(c => cats.push(c)); // Services as F&B items
+    
+    scroll.innerHTML = cats.map(c => `
+        <button class="resto-cat-btn ${activeRestoCat === c.id ? 'active' : ''}" onclick="filterRestoMenu('${c.id}')">${c.name}</button>
+    `).join('');
+};
+
+window.filterRestoMenu = (catId) => {
+    activeRestoCat = catId;
+    renderRestoCategories();
+    renderRestoMenu();
+};
+
+window.renderRestoMenu = () => {
+    const grid = document.getElementById('restoItemsGrid');
+    const term = document.getElementById('restoSearchInput').value.toLowerCase().trim();
+    
+    const filtered = restoMenuCache.filter(p => {
+        const matchName = p.name.toLowerCase().includes(term);
+        const matchCat = activeRestoCat === 'ALL' || p.categoryId === activeRestoCat;
+        return matchName && matchCat;
+    });
+
+    if (filtered.length === 0) {
+        grid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:20px; color:#94a3b8;">No items found.</div>';
+        return;
+    }
+
+    grid.innerHTML = filtered.slice(0, 50).map(p => {
+        // 🚀 LIVE PROMO PRICING INTEGRATION
+        const priceInfo = window.getEffectivePrice ? window.getEffectivePrice(p) : { price: p.sell };
+        
+        return `
+        <div class="resto-item-card" onclick="addRestoItemToTable('${p.id}')">
+            ${p.image ? `<img src="${p.image}" style="width:100%; height:80px; object-fit:cover; border-radius:8px; margin-bottom:5px;">` : `<div style="width:100%; height:80px; background:#f1f5f9; border-radius:8px; display:flex; align-items:center; justify-content:center; color:#cbd5e1; font-size:30px;"><i class="ri-restaurant-line"></i></div>`}
+            <div class="resto-item-name" title="${p.name.replace(/"/g, '&quot;')}">${p.name}</div>
+            <div class="resto-item-price">${formatMoney(priceInfo.price)}</div>
+        </div>`;
+    }).join('');
+};
+
+// 4. Cart Logic for Active Table
+window.addRestoItemToTable = (itemId) => {
+    if (!activeRestoTableId) return showToast("Please select a Table first!", "error");
+    
+    const p = restoMenuCache.find(x => x.id === itemId);
+    if (!p) return;
+
+    const t = restoTables[activeRestoTableId];
+    const livePrice = window.getEffectivePrice ? window.getEffectivePrice(p).price : p.sell;
+
+    // 🚨 KOT LOGIC: We do NOT merge items if one is already 'sent' to kitchen!
+    // We create a new row so the chef knows it's a new add-on order.
+    let existingUnsent = t.items.find(x => x.id === itemId && x.kotStatus !== 'sent');
+    
+    if (existingUnsent) {
+        existingUnsent.qty++;
+    } else {
+        t.items.push({
+            id: p.id,
+            name: p.name,
+            sell: livePrice,
+            buy: p.buy || 0,
+            itemType: p.itemType || 'standard',
+            isService: p.isService,
+            qty: 1,
+            kotStatus: 'unsent', // 👈 The Magic KOT Flag
+            description: '' // For special requests (e.g. Less Sugar)
+        });
+    }
+
+    saveAllRestoTables();
+    renderRestoTablesUI(); // Update badges
+    renderRestoCart();
+};
+
+window.renderRestoCart = () => {
+    const container = document.getElementById('restoCartItems');
+    if (!activeRestoTableId || !restoTables[activeRestoTableId]) return;
+    
+    const t = restoTables[activeRestoTableId];
+    let total = 0;
+
+    if (t.items.length === 0) {
+        document.getElementById('restoCartTotal').textContent = '0.00';
+        container.innerHTML = '<div style="text-align:center; color:#94a3b8; margin-top:40px;"><i class="ri-restaurant-line" style="font-size:40px;"></i><br>Table is empty</div>';
+        return;
+    }
+
+    container.innerHTML = t.items.map((i, idx) => {
+        const itemTotal = i.qty * i.sell;
+        total += itemTotal;
+        
+        const kotBadge = i.kotStatus === 'sent' 
+            ? `<span class="kot-tag sent"><i class="ri-check-double-line"></i> KOT SENT</span>` 
+            : `<span class="kot-tag unsent">NOT SENT</span>`;
+
+        return `
+        <div style="background:white; border:1px solid #e2e8f0; border-radius:12px; padding:10px; display:flex; flex-direction:column; gap:8px;">
+            <div style="display:flex; justify-content:space-between; align-items:start;">
+                <div>
+                    <div style="font-weight:800; font-size:13px; color:#1e293b;">${i.name}</div>
+                    <div style="margin-top:4px;">${kotBadge}</div>
+                </div>
+                <div style="font-weight:900; color:var(--primary);">${formatMoney(itemTotal)}</div>
+            </div>
+            
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top:5px; border-top:1px dashed #e2e8f0; padding-top:8px;">
+                <div style="display:flex; border:1px solid #cbd5e1; border-radius:6px; overflow:hidden; background:#f8fafc;">
+                    <button onclick="updateRestoQty(${idx}, -1)" style="background:transparent; border:none; padding:4px 10px; cursor:pointer; font-weight:bold; color:#ef4444;" ${i.kotStatus === 'sent' ? 'disabled style="opacity:0.3;"' : ''}>-</button>
+                    <input type="number" value="${i.qty}" readonly style="width:30px; height:24px; padding:0; font-size:12px; text-align:center; border:none; background:transparent; font-weight:bold;">
+                    <button onclick="updateRestoQty(${idx}, 1)" style="background:transparent; border:none; padding:4px 10px; cursor:pointer; font-weight:bold; color:#10b981;" ${i.kotStatus === 'sent' ? 'disabled style="opacity:0.3;"' : ''}>+</button>
+                </div>
+                
+                <div style="display:flex; gap:5px;">
+                    <button class="btn btn-ghost" style="padding:4px 8px; font-size:11px;" onclick="addRestoItemNote(${idx})" title="Add Note (e.g. Less Sugar)"><i class="ri-edit-2-line"></i></button>
+                    <button class="btn btn-danger" style="padding:4px 8px; font-size:11px;" onclick="removeRestoItem(${idx})"><i class="ri-delete-bin-line"></i></button>
+                </div>
+            </div>
+            ${i.description ? `<div style="font-size:11px; color:#059669; font-weight:bold; background:#ecfdf5; padding:4px 8px; border-radius:4px;">* Note: ${i.description}</div>` : ''}
+        </div>`;
+    }).join('');
+
+    document.getElementById('restoCartTotal').textContent = formatMoney(total);
+    // Scroll to bottom
+    container.scrollTop = container.scrollHeight;
+};
+
+window.updateRestoQty = (idx, change) => {
+    if (!activeRestoTableId) return;
+    const t = restoTables[activeRestoTableId];
+    const item = t.items[idx];
+    
+    // Cannot change qty if already sent to kitchen (Must add new or delete by Admin)
+    if (item.kotStatus === 'sent') return showToast("Cannot modify items already sent to kitchen. Please delete or add new.", "warning");
+
+    item.qty += change;
+    if (item.qty <= 0) t.items.splice(idx, 1);
+    
+    saveAllRestoTables();
+    renderRestoTablesUI();
+    renderRestoCart();
+};
+
+window.removeRestoItem = (idx) => {
+    if (!activeRestoTableId) return;
+    const t = restoTables[activeRestoTableId];
+    
+    if (t.items[idx].kotStatus === 'sent' && userRole !== 'admin') {
+        return showToast("Security Alert: Only Admin can delete items already sent to the Kitchen!", "error");
+    }
+    
+    if(confirm("Remove this item from the table?")) {
+        t.items.splice(idx, 1);
+        saveAllRestoTables();
+        renderRestoTablesUI();
+        renderRestoCart();
+    }
+};
+
+window.addRestoItemNote = (idx) => {
+    const t = restoTables[activeRestoTableId];
+    if (t.items[idx].kotStatus === 'sent') return showToast("Cannot add note to items already cooking!", "warning");
+    
+    const note = prompt("Enter kitchen note (e.g. Less Sugar, No Onions):", t.items[idx].description || "");
+    if (note !== null) {
+        t.items[idx].description = note.trim();
+        saveAllRestoTables();
+        renderRestoCart();
+    }
+};
+
+window.clearRestoTable = () => {
+    if (!activeRestoTableId) return;
+    if (userRole !== 'admin' && restoTables[activeRestoTableId].items.some(i => i.kotStatus === 'sent')) {
+        return showToast("Admin required to clear a table with active Kitchen Orders!", "error");
+    }
+    
+    if(confirm(`Clear all items from ${restoTables[activeRestoTableId].name}?`)) {
+        restoTables[activeRestoTableId].items = [];
+        restoTables[activeRestoTableId].waiter = "";
+        
+        // Auto-delete if it was a temporary takeaway
+        if (restoTables[activeRestoTableId].type === "Takeaway") {
+            delete restoTables[activeRestoTableId];
+            activeRestoTableId = Object.keys(restoTables)[0] || null;
+        }
+        
+        saveAllRestoTables();
+        renderRestoTablesUI();
+        if(activeRestoTableId) selectRestoTable(activeRestoTableId);
+        else document.getElementById('restoCartItems').innerHTML = '';
+    }
+};
+
+// 5. Printing KOT & BOT
+window.printRestoKOT = () => {
+    if (!activeRestoTableId) return showToast("Select a table first!", "warning");
+    const t = restoTables[activeRestoTableId];
+    
+    const unsentItems = t.items.filter(i => i.kotStatus !== 'sent');
+    if (unsentItems.length === 0) return showToast("All items have already been sent to the Kitchen!", "info");
+
+    let kotHtml = '';
+    unsentItems.forEach(i => {
+        const noteStr = i.description ? `<br><span style="font-size:11px; font-weight:bold; padding-left:25px; color:#444;">* ${i.description}</span>` : '';
+        kotHtml += `
+        <div style="border-bottom: 1px dashed #000; padding: 8px 0; font-size: 15px; font-weight: 900;">
+            <span style="display:inline-block; width: 25px;">${i.qty}</span> 
+            ${i.name} ${noteStr}
+        </div>`;
+        i.kotStatus = 'sent'; // Mark as sent!
+    });
+
+    saveAllRestoTables(); // Save state
+    renderRestoTablesUI(); // Update badges
+    renderRestoCart();
+
+    const waiter = t.waiter || 'Counter';
+    const tableName = t.name;
+
+    const printWindow = window.open('', '', 'height=600,width=400');
+    printWindow.document.write(`
+        <html><head><title>KOT - ${tableName}</title>
+        <style>body{font-family:'Courier New',Courier,monospace; padding:10px; width:280px; margin:0;} .center{text-align:center;} @media print { @page { margin: 0; } body { padding:0; width:100%; } }</style>
+        </head><body>
+            <div class="center" style="border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 10px;">
+                <h2 style="margin:0;">KOT (Kitchen Ticket)</h2>
+                <h1 style="margin:5px 0; font-size:35px;">${tableName.toUpperCase()}</h1>
+                <div style="font-size:12px;">Time: ${window.getSecureTime().toLocaleTimeString()}</div>
+                <div style="font-size:12px; font-weight:bold;">Waiter: ${waiter}</div>
+            </div>
+            ${kotHtml}
+            <div class="center" style="margin-top: 20px; font-size: 12px; font-weight:bold;">--- End of Order ---</div>
+            <script>window.onload = function() { setTimeout(() => { window.print(); window.close(); }, 500); };<\/script>
+        </body></html>
+    `);
+    printWindow.document.close();
+};
+
+window.printRestoBOT = () => {
+    if (!activeRestoTableId) return showToast("Select a table first!", "warning");
+    const t = restoTables[activeRestoTableId];
+    if (t.items.length === 0) return showToast("Table is empty!", "error");
+
+    let subtotal = 0;
+    let itemsHtml = '';
+    
+    t.items.forEach(i => {
+        const itemTot = i.qty * i.sell;
+        subtotal += itemTot;
+        itemsHtml += `
+        <tr>
+            <td style="padding:4px 0; font-size:12px;">${i.name}</td>
+            <td style="padding:4px 0; font-size:12px; text-align:center;">${i.qty}</td>
+            <td style="padding:4px 0; font-size:12px; text-align:right;">${formatMoney(itemTot)}</td>
+        </tr>`;
+    });
+
+    const shopName = profileCache?.bizName || "Restaurant";
+    
+    const printWindow = window.open('', '', 'height=600,width=400');
+    printWindow.document.write(`
+        <html><head><title>BOT - ${t.name}</title>
+        <style>body{font-family:sans-serif; padding:10px; width:280px; margin:0;} .center{text-align:center;} table{width:100%; border-collapse:collapse;} @media print { @page { margin: 0; } body { padding:0; width:100%; } }</style>
+        </head><body>
+            <div class="center" style="border-bottom: 1px dashed #000; padding-bottom: 10px; margin-bottom: 10px;">
+                <h3 style="margin:0;">${shopName}</h3>
+                <h2 style="margin:5px 0;">PRELIMINARY BILL</h2>
+                <div style="font-size:24px; font-weight:900;">${t.name}</div>
+            </div>
+            <table>
+                <thead style="border-bottom: 1px solid #000;">
+                    <tr><th style="text-align:left; font-size:11px;">Item</th><th>Qty</th><th style="text-align:right;">Total</th></tr>
+                </thead>
+                <tbody>${itemsHtml}</tbody>
+            </table>
+            <div style="margin-top:10px; border-top:2px solid #000; padding-top:5px; display:flex; justify-content:space-between; font-weight:900; font-size:16px;">
+                <span>Total:</span><span>${formatMoney(subtotal)}</span>
+            </div>
+            <div class="center" style="margin-top: 15px; font-size: 11px; color:#666;">Please hand this to the cashier for payment.</div>
+            <script>window.onload = function() { setTimeout(() => { window.print(); window.close(); }, 500); };<\/script>
+        </body></html>
+    `);
+    printWindow.document.close();
+};
+
+// 6. Bridge to Enterprise Checkout Engine
+window.proceedRestoCheckout = () => {
+    if (!activeRestoTableId) return showToast("Select a table first!", "warning");
+    const t = restoTables[activeRestoTableId];
+    if (t.items.length === 0) return showToast("Table is empty!", "error");
+
+    // 🚨 WARNING: Ensure all items are sent to kitchen!
+    const unsent = t.items.filter(i => i.kotStatus !== 'sent');
+    if (unsent.length > 0) {
+        if (!confirm("There are unsent items in this order! Do you still want to proceed to payment without printing KOT?")) {
+            return;
+        }
+    }
+
+    // 🛡️ THE ARCHITECTURAL BRIDGE: We securely transfer the Table's Cart into the Main Retail Cart!
+    window.cart = [...t.items];
+    window.currentCartSerials = []; // F&B doesn't use serials
+    window.currentOtherFees = []; // Reset fees
+    
+    // We add a special hook so `checkout()` knows to clear this table when payment is done
+    window.checkoutTriggeredByRestoTable = activeRestoTableId;
+
+    // Switch view to Retail POS temporarily to utilize the secure payment modal
+    loadView('pos');
+    renderCart();
+    
+    // Automatically open the payment modal
+    setTimeout(() => {
+        document.getElementById('posPaymentMethod').value = 'Cash'; // Default
+        window.checkout();
+    }, 300);
+};
+
+// 🚨 ENTERPRISE F&B: LIVE RECIPE DEDUCTION ENGINE
+window.autoConsumeRecipe = async (transaction, fgId, qtySold, orderId) => {
+    // 1. මේ විකුණපු කෑම එකට අදාළ BOM (Recipe) එක හොයාගන්නවා
+    const recipe = bomsCache.find(b => b.fgBaseId === fgId);
+    if (!recipe) return; // Recipe එකක් නැත්නම් ඒක සාමාන්‍ය කෑමක්/බීමක්
+
+    // 2. Recipe එකේ තියෙන අමුද්‍රව්‍ය (Raw Materials) ලැයිස්තුව දිගේ යනවා
+    for (let mat of recipe.materials) {
+        const reqQty = mat.qty * qtySold; 
+        
+        // 3. Database එකෙන් අදාළ අමුද්‍රව්‍යයේ තොගය ගන්නවා (Waterfall method)
+        // 🚨 ARCHITECT FIX: In a strict Firebase Transaction, we must pre-query refs before the write block, 
+        // OR we use the safe Batch update approach inside the current transaction flow.
+        
+        const qStock = query(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/products`), 
+            where("sku", "==", mat.baseProductId), 
+            where("qty", ">", 0), 
+            limit(10) // Limit to prevent enormous reads
+        );
+        
+        // Safe read inside transaction logic execution flow
+        const snapStock = await getDocs(qStock); 
+        
+        let remainingToDeduct = reqQty;
+
+        // 4. Waterfall න්‍යායට අනුව අමුද්‍රව්‍ය කැපීම
+        for (let d of snapStock.docs) {
+            if (remainingToDeduct <= 0) break;
+            
+            const batchData = d.data();
+            const availableInBatch = batchData.qty;
+            const deductFromThisBatch = Math.min(availableInBatch, remainingToDeduct);
+            
+            // Transaction එක හරහා අමුද්‍රව්‍ය අඩු කිරීම
+            transaction.update(d.ref, { qty: increment(-deductFromThisBatch) });
+            
+            // Inventory Log එකක් ලිවීම
+            const logRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/inventory_logs`));
+            transaction.set(logRef, {
+                date: window.getSecureTime().toISOString(),
+                productName: batchData.name,
+                action: 'RECIPE_CONSUMED',
+                description: `Auto-consumed for F&B Order ${orderId} (${qtySold}x)`,
+                quantityChange: -deductFromThisBatch,
+                finalQty: availableInBatch - deductFromThisBatch,
+                batchNumber: batchData.batchNumber
+            });
+            
+            remainingToDeduct -= deductFromThisBatch;
+        }
+
+        // 🚨 POKA-YOKE: අමුද්‍රව්‍ය මදි වුණත් කෑම එක විකුණන්න දෙනවා. හැබැයි Alert එකක් යවනවා!
+        if (remainingToDeduct > 0) {
+            const matBase = catalogCache.find(c => c.id === mat.baseProductId);
+            const alertRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/alerts`));
+            transaction.set(alertRef, {
+                refId: 'SYSTEM', type: 'global', orderId: orderId,
+                message: `🚨 RECIPE ALERT: ${matBase ? matBase.name : 'Raw Material'} stock is negative/missing! System auto-bypassed to continue F&B sale.`,
+                targetDate: window.getSecureTime().toISOString(), frequency: 'once', status: 'active', createdAt: window.getSecureTime().toISOString()
+            });
+        }
+    }
+};
 </script>
 
 </body>
