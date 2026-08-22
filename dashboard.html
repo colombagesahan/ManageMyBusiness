@@ -6192,6 +6192,124 @@ customPayments: window.customPaymentsCache || [],
         return isNaN(num) ? `${currentCurrency}0.00` : `${currentCurrency}${num.toFixed(2)}`;
     };
 
+    // 🛡️ ENTERPRISE FIX: Bulletproof Floating-Point Rounding Engine (Prevents JavaScript Math Leaks)
+    window.secureRound = (num) => {
+        return Math.round((num + Number.EPSILON) * 100) / 100;
+    };
+
+    // 🛡️ ENTERPRISE SECURITY FIX: Global XSS Sanitizer Engine
+    // (Prevents malicious scripts from executing in the DOM)
+    window.escapeHTML = (str) => {
+        if (str === null || str === undefined) return '';
+        return String(str).replace(/[&<>'"]/g, 
+            tag => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                "'": '&#39;',
+                '"': '&quot;'
+            }[tag] || tag)
+        );
+    };
+
+    // 🚀 ENTERPRISE FIX: Centralized POS Financial Math Engine (DRY Principle)
+    // මේකෙන් පස්සේ Cart එකේ ගණන් හැදෙන්නේ මේ තනි Function එකෙන් විතරයි!
+    window.calculateCartFinancials = () => {
+        let subtotal = cart.reduce((a, b) => a + window.secureRound(b.effectiveSell * b.qty), 0);
+        
+        let bundleDiscountAmt = 0;
+        const nowMs = window.getSecureTime().getTime();
+        let discountedCrossSellTargets = {};
+
+        cart.forEach(item => {
+            const batch = productsCache.find(p => p.id === item.id);
+            if (!batch || !batch.promoEnd) return;
+            if (new Date(batch.promoEnd).getTime() <= nowMs) return;
+
+            if (batch.promoStrategy === 'bogo') {
+                const bQty = parseInt(batch.promoBuyQty) || 0;
+                const fQty = parseInt(batch.promoFreeQty) || 0;
+                if (bQty > 0 && fQty > 0) {
+                    const totalReq = bQty + fQty;
+                    const dealCount = Math.floor(item.qty / totalReq);
+                    if (dealCount > 0) bundleDiscountAmt += window.secureRound(dealCount * fQty * batch.sell);
+                }
+            } else if (batch.promoStrategy === 'cross_sell') {
+                const targetName = batch.promoTargetName;
+                const targetPerc = parseFloat(batch.promoTargetPerc) || 0;
+                if (targetName && targetPerc > 0) {
+                    const targetItemsInCart = cart.filter(c => c.name === targetName);
+                    let targetEligibleQty = targetItemsInCart.reduce((sum, t) => sum + t.qty, 0);
+                    const alreadyDiscounted = discountedCrossSellTargets[targetName] || 0;
+                    const applicableQty = Math.min(item.qty, targetEligibleQty - alreadyDiscounted);
+
+                    if (applicableQty > 0 && targetItemsInCart.length > 0) {
+                        bundleDiscountAmt += window.secureRound(targetItemsInCart[0].sell * (targetPerc / 100) * applicableQty);
+                        discountedCrossSellTargets[targetName] = alreadyDiscounted + applicableQty; 
+                    }
+                }
+            }
+        });
+
+        // 🛡️ PRATHI-THARKA FIX: Track intended discount vs applied discount separately!
+        let discountVal = bundleDiscountAmt; 
+        let discountAmt = bundleDiscountAmt;
+        let discountType = bundleDiscountAmt > 0 ? 'bundle/promo' : 'none';
+
+        if (profileCache && profileCache.autoDiscEnabled) {
+            const thresh = parseFloat(profileCache.autoDiscThreshold) || 0;
+            const dVal = parseFloat(profileCache.autoDiscValue) || 0;
+            const netSubtotalForThreshold = subtotal - bundleDiscountAmt;
+            
+            if (netSubtotalForThreshold >= thresh && thresh > 0 && dVal > 0) {
+                discountType = discountType === 'none' ? profileCache.autoDiscType : 'mixed';
+                discountVal += dVal; // Track raw intended value
+                
+                if (profileCache.autoDiscType === 'percent') {
+                    discountAmt += window.secureRound((netSubtotalForThreshold * dVal) / 100);
+                } else {
+                    discountAmt += window.secureRound(dVal);
+                }
+            }
+        }
+        
+        // Failsafe: Actual discount cannot exceed subtotal
+        if (discountAmt > subtotal) discountAmt = subtotal;
+
+        let feesTotal = window.secureRound(currentOtherFees.reduce((sum, f) => sum + f.amount, 0));
+        
+        let taxAmt = 0;
+        let taxPercentSaved = 0;
+        if (profileCache && profileCache.taxEnabled) {
+            taxPercentSaved = parseFloat(profileCache.taxPercent) || 0;
+            const taxableBase = window.secureRound(subtotal - discountAmt + feesTotal);
+            taxAmt = window.secureRound(taxableBase * (taxPercentSaved / 100));
+        }
+
+        const paymentMethod = document.getElementById('posPaymentMethod') ? document.getElementById('posPaymentMethod').value : 'Cash';
+        let surchargeAmt = 0;
+        let gatewayExpenseAmt = 0;
+        const customP = (window.customPaymentsCache || []).find(c => c.name === paymentMethod);
+        
+        if (customP && customP.fee > 0) {
+            const preSurchargeTotal = window.secureRound(subtotal - discountAmt + feesTotal + taxAmt);
+            const calculatedFee = window.secureRound(preSurchargeTotal * (customP.fee / 100));
+            
+            if (customP.strategy === 'surcharge') {
+                surchargeAmt = calculatedFee; 
+            } else if (customP.strategy === 'expense') {
+                gatewayExpenseAmt = calculatedFee;
+            }
+        }
+
+        let total = window.secureRound(subtotal - discountAmt + feesTotal + taxAmt + surchargeAmt);
+        if (total < 0) total = 0;
+
+        return {
+            subtotal, bundleDiscountAmt, discountVal, discountAmt, discountType, feesTotal, taxAmt, taxPercentSaved, surchargeAmt, gatewayExpenseAmt, total
+        };
+    };
+
 
     // --- 0. CATEGORY LOGIC ---
     async function loadCategories() {
@@ -8369,9 +8487,9 @@ window.onTransferProductSelect = () => {
                 if (priceInfo.isPromo) hasPromoItem = true;
                 if (priceInfo.hasAdminDisc) hasItemDiscount = true;
                 
-                // 🛡️ ENTERPRISE ACCOUNTING FIX: Strictly round each cart item
-                const itemTotalRounded = Math.round((i.effectiveSell * i.qty) * 100) / 100;
-                subtotal += itemTotalRounded;
+                // 🛡️ ENTERPRISE ACCOUNTING FIX: Strictly round each cart item using safe Epsilon logic
+                const itemTotalRounded = window.secureRound(i.effectiveSell * i.qty);
+                // Subtotal is no longer accumulated here, handled centrally!
             
             return `<div style="display:flex; justify-content:space-between; margin-bottom:12px; font-size:13px; align-items:flex-start; border-bottom:1px dashed #e5e7eb; padding-bottom:8px;">
                 <div style="flex:1; padding-right:10px;">
@@ -8412,139 +8530,42 @@ window.onTransferProductSelect = () => {
             </div>`;
         }).join('');
      
-        // 🚀 ENTERPRISE FIX: SMART BUNDLE & CROSS-SELL ENGINE (CART-LEVEL MATH)
-        let bundleDiscountAmt = 0;
-        const nowMs = window.getSecureTime().getTime();
-        
-        // 🚨 CA FIX: Track discounted cross-sell quantities to prevent Double-Dipping Fraud!
-        let discountedCrossSellTargets = {};
-
-        cart.forEach(item => {
-            const batch = productsCache.find(p => p.id === item.id);
-            if (!batch || !batch.promoEnd) return;
-            
-            const endMs = new Date(batch.promoEnd).getTime();
-            if (endMs <= nowMs) return; // Expired promo
-
-            if (batch.promoStrategy === 'bogo') {
-                const bQty = parseInt(batch.promoBuyQty) || 0;
-                const fQty = parseInt(batch.promoFreeQty) || 0;
-                if (bQty > 0 && fQty > 0) {
-                    const totalReq = bQty + fQty;
-                    const dealCount = Math.floor(item.qty / totalReq);
-                    if (dealCount > 0) {
-                        bundleDiscountAmt += (dealCount * fQty * batch.sell); // Value of free items
-                    }
-                }
-            } 
-            else if (batch.promoStrategy === 'cross_sell') {
-                const targetName = batch.promoTargetName;
-                const targetPerc = parseFloat(batch.promoTargetPerc) || 0;
-                
-                if (targetName && targetPerc > 0) {
-                    const targetItemsInCart = cart.filter(c => c.name === targetName);
-                    let targetEligibleQty = 0;
-                    targetItemsInCart.forEach(t => targetEligibleQty += t.qty);
-
-                    // 🚨 CA FIX: Deduct already discounted quantities so we don't discount the same item twice!
-                    const alreadyDiscounted = discountedCrossSellTargets[targetName] || 0;
-                    const remainingEligible = targetEligibleQty - alreadyDiscounted;
-
-                    const applicableQty = Math.min(item.qty, remainingEligible);
-
-                    if (applicableQty > 0 && targetItemsInCart.length > 0) {
-                        const targetBasePrice = targetItemsInCart[0].sell; 
-                        bundleDiscountAmt += (targetBasePrice * (targetPerc / 100)) * applicableQty;
-                        
-                        // Record usage to prevent next batch from abusing it
-                        discountedCrossSellTargets[targetName] = alreadyDiscounted + applicableQty; 
-                    }
-                }
-            }
-        });
-
-        // 🛡️ ENTERPRISE FIX: ZERO-TRUST AUTOMATED DISCOUNT (F12 Hack Proof)
-        let discountAmt = bundleDiscountAmt; // 👈 1. මුලින්ම Bundle Discount එක අරගන්නවා
-
-        // 👈 2. ඔබ Highlight කළ කොටස මෙතැන එලෙසම ඇත. (Global Auto Discount)
-        if (profileCache && profileCache.autoDiscEnabled) {
-            const thresh = parseFloat(profileCache.autoDiscThreshold) || 0;
-            const dVal = parseFloat(profileCache.autoDiscValue) || 0;
-            
-            // Check if cart subtotal meets the Admin's condition
-            if (subtotal >= thresh && thresh > 0 && dVal > 0) {
-                if (profileCache.autoDiscType === 'percent') {
-                    // 🚨 CA FIX: '=' වෙනුවට '+=' දැමීමෙන් වට්ටම් දෙකම එකතු වේ!
-                    discountAmt += (subtotal * dVal) / 100; 
-                } else {
-                    // 🚨 CA FIX: '=' වෙනුවට '+=' දැමීමෙන් වට්ටම් දෙකම එකතු වේ!
-                    discountAmt += dVal; 
-                }
-            }
-        }
-        
-        // Failsafe (වට්ටම මුළු බිලට වඩා වැඩි විය නොහැක)
-        if (discountAmt > subtotal) discountAmt = subtotal;
+        // 🚀 ENTERPRISE FIX: Call Centralized POS Financial Math Engine
+        const financials = window.calculateCartFinancials();
 
         // 🛡️ UPDATE DYNAMIC UI STATUS BOX
         const statusBox = document.getElementById('posDiscountStatusBox');
-        if (discountAmt > 0) {
-            // Priority 1: Auto Bill Discount takes precedence in the main box
-            statusBox.innerHTML = `<span style="color:#15803d;"><i class="ri-magic-line"></i> Auto Bill Discount: -${formatMoney(discountAmt)}</span>`;
-            statusBox.style.background = '#f0fdf4'; // Light Green
+        if (financials.discountAmt > 0 && financials.discountAmt > financials.bundleDiscountAmt) {
+            statusBox.innerHTML = `<span style="color:#15803d;"><i class="ri-magic-line"></i> Auto Bill Discount: -${formatMoney(financials.discountAmt)}</span>`;
+            statusBox.style.background = '#f0fdf4'; 
             statusBox.style.borderColor = '#22c55e';
-        } else if (hasPromoItem || hasItemDiscount) {
-            // Priority 2: Individual Promos or Batch Discounts applied
-            let text = hasPromoItem ? "Promotions Applied!" : "Batch Discounts Applied!";
+        } else if (hasPromoItem || hasItemDiscount || financials.bundleDiscountAmt > 0) {
+            let text = hasPromoItem || financials.bundleDiscountAmt > 0 ? "Promotions Applied!" : "Batch Discounts Applied!";
             statusBox.innerHTML = `<span style="color:#b45309;"><i class="ri-discount-percent-fill"></i> ${text}</span>`;
-            statusBox.style.background = '#fffbeb'; // Light Yellow/Orange
+            statusBox.style.background = '#fffbeb'; 
             statusBox.style.borderColor = '#fde047';
         } else {
-            // Default: No Discounts
             statusBox.innerHTML = `<span style="color:#6b7280;"><i class="ri-forbid-line"></i> No Discounts Applicable</span>`;
-            statusBox.style.background = '#f9fafb'; // Grey
+            statusBox.style.background = '#f9fafb'; 
             statusBox.style.borderColor = '#d1d5db';
         }
 
-        let feesTotal = currentOtherFees.reduce((sum, f) => sum + f.amount, 0);
-        
-        // 🛡️ ENTERPRISE MATH FIX: Tax Base must include Other Fees!
-        let taxAmt = 0;
-        let taxPercentSaved = 0;
-        if (profileCache && profileCache.taxEnabled) {
-            taxPercentSaved = parseFloat(profileCache.taxPercent) || 0;
-            const taxableBase = subtotal - discountAmt + feesTotal; // 👈 Fees එකතු කර ඇත
-            taxAmt = Math.round((taxableBase * (taxPercentSaved / 100)) * 100) / 100;
-        }
-
-        // 🚀 DYNAMIC PAYMENT SURCHARGE ENGINE
-        let surchargeAmt = 0;
-        const currentPayMethod = document.getElementById('posPaymentMethod').value;
-        const customP = (window.customPaymentsCache || []).find(c => c.name === currentPayMethod);
-        
-        if (customP && customP.fee > 0 && customP.strategy === 'surcharge') {
-            // Surcharge is applied to the final calculated amount (Including Tax & Normal Fees)
-            const preSurchargeTotal = subtotal - discountAmt + feesTotal + taxAmt;
-            surchargeAmt = Math.round((preSurchargeTotal * (customP.fee / 100)) * 100) / 100;
-            
+        if (financials.surchargeAmt > 0) {
             document.getElementById('cartSurchargeRow').style.display = 'flex';
-            document.getElementById('cartSurcharge').textContent = `+${formatMoney(surchargeAmt)} (${customP.fee}%)`;
+            const customP = (window.customPaymentsCache || []).find(c => c.name === document.getElementById('posPaymentMethod').value);
+            document.getElementById('cartSurcharge').textContent = `+${formatMoney(financials.surchargeAmt)} (${customP ? customP.fee : 0}%)`;
         } else {
             document.getElementById('cartSurchargeRow').style.display = 'none';
         }
 
-        // 🛡️ Final Total Calculation
-        let total = subtotal - discountAmt + feesTotal + taxAmt + surchargeAmt;
-
-        document.getElementById('cartSubtotal').textContent = formatMoney(subtotal);
-        document.getElementById('cartDiscount').textContent = `-${formatMoney(discountAmt)}`;
-        document.getElementById('cartFees').textContent = `+${formatMoney(feesTotal)}`;
-        document.getElementById('cartTotal').textContent = formatMoney(total);
+        document.getElementById('cartSubtotal').textContent = formatMoney(financials.subtotal);
+        document.getElementById('cartDiscount').textContent = `-${formatMoney(financials.discountAmt)}`;
+        document.getElementById('cartFees').textContent = `+${formatMoney(financials.feesTotal)}`;
+        document.getElementById('cartTotal').textContent = formatMoney(financials.total);
         
-        // Show or Hide Tax Row in UI dynamically
-        if(taxAmt > 0) { 
+        if(financials.taxAmt > 0) { 
             document.getElementById('cartTaxRow').style.display='flex'; 
-            document.getElementById('cartTax').textContent = '+' + formatMoney(taxAmt); 
+            document.getElementById('cartTax').textContent = '+' + formatMoney(financials.taxAmt); 
         } else { 
             document.getElementById('cartTaxRow').style.display='none'; 
         }
@@ -8668,80 +8689,9 @@ window.checkout = async () => {
             return showToast("Prices were updated in the backend! Cart refreshed. Please verify the new total.", "warning");
         }
         
-        // 🛡️ ENTERPRISE ACCOUNTING FIX: Sum rounded values only
-        let subtotal = cart.reduce((a,b) => a + Math.round((b.sell * b.qty) * 100) / 100, 0);
-        
-        // 🚨 FINANCIAL FIX: RE-INJECT BUNDLE & CROSS-SELL MATH TO PREVENT CHECKOUT CRASHES
-        let bundleDiscountAmt = 0;
-        const nowMs = window.getSecureTime().getTime();
-        let discountedCrossSellTargets = {};
-
-        cart.forEach(item => {
-            const batch = productsCache.find(p => p.id === item.id);
-            if (!batch || !batch.promoEnd) return;
-            if (new Date(batch.promoEnd).getTime() <= nowMs) return;
-
-            if (batch.promoStrategy === 'bogo') {
-                const bQty = parseInt(batch.promoBuyQty) || 0;
-                const fQty = parseInt(batch.promoFreeQty) || 0;
-                if (bQty > 0 && fQty > 0) {
-                    const totalReq = bQty + fQty;
-                    const dealCount = Math.floor(item.qty / totalReq);
-                    if (dealCount > 0) bundleDiscountAmt += (dealCount * fQty * batch.sell);
-                }
-            } else if (batch.promoStrategy === 'cross_sell') {
-                const targetName = batch.promoTargetName;
-                const targetPerc = parseFloat(batch.promoTargetPerc) || 0;
-                if (targetName && targetPerc > 0) {
-                    const targetItemsInCart = cart.filter(c => c.name === targetName);
-                    let targetEligibleQty = targetItemsInCart.reduce((sum, t) => sum + t.qty, 0);
-                    const alreadyDiscounted = discountedCrossSellTargets[targetName] || 0;
-                    const applicableQty = Math.min(item.qty, targetEligibleQty - alreadyDiscounted);
-
-                    if (applicableQty > 0 && targetItemsInCart.length > 0) {
-                        bundleDiscountAmt += (targetItemsInCart[0].sell * (targetPerc / 100)) * applicableQty;
-                        discountedCrossSellTargets[targetName] = alreadyDiscounted + applicableQty; 
-                    }
-                }
-            }
-        });
-
-        let discountAmt = bundleDiscountAmt;
-        let discountType = bundleDiscountAmt > 0 ? 'bundle/promo' : 'none';
-        let discountVal = bundleDiscountAmt;
-
-        // 🛡️ ZERO-TRUST AUTOMATED DISCOUNT (DB RULE - Applied to NET Subtotal)
-        if (profileCache && profileCache.autoDiscEnabled) {
-            const thresh = parseFloat(profileCache.autoDiscThreshold) || 0;
-            const dVal = parseFloat(profileCache.autoDiscValue) || 0;
-            const netSubtotalForThreshold = subtotal - bundleDiscountAmt;
-            
-            if (netSubtotalForThreshold >= thresh && thresh > 0 && dVal > 0) {
-                discountType = discountType === 'none' ? profileCache.autoDiscType : 'mixed';
-                discountVal += dVal;
-                
-                if (profileCache.autoDiscType === 'percent') {
-                    discountAmt += (netSubtotalForThreshold * dVal) / 100;
-                } else {
-                    discountAmt += dVal;
-                }
-            }
-        }
-        if(discountAmt > subtotal) discountAmt = subtotal;
-
-        const roundToTwo = (num) => Math.round(num * 100) / 100;
-        let feesTotal = currentOtherFees.reduce((sum, f) => sum + f.amount, 0);
-        
-        // 🛡️ ENTERPRISE MATH FIX: Tax Base must include Other Fees!
-        let taxAmt = 0;
-        let taxPercentSaved = 0;
-        if (profileCache && profileCache.taxEnabled) {
-            taxPercentSaved = parseFloat(profileCache.taxPercent) || 0;
-            const taxableBase = subtotal - discountAmt + feesTotal; // 👈 Fees එකතු කර ඇත
-            taxAmt = Math.round((taxableBase * (taxPercentSaved / 100)) * 100) / 100;
-        }
-        
-        let total = roundToTwo(subtotal - discountAmt + feesTotal + taxAmt);
+        // 🛡️ ENTERPRISE ACCOUNTING FIX: Use Centralized Financial Engine
+        const financials = window.calculateCartFinancials();
+        let total = financials.total;
 
         // 🛡️ ENTERPRISE FIX: DYNAMIC PAYMENT VALIDATION ENGINE
         const givenText = document.getElementById('posCashGiven') ? document.getElementById('posCashGiven').value.trim() : '';
@@ -8790,78 +8740,8 @@ window.checkout = async () => {
     // ==========================================
     window.verifyWalletAndCheckout = () => {
         // අපි Checkout එකට යන්න කලින් දළ වශයෙන් ගණනය කර බලනවා Customer ගේ සල්ලි පාවිච්චි වෙනවද කියලා.
-        // 🛡️ ENTERPRISE ACCOUNTING FIX: Sum rounded values only
-        let subtotal = cart.reduce((a,b) => a + Math.round((b.sell * b.qty) * 100) / 100, 0);
-        
-        // 🚨 FINANCIAL FIX: RE-INJECT BUNDLE & CROSS-SELL MATH TO PREVENT BAIT-AND-SWITCH PRICING
-        let bundleDiscountAmt = 0;
-        const nowMs = window.getSecureTime().getTime();
-        let discountedCrossSellTargets = {};
-
-        cart.forEach(item => {
-            const batch = productsCache.find(p => p.id === item.id);
-            if (!batch || !batch.promoEnd) return;
-            if (new Date(batch.promoEnd).getTime() <= nowMs) return;
-
-            if (batch.promoStrategy === 'bogo') {
-                const bQty = parseInt(batch.promoBuyQty) || 0;
-                const fQty = parseInt(batch.promoFreeQty) || 0;
-                if (bQty > 0 && fQty > 0) {
-                    const totalReq = bQty + fQty;
-                    const dealCount = Math.floor(item.qty / totalReq);
-                    if (dealCount > 0) bundleDiscountAmt += (dealCount * fQty * batch.sell);
-                }
-            } else if (batch.promoStrategy === 'cross_sell') {
-                const targetName = batch.promoTargetName;
-                const targetPerc = parseFloat(batch.promoTargetPerc) || 0;
-                if (targetName && targetPerc > 0) {
-                    const targetItemsInCart = cart.filter(c => c.name === targetName);
-                    let targetEligibleQty = targetItemsInCart.reduce((sum, t) => sum + t.qty, 0);
-                    const alreadyDiscounted = discountedCrossSellTargets[targetName] || 0;
-                    const applicableQty = Math.min(item.qty, targetEligibleQty - alreadyDiscounted);
-
-                    if (applicableQty > 0 && targetItemsInCart.length > 0) {
-                        bundleDiscountAmt += (targetItemsInCart[0].sell * (targetPerc / 100)) * applicableQty;
-                        discountedCrossSellTargets[targetName] = alreadyDiscounted + applicableQty; 
-                    }
-                }
-            }
-        });
-
-        let discountAmt = bundleDiscountAmt;
-        let discountType = bundleDiscountAmt > 0 ? 'bundle/promo' : 'none';
-        let discountVal = bundleDiscountAmt;
-
-        // 🛡️ ZERO-TRUST AUTOMATED DISCOUNT (Applied to NET Subtotal)
-        if (profileCache && profileCache.autoDiscEnabled) {
-            const thresh = parseFloat(profileCache.autoDiscThreshold) || 0;
-            const dVal = parseFloat(profileCache.autoDiscValue) || 0;
-            
-            // MATH FIX: Auto-Discount applies ONLY if the remaining balance (Net Subtotal) qualifies!
-            const netSubtotalForThreshold = subtotal - bundleDiscountAmt;
-            
-            if (netSubtotalForThreshold >= thresh && thresh > 0 && dVal > 0) {
-                discountType = discountType === 'none' ? profileCache.autoDiscType : 'mixed';
-                discountVal += dVal;
-                
-                if (profileCache.autoDiscType === 'percent') {
-                    discountAmt += (netSubtotalForThreshold * dVal) / 100;
-                } else {
-                    discountAmt += dVal;
-                }
-            }
-        }
-        if(discountAmt > subtotal) discountAmt = subtotal;
-        
-        let feesTotal = currentOtherFees.reduce((sum, f) => sum + f.amount, 0);
-        // 🛡️ ENTERPRISE MATH FIX: Tax Base must include Other Fees!
-        let taxAmt = 0;
-        let taxPercentSaved = 0;
-        if (profileCache && profileCache.taxEnabled) {
-            taxPercentSaved = parseFloat(profileCache.taxPercent) || 0;
-            const taxableBase = subtotal - discountAmt + feesTotal; // 👈 Fees එකතු කර ඇත
-            taxAmt = Math.round((taxableBase * (taxPercentSaved / 100)) * 100) / 100;
-        }
+        // 🛡️ ENTERPRISE ACCOUNTING FIX: Use Centralized Financial Engine
+        const financials = window.calculateCartFinancials();
         
         // 🛡️ LOYALTY REDEMPTION VALIDATION
         let loyaltyRedeemed = 0;
@@ -8876,8 +8756,7 @@ window.checkout = async () => {
         }
         window.pendingLoyaltyRedeemed = loyaltyRedeemed;
 
-        const roundToTwo = (num) => Math.round(num * 100) / 100;
-        let total = roundToTwo(subtotal - discountAmt + feesTotal + taxAmt - loyaltyRedeemed); // 👈 Deduct Loyalty!
+        let total = window.secureRound(financials.total - loyaltyRedeemed); // 👈 Deduct Loyalty!
         if (total < 0) total = 0;
         
         let walletToUse = 0;
@@ -8990,99 +8869,13 @@ window.checkout = async () => {
         const finalCustName = custName || "Walk-in Customer";
         const finalCustPhone = custPhone || "N/A";
 
-        // 🛡️ ENTERPRISE ACCOUNTING FIX: Sum rounded values only
-        let subtotal = cart.reduce((a,b) => a + Math.round((b.sell * b.qty) * 100) / 100, 0);
-        
-        // 🚨 FINANCIAL FIX: RE-INJECT BUNDLE & CROSS-SELL MATH TO DATABASE WRITER
-        let bundleDiscountAmt = 0;
-        const nowMs = window.getSecureTime().getTime();
-        let discountedCrossSellTargets = {};
-
-        cart.forEach(item => {
-            const batch = productsCache.find(p => p.id === item.id);
-            if (!batch || !batch.promoEnd) return;
-            if (new Date(batch.promoEnd).getTime() <= nowMs) return;
-
-            if (batch.promoStrategy === 'bogo') {
-                const bQty = parseInt(batch.promoBuyQty) || 0;
-                const fQty = parseInt(batch.promoFreeQty) || 0;
-                if (bQty > 0 && fQty > 0) {
-                    const totalReq = bQty + fQty;
-                    const dealCount = Math.floor(item.qty / totalReq);
-                    if (dealCount > 0) bundleDiscountAmt += (dealCount * fQty * batch.sell);
-                }
-            } else if (batch.promoStrategy === 'cross_sell') {
-                const targetName = batch.promoTargetName;
-                const targetPerc = parseFloat(batch.promoTargetPerc) || 0;
-                if (targetName && targetPerc > 0) {
-                    const targetItemsInCart = cart.filter(c => c.name === targetName);
-                    let targetEligibleQty = targetItemsInCart.reduce((sum, t) => sum + t.qty, 0);
-                    const alreadyDiscounted = discountedCrossSellTargets[targetName] || 0;
-                    const applicableQty = Math.min(item.qty, targetEligibleQty - alreadyDiscounted);
-
-                    if (applicableQty > 0 && targetItemsInCart.length > 0) {
-                        bundleDiscountAmt += (targetItemsInCart[0].sell * (targetPerc / 100)) * applicableQty;
-                        discountedCrossSellTargets[targetName] = alreadyDiscounted + applicableQty; 
-                    }
-                }
-            }
-        });
-
-        let discountAmt = bundleDiscountAmt;
-        let discountType = bundleDiscountAmt > 0 ? 'bundle/promo' : 'none';
-        let discountVal = bundleDiscountAmt;
-
-        // 🛡️ ZERO-TRUST AUTOMATED DISCOUNT (DB RULE - Applied to NET Subtotal)
-        if (profileCache && profileCache.autoDiscEnabled) {
-            const thresh = parseFloat(profileCache.autoDiscThreshold) || 0;
-            const dVal = parseFloat(profileCache.autoDiscValue) || 0;
-            const netSubtotalForThreshold = subtotal - bundleDiscountAmt;
-            
-            if (netSubtotalForThreshold >= thresh && thresh > 0 && dVal > 0) {
-                discountType = discountType === 'none' ? profileCache.autoDiscType : 'mixed';
-                discountVal += dVal;
-                
-                if (profileCache.autoDiscType === 'percent') {
-                    discountAmt += (netSubtotalForThreshold * dVal) / 100;
-                } else {
-                    discountAmt += dVal;
-                }
-            }
-        }
-        if(discountAmt > subtotal) discountAmt = subtotal;
-
-        const roundToTwo = (num) => Math.round(num * 100) / 100;
-        let feesTotal = currentOtherFees.reduce((sum, f) => sum + f.amount, 0);
-        
-        // 🛡️ ENTERPRISE MATH FIX: Tax Base must include Other Fees!
-        let taxAmt = 0;
-        let taxPercentSaved = 0;
-        if (profileCache && profileCache.taxEnabled) {
-            taxPercentSaved = parseFloat(profileCache.taxPercent) || 0;
-            const taxableBase = subtotal - discountAmt + feesTotal; // 👈 Fees එකතු කර ඇත
-            taxAmt = Math.round((taxableBase * (taxPercentSaved / 100)) * 100) / 100;
-        }
-
-        // 🚀 RE-CALCULATE SURCHARGE AT CHECKOUT FOR SECURITY
-        let surchargeAmt = 0;
-        let gatewayExpenseAmt = 0; // If the shop absorbs the cost
-        const customP = (window.customPaymentsCache || []).find(c => c.name === paymentMethod);
-        
-        if (customP && customP.fee > 0) {
-            const baseForFee = subtotal - discountAmt + feesTotal + taxAmt;
-            const calculatedFee = Math.round((baseForFee * (customP.fee / 100)) * 100) / 100;
-            
-            if (customP.strategy === 'surcharge') {
-                surchargeAmt = calculatedFee; // Add to customer's bill
-            } else if (customP.strategy === 'expense') {
-                gatewayExpenseAmt = calculatedFee; // Shop absorbs it, reduce profit
-            }
-        }
+        // 🛡️ ENTERPRISE ACCOUNTING FIX: Use Centralized Financial Engine
+        const financials = window.calculateCartFinancials();
         
         let loyaltyRedeemed = window.pendingLoyaltyRedeemed || 0;
         
         // 🛡️ ENTERPRISE BUG FIX: Loyalty Blackhole Prevention!
-        const totalBeforeLoyalty = roundToTwo(subtotal - discountAmt + feesTotal + taxAmt + surchargeAmt);
+        const totalBeforeLoyalty = financials.total;
         if (loyaltyRedeemed > totalBeforeLoyalty) {
             loyaltyRedeemed = totalBeforeLoyalty; // බිලේ ගාණට වඩා Points කැපීමට නොදෙයි!
             window.pendingLoyaltyRedeemed = loyaltyRedeemed; // Update the global state
@@ -9201,20 +8994,19 @@ window.checkout = async () => {
         const saleData = {
             customOrderId: customOrderId,
             // 🛡️ ENTERPRISE SECURE CLOCK FIX: Do not trust OS time! Use your Secure Engine.
-            // පරිගණකයේ වෙලාව ඊයේට හැදුවත්, පද්ධතිය කිසිදිනෙක නොරැවටේ!
             date: window.getSecureTime().toISOString(),
-            subtotal: roundToTwo(subtotal),
-            discountType: discountType,
+            subtotal: financials.subtotal,
+            discountType: financials.discountType,
             loyaltyRedeemed: loyaltyRedeemed,
             loyaltyEarned: loyaltyEarned, 
-            discountValue: roundToTwo(discountVal), 
-            discountAmt: roundToTwo(discountAmt), 
+            discountValue: financials.discountVal, // 🛡️ PRATHI-THARKA FIX: Logs the actual intended value
+            discountAmt: financials.discountAmt,   // The mathematically capped actual discount
             fees: currentOtherFees, 
-            feesTotal: roundToTwo(feesTotal),
-            taxPercent: taxPercentSaved,
-            taxAmt: roundToTwo(taxAmt), 
-            surchargeAmt: roundToTwo(surchargeAmt), // 👈 Save Surcharge
-            total: roundToTwo(total),
+            feesTotal: financials.feesTotal,
+            taxPercent: financials.taxPercentSaved,
+            taxAmt: financials.taxAmt, 
+            surchargeAmt: financials.surchargeAmt, 
+            total: window.secureRound(total), // Final total after wallet/loyalty Math
             paymentMethod: finalPaymentMethod, 
             cashGiven: roundToTwo(cashGiven), 
             balance: roundToTwo(balance > 0 ? balance : 0), 
@@ -9473,11 +9265,11 @@ window.checkout = async () => {
                 }
                 
 // 🚨 CA FIX: Automatically Record Gateway Expenses (Commission Absorbed by Shop)
-                if (gatewayExpenseAmt > 0 && customP) {
+                if (financials.gatewayExpenseAmt > 0 && customP) {
                     const expRef = doc(collection(db, `users/${dbOwnerId}/shops/${currentShopId}/expenses`));
                     transaction.set(expRef, {
                         description: `[PLATFORM FEE] ${customP.name} Commission (${customP.fee}%) for Inv #${customOrderId}`,
-                        amount: gatewayExpenseAmt,
+                        amount: financials.gatewayExpenseAmt,
                         isIncome: false,
                         payMethod: 'None', // Bank deducts it directly
                         date: window.getSecureTime().toISOString(),
@@ -9832,21 +9624,18 @@ window.checkout = async () => {
                 const uPriceStr = tr.querySelector('.item-uprice').value;
                 const activePrice = dPriceStr ? parseFloat(dPriceStr) : (parseFloat(uPriceStr) || 0);
                 
-                // 🛡️ ENTERPRISE ACCOUNTING FIX: Line-by-Line Rounding (Zero Cent Mismatch)
-                const lineTotal = Math.round((qty * activePrice) * 100) / 100;
+                // 🛡️ ENTERPRISE ACCOUNTING FIX: Line-by-Line Rounding with EPSILON
+                const lineTotal = window.secureRound(qty * activePrice);
                 
                 tr.querySelector('.item-total').textContent = lineTotal.toLocaleString('en-US', {minimumFractionDigits: 2});
                 blockTotal += lineTotal;
             });
+            blockTotal = window.secureRound(blockTotal);
             block.querySelector('.opt-total-display').textContent = blockTotal.toLocaleString('en-US', {minimumFractionDigits: 2});
-            globalSubtotal += blockTotal; // Add to global (You can change this logic if options are mutually exclusive)
+            globalSubtotal += blockTotal; 
         });
 
-        // Add Extra Charges to Subtotal (If they apply globally. Usually they are just a price list, but we'll calculate them if user wants)
-        document.querySelectorAll('.extra-charge-row').forEach(row => {
-            // Note: In your PDF, extra charges don't seem to sum up into the grand total, they are just a rate card. 
-            // So we won't add them to globalSubtotal.
-        });
+        globalSubtotal = window.secureRound(globalSubtotal);
 
         let discount = parseFloat(document.getElementById('docDiscount').value) || 0;
         if(discount < 0) discount = Math.abs(discount);
@@ -9857,9 +9646,9 @@ window.checkout = async () => {
         
         const taxableAmount = Math.max(0, globalSubtotal - discount);
         
-        // 🚨 FINANCIAL FIX: Strict Banker's Rounding to prevent DB decimal leaks!
-        const taxAmt = Math.round((taxableAmount * (taxPercent / 100)) * 100) / 100;
-        const finalTotal = Math.round((taxableAmount + taxAmt) * 100) / 100;
+        // 🚨 FINANCIAL FIX: Secure EPSILON Rounding
+        const taxAmt = window.secureRound(taxableAmount * (taxPercent / 100));
+        const finalTotal = window.secureRound(taxableAmount + taxAmt);
 
         document.getElementById('docSubtotal').textContent = globalSubtotal.toLocaleString('en-US', {minimumFractionDigits: 2});
         document.getElementById('docTotal').textContent = formatMoney(finalTotal);
@@ -19260,7 +19049,7 @@ window.togglePromoFields = () => {
             if (endDate > now) { // 🛡️ STRICT TIME VALIDATION
                 if (batch.promoType === 'percent') finalPrice = batch.sell - (batch.sell * batch.promoValue / 100);
                 if (batch.promoType === 'amount') finalPrice = Math.max(0, batch.sell - batch.promoValue);
-                return { isPromo: true, hasAdminDisc: false, price: Math.round(finalPrice * 100) / 100 };
+                return { isPromo: true, hasAdminDisc: false, price: window.secureRound(finalPrice) };
             }
         }
 
@@ -19268,8 +19057,10 @@ window.togglePromoFields = () => {
         if (batch.adminDiscValue > 0) {
             if (batch.adminDiscType === 'percent') finalPrice = batch.sell - (batch.sell * batch.adminDiscValue / 100);
             if (batch.adminDiscType === 'amount') finalPrice = Math.max(0, batch.sell - batch.adminDiscValue);
-            return { isPromo: false, hasAdminDisc: true, price: Math.round(finalPrice * 100) / 100 };
+            return { isPromo: false, hasAdminDisc: true, price: window.secureRound(finalPrice) };
         }
+
+        return { isPromo: false, hasAdminDisc: false, price: window.secureRound(finalPrice) };
 
         return { isPromo: false, hasAdminDisc: false, price: Math.round(finalPrice * 100) / 100 };
     };
@@ -19956,16 +19747,16 @@ window.togglePromoFields = () => {
                 
                 // 🛡️ සේවකයා එවන Note එක මෙතැන පෙන්වයි
                 const empNoteHtml = isDone && t.employeeNote 
-                    ? `<div style="margin-top:5px; background:#fffbeb; padding:5px 8px; border-radius:4px; border-left:2px solid #f59e0b; font-size:11px; color:#b45309;"><i class="ri-reply-line"></i> <b>Staff Note:</b> ${t.employeeNote}</div>` 
+                    ? `<div style="margin-top:5px; background:#fffbeb; padding:5px 8px; border-radius:4px; border-left:2px solid #f59e0b; font-size:11px; color:#b45309;"><i class="ri-reply-line"></i> <b>Staff Note:</b> ${window.escapeHTML(t.employeeNote)}</div>` 
                     : '';
 
                 html += `
                 <div style="background:white; border:1px solid #e2e8f0; border-radius:8px; padding:10px; margin-bottom:10px; ${isDone ? 'opacity:0.7;' : ''}">
                     <div style="display:flex; justify-content:space-between; align-items:start;">
-                        <div style="font-weight:bold; font-size:13px;">${t.title}</div>
+                        <div style="font-weight:bold; font-size:13px;">${window.escapeHTML(t.title)}</div>
                         ${badge}
                     </div>
-                    <div style="font-size:11px; color:#64748b; margin-top:3px;">${t.desc || 'No description'}</div>
+                    <div style="font-size:11px; color:#64748b; margin-top:3px;">${window.escapeHTML(t.desc) || 'No description'}</div>
                     <div style="font-size:10px; color:var(--primary); margin-top:5px;">Assigned: ${new Date(t.createdAt).toLocaleString()}</div>
                     ${empNoteHtml}
                 </div>`;
@@ -20815,8 +20606,8 @@ window.togglePromoFields = () => {
                 <div style="display:flex; align-items:center; gap:10px;">
                     <div style="width:40px; height:40px; border-radius:8px; background:#f1f5f9; color:var(--primary); display:flex; align-items:center; justify-content:center; font-size:20px;"><i class="ri-car-fill"></i></div>
                     <div>
-                        <div style="font-weight:900; font-size:14px; text-transform:uppercase;">${v.plateNo}</div>
-                        <div style="font-size:11px; color:#666;">Type: ${v.type} | Eff: ${v.efficiency} KM/L</div>
+                        <div style="font-weight:900; font-size:14px; text-transform:uppercase;">${window.escapeHTML(v.plateNo)}</div>
+                        <div style="font-size:11px; color:#666;">Type: ${window.escapeHTML(v.type)} | Eff: ${v.efficiency} KM/L</div>
                     </div>
                 </div>
                 <div>${statusBadge}</div>
@@ -24306,7 +24097,7 @@ ${opexBreakdownStr}
             if (tbody) {
                 tbody.innerHTML = window.expenseCategoriesCache.map(c => `
                     <tr style="border-bottom:1px solid #e2e8f0;">
-                        <td style="padding:8px; font-weight:bold; color:#334155;">${c.name}</td>
+                        <td style="padding:8px; font-weight:bold; color:#334155;">${window.escapeHTML(c.name)}</td>
                         <td style="padding:8px;">
                             <span style="font-size:10px; font-weight:900; padding:2px 6px; border-radius:4px; ${c.rootType==='OPEX' ? 'background:#fee2e2; color:#b91c1c;' : 'background:#e0e7ff; color:#3730a3;'}">${c.rootType}</span>
                         </td>
@@ -25170,7 +24961,7 @@ window.renderRestoTablesUI = () => {
         <div class="resto-table-btn ${isOccupied ? 'occupied' : ''} ${isActive ? 'active' : ''}" onclick="selectRestoTable('${tid}')">
             ${badgeHtml}
             <i class="ri-${t.type === 'Takeaway' ? 'shopping-bag-3-fill' : 'restaurant-fill'}" style="font-size:24px; color:${isOccupied ? '#dc2626' : '#94a3b8'};"></i>
-            <div style="font-weight:900; font-size:14px; margin-top:5px; color:#1e293b;">${t.name}</div>
+            <div style="font-weight:900; font-size:14px; margin-top:5px; color:#1e293b;">${window.escapeHTML(t.name)}</div>
             <div style="font-size:10px; color:#64748b; font-weight:bold;">${formatMoney(t.items.reduce((s, i) => s + (i.qty * i.sell), 0))}</div>
         </div>`;
     });
