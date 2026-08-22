@@ -2,238 +2,394 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<!-- 🛡️ 250px දක්වා Responsive වීමට Mobile-First Viewport -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>My Account | Customer Portal</title>
+<title>WorldBizNet | All Your Stores in One Place</title>
 <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800;900&display=swap" rel="stylesheet">
 
 <style>
-/* --- ENTERPRISE MOBILE-FIRST CSS --- */
-:root { --primary: #4F46E5; --bg: #f3f4f6; --text: #1f2937; --card: #ffffff; }
+/* --- ENTERPRISE SUPER-APP CSS --- */
+:root { --primary: #2563eb; --bg: #f8fafc; --text: #0f172a; --card: #ffffff; --accent: #38bdf8; }
 * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; -webkit-tap-highlight-color: transparent; }
-body { background: var(--bg); color: var(--text); padding-top: 75px; /* 🛡️ Space for TOP nav */ overflow-x: hidden; }
+body { background: var(--bg); color: var(--text); padding-top: 60px; padding-bottom: 80px; overflow-x: hidden; }
 
 /* Views */
-.view { display: none; padding: 15px; animation: fadeIn 0.3s ease; }
+.view { display: none; padding: 20px; animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
 .view.active { display: block; }
-.view.active.flex-box { display: flex; } /* 🛡️ FIX: Center කිරීමට අවශ්‍ය පිටු සඳහා පමණක් Flex දීම */
-@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.view.active.flex-box { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: calc(100vh - 60px); }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
 
-/* Cards & Layouts */
-.card { background: var(--card); border-radius: 12px; padding: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 15px; border: 1px solid #e5e7eb; }
+/* Modern Cards */
+.card { background: var(--card); border-radius: 16px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); margin-bottom: 20px; border: 1px solid #e2e8f0; }
+.shop-card { display:flex; align-items:center; justify-content:space-between; padding:15px; border-radius:12px; background:#f1f5f9; border:1px solid #e2e8f0; margin-bottom:10px; transition:0.2s; cursor:pointer; }
+.shop-card:active { transform:scale(0.98); background:#e2e8f0; }
 .stat-box { background: #e0e7ff; padding: 15px; border-radius: 12px; border: 1px solid #c7d2fe; text-align: center; }
 .stat-box.danger { background: #fee2e2; border-color: #fca5a5; color: #b91c1c; }
 
-/* Grid for 250px screens */
-.product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; }
-.product-card { background: white; border-radius: 10px; padding: 10px; text-align: center; border: 1px solid #e5e7eb; display:flex; flex-direction:column; justify-content:space-between; }
-.product-img { width: 100%; height: 80px; object-fit: contain; margin-bottom: 5px; border-radius:6px; }
+/* Grid & Products */
+.product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; }
+.product-card { background: white; border-radius: 12px; padding: 10px; text-align: center; border: 1px solid #e2e8f0; display:flex; flex-direction:column; justify-content:space-between; }
+.product-img { width: 100%; height: 90px; object-fit: contain; margin-bottom: 8px; border-radius:8px; }
+.virtual-card { content-visibility: auto; contain-intrinsic-size: 160px; will-change: transform, opacity; }
 
-/* Inputs & Buttons */
-input, textarea { width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; margin-bottom: 10px; font-size: 14px; outline: none; }
-input:focus, textarea:focus { border-color: var(--primary); }
-.btn { width: 100%; padding: 12px; border-radius: 8px; border: none; font-weight: 600; font-size: 14px; cursor: pointer; color: white; background: var(--primary); display:flex; align-items:center; justify-content:center; gap:5px; }
-.btn:active { transform: scale(0.98); }
-.btn-danger { background: #ef4444; }
+/* Buttons & Inputs */
+input, textarea { width: 100%; padding: 15px; border: 2px solid #e2e8f0; border-radius: 12px; margin-bottom: 15px; font-size: 15px; outline: none; font-weight:600; transition:0.2s; font-family:inherit; }
+textarea { resize: vertical; }
+input:focus, textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1); }
+.btn { width: 100%; padding: 15px; border-radius: 12px; border: none; font-weight: 800; font-size: 15px; cursor: pointer; color: white; background: var(--primary); display:flex; align-items:center; justify-content:center; gap:8px; transition:0.2s; box-shadow:0 4px 10px rgba(37, 99, 235, 0.2); }
+.btn:active { transform: scale(0.96); }
+.btn-danger { background: #ef4444; box-shadow:0 4px 10px rgba(239, 68, 68, 0.2); }
+.btn-google { background: white; color: #334155; border: 1px solid #cbd5e1; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
 
-/* 🛡️ TOP NAVIGATION (Prominent Enterprise Design) */
-.top-nav { position: fixed; top: 0; left: 0; right: 0; background: var(--primary); height: 65px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3); z-index: 1000; padding: 0 5px; }
-.nav-item { display: flex; flex-direction: column; align-items: center; justify-content: center; color: rgba(255,255,255,0.6); font-size: 11px; font-weight: 700; cursor: pointer; flex: 1; height: 100%; transition: 0.3s; border-radius: 8px; margin: 4px; }
-.nav-item i { font-size: 22px; margin-bottom: 2px; transition: 0.3s; }
-.nav-item.active { color: #ffffff; background: rgba(255,255,255,0.2); box-shadow: inset 0 2px 4px rgba(0,0,0,0.05); }
-.nav-item.active i { transform: scale(1.1); }
+/* Brand Header */
+.top-header { position: fixed; top: 0; left: 0; right: 0; background: rgba(255,255,255,0.9); backdrop-filter: blur(10px); height: 60px; display: flex; justify-content: center; align-items: center; border-bottom: 1px solid #e2e8f0; z-index: 1000; font-weight:900; font-size:18px; color:var(--primary); letter-spacing:1px; }
 
-/* Responsive tweaks for 250px ultra-small screens */
-@media(max-width: 300px) {
-    .nav-item { font-size: 9px; margin: 2px; }
-    .nav-item i { font-size: 18px; }
+/* Bottom Nav (App like for Mobile, Top Nav for Desktop) */
+.bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; height: 70px; display: flex; justify-content: space-around; align-items: center; box-shadow: 0 -4px 20px rgba(0,0,0,0.05); z-index: 1000; padding-bottom:env(safe-area-inset-bottom); border-top:1px solid #e2e8f0; transition:0.3s; }
+
+/* 🚀 ENTERPRISE FIX: Desktop/Tablet Responsive Transform */
+@media (min-width: 768px) {
+    .bottom-nav { 
+        bottom: auto; top: 60px; /* Moves under the top-header */
+        box-shadow: 0 4px 10px rgba(0,0,0,0.05); border-top: none; border-bottom: 1px solid #e2e8f0; height: 60px;
+    }
+    .nav-item { flex-direction: row; gap: 8px; font-size: 13px; }
+    .nav-item i { font-size: 20px; margin-bottom: 0; }
+    body { padding-bottom: 20px; padding-top: 140px; } /* Adjust body padding for Desktop */
 }
+.nav-item { display: flex; flex-direction: column; align-items: center; color: #94a3b8; font-size: 10px; font-weight: 800; text-transform:uppercase; transition: 0.3s; cursor:pointer; }
+.nav-item i { font-size: 24px; margin-bottom: 2px; transition: 0.3s; }
+.nav-item.active { color: var(--primary); }
+.nav-item.active i { transform: translateY(-3px); }
 
-/* Loaders & Toasts */
-.loader { position: fixed; inset: 0; background: rgba(255,255,255,0.9); z-index: 9999; display: none; align-items: center; justify-content: center; flex-direction: column; }
-.spinner { width: 40px; height: 40px; border: 4px solid #e5e7eb; border-top: 4px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
-@keyframes spin { 100% { transform: rotate(360deg); } }
-.toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #111827; color: white; padding: 10px 20px; border-radius: 20px; font-size: 13px; z-index: 10000; display: none; white-space: nowrap; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+/* Loaders, Toasts & Utilities */
+.loader-overlay { position:fixed; inset:0; background:rgba(255,255,255,0.9); z-index:9999; display:none; align-items:center; justify-content:center; flex-direction:column; }
+.toast { position: fixed; top: 70px; left: 50%; transform: translateX(-50%); background: #111827; color: white; padding: 10px 20px; border-radius: 20px; font-size: 13px; z-index: 10000; display: none; white-space: nowrap; box-shadow: 0 4px 12px rgba(0,0,0,0.2); font-weight:600; }
+.customer-chat-scroll::-webkit-scrollbar { width: 4px; }
+.customer-chat-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
 </style>
 </head>
 <body>
 
+<!-- GLOBAL ELEMENTS -->
 <div class="toast" id="toastMsg">Message</div>
-<div class="loader" id="loader"><div class="spinner"></div><div style="margin-top:10px; font-weight:600;">Please wait...</div></div>
 
-<!-- LOGIN VIEW -->
-<!-- 🛡️ FIX: 'display: flex;' ඉවත් කර 'flex-box' class එක එකතු කිරීම -->
-<div id="view-login" class="view flex-box active" style="height: 100vh; flex-direction: column; justify-content: center; padding: 20px; background: white; z-index:2000; position:relative;">
-    <div style="text-align:center; margin-bottom:30px;">
-        <div style="width:70px; height:70px; background:#e0e7ff; color:var(--primary); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:35px; margin:0 auto 15px auto;">
-            <i class="ri-user-smile-line"></i>
+<div class="loader-overlay" id="globalLoader">
+    <i class="ri-loader-4-line ri-spin" style="font-size:40px; color:var(--primary);"></i>
+    <div style="margin-top:10px; font-weight:800; color:#334155;">Syncing Data...</div>
+</div>
+
+<!-- HEADERS -->
+<div class="top-header" id="masterHeader">
+    <i class="ri-planet-fill" style="margin-right:8px; font-size:24px; color:var(--accent);"></i> WorldBizNet
+</div>
+
+<div class="top-header" id="shopHeader" style="display:none; justify-content:space-between; padding:0 15px; background:var(--primary); color:white; border:none;">
+    <button onclick="backToMaster()" style="background:none; border:none; font-size:24px; color:white; cursor:pointer; display:flex; align-items:center; justify-content:center;"><i class="ri-arrow-left-line"></i></button>
+    <div id="shopHeaderTitle" style="font-weight:800; font-size:16px;">Shop Portal</div>
+    <div style="width:24px;"></div>
+</div>
+
+<!-- ==========================================
+     GLOBAL AUTH VIEWS
+========================================== -->
+<!-- ==========================================
+     1. HYBRID LANDING & LOGIN VIEW
+========================================== -->
+<div id="view-landing" class="view flex-box active">
+    <div style="text-align:center; max-width:400px; width:100%;">
+        <img src="https://cdn-icons-png.flaticon.com/512/3233/3233483.png" style="width:100px; margin-bottom:20px;">
+        <h1 style="font-size:26px; font-weight:900; color:#0f172a; line-height:1.2; margin-bottom:10px;" id="landingTitle">All Your Stores.<br><span style="color:var(--primary);">One Single App.</span></h1>
+        
+        <p style="color:#64748b; font-size:13px; margin-bottom:20px; line-height:1.5;" id="landingDesc">Access your bills, warranties, and loyalty points from thousands of partnered merchants in Sri Lanka.</p>
+        
+        <!-- 🚀 LOCAL LOGIN (Only visible if linked directly to a shop) -->
+        <div class="card" id="localLoginCard" style="display:none; text-align:left; background:#f8fafc; border-color:#cbd5e1; padding:15px;">
+            <label style="font-size:11px; font-weight:800; color:#475569; text-transform:uppercase;">Mobile Number</label>
+            <input type="tel" id="localPhone" placeholder="077XXXXXXX" style="padding:10px; font-size:14px; margin-bottom:10px;">
+            <label style="font-size:11px; font-weight:800; color:#475569; text-transform:uppercase;">Store PIN (From Receipt)</label>
+            <input type="password" id="localPin" placeholder="****" maxlength="4" style="padding:10px; font-size:14px; text-align:center; letter-spacing:8px;">
+            <button class="btn" onclick="attemptLocalLogin()" style="padding:12px; margin-top:5px;"><i class="ri-login-circle-line"></i> Store Login</button>
+            <div style="text-align:center; margin:15px 0; font-size:11px; color:#94a3b8; font-weight:bold;">OR UPGRADE TO GLOBAL</div>
         </div>
-        <h2 style="color:var(--primary);">Customer Portal</h2>
-        <p style="color:#666; font-size:13px; margin-top:5px;">Login to view your bills, debts & requests</p>
-    </div>
-    <div class="card" style="border:none; box-shadow:none; padding:0;">
-        <label style="font-size:12px; font-weight:600; color:#4b5563;">Mobile Number</label>
-        <input type="number" id="loginPhone" placeholder="e.g. 0771234567" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
-        
-        <label style="font-size:12px; font-weight:600; color:#4b5563; margin-top:5px;">4-Digit Security PIN</label>
-        <input type="password" id="loginPin" placeholder="Enter PIN" maxlength="4">
-        
-        <button class="btn" onclick="attemptLogin()" style="margin-top:15px; padding:15px;"><i class="ri-login-circle-line"></i> Secure Login</button>
+
+        <button class="btn btn-google" onclick="loginWithGoogle()">
+            <img src="https://cdn-icons-png.flaticon.com/512/3002/300221.png" style="width:20px;">
+            Continue with Google
+        </button>
+        <div style="font-size:11px; color:#94a3b8; margin-top:15px;">By continuing, you agree to our Terms & Privacy Policy.</div>
     </div>
 </div>
 
-<!-- RECLAIM IDENTITY VIEW (For Dummy Accounts) -->
-<!-- 🛡️ FIX: 'display: flex;' ඉවත් කර 'flex-box' class එක එකතු කිරීම -->
-<div id="view-reclaim" class="view flex-box" style="height: 100vh; flex-direction: column; justify-content: center; padding: 20px; background: white; z-index:1500; position:relative;">
-    <div style="text-align:center; margin-bottom:20px;">
+<div id="view-link-phone" class="view flex-box">
+    <div style="text-align:center; max-width:400px; width:100%;">
+        <div style="width:80px; height:80px; background:#e0f2fe; color:#0284c7; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:40px; margin:0 auto 20px auto;">
+            <i class="ri-smartphone-line"></i>
+        </div>
+        <h2 style="font-weight:900; margin-bottom:10px;">Link Your Number</h2>
+        <p style="color:#64748b; font-size:13px; margin-bottom:25px;">We need your mobile number to securely sync your offline bills and store points.</p>
+        
+        <div class="card" style="text-align:left;">
+            <label style="font-size:11px; font-weight:800; color:#64748b; text-transform:uppercase;">Mobile Number (Used at stores) *</label>
+            <input type="tel" id="userPhoneInput" placeholder="077 XXX XXXX" maxlength="10">
+            <button class="btn" onclick="saveUserPhone()">Secure & Sync <i class="ri-arrow-right-line"></i></button>
+        </div>
+    </div>
+</div>
+
+<!-- ==========================================
+     MASTER NETWORK VIEWS (Code 02)
+========================================== -->
+<div id="view-network-dashboard" class="view">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;">
+        <div>
+            <div style="font-size:12px; color:#64748b; font-weight:800; text-transform:uppercase;">Welcome back,</div>
+            <div style="font-size:20px; font-weight:900; color:#0f172a;" id="dashUserName">Loading...</div>
+        </div>
+        <img id="dashUserPic" src="" style="width:40px; height:40px; border-radius:50%; border:2px solid #e2e8f0; object-fit:cover;">
+    </div>
+
+    <div style="background:linear-gradient(135deg, var(--primary), #3b82f6); border-radius:16px; padding:20px; color:white; margin-bottom:20px; box-shadow:0 10px 25px rgba(37,99,235,0.3); position:relative; overflow:hidden;">
+        <i class="ri-planet-line" style="position:absolute; right:-20px; bottom:-20px; font-size:120px; opacity:0.1;"></i>
+        <div style="font-size:12px; font-weight:600; opacity:0.9;">Total Network Wallet</div>
+        <div style="font-size:32px; font-weight:900; margin:5px 0;" id="totalWalletBal">Rs 0.00</div>
+        <div style="font-size:11px; opacity:0.8;">Combined Store Credits across all merchants</div>
+    </div>
+
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+        <h3 style="font-size:16px; font-weight:900;"><i class="ri-store-2-fill" style="color:var(--primary);"></i> My Connected Stores</h3>
+        <button style="background:none; border:none; color:var(--primary); font-weight:800; font-size:12px; cursor:pointer;" onclick="switchTab('explore', document.querySelectorAll('#masterBottomNav .nav-item')[2])">Find More</button>
+    </div>
+
+    <div id="myShopsList"></div>
+</div>
+
+<div id="view-bills" class="view">
+    <h3 style="font-size:20px; font-weight:900; margin-bottom:15px;"><i class="ri-file-list-3-fill" style="color:var(--primary);"></i> Network Receipts</h3>
+    <p style="font-size:12px; color:#64748b; margin-bottom:20px;">All your bills and warranties from WorldBizNet partnered stores.</p>
+
+    <div style="background:white; padding:5px 15px; border-radius:20px; border:1px solid #cbd5e1; display:flex; align-items:center; margin-bottom:20px;">
+        <i class="ri-search-line" style="color:#94a3b8; font-size:18px;"></i>
+        <input type="text" id="searchBills" placeholder="Search by Store or Item..." style="border:none; margin:0; padding:10px; font-size:13px; font-weight:600; flex:1; box-shadow:none;" onkeyup="filterMyBills()">
+    </div>
+
+    <div id="universalBillsList"></div>
+</div>
+
+<div id="view-explore" class="view">
+    <h3 style="font-size:20px; font-weight:900; margin-bottom:15px;"><i class="ri-compass-3-fill" style="color:var(--primary);"></i> Explore Stores</h3>
+    <p style="font-size:12px; color:#64748b; margin-bottom:20px;">Discover merchants in our network and connect your account to view their catalogs.</p>
+    
+    <div style="background:#fffbeb; border:1px solid #fde68a; padding:15px; border-radius:12px; margin-bottom:20px;">
+        <label style="font-size:11px; font-weight:800; color:#b45309; text-transform:uppercase;">Have a Store Link?</label>
+        <div style="font-size:12px; color:#666; margin-bottom:10px; margin-top:5px;">Paste the store link provided by the merchant to connect instantly.</div>
+        <div style="display:flex; gap:10px;">
+            <input type="text" id="storeCodeInput" placeholder="https://..." style="margin:0; border-color:#fcd34d; padding:12px; font-size:13px;">
+            <button class="btn" style="width:auto; padding:0 20px; background:#d97706; box-shadow:none;" onclick="connectStoreLink()">Connect</button>
+        </div>
+    </div>
+</div>
+
+<!-- ==========================================
+     SPECIFIC SHOP PORTAL VIEWS (Code 01)
+========================================== -->
+<!-- 🛡️ ENTERPRISE FIX: Identity Reclamation View Restored inside Shop Context! -->
+<div id="view-reclaim" class="view flex-box" style="background: white; z-index:1500; position:relative;">
+    <div style="text-align:center; margin-bottom:20px; max-width:400px; width:100%;">
         <div style="width:70px; height:70px; background:#fef3c7; color:#d97706; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:35px; margin:0 auto 15px auto;">
             <i class="ri-sim-card-line"></i>
         </div>
         <h2 style="color:#d97706;">Update Your Number</h2>
         <p style="color:#666; font-size:13px; margin-top:10px; line-height:1.5;">
-            Welcome back <b id="reclaimNameDisplay"></b>! <br>We detected that your old number is no longer active. To continue viewing your history, please enter your <b>current new mobile number</b>.
+            Welcome back <b id="reclaimNameDisplay"></b>! <br>The store recorded your old or temporary number. To link your global WorldBizNet account to this store, please confirm your current number.
         </p>
     </div>
-    <div class="card" style="border:1px solid #fde68a; background:#fffbeb;">
+    <div class="card" style="border:1px solid #fde68a; background:#fffbeb; max-width:400px; width:100%;">
         <label style="font-size:12px; font-weight:600; color:#92400e;">Current Mobile Number *</label>
         <input type="number" id="reclaimNewPhone" placeholder="e.g. 0771112222" style="border-color:#fcd34d;">
-        <button class="btn" style="background:#d97706; margin-top:10px;" onclick="claimNewIdentity()">Update & Continue <i class="ri-arrow-right-line"></i></button>
+        <button class="btn" style="background:#d97706; margin-top:10px;" onclick="claimNewIdentity()">Update & Sync Records <i class="ri-arrow-right-line"></i></button>
     </div>
 </div>
-<!-- DASHBOARD VIEW -->
-<div id="view-dashboard" class="view">
+
+<div id="view-shop-dashboard" class="view">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
         <div>
-            <div style="font-size:12px; color:#666;">Welcome back,</div>
-            <div style="font-size:18px; font-weight:800; color:var(--primary);" id="custNameDisplay">Loading...</div>
+            <div style="font-size:12px; color:#64748b; font-weight:800; text-transform:uppercase;">Welcome to</div>
+            <div style="font-size:20px; font-weight:900; color:var(--primary);" id="activeShopName">Loading...</div>
         </div>
-        <div style="background:#e0e7ff; padding:8px; border-radius:50%; color:var(--primary);"><i class="ri-notification-3-line"></i></div>
+        <div style="background:#e0e7ff; padding:10px; border-radius:50%; color:var(--primary);"><i class="ri-notification-3-line"></i></div>
     </div>
 
-    <!-- Debt Summary -->
     <div class="stat-box danger" id="debtBox">
         <div style="font-size:12px; font-weight:600; margin-bottom:5px;">Total Outstanding Debt</div>
         <div style="font-size:28px; font-weight:900;" id="totalDebtDisplay">Rs 0.00</div>
         <div style="font-size:11px; margin-top:5px;">Please settle at the store to avoid interruptions.</div>
     </div>
 
-    <!-- Service Reminders -->
-    <h4 style="margin:20px 0 10px 0; font-size:15px;"><i class="ri-calendar-event-line"></i> Upcoming Services</h4>
+    <h4 style="margin:20px 0 10px 0; font-size:15px; font-weight:800;"><i class="ri-calendar-event-line"></i> Upcoming Services</h4>
     <div id="remindersList"></div>
 
-    <!-- Recent Bills -->
-    <h4 style="margin:20px 0 10px 0; font-size:15px;"><i class="ri-file-list-3-line"></i> My Recent Bills</h4>
-    <div id="billsList"></div>
+    <h4 style="margin:20px 0 10px 0; font-size:15px; font-weight:800;"><i class="ri-file-list-3-line"></i> Recent Purchases Here</h4>
+    <div id="shopBillsList"></div>
 </div>
 
-<!-- STORE CATALOG VIEW -->
-<div id="view-store" class="view">
-    <h3 style="margin-bottom:15px;"><i class="ri-store-2-line"></i> Store Catalog</h3>
-    <input type="text" id="searchStore" placeholder="Search products..." onkeyup="renderCatalog()" style="background:white;">
-    <div class="product-grid" id="catalogGrid"></div>
+<div id="view-store" class="view" style="display:flex; flex-direction:column; height:calc(100vh - 140px); padding-bottom:0;">
+    <h3 style="margin-bottom:15px; color:var(--primary); font-weight:900;"><i class="ri-store-2-fill"></i> Store Catalog</h3>
+    
+    <div style="background:white; border-radius:20px; border:1px solid #cbd5e1; display:flex; align-items:center; padding:0 15px; margin-bottom:10px; box-shadow:0 2px 4px rgba(0,0,0,0.02); flex-shrink:0;">
+        <i class="ri-search-line" style="color:#94a3b8; font-size:18px;"></i>
+        <input type="text" id="searchStore" placeholder="Search products..." onkeyup="searchCatalogDebounced()" style="border:none; margin:0; box-shadow:none; padding:12px 10px; flex:1; font-size:13px;">
+    </div>
+    
+    <div id="catalogScrollArea" style="flex:1; overflow-y:auto; padding-right:5px; padding-bottom:20px;" onscroll="handleCatalogScroll()">
+        <div class="product-grid" id="catalogGrid"></div>
+        <div id="catalogLoadMoreLoader" style="text-align:center; padding:15px; display:none; color:var(--primary); font-size:12px; font-weight:bold;">
+            <i class="ri-loader-4-line ri-spin"></i> Loading more items...
+        </div>
+    </div>
 </div>
 
-<!-- SERVICE REQUEST VIEW -->
 <div id="view-request" class="view">
-    <h3 style="margin-bottom:15px;"><i class="ri-tools-line"></i> Request a Service</h3>
+    <h3 style="margin-bottom:15px; font-weight:900;"><i class="ri-tools-fill" style="color:var(--primary);"></i> Request Service</h3>
     <div class="card">
-        <p style="font-size:12px; color:#666; margin-bottom:15px;">Need an AC repair, installation, or maintenance? Send a request directly to our team.</p>
-        
-        <label style="font-size:12px; font-weight:600;">Describe the issue or service needed *</label>
+        <p style="font-size:12px; color:#64748b; margin-bottom:15px;">Send a direct repair, installation, or maintenance request to this store's team.</p>
+        <label style="font-size:11px; font-weight:800; color:#0f172a; text-transform:uppercase; margin-bottom:5px; display:block;">Issue Description *</label>
         <textarea id="reqDesc" rows="4" placeholder="e.g. My living room AC is not cooling properly..."></textarea>
-        
-        <button class="btn" onclick="submitServiceRequest()"><i class="ri-send-plane-fill"></i> Send Request</button>
+        <button class="btn" onclick="submitServiceRequest()"><i class="ri-send-plane-fill"></i> Submit Request</button>
     </div>
 
-    <h4 style="margin:20px 0 10px 0; font-size:15px;">My Previous Requests</h4>
+    <h4 style="margin:20px 0 10px 0; font-size:15px; font-weight:800;">My Previous Requests</h4>
     <div id="myRequestsList"></div>
 </div>
 
-<!-- SETTINGS VIEW -->
 <div id="view-settings" class="view">
-    <h3 style="margin-bottom:15px;"><i class="ri-settings-4-line"></i> Account Settings</h3>
+    <h3 style="margin-bottom:15px; font-weight:900;"><i class="ri-settings-4-fill" style="color:var(--primary);"></i> Store Settings</h3>
     <div class="card">
-        <h4 style="font-size:14px; margin-bottom:10px;">Change Security PIN</h4>
-        <!-- 🛡️ FIX 2: Require Current PIN for Security -->
+        <h4 style="font-size:14px; margin-bottom:15px; font-weight:800;">Change In-Store PIN</h4>
+        <p style="font-size:12px; color:#64748b; margin-bottom:15px;">This PIN is used to verify your identity physically at the store counter.</p>
         <input type="password" id="currentPin" placeholder="Current PIN" maxlength="4">
-        <input type="password" id="newPin1" placeholder="New 4-Digit PIN" maxlength="4" style="margin-top:10px;">
+        <input type="password" id="newPin1" placeholder="New 4-Digit PIN" maxlength="4">
         <input type="password" id="newPin2" placeholder="Confirm New PIN" maxlength="4">
         <button class="btn" onclick="changePin()">Update PIN</button>
     </div>
-    <button class="btn btn-danger" onclick="logoutCustomer()" style="margin-top:20px;"><i class="ri-logout-box-line"></i> Logout Securely</button>
 </div>
 
-<!-- 🛡️ TOP NAVIGATION -->
-<div class="top-nav" id="topNav" style="display:none;">
-    <div class="nav-item active" onclick="switchTab('dashboard', this)"><i class="ri-home-5-line"></i><span>Home</span></div>
-    <div class="nav-item" onclick="switchTab('store', this)"><i class="ri-store-2-line"></i><span>Store</span></div>
-    <div class="nav-item" onclick="switchTab('request', this)"><i class="ri-tools-line"></i><span>Request</span></div>
-    <div class="nav-item" onclick="switchTab('settings', this)"><i class="ri-user-settings-line"></i><span>Settings</span></div>
+<!-- ==========================================
+     NAVIGATIONS
+========================================== -->
+<div class="bottom-nav" id="masterBottomNav" style="display:none;">
+    <div class="nav-item active" onclick="switchTab('network-dashboard', this)"><i class="ri-home-smile-fill"></i>Home</div>
+    <div class="nav-item" onclick="switchTab('bills', this)"><i class="ri-receipt-line"></i>Receipts</div>
+    <div class="nav-item" onclick="switchTab('explore', this)"><i class="ri-compass-3-line"></i>Explore</div>
+    <div class="nav-item" onclick="logoutGoogle()"><i class="ri-logout-circle-r-line"></i>Exit</div>
 </div>
 
-<!-- LOGIC -->
+<div class="bottom-nav" id="shopBottomNav" style="display:none;">
+    <div class="nav-item active" onclick="switchTab('shop-dashboard', this)"><i class="ri-dashboard-2-fill"></i>Dashboard</div>
+    <div class="nav-item" onclick="switchTab('store', this)"><i class="ri-store-2-fill"></i>Catalog</div>
+    <div class="nav-item" onclick="switchTab('request', this)"><i class="ri-tools-fill"></i>Requests</div>
+    <div class="nav-item" onclick="switchTab('settings', this)"><i class="ri-settings-4-fill"></i>Settings</div>
+</div>
+
+<!-- ==========================================
+     SCRIPT LOGIC
+========================================== -->
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-    // 🛡️ FIX 1: Added setDoc, deleteDoc, and writeBatch for secure database transactions
-    import { getFirestore, doc, getDoc, collection, query, where, getDocs, orderBy, limit, addDoc, updateDoc, onSnapshot, setDoc, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+    import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+    import { getFirestore, doc, getDoc, setDoc, updateDoc, addDoc, collection, query, where, getDocs, collectionGroup, orderBy, limit, startAfter, onSnapshot, writeBatch } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
 
-    // 🔴 FIREBASE CONFIG
     const firebaseConfig = {
-        apiKey: "AIzaSyCZrmkX2RsJTbn4j-WmbuCMudWaETMvXwQ",
-        authDomain: "managemybusiness-b4afb.firebaseapp.com",
-        projectId: "managemybusiness-b4afb",
-        storageBucket: "managemybusiness-b4afb.firebasestorage.app",
-        messagingSenderId: "237936848306",
-        appId: "1:237936848306:web:91a996c3d1d3ceda3b48ab"
+      apiKey: "AIzaSyBDwLs_z_SXX-t6olQ8xu6dRjxVpgRkuvE",
+      authDomain: "nawarathna-cool-engineering.firebaseapp.com",
+      projectId: "nawarathna-cool-engineering",
+      storageBucket: "nawarathna-cool-engineering.firebasestorage.app",
+      messagingSenderId: "863435741101",
+      appId: "1:863435741101:web:c2774c9a557d0fe014f324"
     };
 
     const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
     const db = getFirestore(app);
+    const provider = new GoogleAuthProvider();
 
-    // 🚀 ENTERPRISE DYNAMIC MULTI-TENANCY: Extract Owner & Shop from URL Parameters
+    // 🚀 ENTERPRISE URL PARSER
     const urlParams = new URLSearchParams(window.location.search);
-    const OWNER_ID = urlParams.get('owner');
-    const URL_SHOP_ID = urlParams.get('shop'); // Optional (Speed boost if provided)
+    let OWNER_ID = urlParams.get('owner');
+    let activeShopId = urlParams.get('shop');
 
-    // Security Check: Block access if the link is invalid (No owner specified)
-    if (!OWNER_ID) {
-        document.body.innerHTML = `
-            <div style="height:100vh; display:flex; align-items:center; justify-content:center; flex-direction:column; padding:20px; text-align:center; background:white;">
-                <i class="ri-error-warning-fill" style="font-size:60px; color:#ef4444; margin-bottom:15px;"></i>
-                <h2 style="color:#1f2937;">Invalid Portal Link</h2>
-                <p style="color:#64748b; font-size:14px; margin-top:5px; line-height:1.5;">This URL is incomplete. Please use the exact SMS/WhatsApp link provided by the store.</p>
-            </div>
-        `;
-        throw new Error("Missing Owner ID parameter in URL"); // Stops all JS execution safely
-    }
+    let currentUser = null;
+    let globalUserPhone = null; 
+    let loggedInCustomer = null; 
+    let isLocalLoginOnly = false; // Flag to track if user logged in via PIN without Google
 
-    let loggedInCustomer = null;
-    let activeShopId = null; // 🛡️ ENTERPRISE FIX: Dynamically captures the customer's branch!
+    // UI Adaptation based on URL presence
+    window.onload = async () => {
+        if (OWNER_ID) {
+            document.getElementById('localLoginCard').style.display = 'block';
+            document.getElementById('landingTitle').innerHTML = `Store Portal<br><span style="color:var(--primary); font-size:20px;">Verify your identity</span>`;
+            document.getElementById('landingDesc').textContent = "Use the PIN provided on your physical bill/receipt to log into this specific store.";
+            
+            // 🚀 DYNAMIC SHOP FINDER: If Owner is given but NO Shop ID, find it!
+            if (!activeShopId) {
+                try {
+                    const qShops = query(collection(db, `users/${OWNER_ID}/shops`), limit(1));
+                    const snapShops = await getDocs(qShops);
+                    if (!snapShops.empty) {
+                        activeShopId = snapSnap.docs[0].id; // Assigns the first shop found under this owner
+                        console.log("Auto-detected Shop ID:", activeShopId);
+                    }
+                } catch(e) { console.warn("Dynamic shop fetch failed"); }
+            }
+        }
+    };
+
     let catalogCache = [];
+    let lastCatalogDoc = null;
+    let isFetchingCatalog = false;
+    let hasMoreCatalog = true;
+
     let myRequestsCache = [];
+    let unsubscribeMyRequests = null;
+    let universalBillsCache = [];
 
     // --- UI Utilities ---
-    const showToast = (msg) => {
+    const showToast = (msg, type = 'info') => {
         const t = document.getElementById('toastMsg');
-        t.textContent = msg; t.style.display = 'block';
+        t.textContent = msg; 
+        t.style.display = 'block';
+        t.style.background = type === 'error' ? '#ef4444' : '#111827';
         setTimeout(() => t.style.display = 'none', 3000);
     };
-    const toggleLoader = (show) => document.getElementById('loader').style.display = show ? 'flex' : 'none';
-
-    window.switchTab = (tabId, element) => {
-        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-        document.getElementById(`view-${tabId}`).classList.add('active');
-        element.classList.add('active');
-
-        if(tabId === 'store' && catalogCache.length === 0) loadCatalog();
-        if(tabId === 'request') loadMyRequests();
-    };
-
+    
+    const toggleLoader = (show) => document.getElementById('globalLoader').style.display = show ? 'flex' : 'none';
     const formatMoney = (a) => `Rs ${(Number(a)||0).toFixed(2)}`;
 
-    // 🚀 OMNI-FORMAT PARSER (Global)
+    window.switchTab = (tabId, element = null) => {
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+        
+        if (element) {
+            element.parentElement.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            element.classList.add('active');
+        }
+        
+        document.getElementById(`view-${tabId}`).classList.add('active');
+
+        if (tabId === 'network-dashboard') loadNetworkDashboard();
+        if (tabId === 'bills') loadUniversalBills();
+        if (tabId === 'shop-dashboard') loadShopDashboardData();
+        if (tabId === 'store' && catalogCache.length === 0) loadCatalog();
+        if (tabId === 'request') loadMyRequests();
+    };
+
+    window.resetCatalog = () => {
+        catalogCache = [];
+        lastCatalogDoc = null;
+        hasMoreCatalog = true;
+        isFetchingCatalog = false;
+    };
+
+    // 🚀 OMNI-FORMAT PARSER
     const normalizePhone = (rawPhone) => {
         let phone = String(rawPhone).replace(/[^0-9]/g, '');
         if (phone.startsWith('0094') && phone.length === 13) phone = '0' + phone.substring(4);
@@ -242,146 +398,471 @@ input:focus, textarea:focus { border-color: var(--primary); }
         return phone;
     };
 
-    // --- Authentication (ENTERPRISE CONCURRENT ROUTER) ---
-    window.attemptLogin = async () => {
-        let rawPhone = document.getElementById('loginPhone').value.trim();
-        const pin = document.getElementById('loginPin').value.trim();
-        if(!rawPhone || !pin) return showToast("Phone and PIN required");
+    // --- AUTHENTICATION ---
+// ==========================================
+    // 🚀 LOCAL PIN AUTHENTICATION (Code 01 Logic)
+    // ==========================================
+    window.attemptLocalLogin = async () => {
+        if (!OWNER_ID || !activeShopId) return showToast("Store connection link is broken or missing.", "error");
+
+        let rawPhone = document.getElementById('localPhone').value.trim();
+        const pin = document.getElementById('localPin').value.trim();
+        if(!rawPhone || !pin) return showToast("Phone and PIN required", "error");
 
         const phone = normalizePhone(rawPhone);
         toggleLoader(true);
 
         try {
-            let shopsToCheck = [];
-            
-            // 🚀 DYNAMIC MULTI-TENANCY: Optimize login using URL parameters
-            if (URL_SHOP_ID) {
-                // URL එකේ Shop ID එක ඇත්නම්, එම කඩය පමණක් පරීක්ෂා කිරීම (අතිශය වේගවත්)
-                shopsToCheck = [{ id: URL_SHOP_ID }];
-            } else {
-                // Shop ID එක නැතිනම්, එම Owner ගේ සියලුම කඩවල් පුරාම පාරිභෝගිකයාව සෙවීම
-                try {
-                    const shopsSnap = await getDocs(collection(db, `users/${OWNER_ID}/shops`));
-                    shopsToCheck = shopsSnap.docs.map(d => ({ id: d.id }));
-                } catch (err) {
-                    console.error("Firebase Rules Error:", err);
-                    showToast("Permission Denied: Database Rules Error.");
-                    toggleLoader(false); return;
-                }
-            }
+            // Re-using the deep resolution engine
+            const resolution = await resolveIdentityInShop(activeShopId, phone);
 
-            // 🚀 PARALLEL EXECUTION: Check shops simultaneously
-            const resolutionPromises = shopsToCheck.map(shopDoc => resolveIdentityInShop(shopDoc.id, phone, pin));
-            const results = await Promise.all(resolutionPromises);
-            
-            // බලනවා කොයි කඩෙන් හරි සාර්ථක ප්‍රතිඵලයක් ආවාද කියලා
-            const validResult = results.find(r => r.found);
-
-            if (validResult) {
-                loggedInCustomer = validResult.customer;
-                activeShopId = validResult.shopId;
-
-                // 🛡️ FIX: Inline style වෙනුවට class එකෙන් ඉවත් කිරීම
-                document.getElementById('view-login').classList.remove('active'); 
-
-                // 🚀 IDENTITY RECLAMATION PROTOCOL: Check if user is stuck in a Dummy Account
+            if (resolution.found && String(resolution.customer.pin) === String(pin)) {
+                // Success!
+                loggedInCustomer = resolution.customer;
+                globalUserPhone = phone;
+                isLocalLoginOnly = true; // Mark as non-Google user
+                
+                document.getElementById('localPin').value = '';
+                
+                // 🚨 IDENTITY RECLAMATION CHECK
                 if (loggedInCustomer.id.endsWith("000") || (loggedInCustomer.name && loggedInCustomer.name.includes("(LOST NUMBER)"))) {
-                    // Force user to update their number!
+                    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
                     document.getElementById('view-reclaim').classList.add('active');
                     document.getElementById('reclaimNameDisplay').textContent = loggedInCustomer.name.replace(" (LOST NUMBER)", "").trim();
+                    document.getElementById('reclaimNewPhone').value = phone; 
                 } else {
-                    // Normal Login
-                    document.getElementById('view-dashboard').classList.add('active');
-                    document.getElementById('topNav').style.display = 'flex'; // 🛡️ Changed to topNav
-                    document.getElementById('custNameDisplay').textContent = loggedInCustomer.name;
-                    loadDashboardData();
+                    // Enter specific shop portal directly!
+                    openShopPortal(OWNER_ID, activeShopId);
                 }
             } else {
-                showToast("Invalid Phone Number or PIN");
+                showToast("Invalid Phone Number or PIN for this store.", "error");
             }
         } catch (e) {
             console.error(e);
-            showToast("Connection Error. Please check your network.");
+            showToast("Connection Error.", "error");
+        }
+        toggleLoader(false);
+    };
+
+    // 🚀 Overriding Logout for Local Users
+    const originalLogoutGoogle = window.logoutGoogle;
+    window.logoutGoogle = async () => {
+        if (!confirm("Sign out of the portal?")) return;
+        
+        if (isLocalLoginOnly) {
+            // Local user, just clear cache and go home
+            loggedInCustomer = null;
+            globalUserPhone = null;
+            isLocalLoginOnly = false;
+            
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.getElementById('view-landing').classList.add('active');
+            document.getElementById('shopHeader').style.display = 'none';
+            document.getElementById('masterHeader').style.display = 'flex';
+            document.getElementById('shopBottomNav').style.display = 'none';
+        } else {
+            // Real Google User
+            if (originalLogoutGoogle) await originalLogoutGoogle();
+        }
+    };
+    window.loginWithGoogle = async () => {
+        toggleLoader(true);
+        try {
+            await signInWithPopup(auth, provider);
+        } catch(e) {
+            showToast("Login Failed. Please try again.", "error");
+            toggleLoader(false);
+        }
+    };
+
+    onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            currentUser = user;
+            if(document.getElementById('dashUserName')) document.getElementById('dashUserName').textContent = user.displayName.split(' ')[0];
+            if(document.getElementById('dashUserPic')) document.getElementById('dashUserPic').src = user.photoURL;
+            
+            const centralUserRef = doc(db, 'worldbiz_users', user.uid);
+            const userSnap = await getDoc(centralUserRef);
+
+            if (userSnap.exists() && userSnap.data().phone) {
+                globalUserPhone = userSnap.data().phone;
+                
+                // 🛡️ STRICT ROUTING: Check if user arrived via a Merchant Link
+                const urlParams = new URLSearchParams(window.location.search);
+                const URL_OWNER = urlParams.get('owner');
+                const URL_SHOP = urlParams.get('shop');
+                
+                if (URL_OWNER && URL_SHOP) {
+                    openShopPortal(URL_OWNER, URL_SHOP);
+                } else {
+                    backToMaster();
+                }
+            } else {
+                document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+                document.getElementById('view-link-phone').classList.add('active');
+                document.getElementById('masterHeader').style.display = 'flex';
+                document.getElementById('shopHeader').style.display = 'none';
+            }
+        } else {
+            currentUser = null;
+            globalUserPhone = null;
+            document.getElementById('masterBottomNav').style.display = 'none';
+            document.getElementById('shopBottomNav').style.display = 'none';
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.getElementById('view-landing').classList.add('active');
+            document.getElementById('masterHeader').style.display = 'flex';
+            document.getElementById('shopHeader').style.display = 'none';
+        }
+        toggleLoader(false);
+    });
+
+    window.logoutGoogle = async () => {
+        if(!confirm("Sign out of WorldBizNet?")) return;
+        if (unsubscribeMyRequests) { unsubscribeMyRequests(); unsubscribeMyRequests = null; }
+        await signOut(auth);
+    };
+
+    window.saveUserPhone = async () => {
+        let rawPhone = document.getElementById('userPhoneInput').value.trim();
+        let phone = normalizePhone(rawPhone);
+
+        if (phone.length !== 10) return showToast("Please enter a valid 10-digit mobile number.", "error");
+
+        toggleLoader(true);
+        try {
+            await setDoc(doc(db, 'worldbiz_users', currentUser.uid), {
+                name: currentUser.displayName,
+                email: currentUser.email,
+                phone: phone,
+                joinedAt: new Date().toISOString()
+            });
+            globalUserPhone = phone;
+            
+            const urlParams = new URLSearchParams(window.location.search);
+            const URL_OWNER = urlParams.get('owner');
+            const URL_SHOP = urlParams.get('shop');
+            
+            if (URL_OWNER && URL_SHOP) openShopPortal(URL_OWNER, URL_SHOP);
+            else backToMaster();
+
+        } catch (e) {
+            showToast("Failed to link phone. Try again.", "error");
+        }
+        toggleLoader(false);
+    };
+
+    // --- NAVIGATION LOGIC ---
+    window.openShopPortal = async (ownerId, shopId) => {
+        OWNER_ID = ownerId;
+        activeShopId = shopId;
+        toggleLoader(true);
+        
+        try {
+            // 🛡️ DEEP IDENTITY RESOLUTION (Code 01 Logic Restored for Spoke Access)
+            const resolution = await resolveIdentityInShop(shopId, globalUserPhone);
+
+            if (resolution.found) {
+                loggedInCustomer = resolution.customer;
+
+                // 🚨 IDENTITY RECLAMATION PROTOCOL
+                if (loggedInCustomer.id.endsWith("000") || (loggedInCustomer.name && loggedInCustomer.name.includes("(LOST NUMBER)"))) {
+                    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+                    document.getElementById('view-reclaim').classList.add('active');
+                    document.getElementById('reclaimNameDisplay').textContent = loggedInCustomer.name.replace(" (LOST NUMBER)", "").trim();
+                    document.getElementById('reclaimNewPhone').value = globalUserPhone; // Pre-fill with their global number
+                    document.getElementById('reclaimNewPhone').disabled = true; // Lock it to their verified global number
+                    
+                    document.getElementById('masterHeader').style.display = 'none';
+                    document.getElementById('shopHeader').style.display = 'flex';
+                    document.getElementById('shopHeaderTitle').textContent = `Action Required`;
+                    toggleLoader(false);
+                    return; // Stop and wait for user to claim
+                }
+            } else {
+                // Completely new customer to this specific shop
+                loggedInCustomer = { id: globalUserPhone, name: currentUser.displayName, phone: globalUserPhone, pin: "0000" };
+                await setDoc(doc(db, `users/${OWNER_ID}/shops/${activeShopId}/customers`, globalUserPhone), loggedInCustomer);
+            }
+            
+            // Switch UI Context
+            document.getElementById('activeShopName').textContent = shopId;
+            document.getElementById('shopHeaderTitle').textContent = `Store: ${shopId}`;
+            
+            document.getElementById('masterHeader').style.display = 'none';
+            document.getElementById('shopHeader').style.display = 'flex';
+            
+            document.getElementById('masterBottomNav').style.display = 'none';
+            document.getElementById('shopBottomNav').style.display = 'flex';
+            
+            resetCatalog();
+            if (unsubscribeMyRequests) { unsubscribeMyRequests(); unsubscribeMyRequests = null; }
+            
+            const firstTab = document.querySelector('#shopBottomNav .nav-item:first-child');
+            switchTab('shop-dashboard', firstTab);
+            
+        } catch(e) {
+            console.error(e);
+            showToast("Error connecting to shop.", "error");
+            backToMaster();
         }
         toggleLoader(false);
     };
 
     // 🚀 RECURSIVE DEEP RESOLUTION (The Graph Traversal Engine)
-    async function resolveIdentityInShop(shopId, targetPhone, pin) {
+    async function resolveIdentityInShop(shopId, targetPhone) {
         let currentPhone = targetPhone;
-        let depth = 0; // Prevent infinite loops
+        let depth = 0; 
 
         while (depth < 5) {
             try {
                 const cRef = doc(db, `users/${OWNER_ID}/shops/${shopId}/customers`, currentPhone);
                 const cSnap = await getDoc(cRef);
                 
-                // 1. අදාළ අංකයේ ගිණුම හමුවී PIN එකත් හරි නම්..
-                if (cSnap.exists() && String(cSnap.data().pin) === String(pin)) {
-                    return { found: true, shopId: shopId, customer: { id: cSnap.id, ...cSnap.data() } };
+                if (cSnap.exists()) {
+                    return { found: true, customer: { id: cSnap.id, ...cSnap.data() } };
                 }
 
-                // 2. අදාළ අංකය හෝ PIN එක වැරදි නම්, පද්ධතිය Archive එකට බැස හොයයි (Deep Pointer Resolution)
+                // Check Archives
                 const archiveQ = query(collection(db, `users/${OWNER_ID}/shops/${shopId}/customer_archives`), where("originalId", "==", currentPhone));
                 const archSnap = await getDocs(archiveQ);
                 
                 if (!archSnap.empty) {
                     let archives = [];
                     archSnap.forEach(d => archives.push(d.data()));
-                    archives.sort((a,b) => new Date(b.archivedAt) - new Date(a.archivedAt)); // Latest first
-                    
-                    currentPhone = archives[0].forwardedTo; // පාරිභෝගිකයාගේ අලුත් අංකය සොයාගනී
-                    depth++; // Loop එක නැවත දුවයි අලුත් අංකය අරගෙන! (Hop to next)
+                    archives.sort((a,b) => new Date(b.archivedAt) - new Date(a.archivedAt)); 
+                    currentPhone = archives[0].forwardedTo; 
+                    depth++; 
                 } else {
-                    break; // Archive එකෙත් නැත්නම් මේක ඇත්තටම වැරදි ලොගින් එකක්
+                    break; 
                 }
-            } catch (e) {
-                console.warn(`Resolution failed at depth ${depth} in shop ${shopId}`, e);
-                break;
-            }
+            } catch (e) { break; }
         }
         return { found: false };
     }
 
-    window.logoutCustomer = () => {
-        if(!confirm("Log out from your account?")) return;
-        loggedInCustomer = null;
-        activeShopId = null; // Clear branch lock
-        
-        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
-        document.getElementById('view-login').classList.add('active'); 
-        
-        document.getElementById('topNav').style.display = 'none'; // 🛡️ Changed to topNav
-        document.getElementById('loginPin').value = '';
+    // 🚀 IDENTITY RECLAMATION (Code 01 Feature Restored inside Hub)
+    window.claimNewIdentity = async () => {
+        const newPhone = globalUserPhone; // Must match their verified global account
+
+        toggleLoader(true);
+        try {
+            const newRef = doc(db, `users/${OWNER_ID}/shops/${activeShopId}/customers`, newPhone);
+            const newSnap = await getDoc(newRef);
+
+            if (newSnap.exists()) {
+                toggleLoader(false);
+                return showToast("This number is already registered in this store!", "error");
+            }
+
+            const oldRef = doc(db, `users/${OWNER_ID}/shops/${activeShopId}/customers`, loggedInCustomer.id);
+            let updatedName = loggedInCustomer.name.replace(" (LOST NUMBER)", "").trim();
+            let pHistory = loggedInCustomer.phone_history || [];
+            pHistory.push({ phone: loggedInCustomer.id, migratedAt: new Date().toISOString(), reason: "Portal Claimed" });
+
+            const newProfileData = {
+                ...loggedInCustomer,
+                id: newPhone, 
+                name: updatedName,
+                phone: newPhone,
+                phone_history: pHistory,
+                lastUpdated: new Date().toISOString()
+            };
+            
+            const batch = writeBatch(db);
+            
+            batch.set(newRef, newProfileData);
+            
+            const timestampKey = new Date().toISOString().replace(/[:.-]/g, '');
+            const archiveRef = doc(db, `users/${OWNER_ID}/shops/${activeShopId}/customer_archives`, `${loggedInCustomer.id}_v${timestampKey}`);
+            batch.set(archiveRef, { originalId: loggedInCustomer.id, forwardedTo: newPhone, archivedAt: new Date().toISOString(), reason: "Portal Self-Claimed" });
+            
+            const qAlerts = query(collection(db, `users/${OWNER_ID}/shops/${activeShopId}/alerts`), where("refId", "==", loggedInCustomer.id));
+            const snapAlerts = await getDocs(qAlerts);
+            snapAlerts.forEach(d => { batch.update(d.ref, { refId: newPhone, lastUpdatedViaPortal: new Date().toISOString() }); });
+            
+            batch.delete(oldRef);
+            await batch.commit();
+
+            loggedInCustomer = newProfileData;
+            
+            showToast("Records Synced Successfully!", "success");
+            const firstTab = document.querySelector('#shopBottomNav .nav-item:first-child');
+            switchTab('shop-dashboard', firstTab);
+
+        } catch(e) {
+            console.error("Claim Error:", e);
+            showToast("An error occurred. Try again.", "error");
+        }
+        toggleLoader(false);
     };
 
-    // --- Dashboard Data ---
-    async function loadDashboardData() {
-        toggleLoader(true);
-        const phone = loggedInCustomer.id;
+    window.backToMaster = () => {
+        OWNER_ID = null;
+        activeShopId = null;
+        loggedInCustomer = null;
         
+        document.getElementById('shopHeader').style.display = 'none';
+        document.getElementById('masterHeader').style.display = 'flex';
+        
+        document.getElementById('shopBottomNav').style.display = 'none';
+        document.getElementById('masterBottomNav').style.display = 'flex';
+        
+        if (unsubscribeMyRequests) { unsubscribeMyRequests(); unsubscribeMyRequests = null; }
+        
+        const firstTab = document.querySelector('#masterBottomNav .nav-item:first-child');
+        switchTab('network-dashboard', firstTab);
+    };
+
+    window.connectStoreLink = () => {
+        const link = document.getElementById('storeCodeInput').value.trim();
         try {
-            // 1. OMNI-FETCH SALES (Bypasses Firebase Index Errors)
+            const url = new URL(link);
+            const o = url.searchParams.get('owner');
+            const s = url.searchParams.get('shop');
+            if (o && s) {
+                document.getElementById('storeCodeInput').value = '';
+                openShopPortal(o, s);
+            } else {
+                showToast("Invalid store link. Copy the full URL.", "error");
+            }
+        } catch(e) { showToast("Please enter a valid URL.", "error"); }
+    };
+
+    // --- MASTER NETWORK DATA ---
+    async function loadNetworkDashboard() {
+        if (!globalUserPhone) return;
+        toggleLoader(true);
+        const shopsListDiv = document.getElementById('myShopsList');
+        let grandTotalWallet = 0;
+
+        try {
+            const q = query(collectionGroup(db, 'customers'), where("phone", "==", globalUserPhone));
+            const snap = await getDocs(q);
+
+            if (snap.empty) {
+                shopsListDiv.innerHTML = `
+                <div style="text-align:center; padding:30px; background:white; border-radius:16px; border:1px dashed #cbd5e1;">
+                    <i class="ri-store-3-line" style="font-size:40px; color:#94a3b8;"></i>
+                    <h4 style="margin:10px 0; color:#475569;">No Stores Connected</h4>
+                    <p style="font-size:12px; color:#64748b;">Visit a partner store or paste a store link to connect!</p>
+                </div>`;
+                document.getElementById('totalWalletBal').textContent = 'Rs 0.00';
+                toggleLoader(false);
+                return;
+            }
+
+            let html = '';
+            snap.forEach(docSnap => {
+                const cData = docSnap.data();
+                const shopId = docSnap.ref.parent.parent.id; 
+                const ownerId = docSnap.ref.parent.parent.parent.parent.id;
+                
+                const wallet = cData.walletBalance || 0;
+                grandTotalWallet += wallet;
+                const points = cData.loyaltyPoints || 0;
+
+                html += `
+                <div class="shop-card" onclick="openShopPortal('${ownerId}', '${shopId}')">
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        <div style="width:45px; height:45px; background:white; border-radius:10px; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 5px rgba(0,0,0,0.05); font-weight:900; color:var(--primary); font-size:20px;">
+                            ${shopId.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                            <div style="font-weight:900; font-size:15px; color:#0f172a;">${shopId}</div>
+                            <div style="font-size:11px; font-weight:bold; color:#d97706; margin-top:3px;"><i class="ri-medal-fill"></i> ${points} Pts Available</div>
+                        </div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-size:10px; color:#64748b; font-weight:800; text-transform:uppercase;">Store Credit</div>
+                        <div style="font-size:16px; font-weight:900; color:#10b981;">${formatMoney(wallet)}</div>
+                    </div>
+                </div>`;
+            });
+
+            shopsListDiv.innerHTML = html;
+            document.getElementById('totalWalletBal').textContent = formatMoney(grandTotalWallet);
+
+        } catch (e) {
+            shopsListDiv.innerHTML = '<div style="color:red; text-align:center; font-size:12px;">Failed to sync with network. Index required.</div>';
+        }
+        toggleLoader(false);
+    }
+
+    async function loadUniversalBills() {
+        if (!globalUserPhone) return;
+        const listDiv = document.getElementById('universalBillsList');
+        listDiv.innerHTML = '<div style="text-align:center; padding:30px;"><i class="ri-loader-4-line ri-spin" style="font-size:30px; color:var(--primary);"></i><br><span style="font-size:12px; font-weight:bold; color:#64748b; margin-top:10px; display:inline-block;">Fetching global receipts...</span></div>';
+
+        try {
+            const q = query(collectionGroup(db, 'sales'), where("customer.phone", "==", globalUserPhone), orderBy("date", "desc"), limit(50));
+            const snap = await getDocs(q);
+
+            universalBillsCache = [];
+            snap.forEach(d => {
+                const shopId = d.ref.parent.parent.id;
+                universalBillsCache.push({ id: d.id, shopId: shopId, ...d.data() });
+            });
+
+            renderUniversalBills();
+        } catch(e) {
+            listDiv.innerHTML = '<div style="color:#ef4444; text-align:center; font-size:12px; padding:20px; background:#fee2e2; border-radius:12px;">Error fetching receipts. Index required.</div>';
+        }
+    }
+
+    window.renderUniversalBills = () => {
+        const listDiv = document.getElementById('universalBillsList');
+        const term = document.getElementById('searchBills').value.trim().toLowerCase();
+
+        const filtered = universalBillsCache.filter(b => 
+            b.shopId.toLowerCase().includes(term) || 
+            (b.customOrderId && b.customOrderId.toLowerCase().includes(term)) ||
+            (b.items && b.items.some(i => i.name.toLowerCase().includes(term)))
+        );
+
+        if (filtered.length === 0) {
+            listDiv.innerHTML = '<div style="text-align:center; color:#94a3b8; padding:20px; font-size:12px; font-weight:bold;">No matching receipts found.</div>';
+            return;
+        }
+
+        listDiv.innerHTML = filtered.map(b => {
+            const dateStr = new Date(b.date).toLocaleDateString();
+            const itemsSummary = b.items ? b.items.map(i => `${i.name} (x${i.qty})`).join(', ') : 'No items';
+
+            return `
+            <div class="card" style="padding:15px;">
+                <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:10px; border-bottom:1px solid #f1f5f9; padding-bottom:10px;">
+                    <div>
+                        <div style="font-family:monospace; font-weight:900; color:var(--primary); font-size:13px;">${b.customOrderId || b.id}</div>
+                        <div style="font-size:11px; color:#64748b; font-weight:bold; margin-top:2px;">Store: ${b.shopId}</div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-weight:900; font-size:16px; color:#0f172a;">${formatMoney(b.total)}</div>
+                        <div style="font-size:10px; color:#94a3b8; font-weight:bold; margin-top:2px;">${dateStr}</div>
+                    </div>
+                </div>
+                <div style="font-size:11px; color:#475569; line-height:1.4;">${itemsSummary}</div>
+            </div>`;
+        }).join('');
+    };
+
+    window.filterMyBills = () => { renderUniversalBills(); };
+
+    // --- SHOP PORTAL DATA (Code 01 Logic) ---
+    async function loadShopDashboardData() {
+        toggleLoader(true);
+        try {
             let totalDebt = 0;
             let allSales = [];
-            
-            // අදාළ පාරිභෝගිකයාගේ සියලුම බිල්පත් එකවර ගෙන්වා ගැනීම (Index අවශ්‍ය නොවේ)
-            const qSales = query(collection(db, `users/${OWNER_ID}/shops/${activeShopId}/sales`), where("customer.phone", "==", phone));
+            const qSales = query(collection(db, `users/${OWNER_ID}/shops/${activeShopId}/sales`), where("customer.phone", "==", loggedInCustomer.id));
             const snapSales = await getDocs(qSales);
             
             snapSales.forEach(d => {
                 const s = d.data();
                 allSales.push(s);
-                // ණය ගණනය කිරීම Client-Side හිදී සිදු කිරීම
-                if(s.creditBalance && s.creditBalance > 0) {
-                    totalDebt += s.creditBalance;
-                }
+                if(s.creditBalance && s.creditBalance > 0) totalDebt += s.creditBalance;
             });
 
-            // බිල්පත් අලුත්ම දින අනුව පෙළගැස්වීම (Sort Client-Side)
             allSales.sort((a, b) => new Date(b.date) - new Date(a.date));
-            
-            // ඉන්පසු ඉන් අලුත්ම බිල් 10 පමණක් UI එක සඳහා වෙන් කර ගැනීම
             const recentBills = allSales.slice(0, 10);
             
             let billsHtml = '';
@@ -394,24 +875,22 @@ input:focus, textarea:focus { border-color: var(--primary); }
                 billsHtml += `
                 <div class="card" style="padding:12px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
                     <div>
-                        <div style="font-weight:700; font-size:14px;">${formatMoney(s.total)}</div>
-                        <div style="font-size:11px; color:#666; margin-top:2px;">${new Date(s.date).toLocaleDateString()} | ${s.items ? s.items.length : 0} items</div>
+                        <div style="font-weight:800; font-size:14px; color:#0f172a;">${formatMoney(s.total)}</div>
+                        <div style="font-size:11px; color:#64748b; margin-top:2px;">${new Date(s.date).toLocaleDateString()} | ${s.items ? s.items.length : 0} items</div>
                     </div>
                     ${badge}
                 </div>`;
             });
             
-            // බිල්පත් ලැයිස්තුව සහ මුළු ණය මුදල UI එකට යෙදීම
             document.getElementById('totalDebtDisplay').textContent = formatMoney(totalDebt);
-            document.getElementById('billsList').innerHTML = billsHtml || '<div style="font-size:12px; color:#999; text-align:center;">No recent purchases.</div>';
+            document.getElementById('shopBillsList').innerHTML = billsHtml || '<div style="font-size:12px; color:#94a3b8; text-align:center; font-weight:bold;">No recent purchases here.</div>';
             
-            // ණය නොමැති නම් රතු පසුබිම කොළ පැහැයට හැරවීම (UX Fix)
             if(totalDebt <= 0) {
                 document.getElementById('debtBox').className = 'stat-box';
                 document.getElementById('debtBox').style.background = '#dcfce7';
                 document.getElementById('debtBox').style.borderColor = '#86efac';
                 document.getElementById('totalDebtDisplay').style.color = '#15803d';
-                document.getElementById('debtBox').querySelector('div:last-child').style.display = 'none'; // Hide warning msg
+                document.getElementById('debtBox').querySelector('div:last-child').style.display = 'none';
             } else {
                 document.getElementById('debtBox').className = 'stat-box danger';
                 document.getElementById('debtBox').style.background = '#fee2e2';
@@ -420,184 +899,276 @@ input:focus, textarea:focus { border-color: var(--primary); }
                 document.getElementById('debtBox').querySelector('div:last-child').style.display = 'block'; 
             }
 
-            // 2. OMNI-FETCH ALERTS (Bypasses Firebase Index Errors)
-            const qAlerts = query(collection(db, `users/${OWNER_ID}/shops/${activeShopId}/alerts`), where("refId", "==", phone));
+            const qAlerts = query(collection(db, `users/${OWNER_ID}/shops/${activeShopId}/alerts`), where("refId", "==", loggedInCustomer.id));
             const snapAlerts = await getDocs(qAlerts);
             let remHtml = '';
             
             snapAlerts.forEach(d => {
                 const a = d.data();
-                // Active alerts පමණක් පෙරහන් කිරීම Client-side හිදී සිදු කිරීම
                 if (a.status === "active") {
                     remHtml += `
-                    <div style="background:#fffbeb; border-left:3px solid #f59e0b; padding:10px; border-radius:4px 8px 8px 4px; margin-bottom:10px;">
-                        <div style="font-size:11px; color:#d97706; font-weight:bold;">Scheduled: ${new Date(a.targetDate).toLocaleDateString()}</div>
-                        <div style="font-size:13px; font-weight:600; margin-top:2px;">${a.message}</div>
+                    <div style="background:#fffbeb; border-left:3px solid #f59e0b; padding:12px; border-radius:4px 8px 8px 4px; margin-bottom:10px; box-shadow:0 2px 5px rgba(0,0,0,0.02);">
+                        <div style="font-size:11px; color:#d97706; font-weight:800;">Scheduled: ${new Date(a.targetDate).toLocaleDateString()}</div>
+                        <div style="font-size:13px; font-weight:700; color:#0f172a; margin-top:4px;">${a.message}</div>
                     </div>`;
                 }
             });
-            document.getElementById('remindersList').innerHTML = remHtml || '<div style="font-size:12px; color:#999; text-align:center;">No upcoming services.</div>';
+            document.getElementById('remindersList').innerHTML = remHtml || '<div style="font-size:12px; color:#94a3b8; text-align:center; font-weight:bold;">No upcoming services.</div>';
 
         } catch (e) { 
-            console.error("Dashboard Load Error:", e); 
-            document.getElementById('billsList').innerHTML = '<div style="font-size:12px; color:red; text-align:center;">Error loading data.</div>';
+            document.getElementById('shopBillsList').innerHTML = '<div style="font-size:12px; color:#ef4444; text-align:center;">Error loading data.</div>';
         }
         toggleLoader(false);
     }
 
-    // --- Store Catalog (View Only) ---
-    async function loadCatalog() {
-        toggleLoader(true);
-        try {
-            const q = query(collection(db, `users/${OWNER_ID}/shops/${activeShopId}/products`), limit(100));
-            const snap = await getDocs(q);
-            
-            let uniqueProds = {};
-            snap.forEach(d => {
-                const p = d.data();
-                const key = p.name;
-                if(!uniqueProds[key]) uniqueProds[key] = { name: p.name, image: p.image, price: p.sell, inStock: false };
-                if(p.qty > 0) uniqueProds[key].inStock = true;
-            });
-            catalogCache = Object.values(uniqueProds);
-            window.renderCatalog();
-        } catch (e) { console.error(e); }
-        toggleLoader(false);
-    }
+    // --- CATALOG WITH INFINITE SCROLL ---
+    let searchTimeout = null;
 
-    window.renderCatalog = () => {
-        const term = document.getElementById('searchStore').value.toLowerCase();
+    window.loadCatalog = async (isLoadMore = false) => {
         const grid = document.getElementById('catalogGrid');
+        const loaderUi = document.getElementById('catalogLoadMoreLoader');
+        const term = document.getElementById('searchStore').value.trim().toLowerCase();
+
+        if (!isLoadMore) {
+            lastCatalogDoc = null; hasMoreCatalog = true; catalogCache = [];
+            grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding:40px 20px; font-size:13px; color:var(--primary); font-weight:bold;"><i class="ri-loader-4-line ri-spin" style="font-size:30px; display:block; margin-bottom:10px;"></i> Loading Catalog...</div>';
+        } else {
+            if(loaderUi) loaderUi.style.display = 'block';
+        }
+
+        if (isFetchingCatalog || !hasMoreCatalog) return;
+        isFetchingCatalog = true;
+
+        try {
+            let q;
+            const collRef = collection(db, `users/${OWNER_ID}/shops/${activeShopId}/products`);
+            
+            if (term.length >= 3) {
+                hasMoreCatalog = false;
+                const capTerm = term.charAt(0).toUpperCase() + term.slice(1);
+                
+                const qNameLow = query(collRef, where('name', '>=', term), where('name', '<=', term + '\uf8ff'), limit(30));
+                const qNameCap = query(collRef, where('name', '>=', capTerm), where('name', '<=', capTerm + '\uf8ff'), limit(30));
+                
+                const [snapLow, snapCap] = await Promise.all([getDocs(qNameLow), getDocs(qNameCap)]);
+                if (!isLoadMore) grid.innerHTML = '';
+                
+                let uniqueProds = {};
+                const processSnap = (d) => {
+                    const p = d.data();
+                    if(!uniqueProds[p.name]) uniqueProds[p.name] = { id: d.id, name: p.name, image: p.image, price: p.sell, inStock: p.qty > 0 };
+                    else if(p.qty > 0) uniqueProds[p.name].inStock = true;
+                };
+                snapLow.forEach(processSnap);
+                snapCap.forEach(processSnap);
+                
+                catalogCache = Object.values(uniqueProds);
+            } else {
+                if (lastCatalogDoc) {
+                    q = query(collRef, orderBy('name'), startAfter(lastCatalogDoc), limit(30));
+                } else {
+                    q = query(collRef, orderBy('name'), limit(30));
+                }
+                
+                const snap = await getDocs(q);
+                if (!isLoadMore) grid.innerHTML = '';
+
+                if (snap.empty) {
+                    if(!isLoadMore) grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding:20px; font-size:12px; font-weight:bold; color:#94a3b8;">No items found.</div>';
+                    hasMoreCatalog = false;
+                } else {
+                    lastCatalogDoc = snap.docs[snap.docs.length - 1];
+                    if (snap.docs.length < 30) hasMoreCatalog = false;
+
+                    let uniqueProds = {};
+                    snap.forEach(d => {
+                        const p = d.data();
+                        if(!uniqueProds[p.name]) uniqueProds[p.name] = { id: d.id, name: p.name, image: p.image, price: p.sell, inStock: p.qty > 0 };
+                        else if(p.qty > 0) uniqueProds[p.name].inStock = true;
+                    });
+                    
+                    Object.values(uniqueProds).forEach(p => catalogCache.push(p));
+                }
+            }
+            
+            renderCatalogCards(catalogCache, !isLoadMore);
+
+        } catch (e) { 
+            if(!isLoadMore) grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; color:#ef4444; font-size:12px; font-weight:bold;">Error connecting to store.</div>';
+        } finally {
+            isFetchingCatalog = false;
+            if(loaderUi) loaderUi.style.display = 'none';
+        }
+    };
+
+    window.renderCatalogCards = (items, clear = false) => {
+        const grid = document.getElementById('catalogGrid');
+        if (clear) grid.innerHTML = '';
         
-        const filtered = catalogCache.filter(p => p.name.toLowerCase().includes(term));
-        if(filtered.length === 0) return grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding:20px; font-size:12px; color:#999;">No items found.</div>';
-        
-        grid.innerHTML = filtered.map(p => {
-            const img = p.image ? `<img src="${p.image}" class="product-img">` : `<div class="product-img" style="background:#f3f4f6; display:flex; align-items:center; justify-content:center; color:#9ca3af;"><i class="ri-image-line" style="font-size:24px;"></i></div>`;
+        if(items.length === 0 && clear) {
+            grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding:20px; font-size:12px; font-weight:bold; color:#94a3b8;">No items match your search.</div>';
+            return;
+        }
+
+        let htmlStr = items.map(p => {
+            const img = p.image ? `<img src="${p.image}" loading="lazy" class="product-img">` : `<div class="product-img" style="background:#f8fafc; display:flex; align-items:center; justify-content:center; color:#cbd5e1;"><i class="ri-image-line" style="font-size:30px;"></i></div>`;
             const stockBadge = p.inStock 
-                ? `<div style="font-size:10px; color:#15803d; font-weight:bold; margin-top:5px;">IN STOCK</div>`
-                : `<div style="font-size:10px; color:#ef4444; font-weight:bold; margin-top:5px;">OUT OF STOCK</div>`;
+                ? `<div style="font-size:10px; color:#15803d; font-weight:900; margin-top:5px; background:#dcfce7; padding:2px 6px; border-radius:6px; display:inline-block;">IN STOCK</div>`
+                : `<div style="font-size:10px; color:#b91c1c; font-weight:900; margin-top:5px; background:#fee2e2; padding:2px 6px; border-radius:6px; display:inline-block;">OUT OF STOCK</div>`;
                 
             return `
-            <div class="product-card">
+            <div class="product-card virtual-card">
                 <div>
                     ${img}
-                    <div style="font-size:12px; font-weight:700; line-height:1.2;">${p.name}</div>
+                    <div style="font-size:12px; font-weight:800; color:#0f172a; line-height:1.3; margin-top:5px;">${p.name}</div>
                 </div>
-                <div>
-                    <div style="font-size:14px; color:var(--primary); font-weight:800; margin-top:5px;">${formatMoney(p.price)}</div>
+                <div style="margin-top:10px;">
+                    <div style="font-size:15px; color:var(--primary); font-weight:900;">${formatMoney(p.price)}</div>
                     ${stockBadge}
                 </div>
             </div>`;
         }).join('');
+        
+        grid.insertAdjacentHTML('beforeend', htmlStr);
     };
 
-    // --- Service Requests ---
+    window.searchCatalogDebounced = () => {
+        const term = document.getElementById('searchStore').value.trim();
+        if (searchTimeout) clearTimeout(searchTimeout);
+        
+        searchTimeout = setTimeout(() => {
+            if (term === '' || term.length >= 3) loadCatalog(false);
+        }, 400); 
+    };
+
+    window.handleCatalogScroll = () => {
+        if(document.getElementById('searchStore').value.trim() !== '') return;
+        const area = document.getElementById('catalogScrollArea');
+        if (area.scrollTop + area.clientHeight >= area.scrollHeight - 10) {
+            if (hasMoreCatalog && !isFetchingCatalog) loadCatalog(true);
+        }
+    };
+
+    // --- SERVICE REQUESTS (Live Chat) ---
     window.submitServiceRequest = async () => {
         const desc = document.getElementById('reqDesc').value.trim();
-        if(!desc) return showToast("Please describe the issue.");
+        if(!desc) return showToast("Please describe the issue.", "error");
         
         toggleLoader(true);
         try {
             await addDoc(collection(db, `users/${OWNER_ID}/shops/${activeShopId}/service_requests`), {
                 customerId: loggedInCustomer.id,
                 customerName: loggedInCustomer.name,
-                customerPhone: loggedInCustomer.id,
+                customerPhone: loggedInCustomer.phone,
                 issueDescription: desc,
                 status: 'pending',
                 createdAt: new Date().toISOString()
             });
             document.getElementById('reqDesc').value = '';
-            showToast("Request Sent Successfully!");
-            loadMyRequests();
-        } catch(e) { showToast("Error sending request"); }
+            showToast("Request Sent Successfully!", "success");
+            loadMyRequests(); // Reload
+        } catch(e) { showToast("Error sending request", "error"); }
         toggleLoader(false);
     };
 
-    // 🔴 සජීවීව දත්ත ඇදගන්නා Listener එක නවතා තැබීමට Variable එකක්
-    window.unsubscribeMyRequests = null;
-
     async function loadMyRequests() {
         const list = document.getElementById('myRequestsList');
-        if (!window.unsubscribeMyRequests) {
-            list.innerHTML = '<div style="text-align:center; font-size:12px; color:#666;"><i class="ri-loader-4-line ri-spin"></i> Loading...</div>';
+        if (!unsubscribeMyRequests) {
+            list.innerHTML = '<div style="text-align:center; font-size:12px; font-weight:bold; color:#94a3b8; padding:20px;"><i class="ri-loader-4-line ri-spin" style="font-size:24px; color:var(--primary); display:block; margin-bottom:10px;"></i> Loading...</div>';
         }
         
         try {
             const q = query(collection(db, `users/${OWNER_ID}/shops/${activeShopId}/service_requests`), where("customerId", "==", loggedInCustomer.id), orderBy("createdAt", "desc"), limit(20));
             
-            // පරණ Listener එකක් ඇත්නම් එය නවතා දමයි (Memory Leaks වැළැක්වීමට)
-            if (window.unsubscribeMyRequests) window.unsubscribeMyRequests();
+            if (unsubscribeMyRequests) unsubscribeMyRequests();
             
-            // 🟢 සජීවීව දත්ත ලබාගැනීම අරඹයි
-            window.unsubscribeMyRequests = onSnapshot(q, (snap) => {
+            unsubscribeMyRequests = onSnapshot(q, (snap) => {
                 let html = '';
-                myRequestsCache = []; // Reset cache
+                myRequestsCache = [];
                 
                 snap.forEach(d => {
                     const r = {id: d.id, ...d.data()};
                     myRequestsCache.push(r);
                     
                     let bg, col, statusText;
-                    if(r.status === 'pending') { bg = '#fee2e2'; col = '#b91c1c'; statusText = 'ACTION REQUIRED (PENDING)'; }
+                    if(r.status === 'pending') { bg = '#fee2e2'; col = '#b91c1c'; statusText = 'PENDING'; }
                     else if(r.status === 'replied') { bg = '#fef3c7'; col = '#d97706'; statusText = 'MANAGER REPLIED'; }
                     else { bg = '#dcfce7'; col = '#15803d'; statusText = 'RESOLVED'; }
                     
-                    // Render Chat History Array
                     let chatHtml = '';
                     if(r.replies && r.replies.length > 0) {
-                        chatHtml = `<div class="customer-chat-scroll" style="margin-top:10px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; padding:10px; display:flex; flex-direction:column; gap:5px; max-height:200px; overflow-y:auto;">`;
+                        chatHtml = `<div class="customer-chat-scroll" style="margin-top:12px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:12px; display:flex; flex-direction:column; gap:8px; max-height:200px; overflow-y:auto;">`;
                         r.replies.forEach(msg => {
                             if(msg.sender === 'admin') {
-                                chatHtml += `<div style="align-self:flex-start; background:#dcfce7; color:#166534; padding:6px 10px; border-radius:10px; border-bottom-left-radius:2px; font-size:11px; max-width:90%;"><b>Manager:</b> ${msg.text.replace(/</g, "&lt;")}</div>`;
+                                chatHtml += `<div style="align-self:flex-start; background:#dcfce7; color:#166534; padding:8px 12px; border-radius:12px; border-bottom-left-radius:2px; font-size:12px; max-width:90%;"><b>Manager:</b> ${msg.text.replace(/</g, "&lt;")}</div>`;
                             } else {
-                                chatHtml += `<div style="align-self:flex-end; background:#e0e7ff; color:#3730a3; padding:6px 10px; border-radius:10px; border-bottom-right-radius:2px; font-size:11px; max-width:90%; text-align:right;"><b>You:</b> ${msg.text.replace(/</g, "&lt;")}</div>`;
+                                chatHtml += `<div style="align-self:flex-end; background:#e0e7ff; color:#3730a3; padding:8px 12px; border-radius:12px; border-bottom-right-radius:2px; font-size:12px; max-width:90%; text-align:right;"><b>You:</b> ${msg.text.replace(/</g, "&lt;")}</div>`;
                             }
                         });
                         chatHtml += `</div>`;
                     }
 
-                    // Customer ට Reply කිරීමට Input Box එක
                     const replyInputHtml = r.status !== 'resolved' ? `
-                        <div style="margin-top:10px; display:flex; gap:5px;">
-                            <input type="text" id="custReply_${r.id}" placeholder="Type your reply here..." style="margin-bottom:0; flex:1; font-size:12px; padding:10px; border-radius:20px;" onkeypress="if(event.key === 'Enter') sendCustomerReply('${r.id}')">
-                            <button class="btn" style="width:auto; padding:0 15px; border-radius:20px;" onclick="sendCustomerReply('${r.id}')"><i class="ri-send-plane-fill"></i></button>
+                        <div style="margin-top:12px; display:flex; gap:8px;">
+                            <input type="text" id="custReply_${r.id}" placeholder="Type reply..." style="margin-bottom:0; flex:1; font-size:13px; padding:12px; border-radius:20px;" onkeypress="if(event.key === 'Enter') sendCustomerReply('${r.id}')">
+                            <button class="btn" style="width:auto; padding:0 18px; border-radius:20px;" onclick="sendCustomerReply('${r.id}')"><i class="ri-send-plane-fill"></i></button>
                         </div>
-                    ` : `<div style="margin-top:10px; font-size:11px; color:#15803d; text-align:center; font-weight:bold; background:#dcfce7; padding:5px; border-radius:4px;"><i class="ri-check-double-line"></i> This ticket is resolved and closed.</div>`;
+                    ` : `<div style="margin-top:12px; font-size:11px; color:#15803d; text-align:center; font-weight:bold; background:#dcfce7; padding:8px; border-radius:8px;"><i class="ri-check-double-line"></i> Resolved & Closed</div>`;
 
                     html += `
-                    <div class="card" style="padding:12px; font-size:12px; border:${r.status === 'replied' ? '1px solid #f59e0b' : '1px solid #e5e7eb'};">
-                        <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
-                            <span style="font-weight:bold; color:#666;">${new Date(r.createdAt).toLocaleDateString()}</span>
-                            <span style="background:${bg}; color:${col}; padding:2px 6px; border-radius:4px; font-weight:bold; font-size:10px;">${statusText}</span>
+                    <div class="card" style="padding:15px; border:${r.status === 'replied' ? '1px solid #f59e0b' : '1px solid #e2e8f0'};">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                            <span style="font-weight:bold; color:#64748b; font-size:11px;">${new Date(r.createdAt).toLocaleDateString()}</span>
+                            <span style="background:${bg}; color:${col}; padding:3px 8px; border-radius:6px; font-weight:900; font-size:10px;">${statusText}</span>
                         </div>
-                        <div style="font-size:13px; font-weight:700; color:#1f2937; margin-bottom:5px;">Issue: ${r.issueDescription.replace(/</g, "&lt;")}</div>
+                        <div style="font-size:13px; font-weight:800; color:#0f172a; line-height:1.4;">Issue: ${r.issueDescription.replace(/</g, "&lt;")}</div>
                         ${chatHtml}
                         ${replyInputHtml}
                     </div>`;
                 });
                 
-                list.innerHTML = html || '<div style="font-size:12px; color:#999; text-align:center;">No previous requests.</div>';
+                list.innerHTML = html || '<div style="font-size:12px; font-weight:bold; color:#94a3b8; text-align:center; padding:20px;">No previous requests.</div>';
                 
-                // අලුත් පණිවිඩයක් ආ විට ස්වයංක්‍රීයව පහළටම Scroll කිරීම (Auto Scroll to Bottom)
                 setTimeout(() => {
                     document.querySelectorAll('.customer-chat-scroll').forEach(el => el.scrollTop = el.scrollHeight);
                 }, 100);
             });
             
-        } catch(e) { console.error(e); list.innerHTML = 'Error loading requests.'; }
+        } catch(e) { list.innerHTML = '<div style="font-size:12px; color:#ef4444; text-align:center;">Error loading requests.</div>'; }
     }
 
-    // --- Settings (Change PIN) ---
+    window.sendCustomerReply = async (id) => {
+        const inputField = document.getElementById(`custReply_${id}`);
+        const text = inputField.value.trim();
+        if(!text) return;
+        
+        const r = myRequestsCache.find(x => x.id === id);
+        
+        try {
+            const currentReplies = r.replies || [];
+            currentReplies.push({ sender: 'customer', text: text, date: new Date().toISOString() });
+            
+            await updateDoc(doc(db, `users/${OWNER_ID}/shops/${activeShopId}/service_requests`, id), {
+                replies: currentReplies,
+                status: 'pending',
+                lastUpdatedAt: new Date().toISOString()
+            });
+            
+            inputField.value = '';
+        } catch (e) {
+            showToast("Error sending reply", "error");
+        }
+    };
+
+    // --- SHOP SETTINGS ---
     window.changePin = async () => {
         const currentP = document.getElementById('currentPin').value;
         const p1 = document.getElementById('newPin1').value;
         const p2 = document.getElementById('newPin2').value;
         
-        // 🛡️ FIX 2: Validation Logic
-        if(!currentP || currentP !== String(loggedInCustomer.pin)) return showToast("Current PIN is incorrect!");
-        if(!p1 || p1.length !== 4 || !/^\d{4}$/.test(p1)) return showToast("New PIN must be exactly 4 digits");
-        if(p1 !== p2) return showToast("New PINs do not match!");
+        if(!currentP || currentP !== String(loggedInCustomer.pin)) return showToast("Current PIN is incorrect!", "error");
+        if(!p1 || p1.length !== 4 || !/^\d{4}$/.test(p1)) return showToast("New PIN must be exactly 4 digits", "error");
+        if(p1 !== p2) return showToast("New PINs do not match!", "error");
         
         toggleLoader(true);
         try {
@@ -606,124 +1177,8 @@ input:focus, textarea:focus { border-color: var(--primary); }
             document.getElementById('currentPin').value = '';
             document.getElementById('newPin1').value = '';
             document.getElementById('newPin2').value = '';
-            showToast("PIN Updated Successfully!");
-        } catch(e) { showToast("Error updating PIN"); }
-        toggleLoader(false);
-    };
-    
-    window.sendCustomerReply = async (id) => {
-        const inputField = document.getElementById(`custReply_${id}`);
-        const text = inputField.value.trim();
-        if(!text) return;
-        
-        const r = myRequestsCache.find(x => x.id === id);
-        toggleLoader(true); // Loading එක පෙන්වීම
-        
-        try {
-            const currentReplies = r.replies || [];
-            currentReplies.push({ sender: 'customer', text: text, date: new Date().toISOString() });
-            
-            await updateDoc(doc(db, `users/${OWNER_ID}/shops/${activeShopId}/service_requests`, id), {
-                replies: currentReplies,
-                status: 'pending', // Manager ට රතු පාටින් පෙන්වීමට
-                lastUpdatedAt: new Date().toISOString()
-            });
-            
-            inputField.value = ''; // අකුරු ටික මැකීම
-            
-            // 💡 ENTERPRISE LOGIC FIX:
-            // "await loadMyRequests();" යන පේළිය සම්පූර්ණයෙන්ම ඉවත් කර ඇත.
-            // onSnapshot තාක්ෂණය මගින් පණිවිඩය ගිය සැණින් UI එක ස්වයංක්‍රීයව අලුත් වේ.
-            
-            showToast("Reply sent to Manager!");
-        } catch (e) {
-            console.error(e);
-            showToast("Error sending reply");
-        }
-        toggleLoader(false);
-    };
-    
-// 🚀 AUTO IDENTITY FIXER (Transforms Dummy Profile to Real Profile securely)
-    window.claimNewIdentity = async () => {
-        const rawNewPhone = document.getElementById('reclaimNewPhone').value.trim();
-        const newPhone = normalizePhone(rawPhone);
-
-        if (!newPhone || newPhone.length < 9) return showToast("Enter a valid mobile number.");
-
-        toggleLoader(true);
-        try {
-            // Check if this new number already exists!
-            const newRef = doc(db, `users/${OWNER_ID}/shops/${activeShopId}/customers`, newPhone);
-            const newSnap = await getDoc(newRef);
-
-            if (newSnap.exists()) {
-                toggleLoader(false);
-                return showToast("This number is already registered! Please contact the store.", "error");
-            }
-
-            // පරණ Dummy ගිණුම කියවා ගැනීම
-            const oldRef = doc(db, `users/${OWNER_ID}/shops/${activeShopId}/customers`, loggedInCustomer.id);
-            
-            let updatedName = loggedInCustomer.name.replace(" (LOST NUMBER)", "").trim();
-            let pHistory = loggedInCustomer.phone_history || [];
-            pHistory.push({ phone: loggedInCustomer.id, migratedAt: new Date().toISOString(), reason: "Portal Claimed" });
-
-            // අලුත් අංකයෙන් Profile එක සෑදීම
-            const newProfileData = {
-                ...loggedInCustomer,
-                id: newPhone, // Local update
-                name: updatedName,
-                phone: newPhone,
-                phone_history: pHistory,
-                lastUpdated: new Date().toISOString()
-            };
-            
-            // 🛡️ FIX 3: ENTERPRISE DATA MIGRATION (Batch Write + Archive Pointer + Cascade Alerts)
-            const batch = writeBatch(db);
-            
-            // 1. අලුත් Profile එක සෑදීම
-            batch.set(newRef, newProfileData);
-            
-            // 2. POS System එක නොමඟ නොයාම සඳහා Archive Pointer එකක් සෑදීම (Crucial for Debt Recovery)
-            const timestampKey = new Date().toISOString().replace(/[:.-]/g, '');
-            const archiveRef = doc(db, `users/${OWNER_ID}/shops/${activeShopId}/customer_archives`, `${loggedInCustomer.id}_v${timestampKey}`);
-            batch.set(archiveRef, {
-                originalId: loggedInCustomer.id,
-                forwardedTo: newPhone,
-                archivedAt: new Date().toISOString(),
-                reason: "Portal Self-Claimed"
-            });
-            
-            // 3. පරණ අංකයට සෙට් කර තිබූ Service Reminders (Alerts) අලුත් අංකයට මාරු කිරීම
-            const qAlerts = query(collection(db, `users/${OWNER_ID}/shops/${activeShopId}/alerts`), where("refId", "==", loggedInCustomer.id));
-            const snapAlerts = await getDocs(qAlerts);
-            snapAlerts.forEach(d => {
-                batch.update(d.ref, { refId: newPhone, lastUpdatedViaPortal: new Date().toISOString() });
-            });
-            
-            // 4. පරණ Dummy ගිණුම මකා දැමීම
-            batch.delete(oldRef);
-            
-            // එකවර Database එකට යැවීම (Acid Compliant)
-            await batch.commit();
-
-            // Update local state & UI
-            loggedInCustomer = newProfileData;
-            const curPinField = document.getElementById('currentPin');
-            if(curPinField) curPinField.value = ''; // Reset fields just in case
-            
-            document.getElementById('view-reclaim').classList.remove('active');
-            document.getElementById('view-dashboard').classList.add('active');
-            document.getElementById('topNav').style.display = 'flex'; // 🛡️ Changed to topNav
-            document.getElementById('custNameDisplay').textContent = loggedInCustomer.name;
-            
-            showToast("Phone Number Updated Successfully!");
-            loadDashboardData();
-
-        } catch(e) {
-            console.error("Claim Error:", e);
-            showToast("An error occurred. Try again.");
-        }
+            showToast("In-Store PIN Updated Successfully!", "success");
+        } catch(e) { showToast("Error updating PIN", "error"); }
         toggleLoader(false);
     };
 </script>
