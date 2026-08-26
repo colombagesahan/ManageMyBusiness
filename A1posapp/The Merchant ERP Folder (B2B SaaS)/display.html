@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Customer Display | Smart POS</title>
+<link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;700;900&display=swap" rel="stylesheet">
+
+<style>
+    :root { --primary: #4F46E5; --bg: #f8fafc; --text: #1e293b; --card: #ffffff; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
+    body { background: var(--bg); color: var(--text); height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+    
+    .header { background: var(--primary); color: white; padding: 20px 40px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+    .logo { font-size: 24px; font-weight: 900; display: flex; align-items: center; gap: 10px; }
+    
+    .main { flex: 1; display: flex; overflow: hidden; }
+    
+    /* Left: Cart Items */
+    .cart-section { flex: 2; padding: 30px; overflow-y: auto; background: var(--bg); }
+    .item-card { background: var(--card); padding: 15px 20px; border-radius: 12px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.05); animation: slideIn 0.3s ease; border-left: 5px solid var(--primary); }
+    .item-img { width: 50px; height: 50px; object-fit: cover; border-radius: 8px; margin-right: 15px; }
+    .item-info { flex: 1; display: flex; align-items: center; }
+    .item-name { font-size: 18px; font-weight: 700; color: #334155; }
+    .item-qty { font-size: 14px; color: #64748b; font-weight: bold; }
+    .item-price { font-size: 22px; font-weight: 900; color: var(--primary); }
+
+    /* Right: Totals & QR */
+    .total-section { flex: 1; background: var(--card); padding: 40px; display: flex; flex-direction: column; border-left: 2px solid #e2e8f0; box-shadow: -5px 0 15px rgba(0,0,0,0.02); }
+    .summary-row { display: flex; justify-content: space-between; font-size: 20px; margin-bottom: 15px; color: #64748b; font-weight: 700; }
+    .grand-total { display: flex; justify-content: space-between; font-size: 35px; font-weight: 900; color: #16a34a; margin-top: 20px; padding-top: 20px; border-top: 3px dashed #cbd5e1; }
+    
+    /* QR Code Area */
+    .qr-container { margin-top: auto; text-align: center; background: #f0fdf4; border: 2px dashed #22c55e; border-radius: 16px; padding: 20px; display: none; animation: popIn 0.5s ease; }
+    .qr-container img { width: 200px; height: 200px; margin: 15px auto; border-radius: 8px; }
+    
+    /* Idle Screen */
+    .idle-screen { position: absolute; inset: 0; background: var(--primary); color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; transition: 0.5s; }
+    .idle-screen h1 { font-size: 50px; margin-bottom: 20px; font-weight: 900; }
+    
+    @keyframes slideIn { from { transform: translateX(-20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+    @keyframes popIn { 0% { transform: scale(0.8); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+</style>
+</head>
+<body>
+
+<div class="idle-screen" id="idleScreen">
+    <i class="ri-shopping-bag-3-fill" style="font-size: 100px; margin-bottom: 20px; color: #818cf8;"></i>
+    <h1 id="cfdWelcomeMsg">Welcome to our store!</h1>
+    <p style="font-size: 24px; color: #c7d2fe;">Your items will appear here...</p>
+</div>
+
+<header class="header">
+    <div class="logo" id="cfdBrandName"><i class="ri-store-3-fill"></i> Welcome</div>
+    <div id="clock" style="font-size: 20px; font-weight: 700; font-family: monospace;"></div>
+</header>
+
+<main class="main">
+    <div class="cart-section" id="cartItems"></div>
+    
+    <div class="total-section">
+        <h2 style="margin-bottom: 30px; color: #1e293b;"><i class="ri-bill-line"></i> Order Summary</h2>
+        <div class="summary-row"><span>Subtotal:</span> <span id="cfdSubtotal">Rs 0.00</span></div>
+        <div class="summary-row" style="color: #ef4444;"><span>Discount:</span> <span id="cfdDiscount">-Rs 0.00</span></div>
+        <div class="grand-total"><span>Total:</span> <span id="cfdTotal">Rs 0.00</span></div>
+        
+        <div class="qr-container" id="qrCodeArea">
+            <h3 style="color: #166534;">Scan to Pay via LankaQR</h3>
+            <!-- Generates dynamic QR via Google API -->
+            <img id="qrImage" src="" alt="LankaQR">
+            <p style="font-size: 14px; color: #15803d; font-weight: bold;">Amount: <span id="qrAmount"></span></p>
+        </div>
+    </div>
+</main>
+
+<script>
+    // Live Clock
+    setInterval(() => { document.getElementById('clock').textContent = new Date().toLocaleTimeString(); }, 1000);
+
+    const idleScreen = document.getElementById('idleScreen');
+    const cartItems = document.getElementById('cartItems');
+    const qrCodeArea = document.getElementById('qrCodeArea');
+
+    const formatMoney = (num) => `Rs ${(Number(num)||0).toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,')}`;
+
+    // 🛡️ ENTERPRISE SECURE BROADCAST RECEIVER
+    const cfdChannel = new BroadcastChannel('nawarathna_cfd_channel');
+
+    cfdChannel.onmessage = (event) => {
+        const data = event.data;
+
+        if (data.type === 'CART_UPDATE') {
+            qrCodeArea.style.display = 'none'; // Hide QR while scanning
+            
+            if (data.cart.length > 0) {
+                idleScreen.style.opacity = '0';
+                setTimeout(() => idleScreen.style.display = 'none', 300);
+            } else {
+                idleScreen.style.display = 'flex';
+                setTimeout(() => idleScreen.style.opacity = '1', 10);
+            }
+
+            document.getElementById('cfdSubtotal').textContent = formatMoney(data.subtotal);
+            document.getElementById('cfdDiscount').textContent = `-${formatMoney(data.discount)}`;
+            document.getElementById('cfdTotal').textContent = formatMoney(data.total);
+
+            cartItems.innerHTML = data.cart.map(item => `
+                <div class="item-card">
+                    <div class="item-info">
+                        ${item.image ? `<img src="${item.image}" class="item-img">` : `<div class="item-img" style="background:#e2e8f0; display:flex; align-items:center; justify-content:center; color:#94a3b8;"><i class="ri-box-3-line" style="font-size:24px;"></i></div>`}
+                        <div>
+                            <div class="item-name">${item.name}</div>
+                            <div class="item-qty">${item.qty} ${item.unit || 'pcs'} x ${formatMoney(item.sell)}</div>
+                        </div>
+                    </div>
+                    <div class="item-price">${formatMoney(item.qty * item.sell)}</div>
+                </div>
+            `).join('');
+            
+            // Auto scroll to bottom
+            cartItems.scrollTop = cartItems.scrollHeight;
+        }
+
+        if (data.type === 'CLEAR_CART') {
+            idleScreen.style.display = 'flex';
+            idleScreen.style.opacity = '1';
+            cartItems.innerHTML = '';
+            document.getElementById('cfdSubtotal').textContent = 'Rs 0.00';
+            document.getElementById('cfdDiscount').textContent = '-Rs 0.00';
+            document.getElementById('cfdTotal').textContent = 'Rs 0.00';
+            qrCodeArea.style.display = 'none';
+        }
+
+        if (data.type === 'CHECKOUT_QR') {
+            document.getElementById('qrAmount').textContent = formatMoney(data.amount);
+            // 🚀 Enterprise Dynamic QR Generator (Generates Payment Link/LankaQR format placeholder)
+            // For production LankaQR, replace "tel:" with the actual Merchant EMVCo string
+            const qrString = `LANKAQR_MERCHANT_PAYMENT:AMOUNT=${data.amount}`;
+            document.getElementById('qrImage').src = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrString)}&color=166534&bgcolor=f0fdf4`;
+            qrCodeArea.style.display = 'block';
+        }
+    };
+</script>
+</body>
+</html>
