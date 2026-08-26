@@ -1,0 +1,51 @@
+MAGE SAAS WYAPRUTHIYA PILIBADA SIYALUMA WISTHARA MEHI ADANGUWE. MEMA DAWANTHA LIYAWILLA ANGASAMPURNAWA WIMARSHANATHMAKAWA SAHA BUDDIMATH LESA GABURIN PRATHITHARKA SAHITHAWA KIYAWANNA. MEHI MN PALAMUWENMA FILE SAKASMA GANA WISTHARAYAK ADANGU KARANNAM. EMAGIN OBATA MAGE PROJECT EKA PILIBADAWA GABURIN THERUMGANIMATA HAKIWE.
+
+01)FILE SAKASMA PILIBADA WISTHARAYA.(MEHI PAWATHINNE GEMINI AI MATA LABADUN UPADES MALAWAI. MN KATAYUTHU KALE EMA UPADES WALATA ANUWAI)
+
+### 🏆 100% Enterprise විසඳුම: "Firebase Multi-Site Hosting" (බහු-අඩවි ගෘහනිර්මාණය)
+
+අපි මේ අර්බුදය විසඳන්නේ **"Micro-Frontends"** (වෙන් කළ මුහුණත්) න්‍යායෙනි. 
+අපේ Database එක සහ Cloud Functions එකක් වුණාට, අපි අන්තර්ජාලයට මේක දාන්නේ **වෙන වෙනම වෙබ් අඩවි 3 ක් (3 Separate Sites)** විදිහටයි!
+
+ඔබගේ පරිගණකයේ ගොනු (Folders) සැකසිය යුතු නිවැරදිම ආකාරය මෙන්න:
+
+#### 📁 1. The Customer App Folder (B2C Portal)
+* **අරමුණ:** පාරිභෝගිකයින් සඳහා පමණි.
+* **ගොනු:** `index.html` (අපි අන්තිමට හැදූ Customer Portal එක).
+* **Domain එක:** `www.worldbiznet.com`
+* **ක්‍රියාවලිය:** පාරිභෝගිකයා මෙතැනට පැමිණ Gmail හරහා ලොග් වී මුළු ලංකාවේම බිල්පත් බලයි. මේ ෆෝල්ඩරය ඇතුළේ POS එකේ සේයාවක්වත් නෑ. එබැවින් 100% ක් සුරක්ෂිතයි.
+
+#### 📁 2. The Merchant ERP Folder (B2B SaaS)
+* **අරමුණ:** කඩේ මුදලාලි, Cashiers ලා සහ සේවකයින් සඳහා පමණි.
+* **ගොනු:** 
+  - `index.html` (අපි හැදූ Magic Router Landing Page එක. කඩේ ලෝගෝ එක දාගෙන ලොග් වෙන තැන).
+  - `dashboard.html` (ඔබගේ දැවැන්ත POS සහ ERP පද්ධතිය).
+  - `employee.html` (සේවකයින්ගේ Attendance සහ පඩි බලන තිරය).
+* **Domain එක:** `*.worldbiznet.com` (Wildcard)
+* **ක්‍රියාවලිය:** `kamal.worldbiznet.com` ගැහුවම එන්නේ මේ සයිට් එකටයි. මෙතැනින් තමයි ව්‍යාපාරය දුවන්නේ. පාරිභෝගිකයෙකුට මේ ෆෝල්ඩරයට ඇතුල් වීමට කිසිදු අවසරයක් නැත.
+
+#### 📁 3. The God-Mode Folder (Chief Admin Console)
+* **අරමුණ:** ඔබට (ප්‍රධාන අයිතිකරුට) පමණි.
+* **ගොනු:** `index.html` (ඔබගේ අර `admin.html` කේතය මෙහි `index.html` ලෙස නම් කර තබයි).
+* **Domain එක:** `admin.worldbiznet.com` (හෝ වෙනත් රහසිගත නමක්).
+* **ක්‍රියාවලිය:** ඔබ මෙතැනින් ලොග් වී අලුත් කඩවල් (Subdomains) නිර්මාණය කරයි.
+
+#### 📁 4. The Backend Folder (`functions`)
+* **අරමුණ:** අදෘශ්‍යමාන සේවා (Node.js).
+* **ගොනු:** `index.js` (අර අපි හැදූ AI Cooldown Engine එක, ඊමේල් යවන කේත).
+* **ක්‍රියාවලිය:** මේවා අන්තර්ජාලයේ කිසිවෙකුට නොපෙනෙන අතර, ඉහත Sites 3 ම ආරක්ෂිතව කතා කරන්නේ මේ Backend එකටයි.
+
+---
+
+### 🧠 මේ ව්‍යූහයෙන් (Architecture) ලැබෙන දැවැන්ත වාසි:
+
+1. **පරිපූර්ණ ආරක්ෂාව (Absolute Security):** කඩේ POS එක දුවන සයිට් එකයි, පාරිභෝගිකයා එන සයිට් එකයි භෞතිකව (Physically) වෙනස්. හැකර් කෙනෙකුට පාරිභෝගික සයිට් එකෙන් රිංගලා POS එකේ කේතය කියවන්න බෑ.
+2. **Zero Downtime Updates:** හෙට ඔබට Customer Portal එකේ පාට වෙනස් කරන්න ඕනේ නම්, ඒ Folder එක විතරක් Update කළාම ඇති. කඩවල් වල POS සිස්ටම් වලට තත්පරයක හෝ බාධාවක් වෙන්නේ නෑ. ඒවා වෙනම දුවනවා.
+3. **පැහැදිලි ගමනාන්ත (Clear Routing):** කමල් මුදලාලිගේ කඩේට ආපු පාරිභෝගිකයෙක් ඒ සයිට් එකේ (Merchant ERP) තියෙන "Customer" කියන බොත්තම එබුවම, ඔහුව ඉබේම අර `worldbiznet.com` (Customer App) සයිට් එකට පාස් කරනවා (Handoff).
+
+### මීළඟ පියවර කුමක්ද?
+
+දැන් ඔබගේ පරිගණකය තුළ මේ Folder ව්‍යූහය සකසාගෙන, ඒ ඒ HTML ෆයිල් ටික අදාළ ෆෝල්ඩර් වලට බෙදාගන්න (Copy-paste).
+
+ඉන්පසු අපි කළ යුත්තේ අපේ **`firebase.json`** ෆයිල් එකට මේ Sites 3 ගැන කියලා දීලා (Configuration), එක පාරින් මේ 3 ම අන්තර්ජාලයට මුදා හැරීමයි (Deploying). 
+
