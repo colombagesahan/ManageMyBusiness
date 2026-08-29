@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="si">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- 🚀 Dynamic Title (Will be updated by JS) -->
+    <title>Loading Portal...</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Sinhala:wght@400;600;800&family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+
+    <style>
+        /* 🚀 ENTERPRISE DYNAMIC CSS VARIABLES */
+        /* මේවා JS මගින් කඩේට අදාළව වෙනස් කරනු ඇත */
+        :root {
+            --primary: #475569; /* Neutral default until loaded */
+            --primary-light: #94a3b8;
+            --secondary: #0f172a;
+            --bg: #ffffff;
+            --text-main: #334155;
+        }
+        
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', 'Noto Sans Sinhala', sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { background: var(--bg); color: var(--text-main); height: 100vh; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+
+        /* THE IRON CURTAIN LOADER (Hides everything until branded) */
+        #masterLoader { position: fixed; inset: 0; background: white; z-index: 99999; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.4s ease; }
+        .spinner { width: 50px; height: 50px; border: 5px solid #f1f5f9; border-top: 5px solid var(--secondary); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        /* FATAL ERROR SCREEN */
+        #fatalError { display: none; text-align: center; padding: 30px; }
+        #fatalError i { font-size: 70px; color: #ef4444; margin-bottom: 10px; display: block; }
+        #fatalError h1 { color: #111827; font-size: 24px; margin-bottom: 10px; }
+
+        /* BRANDED CONTAINER */
+        #brandedApp { display: none; width: 100%; max-width: 500px; padding: 20px; text-align: center; animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* DYNAMIC LOGO AREA */
+        .dynamic-logo { max-width: 180px; max-height: 80px; object-fit: contain; margin-bottom: 25px; border-radius: 8px; }
+        .dynamic-text-logo { font-size: 28px; font-weight: 900; color: var(--primary); margin-bottom: 25px; line-height: 1.2; word-wrap: break-word; }
+
+        /* ROLE SELECTION GRID */
+        .role-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 30px; text-align: left; }
+        .role-card { background: white; border: 2px solid #e2e8f0; border-radius: 16px; padding: 20px 15px; cursor: pointer; transition: 0.3s; position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: center; text-align: center; }
+        .role-card:hover { transform: translateY(-5px); box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); border-color: var(--primary); }
+        .role-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: var(--primary); opacity: 0; transition: 0.3s; }
+        .role-card:hover::before { opacity: 1; }
+        
+        .role-card i { font-size: 28px; color: var(--primary); background: #f1f5f9; width: 55px; height: 55px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; margin-bottom: 15px; transition: 0.3s; }
+        .role-card:hover i { background: var(--primary); color: white; transform: scale(1.1); }
+        
+        .role-card h4 { color: var(--secondary); margin-bottom: 5px; font-size: 15px; font-weight: 800; }
+        .role-card p { font-size: 11px; color: #64748b; line-height: 1.4; }
+
+        /* CASHIER LOGIN FORM */
+        #cashierFormView { display: none; background: white; padding: 30px; border-radius: 16px; border: 1px solid #e2e8f0; text-align: left; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+        input { width: 100%; padding: 14px; border: 2px solid #e2e8f0; border-radius: 12px; margin-bottom: 15px; font-size: 14px; outline: none; transition: 0.2s; }
+        input:focus { border-color: var(--primary); }
+        
+        .btn { width: 100%; padding: 14px; background: var(--primary); color: white; font-weight: 800; border: none; border-radius: 12px; cursor: pointer; transition: 0.2s; font-size: 15px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .btn:hover { box-shadow: 0 10px 20px -10px var(--primary); transform: translateY(-2px); }
+        
+        .btn-outline { background: transparent; border: 2px solid #e2e8f0; color: #64748b; padding: 8px 15px; width: auto; font-size: 12px; margin-bottom: 20px; }
+        .btn-outline:hover { background: #f1f5f9; color: var(--secondary); transform: none; box-shadow: none; }
+
+        /* System Tag */
+        .powered-by { position: fixed; bottom: 20px; left: 0; right: 0; text-align: center; font-size: 10px; color: #94a3b8; font-weight: 600; letter-spacing: 0.5px; }
+    </style>
+</head>
+<body>
+
+<!-- 1. INITIAL LOADER (THE CURTAIN) -->
+<div id="masterLoader">
+    <div class="spinner"></div>
+    <div style="color:#64748b; font-weight:600; font-size:14px; letter-spacing:1px;">SECURING CONNECTION...</div>
+</div>
+
+<!-- 2. FATAL ERROR (404 OR SUSPENDED) -->
+<div id="fatalError">
+    <i class="ri-store-3-line"></i>
+    <h1 id="errorTitle">Store Not Found</h1>
+    <p id="errorDesc" style="color:#64748b; font-size:14px;">The portal you are looking for does not exist or has been suspended.</p>
+</div>
+
+<!-- 3. BRANDED APPLICATION AREA -->
+<div id="brandedApp">
+    
+    <!-- Dynamic Branding Injected Here -->
+    <div id="brandingContainer"></div>
+
+    <!-- Role Selection -->
+    <div id="roleSelectionView">
+        <h2 style="color:var(--secondary); font-size:22px; font-weight:900;">පද්ධතියට පිවිසෙන්න</h2>
+        <p style="color:#64748b; font-size:13px; margin-top:5px;">කරුණාකර ඔබගේ ගිණුම් වර්ගය තෝරන්න.</p>
+        
+        <div class="role-grid">
+            <div class="role-card" onclick="adminLogin()">
+                <i class="ri-shield-user-fill"></i>
+                <h4>Admin</h4>
+                <p>Owner analytics & master controls.</p>
+            </div>
+            
+            <div class="role-card" onclick="showCashierForm()">
+                <i class="ri-shopping-cart-2-fill"></i>
+                <h4>Cashier</h4>
+                <p>POS, billing, and sales counter.</p>
+            </div>
+
+            <div class="role-card" onclick="goToPortal('employee')">
+                <i class="ri-briefcase-4-fill"></i>
+                <h4>Staff / Tech</h4>
+                <p>Clock-in, salary, and tasks.</p>
+            </div>
+
+            <div class="role-card" onclick="goToPortal('customer')">
+                <i class="ri-user-smile-fill"></i>
+                <h4>Customer</h4>
+                <p>View history, points & requests.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cashier Login Form -->
+    <div id="cashierFormView">
+        <button class="btn btn-outline" onclick="hideCashierForm()"><i class="ri-arrow-left-line"></i> Back to Roles</button>
+        
+        <div style="text-align:center; margin-bottom:25px;">
+            <i class="ri-shopping-cart-2-fill" style="font-size:40px; color:var(--primary); margin-bottom:10px; display:block;"></i>
+            <h3 style="color:var(--secondary); font-size: 20px; font-weight:900;">Cashier Login</h3>
+            <p style="font-size:12px; color:#64748b; margin-top:5px;">Access your assigned POS counter.</p>
+        </div>
+
+        <label style="font-size:12px; font-weight:800; color:#475569; text-transform:uppercase;">Email Address</label>
+        <input type="email" id="cashierEmail" placeholder="e.g. counter1@shop.com">
+        
+        <label style="font-size:12px; font-weight:800; color:#475569; text-transform:uppercase; margin-top:5px;">Password</label>
+        <input type="password" id="cashierPass" placeholder="Enter password">
+        
+        <button class="btn" onclick="cashierLoginSubmit()" id="btnCashierLogin"><i class="ri-login-circle-fill"></i> Secure Login</button>
+    </div>
+
+</div>
+
+<div class="powered-by">POWERED BY WORLDBIZNET ENTERPRISE</div>
+
+<!-- ==========================================
+     FIREBASE & THE MAGIC ROUTER LOGIC
+========================================== -->
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+    import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+    import { getFirestore, doc, getDoc, collection, query, limit, getDocs } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+    // 🔴 1. YOUR MASTER FIREBASE CONFIG
+    const firebaseConfig = {
+      apiKey: "AIzaSyBDwLs_z_SXX-t6olQ8xu6dRjxVpgRkuvE",
+      authDomain: "nawarathna-cool-engineering.firebaseapp.com",
+      projectId: "nawarathna-cool-engineering",
+      storageBucket: "nawarathna-cool-engineering.firebasestorage.app",
+      messagingSenderId: "863435741101",
+      appId: "1:863435741101:web:c2774c9a557d0fe014f324"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const provider = new GoogleAuthProvider();
+
+    // 🧠 GLOBAL STATE FOR THIS TENANT
+    let resolvedOwnerId = null;
+    let resolvedShopId = null; // 🛡️ ENTERPRISE FIX: Must be determined dynamically!
+    let tenantProfile = null;
+
+    // =======================================================
+    // 🚀 STEP 1: THE INTELLIGENT ROUTER (Bootstrapping)
+    // =======================================================
+    window.onload = async () => {
+        // 1. Identify the Subdomain
+        let hostname = window.location.hostname; // e.g. "kamal.worldbiznet.com"
+        let tenantPrefix = "";
+
+        if (hostname.includes('localhost') || hostname.includes('127.0.0.1')) {
+            // Localhost Testing Fallback (e.g. localhost:5000?tenant=nawarathna)
+            const urlParams = new URLSearchParams(window.location.search);
+            tenantPrefix = urlParams.get('tenant');
+            if(!tenantPrefix) return showFatalError("Local Testing Error", "Please provide a ?tenant=name parameter in the URL.");
+        } else {
+            // Live Server Extraction
+            tenantPrefix = hostname.split('.')[0]; 
+        }
+
+        try {
+            // 2. Cross-reference with Master Registry
+            const registryRef = doc(db, 'master_tenants', tenantPrefix);
+            const registrySnap = await getDoc(registryRef);
+
+            if (!registrySnap.exists()) {
+                return showFatalError("Store Not Found", `The domain '${tenantPrefix}' is not registered in our network.`);
+            }
+
+            const registryData = registrySnap.data();
+
+            // 3. Security Failsafe: Check if Admin suspended this shop!
+            if (registryData.status !== 'active') {
+                return showFatalError("Service Suspended", "This store's portal has been temporarily suspended by the administrator.");
+            }
+
+            resolvedOwnerId = registryData.ownerUid;
+
+            // 4. Fetch the Merchant's Custom Branding
+            // 🛡️ ENTERPRISE FIX: Smart Branch Resolution! 
+            // Try to find the last active shop from LocalStorage for this specific Owner, 
+            // fallback to defaultShopId from registry, or query the DB for their primary shop.
+            resolvedShopId = localStorage.getItem(`active_shop_id_${resolvedOwnerId}`) || registryData.defaultShopId;
+            
+            if (!resolvedShopId) {
+                // Get the first available shop for this tenant
+                const shopsQ = query(collection(db, `users/${resolvedOwnerId}/shops`), limit(1));
+                const shopSnap = await getDocs(shopsQ);
+                if(!shopSnap.empty) {
+                    resolvedShopId = shopSnap.docs[0].id;
+                } else {
+                    resolvedShopId = "MAIN"; // Absolute Fallback
+                }
+            }
+
+            const profileRef = doc(db, `users/${resolvedOwnerId}/shops/${resolvedShopId}/settings`, 'profile');
+            const profileSnap = await getDoc(profileRef);
+
+            if (profileSnap.exists()) {
+                tenantProfile = profileSnap.data();
+                applyBranding(tenantProfile);
+            } else {
+                // Fallback minimal branding if they haven't set up the profile yet
+                applyBranding({ bizName: registryData.shopName || tenantPrefix.toUpperCase(), logoColor: '#2563eb' });
+            }
+
+            // 5. Save securely to LocalStorage so POS (dashboard.html) knows who to load!
+            localStorage.setItem('active_owner_id', resolvedOwnerId);
+            localStorage.setItem('active_shop_id', resolvedShopId);
+
+            // 6. Lift the Iron Curtain (Hide Loader, Show Branded App)
+            document.getElementById('masterLoader').style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('masterLoader').style.display = 'none';
+                document.getElementById('brandedApp').style.display = 'block';
+            }, 400);
+
+        } catch (error) {
+            console.error("Routing Error:", error);
+            showFatalError("Connection Error", "Failed to connect to the central database.");
+        }
+    };
+
+    // =======================================================
+    // 🎨 STEP 2: DYNAMIC CSS INJECTION (The Illusion)
+    // =======================================================
+    function applyBranding(p) {
+        document.title = `${p.bizName} | System Portal`;
+
+        // Inject Theme Colors natively into CSS Variables
+        if (p.logoColor) {
+            document.documentElement.style.setProperty('--primary', p.logoColor);
+            document.documentElement.style.setProperty('--primary-light', p.logoColor + '80'); // 50% opacity
+        }
+
+        // Render Logo or Text
+        const container = document.getElementById('brandingContainer');
+        if (p.logoImage) {
+            container.innerHTML = `<img src="${p.logoImage}" class="dynamic-logo" alt="${p.bizName}">`;
+        } else {
+            const font = p.logoFont || "'Plus Jakarta Sans'";
+            container.innerHTML = `<div class="dynamic-text-logo" style="font-family:${font};">${p.bizName}</div>`;
+        }
+    }
+
+    function showFatalError(title, desc) {
+        document.getElementById('masterLoader').style.display = 'none';
+        document.getElementById('brandedApp').style.display = 'none';
+        document.getElementById('fatalError').style.display = 'block';
+        document.getElementById('errorTitle').textContent = title;
+        document.getElementById('errorDesc').textContent = desc;
+    }
+
+    // =======================================================
+    // 🔐 STEP 3: AUTHENTICATION ROUTERS
+    // =======================================================
+
+    // A. Admin Login
+    window.adminLogin = async () => {
+        setBtnLoading('roleSelectionView', true);
+        try {
+            const result = await signInWithPopup(auth, provider);
+            // Verify if the Google User actually owns THIS specific shop!
+            if (result.user.uid !== resolvedOwnerId) {
+                await auth.signOut();
+                alert("Access Denied: Your Google account is not the registered owner of this store.");
+                setBtnLoading('roleSelectionView', false);
+                return;
+            }
+            // Success! Send to POS. (Dashboard will read localStorage to load data)
+            window.location.href = "dashboard.html";
+        } catch (error) {
+            setBtnLoading('roleSelectionView', false);
+            if (error.code !== 'auth/popup-closed-by-user') alert("Login Failed: " + error.message);
+        }
+    };
+
+    // B. Cashier Login
+    window.cashierLoginSubmit = async () => {
+        const email = document.getElementById('cashierEmail').value.trim();
+        const pass = document.getElementById('cashierPass').value.trim();
+        if(!email || !pass) return alert("Email and Password required.");
+
+        setBtnLoading('btnCashierLogin', true);
+        try {
+            const result = await signInWithEmailAndPassword(auth, email, pass);
+            
+            // SECURITY FIREWALL: Double check if this Cashier belongs to this specific shop!
+            const userDoc = await getDoc(doc(db, 'users', result.user.uid));
+            if (!userDoc.exists() || userDoc.data().ownerId !== resolvedOwnerId) {
+                await auth.signOut();
+                alert("Security Breach Blocked: You do not have permission to access this store's portal!");
+                setBtnLoading('btnCashierLogin', false);
+                return;
+            }
+
+            // 🛡️ ENTERPRISE SAAS FIX: Strict Cashier Branch Routing!
+            // Cashier ට අයිති කඩේ මොකක්ද කියලා Database එකෙන් අරන්, ඒක බලහත්කාරයෙන්ම LocalStorage එකට දානවා. 
+            // එතකොට Dashboard එක Load වෙන්නේ හරියටම Cashier ට අයිති කඩෙන් විතරයි!
+            const authorizedShopId = userDoc.data().allowedShop;
+            if (authorizedShopId) {
+                localStorage.setItem('active_shop_id', authorizedShopId);
+            } else {
+                await auth.signOut();
+                alert("Security Alert: You have not been assigned to any branch. Contact Admin.");
+                setBtnLoading('btnCashierLogin', false);
+                return;
+            }
+
+            // Success! Send to POS.
+            window.location.href = "dashboard.html";
+        } catch (error) {
+            setBtnLoading('btnCashierLogin', false);
+            alert("Invalid Credentials.");
+        }
+    };
+
+    // C. Customer / Employee Handoff (Throw them to the Master Portal)
+    window.goToPortal = (type) => {
+        if (!resolvedOwnerId || !resolvedShopId) return;
+
+        // 🚀 ENTERPRISE MAGIC: We seamlessly throw them to the Main Domain, 
+        // passing the Owner and Shop keys securely via the URL!
+        const MAIN_DOMAIN = "https://worldbiznet.com"; // Replace with your actual main domain URL
+        
+        if (type === 'customer') {
+            window.location.href = `${MAIN_DOMAIN}/customer.html?owner=${resolvedOwnerId}&shop=${resolvedShopId}`;
+        } else if (type === 'employee') {
+            window.location.href = `${MAIN_DOMAIN}/employee.html?owner=${resolvedOwnerId}&shop=${resolvedShopId}`;
+        }
+    };
+
+    // --- UI Helpers ---
+    window.showCashierForm = () => {
+        document.getElementById('roleSelectionView').style.display = 'none';
+        document.getElementById('cashierFormView').style.display = 'block';
+    };
+
+    window.hideCashierForm = () => {
+        document.getElementById('cashierFormView').style.display = 'none';
+        document.getElementById('roleSelectionView').style.display = 'block';
+        document.getElementById('cashierEmail').value = '';
+        document.getElementById('cashierPass').value = '';
+    };
+
+    function setBtnLoading(id, isLoading) {
+        // Minimal visual feedback during auth
+        document.body.style.opacity = isLoading ? '0.7' : '1';
+        document.body.style.pointerEvents = isLoading ? 'none' : 'auto';
+    }
+
+</script>
+</body>
+</html>
