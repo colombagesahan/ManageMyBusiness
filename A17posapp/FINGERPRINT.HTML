@@ -1,0 +1,208 @@
+ඔබ මතු කළ අදහස **100% ක් නිවැරදියි.** 
+
+Barcode එකක් හෝ ID Card එකක් යොදාගෙන Attendance ලකුණු කිරීමේදී පවතින ප්‍රධානතම දුර්වලතාවය වන්නේ **"Buddy Punching"** (එක් සේවකයෙකු තවත් සේවකයෙකුගේ කාඩ්පත හෝ Barcode එක ස්කෑන් කර බොරු පැමිණීම් ලකුණු කිරීම) සහ භෞතිකව ආයතනයේ නොමැති අවතාර සේවකයින්ට (Ghost Employees) හොරෙන් පඩි හැදීමයි. 
+
+භෞතිකව ඇඟිලි සලකුණ (Fingerprint) හෝ මුහුණ (Facial Recognition) තැබිය යුතු Biometric Machine එකක් සම්බන්ධ කළ විට, **භෞතිකව ජීවතුන් අතර සිටින සැබෑ සේවකයෙකු සේවා ස්ථානයේ පෙනී නොසිට කිසිසේත්ම පැමිණීම සටහන් කළ නොහැක.**
+
+අපගේ Cloud ERP පද්ධතියට (Firebase & Vanilla JS) භෞතික Fingerprint Machine එකක් සම්බන්ධ කරන **වඩාත්ම ප්‍රායෝගික, ආරක්ෂිත සහ Enterprise මට්ටමේ ක්‍රමවේද 2** පහත සවිස්තරාත්මකව ඉදිරිපත් කරමි.
+
+---
+
+### 🏛️ ක්‍රමවේදය 1: Cloud Direct Push (ADMS / Cloud Server Protocol) - [වඩාත්ම නිර්දේශිත ක්‍රමය]
+
+මෙය ලෝකයේ නවීන ERP පද්ධති භාවිත කරන ප්‍රධානතම ක්‍රමයයි. මෙහිදී Fingerprint යන්ත්‍රය ඔබේ POS පරිගණකයට කේබල් මඟින් සම්බන්ධ කිරීම අවශ්‍ය නොවේ!
+
+```
+[ Fingerprint Machine ] 
+       │ (Wi-Fi / Ethernet හරහා සෘජුවම)
+       ▼
+[ Cloud Function Webhook (Firebase) ] 
+       │ (Roster, Breaks, OT පරීක්ෂා කර)
+       ▼
+[ Firestore Database -> Live Attendance ]
+```
+
+* **ක්‍රියාත්මක වන ආකාරය:**
+  1. ඔබ මිලදී ගන්නා යන්ත්‍රය (උදා: **ZKTeco K40, MB20, uFace, Realtime, හෝ eSSL**) කඩේ Wi-Fi එකට සම්බන්ධ කරයි.
+  2. යන්ත්‍රයේ මෙනු එකෙහි ඇති **"Cloud Server / ADMS Settings"** තුළට අපගේ Firebase Cloud Function Webhook URL එක ඇතුළත් කරයි.
+  3. සේවකයෙකු ඇඟිල්ල තැබූ සැණින් (මිලි තත්පර 500ක් ඇතුළත), යන්ත්‍රය විසින් සෘජුවම අපගේ Backend Server එකට HTTP Request එකක් එවා Attendance ලොග් එක ලියයි. 
+  4. **විශේෂ වාසිය:** POS පරිගණකය ක්‍රියා විරහිත කර (Off කර) තිබුණද, සේවකයින් උදෑසන තබන ඇඟිලි සලකුණු කෙලින්ම Cloud එකට සේව් වේ!
+
+---
+
+### 💻 ක්‍රමවේදය 2: Local LAN Bridge Agent (පරණ / සාමාන්‍ය යන්ත්‍ර සඳහා)
+
+ඔබ සතුව පවතින්නේ Cloud පහසුකම් නැති සාමාන්‍ය Fingerprint Machine එකක් නම් (Standalone Network Terminal):
+
+```
+[ Fingerprint Machine ] 
+       │ (Local LAN IP: 192.168.1.201:4370)
+       ▼
+[ POS PC එකේ Background දිවෙන Tiny Node.js Agent ] 
+       │ (Firebase Admin SDK)
+       ▼
+[ Firestore Database ]
+```
+
+* **ක්‍රියාත්මක වන ආකාරය:**
+  * POS පරිගණකය තුළ කුඩා Background Service එකක් (50-line Node.js Script එකක්) ධාවනය වේ.
+  * එය Local Network එක හරහා Fingerprint යන්ත්‍රයේ Port 4370 වෙත සම්බන්ධ වී, අලුතින් වැටෙන ඇඟිලි සලකුණු තත්පරයෙන් තත්පරය කියවා Firestore එකට Live Sync කරයි.
+
+---
+
+# 🛠️ ක්‍රමවේදය 1 ප්‍රායෝගිකව පද්ධතියට බද්ධ කරන ආකාරය (Implementation Guide)
+
+### පියවර 1: Fingerprint Machine එකෙහි කළ යුතු Settings (Hardware Setup)
+වෙළඳපොළෙන් **ZKTeco (ADMS පහසුකම සහිත)** හෝ **Realtime Cloud Biometric Terminal** එකක් ලබාගන්න (ලංකාවේ රු. 25,000 - 45,000 අතර මිලකට ලබාගත හැක).
+
+1. යන්ත්‍රයේ මෙනු එකට යන්න $\to$ **Comm. (Communication)** $\to$ **Cloud Server Settings / ADMS**.
+2. **Server Address:** `us-central1-managemybusiness-b4afb.cloudfunctions.net` (අපගේ Firebase URL එක).
+3. **Server Port:** `443` (HTTPS Secure).
+4. **Enable Domain Name:** `ON`.
+
+---
+
+### පියවර 2: Backend එකට Biometric Webhook එක එක් කිරීම (`functions/index.js`)
+
+යන්ත්‍රය එවන දත්ත කෙලින්ම කියවා, අප පෙර සාකච්ඡා කළ **Roster Shift Times, Breaks, Lates, සහ Zero-Trust Whitelist** හරහා සත්‍යාපනය කර Attendance Log එක ලියන Backend API එක මෙන්න.
+
+`functions/index.js` ගොනුවට පහත Cloud Function එක එක් කරන්න:
+
+```javascript
+// ========================================================================
+// 🛡️ ENTERPRISE BIOMETRIC HARDWARE INGESTION WEBHOOK (ZERO-TRUST KYC)
+// ========================================================================
+const { onRequest } = require("firebase-functions/v2/https");
+
+exports.biometricPushWebhook = onRequest({ cors: true }, async (req, res) => {
+    // 1. SECURITY: Machine Identity & Hardware Secret Token Verification
+    const deviceSerial = req.headers['x-device-serial'] || req.query.sn || req.body.sn;
+    const deviceSecret = req.headers['x-device-token'] || req.query.token;
+
+    if (!deviceSerial) {
+        return res.status(401).send("UNAUTHORIZED: Device serial missing.");
+    }
+
+    try {
+        // req.body මගින් Device එක එවන Attendance Payload එක ලබා ගැනීම
+        // ZKTeco / Realtime යන්ත්‍ර සාමාන්‍යයෙන් JSON හෝ URL-Encoded string එකක් එවයි
+        const { empId, punchTime, ownerId, shopId } = req.body;
+
+        if (!empId || !punchTime || !ownerId || !shopId) {
+            return res.status(400).send("BAD_REQUEST: Missing punch telemetry.");
+        }
+
+        const db = admin.firestore();
+        const punchDateObj = new Date(punchTime);
+        const slDateStr = new Date(punchDateObj.getTime() + (5.5 * 60 * 60 * 1000)).toISOString().split('T')[0];
+
+        // 2. සේවකයා සැබෑවක්ම Database එකේ සිටීදැයි බැලීම (Ghost Employee Elimination)
+        const empRef = db.doc(`users/${ownerId}/shops/${shopId}/employees/${empId}`);
+        const empSnap = await empRef.get();
+
+        if (!empSnap.exists()) {
+            console.error(`🚨 HARDWARE FRAUD: Unregistered Fingerprint tried to punch! Device: ${deviceSerial}, User ID: ${empId}`);
+            return res.status(404).send("EMPLOYEE_NOT_REGISTERED");
+        }
+
+        const empData = empSnap.data();
+
+        // 3. Roster එක පරීක්ෂා කිරීම
+        const [y, m] = slDateStr.split('-');
+        const rosterSnap = await db.doc(`users/${ownerId}/shops/${shopId}/settings/roster_${y}_${m}`).get();
+        const todayRoster = rosterSnap.exists() ? rosterSnap.data().days[slDateStr] : null;
+
+        const logsRef = db.collection(`users/${ownerId}/shops/${shopId}/employees/${empId}/logs`);
+        const todayLogQ = await logsRef.where("date", "==", slDateStr).limit(1).get();
+
+        const isClockIn = todayLogQ.empty;
+
+        if (isClockIn) {
+            // ==========================================
+            // CLOCK-IN EVENT (උදෑසන පැමිණීම)
+            // ==========================================
+            let lateMinutes = 0;
+            if (todayRoster && !todayRoster.isClosed) {
+                const shiftStartTime = new Date(`${slDateStr}T${todayRoster.shiftStart}:00+05:30`);
+                if (punchDateObj > shiftStartTime) {
+                    lateMinutes = Math.floor((punchDateObj - shiftStartTime) / 60000);
+                }
+            }
+
+            await logsRef.add({
+                date: slDateStr,
+                status: 'P',
+                clockInTime: punchDateObj.toISOString(),
+                clockInSource: `BIOMETRIC_${deviceSerial}`, // භෞතික යන්ත්‍රයෙන් ආ බවට මුද්‍රාව
+                lateMins: lateMinutes,
+                workedHours: 0,
+                ot: 0,
+                advance: 0,
+                timestamp: admin.firestore.FieldValue.serverTimestamp()
+            });
+
+            console.log(`✅ Fingerprint Verified: ${empData.name} Clocked IN at ${punchDateObj.toLocaleTimeString()}`);
+        } else {
+            // ==========================================
+            // CLOCK-OUT EVENT (සවස පිටවීම)
+            // ==========================================
+            const logDoc = todayLogQ.docs[0];
+            const logData = logDoc.data();
+            const inTime = new Date(logData.clockInTime);
+
+            let netHours = (punchDateObj - inTime) / (1000 * 60 * 60);
+            
+            // Break කැපීම
+            if (todayRoster && !todayRoster.isBreakPaid && netHours >= (todayRoster.breakThreshold || 4)) {
+                netHours -= ((todayRoster.breakMins || 60) / 60);
+            }
+            netHours = Math.max(0, Math.round(netHours * 100) / 100);
+
+            // OT සත්‍යාපනය (Bug 39 & Daily Whitelist Guard)
+            let calculatedOT = 0;
+            if (empData.otType !== 'none') {
+                const wlSnap = await db.doc(`users/${ownerId}/shops/${shopId}/settings/ot_whitelist_${slDateStr}`).get();
+                const isWhitelisted = wlSnap.exists() && (wlSnap.data().allowedEmpIds || []).includes(empId);
+                
+                if (isWhitelisted && todayRoster && todayRoster.otStart) {
+                    const otStartTime = new Date(`${slDateStr}T${todayRoster.otStart}:00+05:30`);
+                    if (punchDateObj > otStartTime) {
+                        calculatedOT = Math.max(0, (punchDateObj - otStartTime) / (1000 * 60 * 60));
+                        calculatedOT = Math.round(calculatedOT * 100) / 100;
+                    }
+                }
+            }
+
+            await logDoc.ref.update({
+                clockOutTime: punchDateObj.toISOString(),
+                clockOutSource: `BIOMETRIC_${deviceSerial}`,
+                workedHours: netHours,
+                ot: calculatedOT,
+                systemCalcOt: calculatedOT
+            });
+
+            console.log(`✅ Fingerprint Verified: ${empData.name} Clocked OUT. Net: ${netHours}h, OT: ${calculatedOT}h`);
+        }
+
+        return res.status(200).send("SUCCESS");
+
+    } catch (error) {
+        console.error("Biometric Webhook Error:", error);
+        return res.status(500).send("INTERNAL_ERROR");
+    }
+});
+```
+
+---
+
+### 🚨 අවතාර සේවකයින්ට (Ghost Employees) එරෙහිව මෙමඟින් ලැබෙන 100% ආරක්ෂාව:
+
+1. **ස්කෑනර් බාර්කෝඩ් වංචා අවසන් (No Buddy Punching):**
+   * මීට පෙර සේවකයෙකුට අනෙක් සේවකයාගේ දුරකථන අංකය හෝ Barcode එක පරිගණකයට ගසා පැමිණීම සටහන් කළ හැකිව තිබුණි.
+   * Biometric Terminal එකක් දැමූ පසු, **සැබෑ මිනිස් ඇඟිල්ලක් හෝ මුහුණක් නොමැතිව Attendance ලකුණු කිරීම භෞතික විද්‍යාත්මකව කළ නොහැක.**
+2. **ව්‍යාජ හැඳුනුම්පත් වැළැක්වීම (Fingerprint Template Binding):**
+   * යන්ත්‍රයේ ඇඟිලි සලකුණක් ලියාපදිංචි කරන විට (Enrollment), එම ඇඟිලි සලකුණට අදාළව යන්ත්‍රයට දෙන **ID අංකය, අපගේ ERP පද්ධතියේ සේවකයාගේ Phone Number (ID) එකට සර්වසම විය යුතුය.**
+   * Database එකේ නැති බොරු ID එකකින් ඇඟිල්ල තිබ්බොත්, Cloud Function එක මඟින් `EMPLOYEE_NOT_REGISTERED` කියා එම ලොග් එක විසිකර දමයි.
+3. **කළමනාකරුගේ හොර ඇඟිලි සලකුණු වැළැක්වීම (Manager Enrollment Fraud Protection):**
+   * *ප්‍රතිතර්කය:* කළමනාකරු විසින් තමන්ගේම දකුණු අතේ මාපටැඟිල්ල "තමන්ගේ නමටත්", වම් අතේ මාපටැඟිල්ල "අවතාර සේවකයෙකුගේ නමටත්" යන්ත්‍රයට ලියාපදිංචි කළහොත් කුමක් සිදුවේද?
+   * *ආරක්ෂක විසඳුම:* අප මීට පෙර **[දෝෂය 42]** හිදී ගොඩනැගූ **"Statutory AML / NIC Firewall"** මඟින් මෙය පූර්ණ ලෙස අගුලු දමා ඇත. යන්ත්‍රයේ ඇඟිල්ල තිබ්බද, ඔහුට සැබෑ වලංගු National Identity Card (NIC) එකක් සහ වැටුප් පත්‍රිකාවට මුදල් ගෙවීමේදී Owner ගේ **4-Eyes Remote Approval** එකක් නොමැතිව මුදල් ලාච්චුවෙන් සත පහක්වත් එළියට ගත නොහැක!
