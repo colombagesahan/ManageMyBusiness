@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>God Mode | Chief Admin Console</title>
+<link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800;900&display=swap" rel="stylesheet">
+
+<style>
+    /* ENTERPRISE DARK THEME FOR CHIEF CONSOLE */
+    :root { --primary: #10b981; --bg: #0f172a; --card: #1e293b; --text: #f8fafc; --text-muted: #94a3b8; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
+    body { background: var(--bg); color: var(--text); padding: 20px; overflow-x: hidden; }
+
+    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 20px; margin-bottom: 20px; }
+    .header h1 { font-size: 24px; font-weight: 900; color: var(--primary); display: flex; align-items: center; gap: 10px; }
+    
+    .grid-layout { display: grid; grid-template-columns: 1fr 2fr; gap: 20px; align-items: start; }
+    
+    .card { background: var(--card); padding: 25px; border-radius: 16px; border: 1px solid #334155; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+    .card h2 { font-size: 16px; margin-bottom: 20px; border-bottom: 1px dashed #475569; padding-bottom: 10px; color: var(--primary); }
+
+    input, select { width: 100%; padding: 12px 15px; border: 1px solid #475569; background: #0f172a; color: white; border-radius: 8px; margin-bottom: 15px; font-size: 14px; outline: none; transition: 0.2s; }
+    input:focus, select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2); }
+    
+    .input-group { display: flex; align-items: center; margin-bottom: 15px; }
+    .input-group input { margin-bottom: 0; border-radius: 8px 0 0 8px; border-right: none; }
+    .input-addon { background: #334155; padding: 12px 15px; font-size: 14px; border: 1px solid #475569; border-radius: 0 8px 8px 0; color: #cbd5e1; font-weight: 600; }
+
+    .btn { width: 100%; padding: 14px; background: var(--primary); color: #022c22; font-weight: 900; border: none; border-radius: 8px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 15px; }
+    .btn:hover { background: #059669; color: white; }
+    .btn-danger { background: #ef4444; color: white; }
+    .btn-danger:hover { background: #dc2626; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #334155; }
+    th { color: var(--text-muted); font-weight: 800; text-transform: uppercase; font-size: 11px; }
+    tr:hover { background: rgba(255,255,255,0.02); }
+
+    .badge { padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: 900; }
+    .badge.active { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid #059669; }
+    .badge.suspended { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid #dc2626; }
+
+    .loader-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.9); z-index: 9999; display: none; align-items: center; justify-content: center; flex-direction: column; color: var(--primary); font-weight: 900; }
+    .ri-spin { animation: spin 1s linear infinite; }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+
+    /* Login Screen strictly for Chief Admin */
+    #view-login { position: fixed; inset: 0; background: #0f172a; z-index: 10000; display: flex; align-items: center; justify-content: center; }
+</style>
+</head>
+<body>
+
+<div class="loader-overlay" id="globalLoader">
+    <i class="ri-loader-4-line ri-spin" style="font-size:40px;"></i>
+    <div style="margin-top:10px;" id="loaderText">Processing Engine...</div>
+</div>
+
+<!-- ==========================================
+     CHIEF ADMIN LOGIN
+========================================== -->
+<div id="view-login">
+    <div class="card" style="width: 100%; max-width: 400px; text-align: center;">
+        <i class="ri-shield-keyhole-fill" style="font-size:50px; color:var(--primary);"></i>
+        <h2 style="border:none; margin:10px 0 5px 0;">Chief Admin Console</h2>
+        <p style="color:var(--text-muted); font-size:12px; margin-bottom:20px;">Strictly restricted to Master Administrator.</p>
+        
+        <button class="btn" onclick="loginChiefAdmin()"><i class="ri-google-fill"></i> Authenticate with Google</button>
+    </div>
+</div>
+
+<!-- ==========================================
+     MAIN CONSOLE DASHBOARD
+========================================== -->
+<div id="view-dashboard" style="display:none; max-width: 1400px; margin: 0 auto;">
+    <div class="header">
+        <h1><i class="ri-server-fill"></i> SaaS Fleet Controller</h1>
+        <div style="display:flex; align-items:center; gap:15px;">
+            <div style="font-size:13px; color:var(--text-muted);">Logged in as: <b id="adminEmailDisp" style="color:white;"></b></div>
+            <button class="btn btn-danger" style="width:auto; padding:8px 15px; font-size:12px;" onclick="logoutChief()"><i class="ri-logout-circle-r-line"></i> Exit</button>
+        </div>
+    </div>
+
+    <div class="grid-layout">
+        
+        <!-- COLUMN 1: CREATE NEW TENANT -->
+        <div class="card">
+            <h2><i class="ri-add-box-fill"></i> Provision New System (Shop)</h2>
+            
+            <label style="font-size:11px; font-weight:800; color:var(--text-muted); text-transform:uppercase;">Business / Shop Name *</label>
+            <input type="text" id="shopName" placeholder="e.g. Nawarathna Cool Engineering">
+            
+            <label style="font-size:11px; font-weight:800; color:var(--text-muted); text-transform:uppercase;">Subdomain Prefix *</label>
+            <div class="input-group">
+                <input type="text" id="subDomain" placeholder="e.g. nawarathna" oninput="sanitizeSubdomain(this)">
+                <div class="input-addon">.worldbiznet.com</div>
+            </div>
+            <div id="domainStatus" style="font-size:11px; font-weight:bold; margin-top:-10px; margin-bottom:15px;"></div>
+
+            <label style="font-size:11px; font-weight:800; color:var(--text-muted); text-transform:uppercase;">Owner's Email Address *</label>
+            <input type="email" id="ownerEmail" placeholder="merchant@gmail.com">
+            
+            <label style="font-size:11px; font-weight:800; color:var(--text-muted); text-transform:uppercase;">Temporary Admin Password *</label>
+            <div style="position:relative;">
+                <input type="text" id="ownerPass" placeholder="e.g. Nawarathna@123" value="Admin@1234">
+                <i class="ri-refresh-line" style="position:absolute; right:15px; top:12px; cursor:pointer; color:var(--primary);" title="Generate Random" onclick="generateRandomPass()"></i>
+            </div>
+            
+            <button class="btn" onclick="provisionNewTenant()"><i class="ri-rocket-2-fill"></i> Deploy New System</button>
+        </div>
+
+        <!-- COLUMN 2: ACTIVE TENANTS LIST -->
+        <div class="card" style="overflow-x:auto;">
+            <h2><i class="ri-building-4-fill"></i> Active Merchants (Tenants)</h2>
+            <div style="background:#0f172a; border-radius:8px; border:1px solid #334155; display:flex; align-items:center; padding:0 15px; margin-bottom:15px;">
+                <i class="ri-search-line" style="color:#64748b;"></i>
+                <input type="text" id="searchTenants" placeholder="Search domain or email..." style="border:none; margin:0; box-shadow:none; padding:12px 10px; background:transparent;" onkeyup="filterTenants()">
+            </div>
+            <table id="tenantsTable">
+                <thead>
+                    <tr>
+                        <th>Subdomain (URL)</th>
+                        <th>Owner Email</th>
+                        <th>Created At</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="tenantsBody">
+                    <tr><td colspan="5" style="text-align:center;">Loading tenants...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+</div>
+
+<!-- ==========================================
+     FIREBASE & LOGIC
+========================================== -->
+<script type="module">
+    import { initializeApp, deleteApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+    import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+    import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, query, getDocs, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+    // 🔴 1. PRIMARY FIREBASE CONFIG (Your central database)
+    const firebaseConfig = {
+      apiKey: "AIzaSyBDwLs_z_SXX-t6olQ8xu6dRjxVpgRkuvE",
+      authDomain: "nawarathna-cool-engineering.firebaseapp.com",
+      projectId: "nawarathna-cool-engineering",
+      storageBucket: "nawarathna-cool-engineering.firebasestorage.app",
+      messagingSenderId: "863435741101",
+      appId: "1:863435741101:web:c2774c9a557d0fe014f324"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const provider = new GoogleAuthProvider();
+
+    // 🚨 CHIEF ADMIN SECURITY LOCK
+    const CHIEF_ADMIN_EMAIL = "nadun.admin@gmail.com"; 
+
+    let tenantsCache = [];
+    const toggleLoader = (show, text="Processing...") => {
+        document.getElementById('globalLoader').style.display = show ? 'flex' : 'none';
+        document.getElementById('loaderText').textContent = text;
+    };
+
+    // --- 1. AUTHENTICATION (God Mode) ---
+    window.loginChiefAdmin = async () => {
+        toggleLoader(true, "Authenticating Securely...");
+        try {
+            await signInWithPopup(auth, provider);
+        } catch(e) {
+            alert("Login Failed: " + e.message);
+            toggleLoader(false);
+        }
+    };
+
+    onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            if (user.email !== CHIEF_ADMIN_EMAIL) {
+                await signOut(auth);
+                alert("🚨 SECURITY BREACH BLOCKED: You are not authorized to access the Chief Console.");
+                toggleLoader(false);
+                return;
+            }
+            // Authorized!
+            document.getElementById('view-login').style.display = 'none';
+            document.getElementById('view-dashboard').style.display = 'block';
+            document.getElementById('adminEmailDisp').textContent = user.email;
+            loadTenants();
+        } else {
+            document.getElementById('view-login').style.display = 'flex';
+            document.getElementById('view-dashboard').style.display = 'none';
+        }
+        toggleLoader(false);
+    });
+
+    window.logoutChief = async () => {
+        if(confirm("Exit Chief Console?")) await signOut(auth);
+    };
+
+    // --- 2. SUBDOMAIN SANITIZER ---
+    let typingTimer;
+    window.sanitizeSubdomain = (input) => {
+        // අකුරු සහ ඉලක්කම් පමණක් ඉඩ දේ. හිස්තැන් සහ කැපිටල් අකුරු මකා දමයි.
+        input.value = input.value.toLowerCase().replace(/[^a-z0-9]/g, '');
+        
+        const statusEl = document.getElementById('domainStatus');
+        const val = input.value;
+        
+        clearTimeout(typingTimer);
+        if(val.length < 3) {
+            statusEl.innerHTML = '<span style="color:#ef4444;">Too short (Min 3 chars)</span>';
+            return;
+        }
+
+        statusEl.innerHTML = '<span style="color:var(--text-muted);">Checking availability...</span>';
+        
+        typingTimer = setTimeout(async () => {
+            const docRef = doc(db, 'master_tenants', val);
+            const snap = await getDoc(docRef);
+            if(snap.exists()) {
+                statusEl.innerHTML = '<span style="color:#ef4444;"><i class="ri-close-circle-fill"></i> Domain Taken! Try another.</span>';
+            } else {
+                statusEl.innerHTML = '<span style="color:var(--primary);"><i class="ri-checkbox-circle-fill"></i> Available!</span>';
+            }
+        }, 500);
+    };
+
+    window.generateRandomPass = () => {
+        const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$";
+        let pass = "";
+        for(let i=0; i<10; i++) pass += chars.charAt(Math.floor(Math.random() * chars.length));
+        document.getElementById('ownerPass').value = pass;
+    };
+
+    // --- 3. PROVISION NEW TENANT (The Master Creator) ---
+    window.provisionNewTenant = async () => {
+        const shopName = document.getElementById('shopName').value.trim();
+        const subdomain = document.getElementById('subDomain').value.trim();
+        const ownerEmail = document.getElementById('ownerEmail').value.trim();
+        const ownerPass = document.getElementById('ownerPass').value.trim();
+
+        if(!shopName || !subdomain || !ownerEmail || !ownerPass) return alert("All fields are required!");
+        if(subdomain.length < 3) return alert("Subdomain must be at least 3 characters.");
+
+        toggleLoader(true, "Deploying Infrastructure...");
+
+        let secondaryApp = null;
+        try {
+            // 1. Double check domain availability securely
+            const checkRef = doc(db, 'master_tenants', subdomain);
+            const checkSnap = await getDoc(checkRef);
+            if (checkSnap.exists()) throw new Error("Subdomain is already taken!");
+
+            toggleLoader(true, "Creating Merchant Account...");
+
+            // 2. 🚨 THE TRICK: Use Secondary App to create user without logging Chief Admin out!
+            secondaryApp = initializeApp(firebaseConfig, "TempApp_" + Date.now());
+            const secondaryAuth = getAuth(secondaryApp);
+            const userCred = await createUserWithEmailAndPassword(secondaryAuth, ownerEmail, ownerPass);
+            const newOwnerUid = userCred.user.uid;
+            
+            // Clean up the temp app instantly
+            await signOut(secondaryAuth);
+            await deleteApp(secondaryApp);
+
+            toggleLoader(true, "Writing Database Pointers...");
+
+            // 3. 🚨 ATOMIC BATCH WRITE: Build the Merchant's Database Foundation
+            const batch = writeBatch(db);
+            const secureNow = new Date().toISOString();
+
+            // 🚀 ENTERPRISE FIX: Generate a 100% Unique Shop ID
+            const generatedShopId = "SHOP_" + Date.now();
+
+            // A. Create Master Registry Entry (For Routing)
+            batch.set(checkRef, {
+                ownerUid: newOwnerUid,
+                defaultShopId: generatedShopId, // 👈 අනාගතයේ හොයාගන්න මේක මෙතන ලියනවා
+                shopName: shopName,
+                ownerEmail: ownerEmail,
+                status: 'active',
+                createdAt: secureNow
+            });
+
+            // B. Create the Owner Profile in ERP Core
+            const ownerRef = doc(db, 'users', newOwnerUid);
+            batch.set(ownerRef, {
+                role: 'admin',
+                email: ownerEmail,
+                ownerId: newOwnerUid,
+                status: 'active',
+                createdAt: secureNow
+            });
+
+            // C. Create the First Default Shop (Branch) for this Owner with Unique ID
+            const mainShopRef = doc(db, `users/${newOwnerUid}/shops`, generatedShopId);
+            batch.set(mainShopRef, {
+                name: shopName,
+                currency: "Rs",
+                created: secureNow
+            });
+
+            // D. Pre-fill their Business Profile so the Landing Page works instantly!
+// 🚨 ENTERPRISE FIX: Dynamic Shop ID used instead of hardcoded 'MAIN'
+const profileRef = doc(db, `users/${newOwnerUid}/shops/${generatedShopId}/settings`, 'profile');
+batch.set(profileRef, {
+                bizName: shopName,
+                email: ownerEmail,
+                showBizName: true,
+                logoColor: '#2563eb' // Default Blue
+            });
+
+            await batch.commit();
+
+            alert(`✅ System Deployed Successfully!\n\nURL: https://${subdomain}.worldbiznet.com\nEmail: ${ownerEmail}\nPassword: ${ownerPass}\n\nPlease copy and send these details to the merchant.`);
+            
+            document.getElementById('shopName').value = '';
+            document.getElementById('subDomain').value = '';
+            document.getElementById('ownerEmail').value = '';
+            generateRandomPass();
+            document.getElementById('domainStatus').innerHTML = '';
+
+            loadTenants(); // Refresh table
+
+        } catch (e) {
+            console.error(e);
+            alert("Deployment Failed: " + e.message);
+        } finally {
+            if (secondaryApp) {
+                try { await deleteApp(secondaryApp); } catch(err){}
+            }
+            toggleLoader(false);
+        }
+    };
+
+    // --- 4. MANAGE TENANTS (List & Suspend) ---
+    async function loadTenants() {
+        const tbody = document.getElementById('tenantsBody');
+        try {
+            const q = query(collection(db, 'master_tenants'), orderBy('createdAt', 'desc'));
+            const snap = await getDocs(q);
+            
+            tenantsCache = [];
+            snap.forEach(d => tenantsCache.push({ id: d.id, ...d.data() }));
+            
+            renderTenants();
+        } catch(e) {
+            tbody.innerHTML = `<tr><td colspan="5" style="color:red; text-align:center;">Error loading tenants</td></tr>`;
+        }
+    }
+
+    window.renderTenants = () => {
+        const term = document.getElementById('searchTenants').value.toLowerCase().trim();
+        const tbody = document.getElementById('tenantsBody');
+        
+        const filtered = tenantsCache.filter(t => 
+            t.id.toLowerCase().includes(term) || t.ownerEmail.toLowerCase().includes(term)
+        );
+
+        if (filtered.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-muted);">No merchants found.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = filtered.map(t => {
+            const isActive = t.status === 'active';
+            const badge = isActive 
+                ? `<span class="badge active">ACTIVE</span>` 
+                : `<span class="badge suspended">SUSPENDED</span>`;
+                
+            const actionBtn = isActive
+                ? `<button class="btn btn-danger" style="padding:6px 12px; font-size:11px; width:auto;" onclick="toggleTenantStatus('${t.id}', 'suspended')"><i class="ri-lock-fill"></i> Suspend Site</button>`
+                : `<button class="btn" style="padding:6px 12px; font-size:11px; width:auto; background:var(--primary); color:#022c22;" onclick="toggleTenantStatus('${t.id}', 'active')"><i class="ri-lock-unlock-fill"></i> Reactivate</button>`;
+
+            return `
+            <tr>
+                <td><a href="https://${t.id}.worldbiznet.com" target="_blank" style="color:var(--primary); font-weight:bold; text-decoration:none;">${t.id}.worldbiznet.com <i class="ri-external-link-line" style="font-size:10px;"></i></a><br><span style="font-size:11px; color:var(--text-muted);">${t.shopName}</span></td>
+                <td style="font-weight:600;">${t.ownerEmail}</td>
+                <td style="color:var(--text-muted); font-size:11px;">${new Date(t.createdAt).toLocaleDateString()}</td>
+                <td>${badge}</td>
+                <td>${actionBtn}</td>
+            </tr>`;
+        }).join('');
+    };
+
+    window.filterTenants = () => renderTenants();
+
+    // 🚨 SUSPEND MERCHANTS WHO DON'T PAY!
+    window.toggleTenantStatus = async (domainId, newStatus) => {
+        const msg = newStatus === 'suspended' ? `Suspend ${domainId}.worldbiznet.com?\nThe merchant and all customers will be instantly locked out!` : `Reactivate this site?`;
+        if(!confirm(msg)) return;
+
+        toggleLoader(true, "Updating Status...");
+        try {
+            // 1. Update Master Registry
+            await updateDoc(doc(db, 'master_tenants', domainId), { status: newStatus });
+            
+            // 2. Update the Owner's Root Profile to completely lock API requests
+            const t = tenantsCache.find(x => x.id === domainId);
+            if (t && t.ownerUid) {
+                await updateDoc(doc(db, 'users', t.ownerUid), { status: newStatus });
+            }
+
+            loadTenants();
+        } catch(e) {
+            alert("Error updating status: " + e.message);
+        }
+        toggleLoader(false);
+    };
+
+</script>
+</body>
+</html>
