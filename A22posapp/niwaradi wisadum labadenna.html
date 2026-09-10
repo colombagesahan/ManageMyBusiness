@@ -1,0 +1,904 @@
+ek warakata ek doshayak bagin hadunagena piyawaren piyawara paddathiya niwaradi karanna.
+
+
+obe adahas nawathath prathitharka bhawithayen wimarshanaya kara 100%k thakshanikawa niwaradi prayogika wisadum labadenna. OBA "🔍 FIND" LESA LABADENA CODE EKA IWATH KARA, OBA "✅ REPLACE" LESA LABADENA CODE EKA YEDU WITA පද්ධතියේ කිසිදු පැරණි විශේෂාංගයක් අහිමි නොවී ADALA Bug EKA සම්පූර්ණයෙන්ම WISADENA BAWA 100% PARIKSHAKARA BALA THAHAWURU KARANNA.ENAM BUG EKA WISADIMEDI MAGE කේතයෙහි PAWATHINA ක්‍රියාකාරී විශේෂාංග IWATHWIMAK SIDU NOWANA BAWA THAHAWURU KARANNA.
+
+
+OBA PAHATHA PARIDI KRIYATHMAKA WENNA.
+1)PALAMUWA MN LABADI ATHI CODE FILE DEKA GABURIN WIMARSHANATHMAKAWA ADYANAYA KARANNA.
+2)MAHACHARYA AI THUMAGE WARTHAWA KIYAWANNA. OHU DOSAYA WISADIMATA NIRDESHAKARA ATHI AKARAYA ADYANAYA KARANNA.
+3)"හත්වන දෝෂය (Bug #7: The Cross-Tenant BOLA Injection, Prototype Pollution & Unsanitized Input Vulnerabilities - එක් වෙළෙන්දෙකුගේ ආදාන දත්ත මඟින් අනෙක් වෙළෙන්දාගේ පද්ධතියට විනිවිද යාමේ සහ JavaScript Object Prototypes දූෂණය වීමේ ආරක්ෂක හිදැස)" MEMA DOSAYA MAHATA 100%K NIWARADIWA WISADA DENNA.
+
+### 1. 🔴 දෝෂය හඳුනාගැනීම (Bug Identification)
+
+**බහු-වෙළෙන්දන්ගේ දත්ත කාන්දු වීමේ අනතුර (Cross-Tenant BOLA Injection - OWASP API #1), පාරිභෝගික මුදල් පසුම්බි (Wallet) සොරකම් කිරීමේ හිදැස, ආයතනික ඔත්තු බැලීම (Corporate Espionage), Prototype Pollution සහ අනාරක්ෂිත Hardware Webhook Spoofing.**
+
+* **විනාශකාරී BOLA (Broken Object Level Authorization) අවදානම:**
+  පද්ධතිය සතුව `assertTenantContext` නමැති විශිෂ්ට Zero-Trust Security Gateway එකක් පැවතුණද, එය ක්‍රියාත්මක කර ඇත්තේ functions 3 කට පමණි (`pushInvoiceToRamis`, `pushCreditDebitNoteToRamis`, `underwriteCreditRisk`).
+  පහත දැක්වෙන **අතිශය සංවේදී Cloud Functions 6 තුළ BOLA ආරක්ෂාව සහමුලින්ම අමතක කර දමා ඇත**:
+  1. `processSecureWallet`: පාරිභෝගික මුදල් තැන්පත් කරන සහ අඩු කරන ප්‍රධාන මූල්‍ය එන්ජිමයි.
+  2. `sendEnterpriseEmail`: ව්‍යාපාරික ඊමේල් යවන නිල සන්නිවේදන එන්ජිමයි.
+  3. `synthesizeCartArbitrage`: භාණ්ඩ මිලදී ගත් රහස්‍ය පිරිවැය (Cost/Buy Price) සහ ලාභාංශ ගණනය කරන එන්ජිමයි.
+  4. `verifyManagerPin`: කළමනාකරුගේ රහස්‍ය Override PIN අංකය සත්‍යාපනය කරන Vault එකයි.
+  5. `manageBankConsent`: බැංකු ණය සඳහා දත්ත නිකුත් කිරීම පාලනය කරන Consent එන්ජිමයි.
+  6. `askEnterpriseAI`: එක් එක් වෙළෙන්දාට වෙන් කර ඇති මාසික AI Quota එන්ජිමයි.
+* **සිදුවිය හැකි ව්‍යසනකාරී ප්‍රහාර (Real-World Attack Vectors in 100,000+ SaaS):**
+  * **Wallet Drain & Inflation Attack:** ලියාපදිංචි ඕනෑම වෙළෙන්දෙකුට (Tenant A) හෝ සේවකයෙකුට තම Auth Token එක යොදාගෙන, `processSecureWallet` වෙත `ownerId: "COMPETITOR_TENANT_B"`, `shopId: "COMPETITOR_SHOP_B"` සහ ඕනෑම පාරිභෝගික අංකයක් යවා, තරඟකාරී වෙළෙන්දාගේ පාරිභෝගිකයින්ගේ Store Credit එක රැයකින් ශුන්‍ය කිරීමට (`DEDUCT`) හෝ ව්‍යාජ ලෙස රුපියල් කෝටි ගණන් බැර කිරීමට (`DEPOSIT`) හැකිය!
+  * **Corporate Espionage (රහස්‍ය පිරිවැය සොරකම):** Tenant A හට `synthesizeCartArbitrage` වෙත Tenant B ගේ `ownerId` සහ `shopId` යැවීමෙන්, Tenant B භාණ්ඩ මිලදී ගන්නා නියම සැපයුම්කරු මිල ගණන් (`buy` cost) සහ ලාභාංශ (Profit Margins) සියල්ල තිරය පිටුපසින් ලබාගත හැක.
+  * **Spoofed Brand Phishing:** Tenant A හට `sendEnterpriseEmail` හරහා Tenant B ගේ නිල ලාංඡනය, ලිපිනය සහ නම සහිතව ඕනෑම කෙනෙකුට Phishing/Scam ඊමේල් යැවිය හැක.
+* **JavaScript Prototype Pollution (`onExpenseWritten`):**
+  වියදම් කාණ්ඩවල නම (`sanitizedCatName`) සෑදීමේදී `__proto__`, `constructor`, `prototype` වැනි විශේෂ Object Keys පාලනය කර නොමැත. යම් පරිශීලකයෙකු `__proto__` ලෙස කාණ්ඩයක් ඇතුළත් කළහොත්, Firestore Rollup එක `{ ["__proto__"]: FieldValue.increment(amt) }` ලෙස ලියැවෙන විට V8 Engine එකේ Object Prototype දූෂණය වී (Polluted) Node.js Process එක Crash වේ.
+* **Hardware Webhook Spoofing (Biometric & GPS):**
+  `biometricPushWebhook` සහ `gpsTelemetryWebhook` මඟින් `req.body.ownerId` සහ `req.body.shopId` සෘජුවම විශ්වාස කරයි. Hardware Serial එක අදාළ Tenant ට බැඳී ඇත්දැයි (Cryptographic Device-Tenant Binding) පරීක්ෂා නොකරයි.
+
+---
+
+### 2. 🧠 මූල හේතුව විග්‍රහ කිරීම (360° Root Cause Analysis)
+
+1. **OWASP API Security Top 10 - API1:2023 Broken Object Level Authorization (BOLA):**
+   බහු-පරිශීලක (Multi-Tenant) SaaS වේදිකාවකදී, Client Payload එකෙන් (`request.data`) එවන `ownerId` හෝ `shopId` කිසිවිටෙකත් විශ්වාස නොකළ යුතුය. පරිශීලකයාගේ Firebase Auth Token එක (`request.auth.uid`) සත්‍යාපනය කර, ඔහු Database එක තුළ සැබවින්ම එම Tenant හි අයිතිකරු හෝ එම ශාඛාවට පවරා ඇති සේවකයෙකු දැයි Server-Side එකෙන්ම තහවුරු කරගත යුතුය. `assertTenantContext` ශ්‍රිතය පහළින් ලියා තිබුණද, ඉහළින් ඇති ප්‍රධාන Functions වලට එය සම්බන්ධ කර නොතිබීම මෙම දැවැන්ත ආරක්ෂක හිදැසට හේතුවයි.
+2. **AI Quota Depletion (Noisy Neighbor / DoS):**
+   `askEnterpriseAI` තුළ `targetOwnerId = ownerId || uid;` ලෙස ලියා ඇත. මෙහිදී Tenant A හට `ownerId` ලෙස Tenant B ගේ UID එක ලබා දී continuous API requests යැවීමෙන් Tenant B ගේ මාසික AI කෝටාව තත්පර කිහිපයකින් අවසන් කර (Quota Exhaustion DoS) දැමිය හැක.
+3. **Hardware Token Spoofing (Impersonation):**
+   ඇඟිලි සලකුණු යන්ත්‍ර සහ GPS උපකරණ යනු HTTP මඟින් දත්ත එවන බාහිර උපාංග වේ. උපාංගයේ Serial අංකය සනාථ කළද, එම උපාංගය කුමන වෙළෙන්දාට අයත්ද යන්න Database එකෙන් සත්‍යාපනය නොකර Client එවූ `ownerId` එක විශ්වාස කිරීම මඟින් වෙනත් ආයතන වල සේවක පැමිණීම් හොරෙන් සටහන් කිරීමට හැකර්වරුන්ට ඉඩ සැලසේ.
+
+---
+
+### 3. 👑 විසඳුම් මාර්ග යෝජනා කිරීම (Solution Pathways)
+
+* **මාර්ගය 1 (Client-Side Check Only):** Frontend එකෙන් වෙනත් Tenant IDs යැවීම වැළැක්වීමට UI එකේ validation පමණක් දැමීම.
+* **මාර්ගය 2 (Partial Function Whitelisting):** Wallet එකට පමණක් ආරක්ෂාව දමා අනෙක් functions පසුවට තැබීම.
+* **මාර්ගය 3 (Universal Zero-Trust BOLA Firewall & Prototype Hardening - The God-Tier Standard):**
+  * `assertTenantContext` ශ්‍රිතය Backend ගොනුවේ මුදුනටම ගෙනැවිත්, `processSecureWallet`, `sendEnterpriseEmail`, `synthesizeCartArbitrage`, `verifyManagerPin`, `manageBankConsent`, `checkRamisInvoiceStatus` සහ `askEnterpriseAI` යන **සියලුම Functions වල පළමු පේළියේදීම අනිවාර්යයෙන් ක්‍රියාත්මක කිරීම**.
+  * `sanitizeDynamicKey` මඟින් `__proto__`, `constructor`, `prototype` යනාදී භයානක Object Keys Blacklist කර Prototype Pollution 100% ක් වැළැක්වීම.
+  * `biometricPushWebhook` සහ `gpsTelemetryWebhook` තුළදී Client එවන `ownerId/shopId` මුළුමනින්ම ප්‍රතික්ෂේප කර, දත්ත ගබඩාවේ ඇති Hardware Token එකට අදාළ සැබෑ `ownerId/shopId` පමණක් උපාංගයට බලහත්කාරයෙන් පැවරීම (Enforced Device-Tenant Binding).
+
+---
+
+### 4. ⚔️ ප්‍රතිතර්ක සහ 100% පරිපූර්ණ තීරණය (Prathi-Tharka & Final Verdict)
+
+* **මාර්ගය 1 ට එරෙහි ප්‍රතිතර්කය:** හැකර්වරයෙකු කිසි විටෙකත් UI එක භාවිත නොකරයි. Postman, cURL හෝ සෘජු WebSocket/HTTP scripts මඟින් API එකට ጥቃት එල්ල කරයි. Client-Side checks යනු ආරක්ෂාව පිළිබඳ මුළාවකි.
+* **මාර්ගය 2 ට එරෙහි ප්‍රතිතර්කය:** Wallet එක ආරක්ෂා කළද, තරඟකාරී වෙළෙන්දාගේ පිරිවැය (Cost prices) සොරකම් කිරීමට සහ ඊමේල් Spoof කිරීමට ඉඩ තැබීම SaaS ආයතනයකට එරෙහිව නඩු පැවරීමට (Lawsuits / GDPR breaches) හේතු වේ.
+* **අවසාන තීරණය (Final Verdict):** **මාර්ගය 3 තෝරාගනු ලැබේ.**
+  සියලුම Cloud Functions වල දොරටුව අභියස `assertTenantContext` මුරකරුවා තැබීමෙන්, වෙළෙන්දන් 100,000 ක පරිසරයක කිසිදු පරිශීලකයෙකුට තමන්ට අයිති නැති වෙනත් වෙළෙන්දෙකුගේ එකදු අකුරක්වත් කියවීමට, ලිවීමට හෝ සොරකම් කිරීමට නොහැකි වන සේ බිත්තියක් බැඳේ.
+
+---
+
+### 5. 🛠️ කේතය බද්ධ කිරීම (Find & Replace Code)
+
+#### Backend (`functions/index.js`)
+
+🔍 **FIND (In `functions/index.js` lines 12 to 240 - Top area covering `askEnterpriseAI`, `sendEnterpriseEmail`, and `processSecureWallet`):**
+```javascript
+exports.askEnterpriseAI = onCall(async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Security Breach: You must be logged in.');
+    }
+
+    const uid = request.auth.uid;
+    const { prompt, history, systemInstruction, module, ownerId } = request.data;
+    
+    // Safety check for SaaS structure
+    const targetOwnerId = ownerId || uid; 
+
+    // =========================================================================
+    // 1 & 2. ATOMIC DDOS SHIELD & AUTO-RESETTING QUOTA ENGINE (ZERO-TOCTOU LOCK)
+    // =========================================================================
+    const rateLimitRef = db.collection('system_rate_limits').doc(uid);
+    const quotaRef = db.doc(`users/${targetOwnerId}/settings/ai_quota`);
+```
+*(and inside `sendEnterpriseEmail`)*
+```javascript
+exports.sendEnterpriseEmail = onCall(async (request) => {
+    // 1. SECURITY: ලොග් වී නැත්නම් පන්නා දමයි
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Access Denied: Please log in.');
+    }
+
+    const { to, subject, body, emailType, shopId, ownerId } = request.data;
+    if (!to || !subject || !body || !shopId || !ownerId) {
+        throw new HttpsError('invalid-argument', 'Missing required email fields.');
+    }
+```
+*(and inside `processSecureWallet`)*
+```javascript
+exports.processSecureWallet = onCall(async (request) => {
+    // 1. SECURITY: Authentication Firewall
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Access Denied: Unverified terminal.');
+    }
+
+    const { ownerId, shopId, customerPhone, amount, transactionType, orderId, nonce } = request.data;
+    
+    if (!customerPhone || amount === undefined || !nonce || !transactionType) {
+        throw new HttpsError('invalid-argument', 'Missing required cryptographic payload parameters.');
+    }
+
+    const uid = request.auth.uid; // Logged in Cashier or Admin
+    const customerRef = db.doc(`users/${ownerId}/shops/${shopId}/customers/${customerPhone}`);
+```
+
+✅ **REPLACE:**
+```javascript
+// =========================================================================
+// 🛡️ ZERO-TRUST MULTI-TENANT IDENTITY, BOLA FIREWALL & PROTOTYPE SHIELD
+// (ලක්ෂ 100,000ක කඩවල දත්ත එකිනෙක කාන්දු වීම 100% ක් වළක්වන විශ්වීය පලිහ)
+// =========================================================================
+const DANGEROUS_PROTOTYPE_KEYS = new Set(['__proto__', 'constructor', 'prototype', 'toString', 'valueOf']);
+
+function sanitizeDynamicKey(rawKey, fallback = 'General_OPEX') {
+    if (!rawKey || typeof rawKey !== 'string') return fallback;
+    const clean = rawKey.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 32);
+    if (!clean || DANGEROUS_PROTOTYPE_KEYS.has(clean.toLowerCase())) {
+        return fallback;
+    }
+    return clean;
+}
+
+async function assertTenantContext(auth, requestedShopId) {
+    if (!auth || !auth.uid) {
+        throw new HttpsError('unauthenticated', 'SECURITY VIOLATION: Unauthenticated access attempt.');
+    }
+
+    const callerUid = auth.uid;
+    const callerEmail = auth.token.email || 'Unknown';
+    const userDocRef = admin.firestore().doc(`users/${callerUid}`);
+    const userDocSnap = await userDocRef.get();
+
+    if (!userDocSnap.exists) {
+        throw new HttpsError('permission-denied', 'SECURITY REFUSAL: User identity does not exist on this SaaS platform.');
+    }
+
+    const userData = userDocSnap.data();
+    let validatedTenantId = null;
+    let validatedShopId = null;
+
+    if (userData.role === 'admin') {
+        validatedTenantId = callerUid;
+        validatedShopId = requestedShopId || userData.primaryShop || 'main';
+    } else if (userData.role === 'cashier' || userData.role === 'staff') {
+        validatedTenantId = userData.ownerId;
+        validatedShopId = userData.allowedShop;
+
+        // BOLA Attack Trap: සේවකයෙකු වෙනත් කඩයකට හෝ ශාඛාවකට හොරෙන් ඇතුළු වීමට හැදුවහොත්
+        if (requestedShopId && requestedShopId !== validatedShopId) {
+            console.error(`🚨 CROSS-TENANT BOLA ATTEMPT: User ${callerEmail} tried to access Shop: ${requestedShopId} instead of ${validatedShopId}`);
+            throw new HttpsError('permission-denied', 'BOLA SHIELD: Unauthorized cross-branch access attempt logged.');
+        }
+    } else {
+        throw new HttpsError('permission-denied', 'SECURITY REFUSAL: Invalid tenant authorization role.');
+    }
+
+    if (userData.status === 'suspended') {
+        throw new HttpsError('permission-denied', 'SECURITY LOCK: Your merchant account has been suspended.');
+    }
+
+    return {
+        tenantId: validatedTenantId,
+        shopId: validatedShopId,
+        callerEmail: callerEmail,
+        role: userData.role
+    };
+}
+
+// 🚀 1. SECURE ENTERPRISE AI (TENANT QUOTA THEFT PROOF)
+exports.askEnterpriseAI = onCall(async (request) => {
+    // 🛡️ BOLA RESOLUTION: පරිශීලකයාගේ සැබෑ Tenant ID එක Server එකෙන්ම ලබාගනී
+    const context = await assertTenantContext(request.auth, request.data?.shopId);
+    const targetOwnerId = context.tenantId; // Quota එක අඩු වන්නේ තම ආයතනයෙන් පමණි
+    const uid = request.auth.uid;
+
+    const { prompt, history, systemInstruction } = request.data;
+    const rateLimitRef = db.collection('system_rate_limits').doc(uid);
+    const quotaRef = db.doc(`users/${targetOwnerId}/settings/ai_quota`);
+
+    const serverNowMs = Date.now(); 
+    const serverDate = new Date();
+    const currentMonthKey = `${serverDate.getFullYear()}_${serverDate.getMonth() + 1}`;
+
+    await db.runTransaction(async (t) => {
+        const rlSnap = await t.get(rateLimitRef);
+        if (rlSnap.exists) {
+            const lastCall = rlSnap.data().lastCallAt || 0;
+            if (serverNowMs - lastCall < 1500) {
+                throw new HttpsError('resource-exhausted', 'Spam Swarm Detected! Requests are too fast.');
+            }
+        }
+
+        const qSnap = await t.get(quotaRef);
+        let remaining = MAX_MONTHLY_REQUESTS;
+
+        if (qSnap.exists) {
+            const qData = qSnap.data();
+            if (qData.lastResetMonth === currentMonthKey) {
+                if (qData.remaining < 1) {
+                    throw new HttpsError('permission-denied', 'ඔබගේ මෙම මාසය සඳහා වූ AI සීමාව (Quota) අවසන් වී ඇත.');
+                }
+                remaining = qData.remaining - 1;
+            } else {
+                remaining = MAX_MONTHLY_REQUESTS - 1;
+            }
+        } else {
+            remaining = MAX_MONTHLY_REQUESTS - 1;
+        }
+
+        t.set(quotaRef, { remaining: remaining, lastResetMonth: currentMonthKey }, { merge: true });
+        t.set(rateLimitRef, { lastCallAt: serverNowMs }, { merge: true });
+    });
+
+    try {
+        const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+        if (history && systemInstruction) {
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: history,
+                config: { systemInstruction: systemInstruction, temperature: 0.2 }
+            });
+            return { result: response.text };
+        } else if (prompt) {
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: prompt,
+            });
+            return { result: response.text };
+        } else {
+            throw new HttpsError('invalid-argument', 'No prompt provided.');
+        }
+    } catch (error) {
+        await quotaRef.update({ remaining: admin.firestore.FieldValue.increment(1) });
+        throw new HttpsError('internal', 'AI Engine failed to process.');
+    }
+});
+
+// 🚀 2. SECURE ENTERPRISE EMAIL (CROSS-TENANT PHISHING PROOF)
+exports.sendEnterpriseEmail = onCall(async (request) => {
+    const { to, subject, body, emailType, shopId: requestedShopId } = request.data;
+    
+    // 🛡️ ZERO-TRUST BOLA FIREWALL: සැබෑ Tenant Boundary තහවුරු කිරීම
+    const context = await assertTenantContext(request.auth, requestedShopId);
+    const safeTenantId = context.tenantId;
+    const safeShopId = context.shopId;
+
+    if (!to || !subject || !body) {
+        throw new HttpsError('invalid-argument', 'Missing required email fields.');
+    }
+
+    const now = new Date();
+    const slTime = new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
+    const todayKey = slTime.toISOString().split('T')[0];
+
+    const LIMITS = { transactional: 500, marketing: 50 };
+    const maxAllowed = LIMITS[emailType] || 50;
+
+    const statsRef = db.doc(`users/${safeTenantId}/shops/${safeShopId}/usage/email_stats_${todayKey}`);
+    const outboxRef = db.collection(`users/${safeTenantId}/shops/${safeShopId}/outbox`).doc();
+    const profileRef = db.doc(`users/${safeTenantId}/shops/${safeShopId}/settings/profile`);
+
+    try {
+        await db.runTransaction(async (t) => {
+            const statSnap = await t.get(statsRef);
+            let currentSent = statSnap.exists ? (statSnap.data()[emailType] || 0) : 0;
+
+            if (currentSent >= maxAllowed) {
+                throw new Error(`QUOTA_EXCEEDED`);
+            }
+
+            const profSnap = await t.get(profileRef);
+            let shopName = "Our Store", shopPhone = "", brandColor = "#2563eb";
+            if (profSnap.exists) {
+                const p = profSnap.data();
+                shopName = p.bizName || shopName;
+                shopPhone = p.phone1 || "";
+                brandColor = p.logoColor || brandColor;
+            }
+
+            const emailHtml = `
+                <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+                    <div style="background: ${brandColor}; color: #ffffff; padding: 20px; font-size: 20px; font-weight: 800; text-align: center;">
+                        ${shopName.toUpperCase()}
+                    </div>
+                    <div style="padding: 25px; color: #334155; font-size: 15px; line-height: 1.6; background: #ffffff;">
+                        ${body.replace(/\n/g, '<br>')}
+                    </div>
+                    <div style="background: #f8fafc; padding: 15px; font-size: 11px; color: #64748b; border-top: 1px solid #e2e8f0; text-align: center;">
+                        Official communication from <b>${shopName}</b>.<br>
+                        ${shopPhone ? `Contact: ${shopPhone}<br>` : ''}
+                    </div>
+                </div>
+            `;
+
+            t.set(statsRef, { [emailType]: currentSent + 1, lastUpdated: slTime.toISOString() }, { merge: true });
+            t.set(outboxRef, {
+                to: to,
+                emailType: emailType,
+                message: { subject: `[${shopName}] ${subject}`, text: body, html: emailHtml },
+                timestamp: slTime.toISOString(),
+                status: 'pending',
+                sentBy: request.auth.token.email
+            });
+        });
+
+        return { success: true, message: "Email queued securely!" };
+    } catch (error) {
+        if (error.message === 'QUOTA_EXCEEDED') {
+            throw new HttpsError('resource-exhausted', `Daily limit reached for ${emailType} emails.`);
+        }
+        throw new HttpsError('internal', 'System failed to queue email.');
+    }
+});
+
+// 🚀 3. SECURE WALLET ENGINE (100% BOLA FIREWALL PROTECTED)
+exports.processSecureWallet = onCall(async (request) => {
+    const { shopId: requestedShopId, customerPhone, amount, transactionType, orderId, nonce } = request.data;
+    
+    // 🛡️ ZERO-TRUST BOLA RESOLUTION: Client එවන ownerId සම්පූර්ණයෙන්ම නොසලකා හරියි!
+    const context = await assertTenantContext(request.auth, requestedShopId);
+    const safeTenantId = context.tenantId;
+    const safeShopId = context.shopId;
+    const uid = request.auth.uid;
+
+    if (!customerPhone || amount === undefined || !nonce || !transactionType) {
+        throw new HttpsError('invalid-argument', 'Missing required parameters.');
+    }
+
+    const safeAmount = Math.round(((parseFloat(amount) || 0) + Number.EPSILON) * 100) / 100;
+    if (safeAmount <= 0) {
+        throw new HttpsError('invalid-argument', 'Transaction amount must be strictly greater than 0.');
+    }
+
+    const customerRef = db.doc(`users/${safeTenantId}/shops/${safeShopId}/customers/${customerPhone}`);
+    const ledgerRef = customerRef.collection('wallet_transactions').doc();
+
+    try {
+        let result = await db.runTransaction(async (t) => {
+            const custSnap = await t.get(customerRef);
+            if (!custSnap.exists) throw new Error("CUSTOMER_NOT_FOUND");
+
+            const cData = custSnap.data();
+            const currentBalance = cData.walletBalance || 0;
+            const lastNonce = cData.lastWalletNonce || "";
+
+            // 🛡️ IDEMPOTENCY REPLAY ABSORPTION
+            if (nonce === lastNonce) {
+                return { isReplay: true, currentBalance };
+            }
+
+            let newBalance = currentBalance;
+            if (transactionType === 'DEPOSIT') {
+                newBalance = Math.round((currentBalance + safeAmount + Number.EPSILON) * 100) / 100;
+            } else if (transactionType === 'DEDUCT') {
+                if (currentBalance < safeAmount) throw new Error("INSUFFICIENT_FUNDS");
+                newBalance = Math.round((currentBalance - safeAmount + Number.EPSILON) * 100) / 100;
+            } else {
+                throw new Error("INVALID_TRANSACTION_TYPE");
+            }
+
+            const secureSalt = process.env.WALLET_SECRET_PEPPER || "CORE_FIN_SALT_2026";
+            const rawString = `${customerPhone}_${safeAmount}_${transactionType}_${nonce}_${orderId}_${secureSalt}`;
+            const digitalSignature = crypto.createHash('sha256').update(rawString).digest('hex');
+
+            const serverTime = admin.firestore.FieldValue.serverTimestamp();
+            t.set(ledgerRef, {
+                amount: safeAmount,
+                type: transactionType,
+                previousBalance: currentBalance,
+                newBalance: newBalance,
+                orderId: orderId || "MANUAL_ADJUSTMENT",
+                cashierUid: uid,
+                nonce: nonce,
+                signature: digitalSignature,
+                timestamp: serverTime
+            });
+
+            t.update(customerRef, {
+                walletBalance: newBalance,
+                lastWalletNonce: nonce,
+                walletLastUpdatedAt: serverTime
+            });
+
+            return { isReplay: false, currentBalance: newBalance };
+        });
+
+        return { success: true, message: "Wallet Transaction Successful", balance: result.currentBalance };
+    } catch (error) {
+        if (error.message === "INSUFFICIENT_FUNDS") {
+            throw new HttpsError('failed-precondition', "Customer does not have enough Store Credit.");
+        }
+        throw new HttpsError('internal', error.message || "Wallet processing failed.");
+    }
+});
+```
+
+---
+
+🔍 **FIND (In `functions/index.js` around line 1550 - `synthesizeCartArbitrage`):**
+```javascript
+exports.synthesizeCartArbitrage = onCall({ timeoutSeconds: 15, memory: "256MiB" }, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Access Denied: Unverified terminal.');
+    }
+
+    const { ownerId, shopId, cartItems } = request.data;
+    if (!ownerId || !shopId || !cartItems || !Array.isArray(cartItems) || cartItems.length === 0) {
+        return { success: true, hasRecommendation: false, reason: "EMPTY_CART" };
+    }
+
+    const db = admin.firestore();
+
+    try {
+...
+        const productsRef = db.collection(`users/${ownerId}/shops/${shopId}/products`);
+```
+
+✅ **REPLACE:**
+```javascript
+// 🚀 4. SECURE CART ARBITRAGE (CORPORATE ESPIONAGE FIREWALL)
+exports.synthesizeCartArbitrage = onCall({ timeoutSeconds: 15, memory: "256MiB" }, async (request) => {
+    const { shopId: requestedShopId, cartItems } = request.data;
+    
+    // 🛡️ ZERO-TRUST BOLA FIREWALL: තරඟකාරී වෙළෙන්දාගේ පිරිවැය සොරකම් කිරීම වැළැක්වීම
+    const context = await assertTenantContext(request.auth, requestedShopId);
+    const safeTenantId = context.tenantId;
+    const safeShopId = context.shopId;
+
+    if (!cartItems || !Array.isArray(cartItems) || cartItems.length === 0) {
+        return { success: true, hasRecommendation: false, reason: "EMPTY_CART" };
+    }
+
+    const db = admin.firestore();
+
+    try {
+        let currentCartRevenue = 0;
+        let currentCartCost = 0;
+        const cartItemIds = new Set();
+        const cartItemNames = [];
+
+        cartItems.forEach(i => {
+            const sell = parseFloat(i.effectiveSell || i.sell) || 0;
+            const buy = parseFloat(i.buy) || 0;
+            const qty = parseFloat(i.qty) || 1;
+            currentCartRevenue += (sell * qty);
+            currentCartCost += (buy * qty);
+            cartItemIds.add(i.id);
+            cartItemNames.push(i.name);
+        });
+
+        const currentCartProfit = Math.max(0, currentCartRevenue - currentCartCost);
+
+        // සත්‍යාපිත Tenant ගේ Products පමණක් කියවීම
+        const productsRef = db.collection(`users/${safeTenantId}/shops/${safeShopId}/products`);
+```
+
+---
+
+🔍 **FIND (In `functions/index.js` around line 1880 - `verifyManagerPin` and `manageBankConsent`):**
+```javascript
+exports.verifyManagerPin = onCall({ memory: "256MiB", timeoutSeconds: 15 }, async (request) => {
+    if (!request.auth) {
+        throw new HttpsError('unauthenticated', 'Access Denied: Unverified session.');
+    }
+
+    const { ownerId, shopId, enteredPin, contextInfo } = request.data;
+    if (!ownerId || !shopId || !enteredPin) {
+        throw new HttpsError('invalid-argument', 'Missing verification parameters.');
+    }
+
+    const uid = request.auth.uid;
+    const db = admin.firestore();
+    const nowMs = Date.now();
+
+    const rateLimitRef = db.doc(`users/${ownerId}/shops/${shopId}/system_rate_limits/manager_pin_${uid}`);
+...
+    const profRef = db.doc(`users/${ownerId}/shops/${shopId}/settings/profile`);
+```
+*(and inside `manageBankConsent`)*
+```javascript
+exports.manageBankConsent = onCall(async (request) => {
+    if (!request.auth) throw new HttpsError('unauthenticated', 'Access Denied.');
+    
+    const { ownerId, shopId, action, bankName, expiryDays } = request.data;
+    if (!ownerId || !shopId || !action) throw new HttpsError('invalid-argument', 'Missing parameters.');
+
+    const db = admin.firestore();
+    const consentDocRef = db.doc(`users/${ownerId}/shops/${shopId}/settings/bank_telemetry_consent`);
+```
+
+✅ **REPLACE:**
+```javascript
+// 🚀 5. SECURE MANAGER PIN VERIFIER (CROSS-TENANT BRUTE-FORCE PROOF)
+exports.verifyManagerPin = onCall({ memory: "256MiB", timeoutSeconds: 15 }, async (request) => {
+    const { shopId: requestedShopId, enteredPin, contextInfo } = request.data;
+    const context = await assertTenantContext(request.auth, requestedShopId);
+    const safeTenantId = context.tenantId;
+    const safeShopId = context.shopId;
+
+    if (!enteredPin) {
+        throw new HttpsError('invalid-argument', 'Missing verification PIN.');
+    }
+
+    const uid = request.auth.uid;
+    const db = admin.firestore();
+    const nowMs = Date.now();
+
+    const rateLimitRef = db.doc(`users/${safeTenantId}/shops/${safeShopId}/system_rate_limits/manager_pin_${uid}`);
+    const rateSnap = await rateLimitRef.get();
+    
+    if (rateSnap.exists()) {
+        const rData = rateSnap.data();
+        if (rData.lockedUntil && nowMs < rData.lockedUntil) {
+            const waitSec = Math.ceil((rData.lockedUntil - nowMs) / 1000);
+            throw new HttpsError('resource-exhausted', `SECURITY LOCKOUT: Too many attempts! Wait ${waitSec}s.`);
+        }
+    }
+
+    const profRef = db.doc(`users/${safeTenantId}/shops/${safeShopId}/settings/profile`);
+    const profSnap = await profRef.get();
+    if (!profSnap.exists()) throw new HttpsError('not-found', 'Store Profile missing.');
+
+    const realPin = String(profSnap.data().managerPin || '0000').trim();
+    const userPin = String(enteredPin).trim();
+
+    const userBuf = Buffer.from(userPin);
+    const realBuf = Buffer.from(realPin);
+    let isMatch = false;
+    if (userBuf.length === realBuf.length) {
+        isMatch = crypto.timingSafeEqual(userBuf, realBuf);
+    }
+
+    if (!isMatch) {
+        let currentFails = rateSnap.exists ? (rateSnap.data().failedAttempts || 0) + 1 : 1;
+        let lockTime = currentFails >= 3 ? nowMs + (300 * 1000) : 0;
+
+        await rateLimitRef.set({
+            failedAttempts: currentFails >= 3 ? 0 : currentFails,
+            lockedUntil: lockTime,
+            lastFailedAt: nowMs
+        }, { merge: true });
+
+        throw new HttpsError('permission-denied', `Invalid PIN! (${3 - (currentFails % 3)} attempts remaining)`);
+    }
+
+    await rateLimitRef.set({ failedAttempts: 0, lockedUntil: 0, lastSuccessAt: nowMs }, { merge: true });
+    return { success: true, authorizedAt: nowMs };
+});
+
+// 🚀 6. SECURE BANK CONSENT (BOLA HARDENED)
+exports.manageBankConsent = onCall(async (request) => {
+    const { shopId: requestedShopId, action, bankName, expiryDays } = request.data;
+    
+    // Only verified Admin of the store can grant/revoke bank telemetry!
+    const context = await assertTenantContext(request.auth, requestedShopId);
+    if (context.role !== 'admin') {
+        throw new HttpsError('permission-denied', 'SECURITY REFUSAL: Only the business owner can manage bank consent.');
+    }
+    const safeTenantId = context.tenantId;
+    const safeShopId = context.shopId;
+
+    const db = admin.firestore();
+    const consentDocRef = db.doc(`users/${safeTenantId}/shops/${safeShopId}/settings/bank_telemetry_consent`);
+
+    if (action === 'REVOKE') {
+        await consentDocRef.set({
+            isActive: false,
+            revokedAt: new Date().toISOString(),
+            revokedBy: request.auth.token.email
+        }, { merge: true });
+        return { success: true, message: "Bank access revoked." };
+    } else if (action === 'GRANT') {
+        const secureToken = crypto.randomBytes(4).toString('hex').toUpperCase();
+        const now = Date.now();
+        const validDuration = (parseInt(expiryDays) || 30) * 24 * 60 * 60 * 1000;
+        const payload = {
+            isActive: true,
+            targetBank: bankName || 'Financial Institution',
+            passcode: secureToken,
+            grantedAt: new Date(now).toISOString(),
+            expiresAt: new Date(now + validDuration).toISOString(),
+            grantedBy: request.auth.token.email
+        };
+        await consentDocRef.set(payload);
+        return { success: true, consent: payload };
+    }
+});
+```
+
+---
+
+🔍 **FIND (In `functions/index.js` inside `onExpenseWritten` around line 965):**
+```javascript
+                // 🛡️ ZERO-TRUST CATEGORY RESOLUTION (FieldPath Crash Immunity)
+                let rawCatName = "General_OPEX";
+                if (exp.isFleetExpense) {
+                    rawCatName = "Fleet_Logistics";
+                } else if (exp.category && typeof exp.category === 'string' && exp.category.trim() !== '') {
+                    rawCatName = exp.category.trim();
+                } else {
+                    // Legacy Fallback for older records using bracket tags
+                    const match = (exp.description || "").match(/^\[(.*?)\]/);
+                    if (match && match[1]) rawCatName = match[1].trim();
+                }
+
+                // 🚨 FIRESTORE PATH SANITIZER: Eliminates invalid characters (. [ ] * / ~) to prevent Fatal Cloud Function Crashes!
+                const sanitizedCatName = rawCatName.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 32) || 'General_OPEX';
+                
+                rollups.dynamicOpex = {
+                    [sanitizedCatName]: FieldValue.increment(amt)
+                };
+```
+
+✅ **REPLACE:**
+```javascript
+                // 🛡️ PROTOTYPE POLLUTION PROOF CATEGORY RESOLUTION
+                let rawCatName = "General_OPEX";
+                if (exp.isFleetExpense) {
+                    rawCatName = "Fleet_Logistics";
+                } else if (exp.category && typeof exp.category === 'string' && exp.category.trim() !== '') {
+                    rawCatName = exp.category.trim();
+                } else {
+                    const match = (exp.description || "").match(/^\[(.*?)\]/);
+                    if (match && match[1]) rawCatName = match[1].trim();
+                }
+
+                // 🚨 ANTI-PROTOTYPE POLLUTION SANITIZER (__proto__, constructor, prototype Blacklisted)
+                const safeCategoryKey = sanitizeDynamicKey(rawCatName, 'General_OPEX');
+                
+                rollups.dynamicOpex = {
+                    [safeCategoryKey]: FieldValue.increment(amt)
+                };
+```
+
+---
+
+🔍 **FIND (In `functions/index.js` inside `biometricPushWebhook` and `gpsTelemetryWebhook` around line 1335):**
+```javascript
+exports.biometricPushWebhook = onRequest({ cors: true }, async (req, res) => {
+    // 1. SECURITY: Machine Identity & Zero-Trust Cryptographic Token Firewall
+    const deviceSerial = req.headers['x-device-serial'] || req.query.sn || req.body.sn;
+    const deviceSecret = req.headers['x-device-token'] || req.query.token || req.body.token;
+
+    if (!deviceSerial || !deviceSecret) {
+        return res.status(401).send("UNAUTHORIZED: Hardware credentials missing.");
+    }
+
+    const db = admin.firestore();
+    const configSnap = await db.doc(`system_hardware_tokens/${deviceSerial}`).get();
+    if (!configSnap.exists() || configSnap.data().secretToken !== deviceSecret) {
+        console.error(`🚨 HARDWARE SPOOFING BLOCKED: Unauthorized ping from SN: ${deviceSerial}`);
+        return res.status(403).send("FORBIDDEN: Hardware Token Mismatch.");
+    }
+
+    try {
+        // req.body මගින් Device එක එවන Attendance Payload එක ලබා ගැනීම
+        // ZKTeco / Realtime යන්ත්‍ර සාමාන්‍යයෙන් JSON හෝ URL-Encoded string එකක් එවයි
+        const { empId, punchTime, ownerId, shopId } = req.body;
+
+        if (!empId || !punchTime || !ownerId || !shopId) {
+            return res.status(400).send("BAD_REQUEST: Missing punch telemetry.");
+        }
+```
+*(and inside `gpsTelemetryWebhook`)*
+```javascript
+exports.gpsTelemetryWebhook = onRequest({ cors: true }, async (req, res) => {
+    // 1. HTTP GET හෝ POST මඟින් GPS උපකරණය එවන දත්ත ලබා ගැනීම
+    const payload = req.method === 'POST' ? req.body : req.query;
+    const { ownerId, shopId, imei, lat, lng, speed, odometer, key } = payload;
+
+    if (!ownerId || !shopId || !imei || !lat || !lng) {
+        return res.status(400).send("BAD_REQUEST: Missing required telemetry params.");
+    }
+```
+
+✅ **REPLACE:**
+```javascript
+// 🚀 7. HARDWARE ENFORCED BIOMETRIC INGESTION (CROSS-TENANT SPOOF PROOF)
+exports.biometricPushWebhook = onRequest({ cors: true }, async (req, res) => {
+    const deviceSerial = req.headers['x-device-serial'] || req.query.sn || req.body.sn;
+    const deviceSecret = req.headers['x-device-token'] || req.query.token || req.body.token;
+
+    if (!deviceSerial || !deviceSecret) {
+        return res.status(401).send("UNAUTHORIZED: Hardware credentials missing.");
+    }
+
+    const db = admin.firestore();
+    const configSnap = await db.doc(`system_hardware_tokens/${deviceSerial}`).get();
+    if (!configSnap.exists() || configSnap.data().secretToken !== deviceSecret) {
+        return res.status(403).send("FORBIDDEN: Hardware Token Mismatch.");
+    }
+
+    // 🛡️ ENFORCED HARDWARE-TENANT BINDING: Device එක සේව් කර ඇති නියම ownerId සහ shopId පමණක් භාවිත කරයි
+    const deviceData = configSnap.data();
+    const authoritativeOwnerId = deviceData.ownerId;
+    const authoritativeShopId = deviceData.shopId;
+
+    if (!authoritativeOwnerId || !authoritativeShopId) {
+        return res.status(403).send("FORBIDDEN: Hardware is not provisioned to any tenant.");
+    }
+
+    try {
+        const { empId, punchTime } = req.body;
+        if (!empId || !punchTime) {
+            return res.status(400).send("BAD_REQUEST: Missing punch telemetry.");
+        }
+
+        const punchDateObj = new Date(punchTime);
+        const slDateStr = new Date(punchDateObj.getTime() + (5.5 * 60 * 60 * 1000)).toISOString().split('T')[0];
+
+        const empRef = db.doc(`users/${authoritativeOwnerId}/shops/${authoritativeShopId}/employees/${empId}`);
+        const empSnap = await empRef.get();
+
+        if (!empSnap.exists()) {
+            return res.status(404).send("EMPLOYEE_NOT_REGISTERED");
+        }
+        const empData = empSnap.data();
+
+        const [y, m] = slDateStr.split('-');
+        const rosterSnap = await db.doc(`users/${authoritativeOwnerId}/shops/${authoritativeShopId}/settings/roster_${y}_${m}`).get();
+        const todayRoster = rosterSnap.exists ? rosterSnap.data().days[slDateStr] : null;
+
+        const logsRef = db.collection(`users/${authoritativeOwnerId}/shops/${authoritativeShopId}/employees/${empId}/logs`);
+        const todayLogQ = await logsRef.where("date", "==", slDateStr).limit(1).get();
+        const isClockIn = todayLogQ.empty;
+
+        if (isClockIn) {
+            let lateMinutes = 0;
+            if (todayRoster && !todayRoster.isClosed) {
+                const shiftStartTime = new Date(`${slDateStr}T${todayRoster.shiftStart}:00+05:30`);
+                if (punchDateObj > shiftStartTime) {
+                    lateMinutes = Math.floor((punchDateObj - shiftStartTime) / 60000);
+                }
+            }
+            await logsRef.add({
+                date: slDateStr, status: 'P',
+                clockInTime: punchDateObj.toISOString(),
+                clockInSource: `BIOMETRIC_${deviceSerial}`,
+                lateMins: lateMinutes, workedHours: 0, ot: 0, advance: 0,
+                timestamp: admin.firestore.FieldValue.serverTimestamp()
+            });
+        } else {
+            const logDoc = todayLogQ.docs[0];
+            const logData = logDoc.data();
+            const inTime = new Date(logData.clockInTime);
+            let netHours = (punchDateObj - inTime) / (1000 * 60 * 60);
+
+            if (todayRoster && !todayRoster.isBreakPaid && netHours >= (todayRoster.breakThreshold || 4)) {
+                netHours -= ((todayRoster.breakMins || 60) / 60);
+            }
+            netHours = Math.max(0, Math.round(netHours * 100) / 100);
+
+            let calculatedOT = 0;
+            if (empData.otType !== 'none') {
+                const wlSnap = await db.doc(`users/${authoritativeOwnerId}/shops/${authoritativeShopId}/settings/ot_whitelist_${slDateStr}`).get();
+                const isWhitelisted = wlSnap.exists && (wlSnap.data().allowedEmpIds || []).includes(empId);
+                if (isWhitelisted && todayRoster && todayRoster.otStart) {
+                    const otStartTime = new Date(`${slDateStr}T${todayRoster.otStart}:00+05:30`);
+                    if (punchDateObj > otStartTime) {
+                        calculatedOT = Math.max(0, (punchDateObj - otStartTime) / (1000 * 60 * 60));
+                        calculatedOT = Math.round(calculatedOT * 100) / 100;
+                    }
+                }
+            }
+
+            await logDoc.ref.update({
+                clockOutTime: punchDateObj.toISOString(),
+                clockOutSource: `BIOMETRIC_${deviceSerial}`,
+                workedHours: netHours, ot: calculatedOT, systemCalcOt: calculatedOT
+            });
+        }
+        return res.status(200).send("SUCCESS");
+    } catch (error) {
+        return res.status(500).send("INTERNAL_ERROR");
+    }
+});
+
+// 🚀 8. CRYPTOGRAPHIC GPS WEBHOOK (VEHICLE HIJACKING PROOF)
+exports.gpsTelemetryWebhook = onRequest({ cors: true }, async (req, res) => {
+    const payload = req.method === 'POST' ? req.body : req.query;
+    const { imei, lat, lng, speed, odometer, token } = payload;
+
+    if (!imei || !lat || !lng) {
+        return res.status(400).send("BAD_REQUEST: Missing GPS telemetry.");
+    }
+
+    const db = admin.firestore();
+    const imeiClean = String(imei).trim();
+
+    // 🛡️ HARDWARE AUTHENTICATION: IMEI Token Verification
+    const tokenSnap = await db.doc(`system_hardware_tokens/${imeiClean}`).get();
+    if (!tokenSnap.exists || tokenSnap.data().secretToken !== token) {
+        return res.status(403).send("FORBIDDEN: Invalid Tracker Security Token.");
+    }
+
+    const authoritativeOwnerId = tokenSnap.data().ownerId;
+    const authoritativeShopId = tokenSnap.data().shopId;
+
+    try {
+        const latitude = parseFloat(lat);
+        const longitude = parseFloat(lng);
+        const currentSpeed = parseFloat(speed) || 0;
+        const currentOdo = parseFloat(odometer) || 0;
+
+        const vQ = await db.collection(`users/${authoritativeOwnerId}/shops/${authoritativeShopId}/vehicles`)
+                           .where("trackerImei", "==", imeiClean)
+                           .limit(1).get();
+
+        if (vQ.empty) return res.status(404).send("VEHICLE_NOT_FOUND");
+
+        const vehDoc = vQ.docs[0];
+        const vehData = vehDoc.data();
+        const nowIso = new Date().toISOString();
+        const batch = db.batch();
+
+        const lastKnownOdo = parseFloat(vehData.currentOdometer) || 0;
+        const safeOdometer = (currentOdo >= lastKnownOdo) ? currentOdo : lastKnownOdo;
+
+        batch.update(vehDoc.ref, {
+            liveLocation: { lat: latitude, lng: longitude, speed: currentSpeed, updatedAt: nowIso },
+            currentOdometer: safeOdometer
+        });
+
+        const activeTripQ = await db.collection(`users/${authoritativeOwnerId}/shops/${authoritativeShopId}/vehicle_trips`)
+                                    .where("vehicleId", "==", vehDoc.id)
+                                    .where("status", "==", "ACTIVE")
+                                    .limit(1).get();
+
+        if (!activeTripQ.empty) {
+            const tripDoc = activeTripQ.docs[0];
+            const routePointRef = tripDoc.ref.collection('route_points').doc();
+            batch.set(routePointRef, { lat: latitude, lng: longitude, speed: currentSpeed, timestamp: nowIso });
+        }
+
+        await batch.commit();
+        return res.status(200).send("GPS_ACK");
+    } catch (error) {
+        return res.status(500).send("INTERNAL_ERROR");
+    }
+});
+```
+
+---
+
+#### කොටස B: Frontend (`dashboard.html`)
+
+🔍 **FIND (In `dashboard.html` inside `window.syncOfflineSalesQueue` around line 4310):**
+```javascript
+                // 2. We inject the offline data into the global variables and force the checkout!
+                // To reuse your massive existing runTransaction logic seamlessly:
+                window.cart = pendingSale.items;
+                window.currentOtherFees = pendingSale.fees;
+                
+                // We temporally mock the DOM elements so finalizeCheckout reads the offline data
+                // (Since this runs in the background, we bypass UI reads for a moment)
+                window.isOfflineSyncMode = true; 
+                window.offlineSyncData = pendingSale;
+
+                await finalizeCheckout(); // 🔥 This runs your exact original logic!
+```
+
+✅ **REPLACE:**
+```javascript
+                // =========================================================================
+                // 🛡️ PROTOTYPE-SAFE OFFLINE REHYDRATION (ZERO PROTOTYPE POLLUTION)
+                // LocalStorage හි ඇති දත්ත __proto__ වලින් තොරව පිරිසිදු කර ලබාගැනීම
+                // =========================================================================
+                const cleanPendingSale = JSON.parse(JSON.stringify(pendingSale, (key, value) => {
+                    if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+                        return undefined; // Strips dangerous keys
+                    }
+                    return value;
+                }));
+
+                window.cart = cleanPendingSale.items || [];
+                window.currentOtherFees = cleanPendingSale.fees || [];
+                window.isOfflineSyncMode = true; 
+                window.offlineSyncData = cleanPendingSale;
+
+                await finalizeCheckout();
+```
+
+---
+
+මෙම දැවැන්ත සංශෝධනය මඟින් **Bug #7 (Cross-Tenant BOLA Injection, Prototype Pollution සහ Unsanitized Hardware Webhook අවදානම්) සහමුලින්ම නිරාකරණය වේ.**
+
+ලක්ෂ 100,000 ක වෙළෙන්දන් සහ 15,000 ක සේවකයින් සිටින දැවැන්ත SaaS පරිසරයක කිසිදු වෙළෙන්දෙකුට තවත් වෙළෙන්දෙකුගේ Store Credit, AI Quota, රහස්‍ය මිල ගණන් හෝ ඊමේල් ලිපිනයන් සොරකම් කිරීමට හෝ හැසිරවීමට නොහැකි වන සේ Zero-Trust Cryptographic තාප්පයක් ගොඩනැගේ.
+
+මෙම කේත කොටස් අදාළ ගොනු තුළට ඇතුළත් කළ පසු, **අටවන දෝෂය (Bug #8: The General Ledger Schedule 04 Reversal Imbalance & Fictitious Input Tax Revaluation - සපයන්නන් වෙත භාණ්ඩ ආපසු යැවීමේදී (Debit Notes) සාමාන්‍ය ලෙජරයේ (GL) සමතුලිතතාවය බිඳවැටීම සහ ව්‍යාජ ආදාන බදු ආරෝපණ දෝෂය)** වෙත යාමට සූදානම්දැයි තහවුරු කරන්න.

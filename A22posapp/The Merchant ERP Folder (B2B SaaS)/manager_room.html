@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manager Room | Cloud Control Center</title>
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root { --bg: #0f172a; --card: #1e293b; --text: #f8fafc; --primary: #3b82f6; --success: #10b981; --danger: #ef4444; --warning: #f59e0b; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
+        body { background: var(--bg); color: var(--text); display: flex; height: 100vh; overflow: hidden; }
+        
+        /* Sidebar */
+        .sidebar { width: 280px; background: #020617; border-right: 1px solid #1e293b; display: flex; flex-direction: column; }
+        .brand { padding: 20px; font-size: 18px; font-weight: 800; color: white; border-bottom: 1px solid #1e293b; display: flex; align-items: center; gap: 10px; }
+        .nav-item { padding: 15px 20px; color: #94a3b8; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 10px; font-weight: 600; }
+        .nav-item:hover, .nav-item.active { color: white; background: #1e293b; border-left: 4px solid var(--primary); }
+        .badge { background: var(--danger); color: white; font-size: 11px; padding: 2px 8px; border-radius: 10px; margin-left: auto; }
+
+        /* Main Content */
+        .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+        .header { height: 70px; background: #0f172a; border-bottom: 1px solid #1e293b; display: flex; justify-content: space-between; align-items: center; padding: 0 20px; }
+        .content { flex: 1; overflow-y: auto; padding: 20px; }
+
+        /* Cards & Buttons */
+        .card { background: var(--card); border: 1px solid #334155; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        .btn { padding: 8px 16px; border-radius: 6px; border: none; font-weight: 600; cursor: pointer; transition: 0.2s; display: inline-flex; align-items: center; gap: 5px; color: white; }
+        .btn-success { background: var(--success); } .btn-success:hover { background: #059669; }
+        .btn-danger { background: var(--danger); } .btn-danger:hover { background: #dc2626; }
+        .btn-primary { background: var(--primary); }
+        .btn-outline { background: transparent; border: 1px solid #475569; color: #cbd5e1; }
+        
+        input, select { background: #0f172a; border: 1px solid #334155; color: white; padding: 10px; border-radius: 6px; outline: none; }
+        
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th { text-align: left; padding: 12px; color: #94a3b8; border-bottom: 1px solid #334155; }
+        td { padding: 12px; border-bottom: 1px solid #1e293b; vertical-align: middle; }
+
+        /* Chat UI */
+        .chat-box { flex: 1; background: #0f172a; border-radius: 8px; border: 1px solid #334155; display: flex; flex-direction: column; overflow: hidden; height: 300px; }
+        .chat-history { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 10px; }
+        .msg { max-width: 80%; padding: 8px 12px; border-radius: 8px; font-size: 12px; }
+        .msg.admin { align-self: flex-end; background: var(--primary); color: white; border-bottom-right-radius: 0; }
+        .msg.officer { align-self: flex-start; background: #334155; color: white; border-bottom-left-radius: 0; }
+        .chat-input { display: flex; border-top: 1px solid #334155; }
+        .chat-input input { flex: 1; border: none; border-radius: 0; background: transparent; }
+        
+        .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: none; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(5px); }
+        .modal-content { background: var(--card); width: 800px; border-radius: 12px; display: flex; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <div class="brand"><i class="ri-shield-user-fill" style="color:var(--primary);"></i> MANAGER ROOM</div>
+        <div style="padding:15px; color:#64748b; font-size:11px; text-transform:uppercase;">Live Authorization</div>
+        
+        <div class="nav-item active" onclick="switchTab('pending')" id="tab-pending">
+            <i class="ri-time-line"></i> Pending Requests
+            <span class="badge" id="pendingCount" style="display:none;">0</span>
+        </div>
+        <div class="nav-item" onclick="switchTab('history')" id="tab-history">
+            <i class="ri-history-line"></i> Audit History
+        </div>
+        
+        <div style="margin-top:auto; padding:20px; border-top:1px solid #1e293b; font-size:12px; color:#94a3b8;">
+            Logged in as: <br><strong id="adminEmail" style="color:white;">Loading...</strong>
+            <button onclick="logout()" style="background:none; border:none; color:var(--danger); cursor:pointer; margin-top:10px; font-weight:bold;"><i class="ri-logout-box-line"></i> Secure Logout</button>
+        </div>
+    </div>
+
+    <div class="main">
+        <div class="header">
+            <h2 id="pageTitle" style="font-size:18px;">Pending Approvals</h2>
+            <div style="display:flex; gap:10px;">
+                <div id="liveStatus" style="font-size:12px; color:var(--success); font-weight:bold; display:flex; align-items:center; gap:5px;"><i class="ri-record-circle-fill"></i> Secure Link Active</div>
+            </div>
+        </div>
+
+        <div class="content" id="view-pending">
+            <div id="pendingContainer" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap:20px;">
+                <div style="color:#64748b; text-align:center; padding:40px; grid-column:1/-1;">Loading secure requests...</div>
+            </div>
+        </div>
+
+        <div class="content" id="view-history" style="display:none;">
+            <div class="card" style="display:flex; gap:10px; align-items:center; padding:15px;">
+                <select id="histFilterType">
+                    <option value="ALL">All Types</option>
+                    <option value="DISCOUNT">Discounts</option>
+                    <option value="REFUND">Refunds</option>
+                    <option value="EXPENSE">Petty Cash</option>
+                    <option value="WALLET_PIN">Wallet Override</option>
+                </select>
+                <input type="month" id="histFilterMonth" onchange="loadHistory()">
+                <button class="btn btn-primary" onclick="loadHistory()"><i class="ri-search-line"></i> Search</button>
+            </div>
+            
+            <div class="card" id="histScrollArea" style="max-height:65vh; overflow-y:auto;" onscroll="handleHistoryScroll()">
+                <table>
+                    <thead style="position:sticky; top:0; background:var(--card);">
+                        <tr><th>Date & Time</th><th>Requested By</th><th>Branch</th><th>Action Type</th><th>Status</th><th>Action</th></tr>
+                    </thead>
+                    <tbody id="histTbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ACTION MODAL -->
+    <div class="modal" id="actionModal">
+        <div class="modal-content">
+            <!-- Left: Details -->
+            <div style="flex:1; padding:20px; border-right:1px solid #334155;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                    <h3 style="color:var(--primary);" id="amTitle">Request Details</h3>
+                    <span id="amStatus" style="font-size:11px; padding:2px 6px; border-radius:4px; font-weight:bold;">PENDING</span>
+                </div>
+                
+                <div style="background:#0f172a; padding:15px; border-radius:8px; border:1px solid #334155; font-size:13px; margin-bottom:15px; line-height:1.6;" id="amDetails">
+                    <!-- Details Injected Here -->
+                </div>
+
+                <div id="amActionButtons" style="display:flex; gap:10px; margin-top:20px;">
+                    <button class="btn btn-success" style="flex:1; justify-content:center; padding:12px; font-size:14px;" onclick="decideRequest('APPROVED')"><i class="ri-check-double-line"></i> APPROVE</button>
+                    <button class="btn btn-danger" style="flex:1; justify-content:center; padding:12px; font-size:14px;" onclick="decideRequest('DECLINED')"><i class="ri-close-circle-line"></i> DECLINE</button>
+                </div>
+                <button class="btn btn-outline" style="width:100%; justify-content:center; margin-top:10px;" onclick="document.getElementById('actionModal').style.display='none'">Close Window</button>
+            </div>
+
+            <!-- Right: Real-time Chat -->
+            <div style="width:300px; padding:20px; display:flex; flex-direction:column; background:#020617;">
+                <h4 style="margin-bottom:10px; font-size:14px; color:#cbd5e1;"><i class="ri-chat-3-line"></i> Live Chat with Officer</h4>
+                <div class="chat-box">
+                    <div class="chat-history" id="amChatHistory"></div>
+                    <div class="chat-input">
+                        <input type="text" id="amChatInput" placeholder="Message..." onkeypress="if(event.key==='Enter') sendChat()">
+                        <button class="btn btn-primary" style="border-radius:0;" onclick="sendChat()"><i class="ri-send-plane-fill"></i></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FIREBASE & LOGIC -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+        import { getFirestore, collection, query, where, orderBy, onSnapshot, getDocs, doc, updateDoc, addDoc, limit, startAfter, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+        // 🔴 PASTE YOUR FIREBASE CONFIG HERE
+        const firebaseConfig = {
+            apiKey: "AIzaSyCZrmkX2RsJTbn4j-WmbuCMudWaETMvXwQ",
+            authDomain: "managemybusiness-b4afb.firebaseapp.com",
+            projectId: "managemybusiness-b4afb",
+            storageBucket: "managemybusiness-b4afb.firebasestorage.app",
+            messagingSenderId: "237936848306",
+            appId: "1:237936848306:web:91a996c3d1d3ceda3b48ab"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let dbOwnerId = null;
+        let activeReqId = null;
+        let activeShopId = null;
+        let chatUnsub = null;
+
+        // 🛡️ SECURITY CHECK: STRICTLY ADMIN ONLY
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) return window.location.href = "index.html";
+            
+            // Check Role from DB
+            const userDoc = await getDocs(query(collection(db, 'users'), where('__name__', '==', user.uid)));
+            if (!userDoc.empty && userDoc.docs[0].data().role === 'admin') {
+                dbOwnerId = user.uid;
+                document.getElementById('adminEmail').textContent = user.email;
+                initManagerRoom(); // Start Engine
+            } else {
+                alert("SECURITY ALERT: This Portal is Strictly for the Business Owner (Admin)!");
+                signOut(auth);
+            }
+        });
+
+        window.logout = () => signOut(auth);
+
+        window.switchTab = (tab) => {
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            document.getElementById('tab-' + tab).classList.add('active');
+            
+            document.getElementById('view-pending').style.display = tab === 'pending' ? 'block' : 'none';
+            document.getElementById('view-history').style.display = tab === 'history' ? 'block' : 'none';
+            
+            document.getElementById('pageTitle').textContent = tab === 'pending' ? 'Live Pending Approvals' : 'Audit History';
+            
+            if(tab === 'history') loadHistory();
+        };
+
+        // 🚀 LIVE ENGINE: PENDING APPROVALS
+        function initManagerRoom() {
+            // Group Query: Listen to 'remote_approvals' across ALL branches under this owner
+            // Note: In a real NoSQL structure without collectionGroups set, we listen to the owner's root level or map through shops.
+            // For simplicity and to bypass composite index limits, we assume 'remote_approvals' is a root collection under the owner.
+            
+            const reqRef = collection(db, `users/${dbOwnerId}/remote_approvals`);
+            const q = query(reqRef, where("status", "==", "PENDING"), orderBy("createdAt", "desc"));
+            
+            onSnapshot(q, (snap) => {
+                const container = document.getElementById('pendingContainer');
+                const badge = document.getElementById('pendingCount');
+                
+                if (snap.empty) {
+                    badge.style.display = 'none';
+                    container.innerHTML = '<div style="color:#64748b; text-align:center; padding:40px; grid-column:1/-1;"><i class="ri-shield-check-fill" style="font-size:40px; display:block; margin-bottom:10px;"></i> All Clear. No pending requests.</div>';
+                    return;
+                }
+
+                badge.textContent = snap.docs.length;
+                badge.style.display = 'block';
+
+                let html = '';
+                snap.forEach(d => {
+                    const req = { id: d.id, ...d.data() };
+                    
+                    let typeColor = '#3b82f6'; let icon = 'ri-question-mark';
+                    if(req.type === 'DISCOUNT') { typeColor = '#f59e0b'; icon = 'ri-discount-percent-fill'; }
+                    if(req.type === 'REFUND') { typeColor = '#ef4444'; icon = 'ri-arrow-go-back-fill'; }
+                    if(req.type === 'EXPENSE') { typeColor = '#10b981'; icon = 'ri-money-dollar-circle-fill'; }
+
+                    html += `
+                    <div class="card" style="border-top:4px solid ${typeColor}; padding:15px; margin-bottom:0;">
+                        <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:10px;">
+                            <span style="font-size:11px; font-weight:800; color:${typeColor}; background:#1e293b; padding:2px 6px; border-radius:4px;"><i class="${icon}"></i> ${req.type}</span>
+                            <span style="font-size:10px; color:#64748b;">${new Date(req.createdAt).toLocaleTimeString()}</span>
+                        </div>
+                        <div style="font-weight:700; font-size:14px; margin-bottom:5px;">${req.title}</div>
+                        <div style="font-size:11px; color:#cbd5e1; margin-bottom:15px;">Officer: <span style="color:white;">${req.officerEmail}</span> <br>Branch: ${req.shopName}</div>
+                        <button class="btn btn-primary" style="width:100%; justify-content:center;" onclick='openActionModal(${JSON.stringify(req).replace(/'/g, "&#39;")})'>Review Request</button>
+                    </div>`;
+                });
+                container.innerHTML = html;
+            });
+        }
+
+        window.openActionModal = (req) => {
+            activeReqId = req.id;
+            activeShopId = req.shopId;
+            
+            document.getElementById('amTitle').textContent = req.type + " REQUEST";
+            
+            let bg = req.status==='PENDING' ? 'var(--warning)' : (req.status==='APPROVED'?'var(--success)':'var(--danger)');
+            const sBadge = document.getElementById('amStatus');
+            sBadge.textContent = req.status;
+            sBadge.style.background = bg;
+            sBadge.style.color = req.status==='PENDING'?'#000':'white';
+
+            // Parse details beautifully
+            let detHtml = `<div style="color:var(--primary); font-weight:bold; margin-bottom:10px;">${req.title}</div>`;
+            detHtml += `<table style="width:100%; border:none;">`;
+            for (const [key, value] of Object.entries(req.details)) {
+                detHtml += `<tr><td style="padding:4px 0; border:none; color:#94a3b8; width:40%; text-transform:capitalize;">${key.replace(/([A-Z])/g, ' $1').trim()}:</td><td style="padding:4px 0; border:none; color:white; font-weight:bold;">${value}</td></tr>`;
+            }
+            detHtml += `</table>`;
+            document.getElementById('amDetails').innerHTML = detHtml;
+
+            // Hide action buttons if already processed
+            document.getElementById('amActionButtons').style.display = req.status === 'PENDING' ? 'flex' : 'none';
+
+            document.getElementById('actionModal').style.display = 'flex';
+
+            // Connect Live Chat
+            if(chatUnsub) chatUnsub();
+            const chatRef = collection(db, `users/${dbOwnerId}/remote_approvals/${req.id}/chat`);
+            chatUnsub = onSnapshot(query(chatRef, orderBy("timestamp", "asc")), (snap) => {
+                const cb = document.getElementById('amChatHistory');
+                let cHtml = '';
+                snap.forEach(c => {
+                    const msg = c.data();
+                    const isAd = msg.sender === 'admin';
+                    const time = new Date(msg.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+                    cHtml += `<div class="msg ${isAd ? 'admin' : 'officer'}">${msg.text} <div style="font-size:8px; margin-top:2px; opacity:0.7; text-align:${isAd?'right':'left'};">${time}</div></div>`;
+                });
+                cb.innerHTML = cHtml || '<div style="text-align:center; color:#64748b; font-size:11px;">Start the conversation...</div>';
+                cb.scrollTop = cb.scrollHeight;
+            });
+        };
+
+        window.sendChat = async () => {
+            const inp = document.getElementById('amChatInput');
+            const text = inp.value.trim();
+            if(!text || !activeReqId) return;
+            inp.value = '';
+            
+            await addDoc(collection(db, `users/${dbOwnerId}/remote_approvals/${activeReqId}/chat`), {
+                sender: 'admin', text: text, timestamp: new Date().toISOString()
+            });
+        };
+
+        // 🛡️ THE MAGIC BUTTON: APPROVE OR DECLINE
+        window.decideRequest = async (decision) => {
+            if(!confirm(`Are you sure you want to ${decision} this request?`)) return;
+            
+            try {
+                // Update Firestore. The Cashier's POS is listening to this document!
+                await updateDoc(doc(db, `users/${dbOwnerId}/remote_approvals`, activeReqId), {
+                    status: decision,
+                    resolvedAt: new Date().toISOString(),
+                    resolvedBy: document.getElementById('adminEmail').textContent
+                });
+                
+                // Add system message to chat
+                await addDoc(collection(db, `users/${dbOwnerId}/remote_approvals/${activeReqId}/chat`), {
+                    sender: 'system', text: `🛡️ Request has been ${decision} by Admin.`, timestamp: new Date().toISOString()
+                });
+
+                document.getElementById('actionModal').style.display = 'none';
+            } catch(e) { alert("Error: " + e.message); }
+        };
+
+        // --- HISTORY & PAGINATION ---
+        let lastDoc = null;
+        let isFetching = false;
+        let hasMore = true;
+
+        window.loadHistory = async (isLoadMore = false) => {
+            const tbody = document.getElementById('histTbody');
+            const typeF = document.getElementById('histFilterType').value;
+            const monthF = document.getElementById('histFilterMonth').value;
+
+            if(!isLoadMore) {
+                lastDoc = null; hasMore = true; tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">Loading...</td></tr>';
+            }
+            if(isFetching || !hasMore) return;
+            isFetching = true;
+
+            try {
+                let q = collection(db, `users/${dbOwnerId}/remote_approvals`);
+                let constraints = [where("status", "in", ["APPROVED", "DECLINED"])];
+                
+                if (typeF !== 'ALL') constraints.push(where("type", "==", typeF));
+                if (monthF) {
+                    const start = new Date(monthF + "-01T00:00:00Z").toISOString();
+                    const end = new Date(parseInt(monthF.split('-')[0]), parseInt(monthF.split('-')[1]), 0, 23, 59, 59).toISOString();
+                    constraints.push(where("createdAt", ">=", start), where("createdAt", "<=", end));
+                }
+
+                constraints.push(orderBy("createdAt", "desc"));
+                if (lastDoc) constraints.push(startAfter(lastDoc));
+                constraints.push(limit(20));
+
+                const snap = await getDocs(query(q, ...constraints));
+                if(!isLoadMore) tbody.innerHTML = '';
+
+                if(snap.empty) {
+                    if(!isLoadMore) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">No history found.</td></tr>';
+                    hasMore = false;
+                } else {
+                    lastDoc = snap.docs[snap.docs.length - 1];
+                    if(snap.docs.length < 20) hasMore = false;
+
+                    let html = '';
+                    snap.forEach(d => {
+                        const r = { id: d.id, ...d.data() };
+                        const col = r.status === 'APPROVED' ? '#10b981' : '#ef4444';
+                        html += `
+                        <tr>
+                            <td style="font-size:12px;">${new Date(r.createdAt).toLocaleString()}</td>
+                            <td style="font-weight:bold;">${r.officerEmail}</td>
+                            <td style="font-size:12px; color:#94a3b8;">${r.shopName}</td>
+                            <td style="font-weight:bold;">${r.type}</td>
+                            <td><span style="color:${col}; font-weight:bold;">${r.status}</span></td>
+                            <td><button class="btn btn-outline" style="padding:4px 8px; font-size:11px;" onclick='openActionModal(${JSON.stringify(r).replace(/'/g, "&#39;")})'>View</button></td>
+                        </tr>`;
+                    });
+                    tbody.insertAdjacentHTML('beforeend', html);
+                }
+            } catch(e) { console.error(e); }
+            isFetching = false;
+        };
+
+        window.handleHistoryScroll = () => {
+            const area = document.getElementById('histScrollArea');
+            if (area.scrollTop + area.clientHeight >= area.scrollHeight - 10) loadHistory(true);
+        };
+    </script>
+</body>
+</html>

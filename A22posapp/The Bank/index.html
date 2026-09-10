@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Open-Banking Underwriting Terminal | Credit Assessment</title>
+<link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800;900&display=swap" rel="stylesheet">
+<style>
+:root { --primary: #1e3a8a; --bg: #f8fafc; --card: #ffffff; --success: #15803d; --danger: #b91c1c; }
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
+body { background: var(--bg); color: #0f172a; padding: 30px; }
+.container { max-width: 1000px; margin: 0 auto; }
+.card { background: white; border-radius: 16px; padding: 25px; border: 1px solid #e2e8f0; box-shadow: 0 4px 20px rgba(0,0,0,0.04); margin-bottom: 25px; }
+.btn { padding: 12px 20px; border-radius: 8px; border: none; font-weight: 800; cursor: pointer; color: white; background: #2563eb; display: inline-flex; align-items: center; gap: 8px; }
+.metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 15px 0; }
+.metric-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 15px; }
+.metric-val { font-size: 22px; font-weight: 900; color: #1e3a8a; margin-top: 5px; font-family: monospace; }
+.seal-box { background: #0f172a; color: #38bdf8; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 11px; word-break: break-all; }
+</style>
+</head>
+<body>
+
+<div class="container">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:25px; border-bottom:2px solid #e2e8f0; padding-bottom:15px;">
+        <div style="display:flex; align-items:center; gap:12px;">
+            <div style="width:45px; height:45px; background:#1e3a8a; color:white; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:24px;"><i class="ri-bank-fill"></i></div>
+            <div>
+                <h1 style="font-size:20px; font-weight:900; color:#1e3a8a;">INSTITUTIONAL CREDIT RISK TERMINAL</h1>
+                <div style="font-size:12px; color:#64748b;">Basel III & IFRS 9 Live Telemetry Due Diligence Engine</div>
+            </div>
+        </div>
+        <button class="btn" onclick="window.print()"><i class="ri-printer-line"></i> Print Credit Memo</button>
+    </div>
+
+    <!-- Login / Token Verification Card -->
+    <div class="card" id="authCard">
+        <h3 style="margin-bottom:10px; color:#1e3a8a;">Access Live Merchant Telemetry</h3>
+        <p style="font-size:12px; color:#64748b; margin-bottom:15px;">Enter the secure credentials provided by the loan applicant.</p>
+        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr auto; gap:10px; align-items:end;">
+            <div>
+                <label style="font-size:11px; font-weight:bold;">Merchant Owner ID</label>
+                <input type="text" id="ownerIdInp" style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px;">
+            </div>
+            <div>
+                <label style="font-size:11px; font-weight:bold;">Store Branch ID</label>
+                <input type="text" id="shopIdInp" style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px;">
+            </div>
+            <div>
+                <label style="font-size:11px; font-weight:bold;">6-Digit Passcode</label>
+                <input type="text" id="passcodeInp" style="width:100%; padding:10px; border:1px solid #cbd5e1; border-radius:6px; font-size:12px; font-weight:900; text-transform:uppercase;">
+            </div>
+            <button class="btn" onclick="fetchLiveTelemetry()"><i class="ri-search-eye-line"></i> Underwrite</button>
+        </div>
+    </div>
+
+    <!-- Live Telemetry Dossier Area -->
+    <div id="dossierArea" style="display:none;">
+        
+        <!-- Verification Seal -->
+        <div class="card" style="border-left:5px solid #15803d;">
+            <div style="display:flex; justify-content:space-between; align-items:start;">
+                <div>
+                    <span style="background:#dcfce7; color:#15803d; font-size:11px; font-weight:900; padding:2px 8px; border-radius:4px;"><i class="ri-shield-check-fill"></i> CRYPTOGRAPHICALLY VERIFIED</span>
+                    <h2 id="merchantTitle" style="font-size:18px; font-weight:900; margin-top:8px;">Store Telemetry</h2>
+                    <div id="auditPeriodText" style="font-size:12px; color:#64748b;">Period: 6 Months</div>
+                </div>
+                <div style="text-align:right;">
+                    <div style="font-size:11px; color:#64748b;">Consent Valid For:</div>
+                    <div id="bankAuthorizedName" style="font-weight:900; font-size:14px; color:#1e3a8a;">Commercial Bank</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Executive Metrics Grid -->
+        <div class="card">
+            <h3 style="font-size:15px; color:#1e3a8a; border-bottom:1px solid #e2e8f0; padding-bottom:8px;"><i class="ri-dashboard-3-line"></i> Basel III Working Capital Telemetry</h3>
+            <div class="metric-grid">
+                <div class="metric-box">
+                    <div style="font-size:11px; color:#64748b; font-weight:bold;">Avg Monthly Revenue</div>
+                    <div class="metric-val" id="mRevenue">LKR 0</div>
+                </div>
+                <div class="metric-box">
+                    <div style="font-size:11px; color:#64748b; font-weight:bold;">Net Operating Income (NOI)</div>
+                    <div class="metric-val" id="mNoi" style="color:#15803d;">LKR 0</div>
+                </div>
+                <div class="metric-box">
+                    <div style="font-size:11px; color:#64748b; font-weight:bold;">Quick Ratio (Acid-Test)</div>
+                    <div class="metric-val" id="mQuickRatio">0.00</div>
+                </div>
+                <div class="metric-box">
+                    <div style="font-size:11px; color:#64748b; font-weight:bold;">Cheque Dishonor Count</div>
+                    <div class="metric-val" id="mBounced" style="color:#b91c1c;">0</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- AI Credit Underwriting Thesis -->
+        <div class="card" style="background:#0f172a; color:white;">
+            <h3 style="color:#38bdf8; font-size:15px; margin-bottom:15px;"><i class="ri-robot-2-fill"></i> AI Credit Committee Memorandum & Recommendation</h3>
+            
+            <div style="background:rgba(255,255,255,0.05); border-radius:10px; padding:15px; margin-bottom:15px; display:grid; grid-template-columns: 1fr 1fr; gap:15px;">
+                <div>
+                    <div style="font-size:10px; color:#94a3b8; text-transform:uppercase;">Recommended Max Loan Quantum</div>
+                    <div id="recLoanAmt" style="font-size:24px; font-weight:900; color:#34d399; font-family:monospace; margin-top:4px;">LKR 0</div>
+                </div>
+                <div>
+                    <div style="font-size:10px; color:#94a3b8; text-transform:uppercase;">Max Sustainable Monthly Installment</div>
+                    <div id="recInstallment" style="font-size:24px; font-weight:900; color:#38bdf8; font-family:monospace; margin-top:4px;">LKR 0</div>
+                </div>
+            </div>
+
+            <div id="aiThesisText" style="font-size:13px; line-height:1.6; color:#cbd5e1; white-space:pre-wrap;">
+                Loading Assessment...
+            </div>
+
+            <div style="margin-top:20px; border-top:1px dashed rgba(255,255,255,0.1); padding-top:12px;">
+                <div style="font-size:10px; color:#64748b; text-transform:uppercase; margin-bottom:4px;">Cryptographic Audit Seal (SHA-256)</div>
+                <div class="seal-box" id="dispSeal">SEAL_PENDING</div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Firebase SDKs -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-functions.js";
+
+// Multi-Tenant Core Configuration
+const firebaseConfig = {
+    apiKey: "AIzaSyCZrmkX2RsJTbn4j-WmbuCMudWaETMvXwQ",
+    authDomain: "managemybusiness-b4afb.firebaseapp.com",
+    projectId: "managemybusiness-b4afb"
+};
+const app = initializeApp(firebaseConfig);
+const functions = getFunctions(app);
+
+// Auto-fill from URL if provided
+window.onload = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if(urlParams.get('owner')) document.getElementById('ownerIdInp').value = urlParams.get('owner');
+    if(urlParams.get('shop')) document.getElementById('shopIdInp').value = urlParams.get('shop');
+    if(urlParams.get('code')) document.getElementById('passcodeInp').value = urlParams.get('code');
+    if(urlParams.get('code')) window.fetchLiveTelemetry();
+};
+
+window.fetchLiveTelemetry = async () => {
+    const ownerId = document.getElementById('ownerIdInp').value.trim();
+    const shopId = document.getElementById('shopIdInp').value.trim();
+    const passcode = document.getElementById('passcodeInp').value.trim();
+
+    if(!ownerId || !shopId || !passcode) return alert("Please enter all credentials.");
+
+    const btn = document.querySelector('button[onclick="fetchLiveTelemetry()"]');
+    btn.innerHTML = '<i class="ri-loader-4-line ri-spin"></i> Verifying...';
+    btn.disabled = true;
+
+    try {
+        const generateBankUnderwritingReport = httpsCallable(functions, 'generateBankUnderwritingReport');
+        const res = await generateBankUnderwritingReport({ ownerId, shopId, passcode });
+        const d = res.data;
+
+        document.getElementById('merchantTitle').textContent = `Store ID: ${d.verifiedShopId}`;
+        document.getElementById('auditPeriodText').textContent = d.telemetry.auditPeriod;
+        document.getElementById('bankAuthorizedName').textContent = d.merchantConsent.targetBank;
+
+        document.getElementById('mRevenue').textContent = `LKR ${d.telemetry.avgMonthlyRevenue.toLocaleString()}`;
+        document.getElementById('mNoi').textContent = `LKR ${d.telemetry.avgMonthlyNetOperatingIncome.toLocaleString()}`;
+        document.getElementById('mQuickRatio').textContent = d.telemetry.ratios.quickRatio;
+        document.getElementById('mBounced').textContent = `${d.telemetry.ratios.bouncedChequesCount} (LKR ${d.telemetry.ratios.bouncedChequesVolume.toLocaleString()})`;
+
+        document.getElementById('recLoanAmt').textContent = `LKR ${d.telemetry.bankUnderwriting.maxLoanCapacity.toLocaleString()}`;
+        document.getElementById('recInstallment').textContent = `LKR ${d.telemetry.bankUnderwriting.maxSafeMonthlyInstallment.toLocaleString()}`;
+        document.getElementById('aiThesisText').textContent = d.aiCreditMemo;
+        document.getElementById('dispSeal').textContent = d.digitalAuditSeal;
+
+        document.getElementById('dossierArea').style.display = 'block';
+
+    } catch (e) {
+        alert(`ACCESS DENIED: ${e.message}`);
+    } finally {
+        btn.innerHTML = '<i class="ri-search-eye-line"></i> Underwrite';
+        btn.disabled = false;
+    }
+};
+</script>
+</body>
+</html>
