@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<!-- Mobile-First Viewport for 250px compatibility -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Staff Portal | My Workspace</title>
+<link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+
+<style>
+/* --- ENTERPRISE MOBILE-FIRST CSS --- */
+:root { --primary: #0f766e; --primary-light: #14b8a6; --bg: #f3f4f6; --text: #1f2937; --card: #ffffff; }
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; -webkit-tap-highlight-color: transparent; }
+body { background: var(--bg); color: var(--text); padding-top: 75px; overflow-x: hidden; }
+
+/* 🛡️ TOP NAVIGATION (Prominent Enterprise Design) */
+.top-nav { position: fixed; top: 0; left: 0; right: 0; background: var(--primary); height: 65px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 15px rgba(15, 118, 110, 0.3); z-index: 1000; padding: 0 5px; }
+.nav-item { display: flex; flex-direction: column; align-items: center; justify-content: center; color: rgba(255,255,255,0.6); font-size: 11px; font-weight: 700; cursor: pointer; flex: 1; height: 100%; transition: 0.3s; border-radius: 8px; margin: 4px; position:relative;}
+.nav-item i { font-size: 22px; margin-bottom: 2px; transition: 0.3s; }
+.nav-item.active { color: #ffffff; background: rgba(255,255,255,0.2); box-shadow: inset 0 2px 4px rgba(0,0,0,0.05); }
+.nav-item.active i { transform: scale(1.1); }
+.badge-dot { position: absolute; top: 5px; right: 25%; width: 8px; height: 8px; background: #ef4444; border-radius: 50%; display: none; }
+
+/* Responsive tweaks for 250px ultra-small screens */
+@media(max-width: 300px) {
+    .nav-item { font-size: 9px; margin: 2px; }
+    .nav-item i { font-size: 18px; }
+}
+
+/* Views */
+.view { display: none; padding: 15px; animation: fadeIn 0.3s ease; }
+.view.active { display: block; }
+.view.active.flex-box { display: flex; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Cards & Layouts */
+.card { background: var(--card); border-radius: 12px; padding: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 15px; border: 1px solid #e5e7eb; }
+.stat-box { background: #f0fdf4; padding: 15px; border-radius: 12px; border: 1px solid #bbf7d0; text-align: center; margin-bottom: 15px;}
+.stat-box.warning { background: #fffbeb; border-color: #fde68a; color: #d97706; }
+
+/* Inputs & Buttons */
+input, textarea { width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; margin-bottom: 10px; font-size: 14px; outline: none; }
+input:focus, textarea:focus { border-color: var(--primary); }
+.btn { width: 100%; padding: 12px; border-radius: 8px; border: none; font-weight: 600; font-size: 14px; cursor: pointer; color: white; background: var(--primary); display:flex; align-items:center; justify-content:center; gap:5px; }
+.btn:active { transform: scale(0.98); }
+.btn-danger { background: #ef4444; }
+.btn-success { background: #10b981; }
+
+/* Chat UI */
+.chat-container { display: flex; flex-direction: column; height: calc(100vh - 170px); background: #ffffff; border-radius: 12px; border: 1px solid #e5e7eb; overflow: hidden; }
+.chat-history { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background: #fdfdfe; }
+.chat-msg { max-width: 85%; padding: 10px 14px; border-radius: 12px; font-size: 13px; line-height: 1.5; word-wrap: break-word; }
+.chat-msg.me { align-self: flex-end; background: var(--primary); color: white; border-bottom-right-radius: 2px; }
+.chat-msg.manager { align-self: flex-start; background: #f3f4f6; color: #1f2937; border: 1px solid #e5e7eb; border-bottom-left-radius: 2px; }
+.chat-input { display: flex; padding: 10px; background: white; border-top: 1px solid #e5e7eb; gap: 5px; }
+.chat-input input { margin: 0; border-radius: 20px; }
+.chat-input button { width: 45px; height: 45px; border-radius: 50%; padding: 0; flex-shrink: 0; }
+
+/* Loaders & Toasts */
+.loader { position: fixed; inset: 0; background: rgba(255,255,255,0.9); z-index: 9999; display: none; align-items: center; justify-content: center; flex-direction: column; }
+.spinner { width: 40px; height: 40px; border: 4px solid #e5e7eb; border-top: 4px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
+@keyframes spin { 100% { transform: rotate(360deg); } }
+.toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #111827; color: white; padding: 10px 20px; border-radius: 20px; font-size: 13px; z-index: 10000; display: none; white-space: nowrap; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+
+/* Task Checkbox */
+.task-item { display: flex; gap: 10px; align-items: flex-start; padding: 10px; border-bottom: 1px solid #eee; }
+.task-item:last-child { border-bottom: none; }
+.task-item.done { opacity: 0.6; text-decoration: line-through; }
+</style>
+</head>
+<body>
+
+<div class="toast" id="toastMsg">Message</div>
+<div class="loader" id="loader"><div class="spinner"></div><div style="margin-top:10px; font-weight:600;">Please wait...</div></div>
+
+<!-- 🛡️ TOP NAVIGATION -->
+<div class="top-nav" id="topNav" style="display:none;">
+    <div class="nav-item active" onclick="switchTab('dashboard', this)"><i class="ri-dashboard-line"></i><span>Home</span></div>
+    <div class="nav-item" onclick="switchTab('attendance', this)"><i class="ri-calendar-check-line"></i><span>Logs</span></div>
+    <div class="nav-item" onclick="switchTab('tasks', this)"><i class="ri-list-check-2"></i><span>Tasks</span><div class="badge-dot" id="taskBadge"></div></div>
+    <div class="nav-item" onclick="switchTab('chat', this)"><i class="ri-chat-3-line"></i><span>Chat</span><div class="badge-dot" id="chatBadge"></div></div>
+    <div class="nav-item" onclick="switchTab('settings', this)"><i class="ri-user-settings-line"></i><span>Menu</span></div>
+</div>
+
+<!-- LOGIN VIEW -->
+<div id="view-login" class="view flex-box active" style="height: 100vh; flex-direction: column; justify-content: center; padding: 20px; background: white; z-index:2000; position:relative;">
+    <div style="text-align:center; margin-bottom:30px;">
+        <div style="width:70px; height:70px; background:#ccfbf1; color:var(--primary); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:35px; margin:0 auto 15px auto;">
+            <i class="ri-briefcase-4-line"></i>
+        </div>
+        <h2 style="color:var(--primary);">Staff Portal</h2>
+        <p style="color:#666; font-size:13px; margin-top:5px;">Login to view attendance & salary</p>
+    </div>
+    <div class="card" style="border:none; box-shadow:none; padding:0;">
+        <label style="font-size:12px; font-weight:600; color:#4b5563;">Mobile Number (Staff ID)</label>
+        <input type="number" id="loginPhone" placeholder="e.g. 0771234567" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+        
+        <label style="font-size:12px; font-weight:600; color:#4b5563; margin-top:5px;">4-Digit PIN (Default: 1234)</label>
+        <input type="password" id="loginPin" placeholder="Enter PIN" maxlength="4">
+        
+        <button class="btn" onclick="attemptLogin()" style="margin-top:15px; padding:15px;"><i class="ri-login-circle-line"></i> Secure Login</button>
+    </div>
+</div>
+
+<!-- DASHBOARD VIEW -->
+<div id="view-dashboard" class="view">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+        <div>
+            <div style="font-size:12px; color:#666;">Welcome back,</div>
+            <div style="font-size:18px; font-weight:800; color:var(--primary);" id="empNameDisplay">Loading...</div>
+        </div>
+        <div id="empRoleDisplay" style="background:#e0e7ff; color:#3730a3; padding:4px 8px; border-radius:4px; font-size:11px; font-weight:bold;">Staff</div>
+    </div>
+
+    <!-- Clock In/Out Section -->
+    <div class="card" style="text-align:center; padding:30px 15px; background:linear-gradient(to right bottom, #ffffff, #f0fdf4);">
+        <h4 style="margin-bottom:5px; color:#374151;">Today's Attendance</h4>
+        <div id="clockTimeDisplay" style="font-size:12px; color:#6b7280; margin-bottom:20px;">Not clocked in yet</div>
+        
+        <button id="btnClockInOut" class="btn" style="padding:15px; font-size:18px; border-radius:50px; box-shadow:0 10px 20px rgba(0,0,0,0.1);" onclick="toggleClock()">
+            <i class="ri-fingerprint-line"></i> Clock IN Now
+        </button>
+    </div>
+
+    <!-- 🚀 NEW: Commission & Target Tracker (Hidden by default for non-sales staff) -->
+    <div id="commissionTrackerBox" class="card" style="display:none; background:linear-gradient(to right bottom, #ffffff, #fffbeb); border-color:#fde68a; padding:20px 15px;">
+        <h4 style="color:#b45309; margin-bottom:10px;"><i class="ri-medal-fill"></i> My Sales Performance</h4>
+        <div style="display:flex; justify-content:space-between; font-size:11px; font-weight:bold; color:#6b7280; margin-bottom:8px;">
+            <span id="empNetSalesTxt">Net Sales: Rs 0</span>
+            <span id="empTargetTxt" style="color:#b45309;">Target: Rs 0</span>
+        </div>
+        <div style="width:100%; background:#e5e7eb; height:10px; border-radius:5px; overflow:hidden; margin-bottom:12px;">
+            <div id="empProgressBar" style="width:0%; background:linear-gradient(90deg, #f59e0b, #10b981); height:100%; transition:0.5s;"></div>
+        </div>
+        <div style="text-align:center; font-size:14px; font-weight:900; color:#15803d;" id="empCommissionEarnedTxt">Earned: Rs 0.00</div>
+    </div>
+
+    <!-- Salary Estimate -->
+    <div class="stat-box" style="display:flex; justify-content:space-between; align-items:center; text-align:left;">
+        <div>
+            <div style="font-size:11px; color:#15803d; font-weight:700; text-transform:uppercase;">Current Month Est. Net Salary</div>
+            <div style="font-size:24px; font-weight:900; color:#166534;" id="estSalaryDisplay">Rs 0.00</div>
+            <div style="font-size:11px; color:#15803d; margin-top:2px;" id="salaryMathDisplay">Base + OT + Comm - Adv</div>
+        </div>
+        <i class="ri-wallet-3-line" style="font-size:40px; color:#86efac;"></i>
+    </div>
+
+    <!-- Advances Info -->
+    <div class="stat-box warning" style="display:flex; justify-content:space-between; align-items:center; text-align:left;">
+        <div>
+            <div style="font-size:11px; color:#b45309; font-weight:700; text-transform:uppercase;">Advances Taken This Month</div>
+            <div style="font-size:20px; font-weight:900; color:#b45309;" id="totAdvanceDisplay">Rs 0.00</div>
+        </div>
+        <i class="ri-hand-coin-line" style="font-size:30px; color:#fcd34d;"></i>
+    </div>
+</div>
+
+<!-- ATTENDANCE LOGS VIEW -->
+<div id="view-attendance" class="view">
+    <h3 style="margin-bottom:15px;"><i class="ri-calendar-check-line"></i> My Attendance Logs</h3>
+    <div class="card" style="padding:0; overflow:hidden;">
+        <table style="width:100%; border-collapse:collapse; font-size:12px;">
+            <thead style="background:#f9fafb; border-bottom:1px solid #e5e7eb;">
+                <tr>
+                    <th style="padding:10px; text-align:left;">Date</th>
+                    <th style="padding:10px; text-align:center;">In</th>
+                    <th style="padding:10px; text-align:center;">Out</th>
+                    <th style="padding:10px; text-align:right;">OT (Hrs)</th>
+                </tr>
+            </thead>
+            <tbody id="logsTableBody">
+                <tr><td colspan="4" style="text-align:center; padding:15px; color:#999;">Loading...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- TASKS VIEW -->
+<div id="view-tasks" class="view">
+    <h3 style="margin-bottom:15px;"><i class="ri-list-check-2"></i> My Duties & Tasks</h3>
+    <div class="card" style="padding:5px;" id="tasksList">
+        <div style="text-align:center; padding:15px; color:#999;">Loading tasks...</div>
+    </div>
+</div>
+
+<!-- CHAT VIEW -->
+<div id="view-chat" class="view">
+    <h3 style="margin-bottom:15px;"><i class="ri-chat-3-line"></i> Manager Chat</h3>
+    <div class="chat-container">
+        <div class="chat-history" id="chatHistory">
+            <div style="text-align:center; color:#999; font-size:12px; margin-top:20px;">Secured Chat System</div>
+        </div>
+        <div class="chat-input">
+            <input type="text" id="chatMsgInput" placeholder="Type message..." onkeypress="if(event.key === 'Enter') sendChatMsg()">
+            <button class="btn" onclick="sendChatMsg()"><i class="ri-send-plane-fill"></i></button>
+        </div>
+    </div>
+</div>
+
+<!-- SETTINGS VIEW -->
+<!-- 🚀 NEW: EMPLOYEE VIDEO CALL MODAL -->
+<div id="empVideoCallModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.95); display:none; align-items:center; justify-content:center; z-index:9000;">
+    <div style="width:100%; height:100vh; display:flex; flex-direction:column;">
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:15px; background:#111827;">
+            <div style="color:#10b981; font-weight:bold; font-size:14px;"><i class="ri-vidicon-fill"></i> Manager Call</div>
+            <button class="btn btn-danger" style="width:auto; padding:6px 15px; font-size:12px; border-radius:50px;" onclick="closeEmpVideoCall()"><i class="ri-phone-camera-line"></i> End Call</button>
+        </div>
+        <div style="flex:1; position:relative;">
+            <iframe id="empVideoCallIframe" style="width:100%; height:100%; border:none;" allow="camera; microphone; fullscreen; display-capture"></iframe>
+        </div>
+    </div>
+</div>
+<div id="view-settings" class="view">
+    <h3 style="margin-bottom:15px;"><i class="ri-settings-4-line"></i> Account Settings</h3>
+    
+    <div class="card">
+        <div style="display:flex; align-items:center; gap:15px; margin-bottom:15px;">
+            <div id="profileAvatar" style="width:60px; height:60px; border-radius:50%; background:var(--primary-light); color:white; display:flex; align-items:center; justify-content:center; font-size:24px; font-weight:bold;"></div>
+            <div>
+                <div style="font-weight:700;" id="profName">...</div>
+                <div style="font-size:12px; color:#666;" id="profPhone">...</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h4 style="font-size:14px; margin-bottom:10px;">Change Security PIN</h4>
+        <input type="password" id="currentPin" placeholder="Current PIN" maxlength="4">
+        <input type="password" id="newPin1" placeholder="New 4-Digit PIN" maxlength="4" style="margin-top:10px;">
+        <input type="password" id="newPin2" placeholder="Confirm New PIN" maxlength="4">
+        <button class="btn" onclick="changePin()">Update PIN</button>
+    </div>
+    <button class="btn btn-danger" onclick="logoutEmployee()" style="margin-top:20px;"><i class="ri-logout-box-line"></i> Logout Securely</button>
+</div>
+
+<!-- LOGIC -->
+<script type="module">
+    // Import all required Firebase modules
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+    import { getFirestore, doc, getDoc, collection, query, where, getDocs, orderBy, limit, addDoc, updateDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+    // 🔴 FIREBASE CONFIG
+    const firebaseConfig = {
+  apiKey: "AIzaSyBDwLs_z_SXX-t6olQ8xu6dRjxVpgRkuvE",
+  authDomain: "nawarathna-cool-engineering.firebaseapp.com",
+  projectId: "nawarathna-cool-engineering",
+  storageBucket: "nawarathna-cool-engineering.firebasestorage.app",
+  messagingSenderId: "863435741101",
+  appId: "1:863435741101:web:c2774c9a557d0fe014f324",
+  measurementId: "G-2PH6L13GP4"
+};
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // 🚀 ENTERPRISE DYNAMIC MULTI-TENANCY: Extract Owner & Shop from URL Parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const OWNER_ID = urlParams.get('owner');
+    let SHOP_ID = urlParams.get('shop'); 
+
+    if (!OWNER_ID) {
+        document.body.innerHTML = `
+            <div style="height:100vh; display:flex; align-items:center; justify-content:center; flex-direction:column; padding:20px; text-align:center; background:white;">
+                <i class="ri-error-warning-fill" style="font-size:60px; color:#ef4444; margin-bottom:15px;"></i>
+                <h2 style="color:#1f2937;">Invalid Portal Link</h2>
+                <p style="color:#64748b; font-size:14px; margin-top:5px; line-height:1.5;">This URL is incomplete. Please contact the manager for the correct Employee Link.</p>
+            </div>
+        `;
+        throw new Error("Missing Owner ID parameter in URL");
+    }
+
+    let loggedInEmp = null;
+    let todayLogDocId = null;
+    let unsubTasks = null;
+    let unsubChat = null;
+
+    // ==========================================
+    // 🛡️ ENTERPRISE SECURE CLOCK ENGINE (Anti-Time Theft)
+    // ==========================================
+    let secureBaseServerTime = Date.now(); 
+    let syncMark = performance.now(); 
+
+    async function initSecureClock() {
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 2500);
+            // Server එකේ වෙලාව රහසිගතව ලබාගැනීම
+            const res = await fetch(window.location.href, { method: 'HEAD', cache: 'no-store', signal: controller.signal });
+            clearTimeout(timeoutId);
+            const serverDateStr = res.headers.get('Date');
+            if (serverDateStr) {
+                secureBaseServerTime = new Date(serverDateStr).getTime();
+                syncMark = performance.now();
+            }
+        } catch (e) { console.warn("Clock sync failed. Using local fallback."); }
+    }
+    initSecureClock(); // ලොග් වන තත්පරයේදීම සැබෑ වෙලාව අල්ලා ගනී!
+
+    window.getSecureTime = () => {
+        return new Date(secureBaseServerTime + (performance.now() - syncMark));
+    };
+
+    window.getLocalDateStr = () => {
+        const secureNow = window.getSecureTime();
+        // ශ්‍රී ලංකාවේ වෙලාවට (Asia/Colombo) බලහත්කාරයෙන් අගුලු දැමීම
+        const slTime = new Date(secureNow.getTime() + (5.5 * 60 * 60 * 1000));
+        return slTime.toISOString().split('T')[0];
+    };
+
+    // --- UI Utilities ---
+    const showToast = (msg, type='success') => {
+        const t = document.getElementById('toastMsg');
+        t.textContent = msg; 
+        t.style.background = type === 'error' ? '#b91c1c' : '#111827';
+        t.style.display = 'block';
+        setTimeout(() => t.style.display = 'none', 3000);
+    };
+    const toggleLoader = (show) => document.getElementById('loader').style.display = show ? 'flex' : 'none';
+    const formatMoney = (a) => `Rs ${(Number(a)||0).toFixed(2)}`;
+
+    window.switchTab = (tabId, element) => {
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        document.getElementById(`view-${tabId}`).classList.add('active');
+        element.classList.add('active');
+
+        if(tabId === 'attendance') loadAttendanceLogs();
+        if(tabId === 'chat') {
+            document.getElementById('chatBadge').style.display = 'none';
+            setTimeout(() => {
+                const box = document.getElementById('chatHistory');
+                box.scrollTop = box.scrollHeight;
+            }, 100);
+        }
+    };
+
+    const normalizePhone = (rawPhone) => {
+        let phone = String(rawPhone).replace(/[^0-9]/g, '');
+        if (phone.startsWith('0094') && phone.length === 13) phone = '0' + phone.substring(4);
+        else if (phone.startsWith('94') && phone.length === 11) phone = '0' + phone.substring(2);
+        else if (phone.length === 9 && !phone.startsWith('0')) phone = '0' + phone;
+        return phone;
+    };
+
+    // --- Login ---
+    window.attemptLogin = async () => {
+        let rawPhone = document.getElementById('loginPhone').value.trim();
+        const pin = document.getElementById('loginPin').value.trim();
+        if(!rawPhone || !pin) return showToast("Phone and PIN required", "error");
+
+        const phone = normalizePhone(rawPhone);
+        toggleLoader(true);
+
+        try {
+            // Find Employee across all shops if SHOP_ID isn't provided in URL
+            let shopsToCheck = SHOP_ID ? [{id: SHOP_ID}] : [];
+            if(!SHOP_ID) {
+                const sSnap = await getDocs(collection(db, `users/${OWNER_ID}/shops`));
+                shopsToCheck = sSnap.docs.map(d => ({id: d.id}));
+            }
+
+            let foundEmp = null;
+            let foundShop = null;
+
+            for(let s of shopsToCheck) {
+                const eRef = doc(db, `users/${OWNER_ID}/shops/${s.id}/employees`, phone);
+                const eSnap = await getDoc(eRef);
+                if(eSnap.exists()) {
+                    foundEmp = { id: eSnap.id, ...eSnap.data() };
+                    foundShop = s.id;
+                    break;
+                }
+            }
+
+            if(!foundEmp) {
+                toggleLoader(false);
+                return showToast("Employee not found!", "error");
+            }
+
+            // PIN Verification (Default is 1234 if not set by employee yet)
+            const dbPin = foundEmp.pin || "1234";
+            if(String(pin) !== String(dbPin)) {
+                toggleLoader(false);
+                return showToast("Incorrect PIN!", "error");
+            }
+
+            // Login Success
+            loggedInEmp = foundEmp;
+            SHOP_ID = foundShop; // Lock to this shop
+
+            // Setup UI
+            document.getElementById('view-login').classList.remove('active');
+            document.getElementById('topNav').style.display = 'flex';
+            document.getElementById('view-dashboard').classList.add('active');
+            
+            document.getElementById('empNameDisplay').textContent = loggedInEmp.name;
+            document.getElementById('empRoleDisplay').textContent = loggedInEmp.role || "Staff";
+            document.getElementById('profName').textContent = loggedInEmp.name;
+            document.getElementById('profPhone').textContent = loggedInEmp.id;
+            document.getElementById('profileAvatar').textContent = loggedInEmp.name.charAt(0).toUpperCase();
+
+            // 🚨 ENTERPRISE UI FIX: Dynamically fetch brand color for Employee Portal
+try {
+    const profRef = doc(db, `users/${OWNER_ID}/shops/${SHOP_ID}/settings`, 'profile');
+    const profSnap = await getDoc(profRef);
+    if(profSnap.exists() && profSnap.data().logoColor) {
+        document.documentElement.style.setProperty('--primary', profSnap.data().logoColor);
+    }
+} catch(e) { console.warn("Failed to load brand colors"); }
+
+initRealtimeListeners();
+calculateCurrentMonthSalary();
+checkTodayAttendance();
+
+        } catch (e) {
+            console.error(e);
+            showToast("Connection Error", "error");
+        }
+        toggleLoader(false);
+    };
+
+    window.logoutEmployee = () => {
+        if(!confirm("Log out securely?")) return;
+        if(unsubTasks) unsubTasks();
+        if(unsubChat) unsubChat();
+        loggedInEmp = null;
+        
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+        document.getElementById('view-login').classList.add('active'); 
+        document.getElementById('topNav').style.display = 'none';
+        document.getElementById('loginPin').value = '';
+    };
+
+    // --- Attendance (Clock In/Out) Engine ---
+    async function checkTodayAttendance() {
+        const todayStr = window.getLocalDateStr();
+        const logsRef = collection(db, `users/${OWNER_ID}/shops/${SHOP_ID}/employees/${loggedInEmp.id}/logs`);
+        const q = query(logsRef, where("date", "==", todayStr));
+        
+        const btn = document.getElementById('btnClockInOut');
+        const disp = document.getElementById('clockTimeDisplay');
+
+        try {
+            const snap = await getDocs(q);
+            if(!snap.empty) {
+                const log = snap.docs[0];
+                const lData = log.data();
+                todayLogDocId = log.id;
+
+                if(lData.clockInTime && !lData.clockOutTime) {
+                    // Clocked In, waiting for Clock Out
+                    btn.innerHTML = `<i class="ri-logout-circle-r-line"></i> Clock OUT Now`;
+                    btn.className = "btn btn-danger";
+                    btn.disabled = false;
+                    disp.innerHTML = `Clocked IN at <strong style="color:var(--primary)">${new Date(lData.clockInTime).toLocaleTimeString()}</strong>`;
+                } else if(lData.clockInTime && lData.clockOutTime) {
+                    // Shift Complete
+                    btn.innerHTML = `<i class="ri-check-double-line"></i> Shift Completed`;
+                    btn.className = "btn";
+                    btn.style.background = "#9ca3af";
+                    btn.disabled = true;
+                    disp.innerHTML = `Clocked OUT at <strong style="color:#b91c1c">${new Date(lData.clockOutTime).toLocaleTimeString()}</strong>`;
+                } else {
+                    // Manual Manager log (P, LWP, H) without timestamps
+                    btn.innerHTML = `<i class="ri-shield-check-line"></i> Manager Updated`;
+                    btn.className = "btn";
+                    btn.style.background = "#9ca3af";
+                    btn.disabled = true;
+                    disp.innerHTML = `Status: <strong>${lData.status}</strong>`;
+                }
+            } else {
+                // No log today
+                todayLogDocId = null;
+                btn.innerHTML = `<i class="ri-fingerprint-line"></i> Clock IN Now`;
+                btn.className = "btn btn-primary";
+                btn.disabled = false;
+                disp.innerHTML = `Ready for shift. Tap to start.`;
+            }
+        } catch(e) { console.error(e); }
+    }
+
+    // 🛡️ ENTERPRISE FIX: GPS Audit Trail Engine
+    window.toggleClock = async () => {
+        // 1. දුරකථනයේ Location (GPS) ලබා ගැනීමට අවසර ඉල්ලීම
+        if (!navigator.geolocation) {
+            return showToast("Location services are not supported by your browser.", "error");
+        }
+
+        toggleLoader(true);
+        document.querySelector('#loader div:nth-child(2)').textContent = "Acquiring GPS Location...";
+
+        navigator.geolocation.getCurrentPosition(async (position) => {
+            // GPS සාර්ථකව ලබා ගත්තේය
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            const mapLink = `https://www.google.com/maps?q=${lat},${lng}`;
+
+            const todayStr = window.getLocalDateStr();
+            // 🚨 CA FIX: Block Phone Time-Theft! (Use Secure Server Time)
+            const nowIso = window.getSecureTime().toISOString(); 
+            const logsRef = collection(db, `users/${OWNER_ID}/shops/${SHOP_ID}/employees/${loggedInEmp.id}/logs`);
+
+            document.querySelector('#loader div:nth-child(2)').textContent = "Saving Record...";
+
+            try {
+                if(!todayLogDocId) {
+                    // CLOCK IN
+                    const newLogRef = await addDoc(logsRef, {
+                        date: todayStr, status: 'P', clockInTime: nowIso,
+                        ot: 0, workedHours: 0, advance: 0, timestamp: nowIso,
+                        clockInLocation: mapLink // 📍 Saving GPS Location
+                    });
+                    todayLogDocId = newLogRef.id;
+                    showToast("Clocked IN Successfully!");
+                } else {
+                    // CLOCK OUT
+                    const logDoc = await getDoc(doc(logsRef, todayLogDocId));
+                    const lData = logDoc.data();
+                    
+                    const inTime = new Date(lData.clockInTime);
+                    // 🚨 CA FIX: Ensure Out Time cannot be faked via phone settings!
+                    const outTime = window.getSecureTime(); 
+                    const diffMs = outTime - inTime;
+                    let workedHrs = diffMs / (1000 * 60 * 60);
+                    
+                    const stdHours = Number(loggedInEmp.standardHours) || 8;
+                    let calculatedOT = 0;
+                    
+                    if (workedHrs > 16) workedHrs = stdHours; 
+                    else if (workedHrs > stdHours) calculatedOT = workedHrs - stdHours;
+
+                    const finalOT = Math.max((lData.ot || 0), parseFloat(calculatedOT.toFixed(2)));
+
+                    await updateDoc(doc(logsRef, todayLogDocId), {
+                        clockOutTime: nowIso,
+                        workedHours: parseFloat(workedHrs.toFixed(2)),
+                        ot: finalOT,
+                        clockOutLocation: mapLink // 📍 Saving GPS Location
+                    });
+                    showToast(`Clocked OUT! Worked: ${workedHrs.toFixed(1)}h | OT: ${finalOT}h`);
+                }
+                await checkTodayAttendance();
+                calculateCurrentMonthSalary(); 
+            } catch (e) {
+                console.error(e);
+                showToast("Error updating attendance", "error");
+            }
+            toggleLoader(false);
+            
+        }, (error) => {
+            // 🚨 සේවකයා GPS on කිරීම ප්‍රතික්ෂේප කළහොත් බොත්තම වැඩ කරන්නේ නැත!
+            toggleLoader(false);
+            showToast("You MUST allow GPS Location to Clock In/Out!", "error");
+            alert("ආයතනික නීති වලට අනුව පැමිණීම සටහන් කිරීමට අනිවාර්යයෙන්ම GPS Location On කළ යුතුය.");
+        }, { enableHighAccuracy: true }); // උපරිම නිරවද්‍යතාවය (High Accuracy)
+    };
+
+    // --- Real-time Salary, Advance & Commission Engine ---
+    async function calculateCurrentMonthSalary() {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const lastDay = new Date(year, now.getMonth() + 1, 0).getDate();
+        
+        const startOfMonthIso = new Date(`${year}-${month}-01T00:00:00.000Z`).toISOString();
+        const endOfMonthIso = new Date(`${year}-${month}-${lastDay}T23:59:59.999Z`).toISOString();
+        
+        try {
+            // 🚀 1. CALCULATE COMMISSION (REALIZED REVENUE)
+            let earnedCommission = 0;
+            const target = Number(loggedInEmp.targetAmount) || 0;
+            const rate = Number(loggedInEmp.commissionRate) || 0;
+            const isRep = loggedInEmp.isSalesRep === true;
+            const commBox = document.getElementById('commissionTrackerBox');
+
+            if (isRep && rate > 0) {
+                commBox.style.display = 'block';
+                let realizedSales = 0;
+
+                // A. Fetch only this employee's sales for the month
+                const qSales = query(collection(db, `users/${OWNER_ID}/shops/${SHOP_ID}/sales`),
+                    where("salesRepId", "==", loggedInEmp.id), where("date", ">=", startOfMonthIso), where("date", "<=", endOfMonthIso)
+                );
+                const snapSales = await getDocs(qSales);
+                snapSales.forEach(d => {
+                    const s = d.data();
+                    const unpaid = s.creditBalance || 0;
+                    const tax = s.taxAmt || 0;
+                    let realized = s.total - tax - unpaid;
+                    if(realized > 0) realizedSales += realized;
+                });
+
+                // B. Fetch refunds to deduct from sales
+                const qRef = query(collection(db, `users/${OWNER_ID}/shops/${SHOP_ID}/refunds`),
+                    where("salesRepId", "==", loggedInEmp.id), where("date", ">=", startOfMonthIso), where("date", "<=", endOfMonthIso)
+                );
+                const snapRef = await getDocs(qRef);
+                snapRef.forEach(d => {
+                    const r = d.data();
+                    const reversedTax = r.taxReversed || 0;
+                    realizedSales -= (r.amount - reversedTax);
+                });
+
+                // C. Calculate final commission
+                if (target > 0) {
+                    let perc = Math.min((realizedSales / target) * 100, 100);
+                    document.getElementById('empProgressBar').style.width = `${perc}%`;
+
+                    if (realizedSales > target) {
+                        earnedCommission = (realizedSales - target) * (rate / 100);
+                        document.getElementById('empCommissionEarnedTxt').textContent = `🔥 Target Reached! Earned: ${formatMoney(earnedCommission)}`;
+                        document.getElementById('empCommissionEarnedTxt').style.color = '#15803d';
+                    } else {
+                        const short = target - realizedSales;
+                        document.getElementById('empCommissionEarnedTxt').textContent = `Sell ${formatMoney(short)} more for ${rate}% Comm!`;
+                        document.getElementById('empCommissionEarnedTxt').style.color = '#b45309';
+                    }
+                } else {
+                    document.getElementById('empProgressBar').style.width = `100%`;
+                    earnedCommission = realizedSales * (rate / 100);
+                    document.getElementById('empCommissionEarnedTxt').textContent = `🔥 Earned: ${formatMoney(earnedCommission)}`;
+                }
+
+                document.getElementById('empNetSalesTxt').textContent = `Net Sales: ${formatMoney(realizedSales)}`;
+                document.getElementById('empTargetTxt').textContent = `Target: ${formatMoney(target)}`;
+            } else {
+                commBox.style.display = 'none'; // Cleaners, Cashiers වලට පෙන්වන්නේ නෑ
+            }
+
+
+            // 🚀 2. CALCULATE ATTENDANCE & NET SALARY
+            const startStr = `${year}-${month}-01`;
+            const endStr = `${year}-${month}-${String(lastDay).padStart(2, '0')}`;
+
+            const logsRef = collection(db, `users/${OWNER_ID}/shops/${SHOP_ID}/employees/${loggedInEmp.id}/logs`);
+            const qLogs = query(logsRef, where("date", ">=", startStr), where("date", "<=", endStr));
+            const snapLogs = await getDocs(qLogs);
+            
+            const uniqueLogs = {};
+            snapLogs.forEach(d => {
+                const l = d.data();
+                if(!uniqueLogs[l.date] || new Date(l.timestamp) > new Date(uniqueLogs[l.date].timestamp)) {
+                    uniqueLogs[l.date] = l;
+                }
+            });
+            const processedLogs = Object.values(uniqueLogs);
+
+            let pDays = 0, plDays = 0, halfDays = 0;
+            let totExtra = 0, totAdvance = 0, deficitDeduction = 0;
+
+            const baseSal = Number(loggedInEmp.baseSalary) || 0;
+            const stdHours = Math.max(1, Number(loggedInEmp.standardHours) || 8); 
+            const otRate = Number(loggedInEmp.otRate) || 0;
+            
+            const dailyRate = baseSal / lastDay; 
+            const hourlyRate = dailyRate / stdHours;
+
+            processedLogs.forEach(l => {
+                if(l.status === 'P') {
+                    pDays++;
+                    const worked = Number(l.workedHours) || 0;
+                    if(worked > 0 && worked < stdHours) {
+                        deficitDeduction += ((stdHours - worked) * hourlyRate);
+                    }
+                }
+                else if(l.status === 'PL') plDays++;
+                else if(l.status === 'H') halfDays++;
+
+                totExtra += (Number(l.ot) || 0);
+                totAdvance += (Number(l.advance) || 0);
+            });
+
+            const payableDays = pDays + plDays + (halfDays * 0.5);
+            const earnedBasic = payableDays * dailyRate;
+            const otPay = totExtra * otRate;
+            const epfDeduction = baseSal > 0 ? (earnedBasic * 0.08) : 0;
+            
+            // 🚨 CA FIX: Earned Commission is injected directly into Net Salary!
+            const netSalary = Math.round((earnedBasic - deficitDeduction - totAdvance - epfDeduction + otPay + earnedCommission) * 100) / 100;
+
+            document.getElementById('estSalaryDisplay').textContent = formatMoney(netSalary);
+            document.getElementById('totAdvanceDisplay').textContent = formatMoney(totAdvance);
+
+        } catch (e) {
+            console.error("Salary calculation error", e);
+        }
+    }
+
+    // --- History View ---
+    async function loadAttendanceLogs() {
+        const tbody = document.getElementById('logsTableBody');
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:15px; color:#999;"><i class="ri-loader-4-line ri-spin"></i> Loading...</td></tr>';
+        
+        try {
+            const logsRef = collection(db, `users/${OWNER_ID}/shops/${SHOP_ID}/employees/${loggedInEmp.id}/logs`);
+            const q = query(logsRef, orderBy("date", "desc"), limit(30));
+            const snap = await getDocs(q);
+            
+            if(snap.empty) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:15px; color:#999;">No recent logs.</td></tr>';
+                return;
+            }
+
+            let html = '';
+            snap.forEach(d => {
+                const l = d.data();
+                const inTime = l.clockInTime ? new Date(l.clockInTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '-';
+                const outTime = l.clockOutTime ? new Date(l.clockOutTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '-';
+                
+                let dateCol = l.date;
+                if (l.status === 'LWP') dateCol += `<br><span style="font-size:9px; color:#ef4444; background:#fee2e2; padding:2px; border-radius:2px;">Leave</span>`;
+                else if (l.status === 'H') dateCol += `<br><span style="font-size:9px; color:#d97706; background:#fef3c7; padding:2px; border-radius:2px;">Half Day</span>`;
+                
+                html += `
+                <tr style="border-bottom:1px solid #f3f4f6;">
+                    <td style="padding:10px; font-weight:600;">${dateCol}</td>
+                    <td style="padding:10px; text-align:center; color:var(--primary);">${inTime}</td>
+                    <td style="padding:10px; text-align:center; color:#b91c1c;">${outTime}</td>
+                    <td style="padding:10px; text-align:right; font-weight:bold; color:${(l.ot||0)>0?'#10b981':'#6b7280'}">${(l.ot||0).toFixed(1)}</td>
+                </tr>`;
+            });
+            tbody.innerHTML = html;
+        } catch(e) {
+            console.error(e);
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:15px; color:#ef4444;">Error loading logs.</td></tr>';
+        }
+    }
+
+    // --- Tasks & Chat Real-time Listeners ---
+    function initRealtimeListeners() {
+        if(unsubTasks) unsubTasks();
+        if(unsubChat) unsubChat();
+
+        // 1. Tasks Listener (Listen to general tasks assigned to this phone ID)
+        const qTasks = query(collection(db, `users/${OWNER_ID}/shops/${SHOP_ID}/tasks`), where("assignedTo", "==", loggedInEmp.id));
+        unsubTasks = onSnapshot(qTasks, (snap) => {
+            const list = document.getElementById('tasksList');
+            let html = '';
+            let pendingCount = 0;
+
+            snap.forEach(d => {
+                const t = { id: d.id, ...d.data() };
+                if(t.status !== 'done') pendingCount++;
+                
+                // 🛡️ ENTERPRISE UI FIX: Replaced Checkbox with beautiful Input Field & Done Button
+                html += `
+                <div class="task-item ${t.status === 'done' ? 'done' : ''}" style="flex-direction:column; background:${t.status === 'done' ? '#f8fafc' : '#ffffff'}; border:1px solid #e2e8f0; padding:12px; border-radius:8px; margin-bottom:10px;">
+                    <div>
+                        <div style="font-size:14px; font-weight:800; color:#1f2937;">${t.title}</div>
+                        ${t.desc ? `<div style="font-size:12px; color:#64748b; margin-top:3px;">${t.desc}</div>` : ''}
+                        <div style="font-size:10px; color:var(--primary); margin-top:5px; font-weight:bold;">Assigned: ${new Date(t.createdAt).toLocaleDateString()}</div>
+                    </div>
+                    
+                    ${t.status !== 'done' ? `
+                    <div style="margin-top:10px; display:flex; gap:8px; width:100%;">
+                        <input type="text" id="taskNote_${t.id}" placeholder="Type completion note here..." style="margin:0; flex:1; font-size:12px; padding:8px; border-color:#cbd5e1;">
+                        <button class="btn btn-success" style="width:auto; padding:8px 15px; font-size:12px;" onclick="markTaskDone('${t.id}')"><i class="ri-check-line"></i> Done</button>
+                    </div>
+                    ` : `
+                    <div style="margin-top:8px; font-size:11px; color:#15803d; font-weight:bold;">
+                        <i class="ri-check-double-line"></i> Completed ${t.employeeNote ? `- Note: ${t.employeeNote}` : ''}
+                    </div>
+                    `}
+                </div>`;
+            });
+
+            list.innerHTML = html || '<div style="text-align:center; padding:15px; color:#999;">No tasks assigned. Good job!</div>';
+            
+            const badge = document.getElementById('taskBadge');
+            if(pendingCount > 0) { badge.style.display = 'block'; } else { badge.style.display = 'none'; }
+        });
+
+        // 2. Chat Listener (Private isolated collection per employee)
+        const chatRef = collection(db, `users/${OWNER_ID}/shops/${SHOP_ID}/employees/${loggedInEmp.id}/messages`);
+        const qChat = query(chatRef, orderBy("timestamp", "asc"), limit(50));
+        
+        unsubChat = onSnapshot(qChat, (snap) => {
+            const history = document.getElementById('chatHistory');
+            let html = '<div style="text-align:center; color:#999; font-size:11px; margin-top:10px;">Manager & Admin Chat Line</div>';
+            let unread = false;
+
+            snap.forEach(d => {
+                const msg = d.data();
+                // 🛡️ ENTERPRISE FIX: Parse Video Call Links
+                let displayHtml = msg.text.replace(/</g, "&lt;");
+                if(msg.text.startsWith('[VIDEO_CALL]')) {
+                    const vUrl = msg.text.replace('[VIDEO_CALL]', '');
+                    displayHtml = `<div style="text-align:center; padding:5px; color:#166534;">
+                        <i class="ri-vidicon-fill" style="font-size:24px;"></i><br><b>Manager is calling...</b><br>
+                        <button class="btn btn-success" style="margin-top:8px; padding:6px 15px; font-size:12px; border-radius:50px;" onclick="joinEmpVideoCall('${vUrl}')"><i class="ri-phone-camera-fill"></i> Answer Call</button>
+                    </div>`;
+                }
+
+                if(msg.sender === 'manager' || msg.sender === 'admin') {
+                    html += `<div class="chat-msg manager"><b>Manager:</b><br>${displayHtml}</div>`;
+                    if(!document.getElementById('view-chat').classList.contains('active')) unread = true;
+                } else {
+                    html += `<div class="chat-msg me">${displayHtml}</div>`;
+                }
+            });
+
+            history.innerHTML = html;
+            
+            if(unread) document.getElementById('chatBadge').style.display = 'block';
+            
+            // Auto scroll down
+            setTimeout(() => { history.scrollTop = history.scrollHeight; }, 100);
+        });
+    }
+
+    // --- 🛡️ ENTERPRISE Task Engine ---
+    window.markTaskDone = async (taskId) => {
+        // 🚀 ENTERPRISE UX: Get Note directly from the beautiful UI Input instead of prompt!
+        const noteInput = document.getElementById(`taskNote_${taskId}`);
+        const empNote = noteInput ? noteInput.value.trim() : '';
+
+        toggleLoader(true);
+        try {
+            await updateDoc(doc(db, `users/${OWNER_ID}/shops/${SHOP_ID}/tasks`, taskId), {
+                status: 'done', 
+                completedAt: window.getSecureTime().toISOString(),
+                employeeNote: empNote || 'Task completed (No note)' 
+            });
+            showToast("Task marked as Done & Sent to Manager!");
+        } catch(e) { 
+            showToast("Error updating task", "error"); 
+        }
+        toggleLoader(false);
+    };
+
+    // --- Chat Engine ---
+    window.sendChatMsg = async () => {
+        const input = document.getElementById('chatMsgInput');
+        const text = input.value.trim();
+        if(!text) return;
+        
+        input.value = ''; // Instant clear UX
+        
+        try {
+            const chatRef = collection(db, `users/${OWNER_ID}/shops/${SHOP_ID}/employees/${loggedInEmp.id}/messages`);
+            await addDoc(chatRef, {
+                sender: 'employee',
+                text: text,
+                timestamp: window.getSecureTime().toISOString()
+            });
+        } catch(e) {
+            console.error(e);
+            showToast("Message failed to send", "error");
+        }
+    };
+
+    // --- Settings (Change PIN) ---
+    window.changePin = async () => {
+        const currentP = document.getElementById('currentPin').value;
+        const p1 = document.getElementById('newPin1').value;
+        const p2 = document.getElementById('newPin2').value;
+        
+        // Validation Logic
+        const dbPin = loggedInEmp.pin || "1234";
+        if(!currentP || currentP !== String(dbPin)) return showToast("Current PIN is incorrect!", "error");
+        if(!p1 || p1.length !== 4 || !/^\d{4}$/.test(p1)) return showToast("New PIN must be exactly 4 digits", "error");
+        if(p1 !== p2) return showToast("New PINs do not match!", "error");
+        
+        toggleLoader(true);
+        try {
+            await updateDoc(doc(db, `users/${OWNER_ID}/shops/${SHOP_ID}/employees`, loggedInEmp.id), { pin: p1 });
+            loggedInEmp.pin = p1; // Update local cache
+            document.getElementById('currentPin').value = '';
+            document.getElementById('newPin1').value = '';
+            document.getElementById('newPin2').value = '';
+            showToast("PIN Updated Successfully!");
+        } catch(e) { showToast("Error updating PIN", "error"); }
+        toggleLoader(false);
+    };
+// 🛡️ EMPLOYEE VIDEO CALL ENGINE
+    window.joinEmpVideoCall = (url) => {
+        document.getElementById('empVideoCallIframe').src = url;
+        document.getElementById('empVideoCallModal').style.display = 'flex';
+    };
+
+    window.closeEmpVideoCall = () => {
+        document.getElementById('empVideoCallModal').style.display = 'none';
+        document.getElementById('empVideoCallIframe').src = ""; // 👈 🔴 අත්‍යවශ්‍යයි! කැමරාව විසන්ධි කිරීමට.
+        showToast("Call Ended");
+    };
+</script>
+</body>
+</html>
