@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="si">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sri Lankan ERP Tax Verifier (IRD Compliant)</title>
+    <style>
+        :root {
+            --primary: #0056b3;
+            --bg: #f4f6f9;
+            --panel: #ffffff;
+            --text: #333333;
+            --border: #cccccc;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            background: var(--panel);
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            max-width: 500px;
+            width: 100%;
+        }
+        h2 {
+            text-align: center;
+            color: var(--primary);
+            margin-top: 0;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background-color: #004494;
+        }
+        .results {
+            margin-top: 25px;
+            padding-top: 15px;
+            border-top: 2px dashed var(--border);
+        }
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        .result-row.total {
+            font-weight: bold;
+            font-size: 18px;
+            color: var(--primary);
+            border-top: 1px solid var(--border);
+            padding-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>SL Tax Verifier (ERP Testing Tool)</h2>
+    
+    <div class="form-group">
+        <label for="amount">මූලික මුදල / Base Amount (LKR):</label>
+        <input type="number" id="amount" placeholder="0.00" min="0" step="0.01">
+    </div>
+    
+    <div class="form-group">
+        <label for="vatRate">වැට් බදු ප්‍රතිශතය / VAT Rate (%):</label>
+        <select id="vatRate">
+            <option value="18">18% (Standard Rate)</option>
+            <option value="0">0% (Zero-rated / Exempt)</option>
+        </select>
+    </div>
+    
+    <div class="form-group">
+        <label for="ssclApplicable">SSCL (2.5%) ඇතුළත්ද?</label>
+        <select id="ssclApplicable">
+            <option value="yes">ඔව් (Yes)</option>
+            <option value="no">නැත (No)</option>
+        </select>
+    </div>
+    
+    <div class="form-group">
+        <label for="whtRate">රඳවා ගැනීමේ බදුවල ප්‍රතිශතය / WHT Rate (%):</label>
+        <select id="whtRate">
+            <option value="0">0% (None)</option>
+            <option value="1">1% (Investment / Specified services)</option>
+            <option value="5">5% (Rent)</option>
+            <option value="10">10% (Interest / Dividend etc.)</option>
+        </select>
+    </div>
+    
+    <button onclick="calculateTaxes()">ගණනය කරන්න (Calculate)</button>
+    
+    <div class="results" id="resultsPanel" style="display: none;">
+        <div class="result-row">
+            <span>Base Amount:</span>
+            <span id="resBase">Rs. 0.00</span>
+        </div>
+        <div class="result-row">
+            <span>SSCL (2.5%):</span>
+            <span id="resSSCL">Rs. 0.00</span>
+        </div>
+        <div class="result-row">
+            <span>VAT Base (Base + SSCL):</span>
+            <span id="resVatBase">Rs. 0.00</span>
+        </div>
+        <div class="result-row">
+            <span>VAT Amount:</span>
+            <span id="resVAT">Rs. 0.00</span>
+        </div>
+        <div class="result-row">
+            <span>WHT Amount (Deducted from Base):</span>
+            <span id="resWHT">Rs. 0.00</span>
+        </div>
+        <div class="result-row total">
+            <span>Grand Total (Invoice Value):</span>
+            <span id="resTotal">Rs. 0.00</span>
+        </div>
+    </div>
+</div>
+
+<script>
+function calculateTaxes() {
+    const baseAmount = parseFloat(document.getElementById('amount').value) || 0;
+    const vatRate = parseFloat(document.getElementById('vatRate').value) || 0;
+    const ssclApplicable = document.getElementById('ssclApplicable').value === 'yes';
+    const whtRate = parseFloat(document.getElementById('whtRate').value) || 0;
+    
+    // 1. SSCL Calculation (2.5% on Base Amount)
+    let ssclAmount = 0;
+    if (ssclApplicable) {
+        ssclAmount = baseAmount * 0.025;
+    }
+    
+    // 2. VAT Calculation (VAT is calculated on Base + SSCL as per Sri Lankan IRD rules)
+    const vatBase = baseAmount + ssclAmount;
+    const vatAmount = vatBase * (vatRate / 100);
+    
+    // 3. WHT Calculation (Calculated directly on the original Base Amount)
+    const whtAmount = baseAmount * (whtRate / 100);
+    
+    // 4. Grand Total (Invoice Grand Total = Base + SSCL + VAT)
+    // Note: WHT is a withholding tax deducted at payment, it does not change the physical invoice face value, 
+    // but indicates what needs to be withheld.
+    const grandTotal = baseAmount + ssclAmount + vatAmount;
+    
+    // Display results
+    document.getElementById('resBase').innerText = 'Rs. ' + baseAmount.toFixed(2);
+    document.getElementById('resSSCL').innerText = 'Rs. ' + ssclAmount.toFixed(2);
+    document.getElementById('resVatBase').innerText = 'Rs. ' + vatBase.toFixed(2);
+    document.getElementById('resVAT').innerText = 'Rs. ' + vatAmount.toFixed(2);
+    document.getElementById('resWHT').innerText = 'Rs. ' + whtAmount.toFixed(2);
+    document.getElementById('resTotal').innerText = 'Rs. ' + grandTotal.toFixed(2);
+    
+    document.getElementById('resultsPanel').style.display = 'block';
+}
+</script>
+
+</body>
+</html>
