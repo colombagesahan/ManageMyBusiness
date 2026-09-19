@@ -1,0 +1,1358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<!-- Mobile-First Viewport for 250px compatibility -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Staff Portal | My Workspace</title>
+<link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+
+<style>
+/* --- ENTERPRISE MOBILE-FIRST CSS --- */
+:root { --primary: #0f766e; --primary-light: #14b8a6; --bg: #f3f4f6; --text: #1f2937; --card: #ffffff; }
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; -webkit-tap-highlight-color: transparent; }
+body { background: var(--bg); color: var(--text); padding-top: 75px; overflow-x: hidden; }
+
+/* 🛡️ TOP NAVIGATION (Prominent Enterprise Design) */
+.top-nav { position: fixed; top: 0; left: 0; right: 0; background: var(--primary); height: 65px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 15px rgba(15, 118, 110, 0.3); z-index: 1000; padding: 0 5px; }
+.nav-item { display: flex; flex-direction: column; align-items: center; justify-content: center; color: rgba(255,255,255,0.6); font-size: 11px; font-weight: 700; cursor: pointer; flex: 1; height: 100%; transition: 0.3s; border-radius: 8px; margin: 4px; position:relative;}
+.nav-item i { font-size: 22px; margin-bottom: 2px; transition: 0.3s; }
+.nav-item.active { color: #ffffff; background: rgba(255,255,255,0.2); box-shadow: inset 0 2px 4px rgba(0,0,0,0.05); }
+.nav-item.active i { transform: scale(1.1); }
+.badge-dot { position: absolute; top: 5px; right: 25%; width: 8px; height: 8px; background: #ef4444; border-radius: 50%; display: none; }
+
+/* Responsive tweaks for 250px ultra-small screens */
+@media(max-width: 300px) {
+    .nav-item { font-size: 9px; margin: 2px; }
+    .nav-item i { font-size: 18px; }
+}
+
+/* Views */
+.view { display: none; padding: 15px; animation: fadeIn 0.3s ease; }
+.view.active { display: block; }
+.view.active.flex-box { display: flex; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Cards & Layouts */
+.card { background: var(--card); border-radius: 12px; padding: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 15px; border: 1px solid #e5e7eb; }
+.stat-box { background: #f0fdf4; padding: 15px; border-radius: 12px; border: 1px solid #bbf7d0; text-align: center; margin-bottom: 15px;}
+.stat-box.warning { background: #fffbeb; border-color: #fde68a; color: #d97706; }
+
+/* Inputs & Buttons */
+input, textarea { width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; margin-bottom: 10px; font-size: 14px; outline: none; }
+input:focus, textarea:focus { border-color: var(--primary); }
+.btn { width: 100%; padding: 12px; border-radius: 8px; border: none; font-weight: 600; font-size: 14px; cursor: pointer; color: white; background: var(--primary); display:flex; align-items:center; justify-content:center; gap:5px; }
+.btn:active { transform: scale(0.98); }
+.btn-danger { background: #ef4444; }
+.btn-success { background: #10b981; }
+
+/* Chat UI */
+.chat-container { display: flex; flex-direction: column; height: calc(100vh - 170px); background: #ffffff; border-radius: 12px; border: 1px solid #e5e7eb; overflow: hidden; }
+.chat-history { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background: #fdfdfe; }
+.chat-msg { max-width: 85%; padding: 10px 14px; border-radius: 12px; font-size: 13px; line-height: 1.5; word-wrap: break-word; }
+.chat-msg.me { align-self: flex-end; background: var(--primary); color: white; border-bottom-right-radius: 2px; }
+.chat-msg.manager { align-self: flex-start; background: #f3f4f6; color: #1f2937; border: 1px solid #e5e7eb; border-bottom-left-radius: 2px; }
+.chat-input { display: flex; padding: 10px; background: white; border-top: 1px solid #e5e7eb; gap: 5px; }
+.chat-input input { margin: 0; border-radius: 20px; }
+.chat-input button { width: 45px; height: 45px; border-radius: 50%; padding: 0; flex-shrink: 0; }
+
+/* Loaders & Toasts */
+.loader { position: fixed; inset: 0; background: rgba(255,255,255,0.9); z-index: 9999; display: none; align-items: center; justify-content: center; flex-direction: column; }
+.spinner { width: 40px; height: 40px; border: 4px solid #e5e7eb; border-top: 4px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
+@keyframes spin { 100% { transform: rotate(360deg); } }
+.toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #111827; color: white; padding: 10px 20px; border-radius: 20px; font-size: 13px; z-index: 10000; display: none; white-space: nowrap; box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+
+/* Task Checkbox */
+.task-item { display: flex; gap: 10px; align-items: flex-start; padding: 10px; border-bottom: 1px solid #eee; }
+.task-item:last-child { border-bottom: none; }
+.task-item.done { opacity: 0.6; text-decoration: line-through; }
+</style>
+</head>
+<body>
+
+<div class="toast" id="toastMsg">Message</div>
+<div class="loader" id="loader"><div class="spinner"></div><div style="margin-top:10px; font-weight:600;">Please wait...</div></div>
+
+<!-- 🛡️ TOP NAVIGATION -->
+<div class="top-nav" id="topNav" style="display:none;">
+    <div class="nav-item active" onclick="switchTab('dashboard', this)"><i class="ri-dashboard-line"></i><span>Home</span></div>
+    <div class="nav-item" onclick="switchTab('attendance', this)"><i class="ri-calendar-check-line"></i><span>Logs</span></div>
+    <div class="nav-item" onclick="switchTab('tasks', this)"><i class="ri-list-check-2"></i><span>Tasks</span><div class="badge-dot" id="taskBadge"></div></div>
+    <div class="nav-item" onclick="switchTab('chat', this)"><i class="ri-chat-3-line"></i><span>Chat</span><div class="badge-dot" id="chatBadge"></div></div>
+    <div class="nav-item" onclick="switchTab('settings', this)"><i class="ri-user-settings-line"></i><span>Menu</span></div>
+</div>
+
+<!-- LOGIN VIEW -->
+<div id="view-login" class="view flex-box active" style="height: 100vh; flex-direction: column; justify-content: center; padding: 20px; background: white; z-index:2000; position:relative;">
+    <div style="text-align:center; margin-bottom:30px;">
+        <div style="width:70px; height:70px; background:#ccfbf1; color:var(--primary); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:35px; margin:0 auto 15px auto;">
+            <i class="ri-briefcase-4-line"></i>
+        </div>
+        <h2 style="color:var(--primary);">Staff Portal</h2>
+        <p style="color:#666; font-size:13px; margin-top:5px;">Login to view attendance & salary</p>
+    </div>
+    <div class="card" style="border:none; box-shadow:none; padding:0;">
+        <label style="font-size:12px; font-weight:600; color:#4b5563;">Mobile Number (Staff ID)</label>
+        <input type="number" id="loginPhone" placeholder="e.g. 0771234567" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+        
+        <label style="font-size:12px; font-weight:600; color:#4b5563; margin-top:5px;">4-Digit PIN (Default: 1234)</label>
+        <input type="password" id="loginPin" placeholder="Enter PIN" maxlength="4">
+        
+        <button class="btn" onclick="attemptLogin()" style="margin-top:15px; padding:15px;"><i class="ri-login-circle-line"></i> Secure Login</button>
+    </div>
+</div>
+
+<!-- DASHBOARD VIEW -->
+<div id="view-dashboard" class="view">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+        <div>
+            <div style="font-size:12px; color:#666;">Welcome back,</div>
+            <div style="font-size:18px; font-weight:800; color:var(--primary);" id="empNameDisplay">Loading...</div>
+        </div>
+        <div id="empRoleDisplay" style="background:#e0e7ff; color:#3730a3; padding:4px 8px; border-radius:4px; font-size:11px; font-weight:bold;">Staff</div>
+    </div>
+
+    <!-- 🏛️ TODAY'S LIVE OT AUTHORIZATION STATUS RADAR -->
+    <div id="todayOtStatusBadge" style="margin-bottom:12px; padding:10px 14px; border-radius:10px; font-size:12px; font-weight:800; display:flex; align-items:center; justify-content:space-between; background:#f8fafc; border:1px solid #e2e8f0;">
+        <span style="display:flex; align-items:center; gap:6px;"><i class="ri-radar-line ri-spin"></i> Checking Today's Roster & OT...</span>
+    </div>
+
+    <!-- 🏛️ MONTHLY ATTENDANCE QUOTA SUMMARY HUD -->
+    <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; margin-bottom:15px;">
+        <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:10px; text-align:center;">
+            <div style="font-size:10px; color:#15803d; font-weight:bold; text-transform:uppercase;">Present</div>
+            <div style="font-size:20px; font-weight:900; color:#166534; margin-top:2px;" id="dashPresentDays">0</div>
+            <div style="font-size:9px; color:#15803d;">Days Worked</div>
+        </div>
+        <div style="background:#fff1f2; border:1px solid #fecaca; border-radius:12px; padding:10px; text-align:center;">
+            <div style="font-size:10px; color:#b91c1c; font-weight:bold; text-transform:uppercase;">Leaves / LWP</div>
+            <div style="font-size:20px; font-weight:900; color:#991b1b; margin-top:2px;" id="dashLeaveDays">0</div>
+            <div style="font-size:9px; color:#b91c1c;">Days Off</div>
+        </div>
+        <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:12px; padding:10px; text-align:center;">
+            <div style="font-size:10px; color:#b45309; font-weight:bold; text-transform:uppercase;">Half Days</div>
+            <div style="font-size:20px; font-weight:900; color:#78350f; margin-top:2px;" id="dashHalfDays">0</div>
+            <div style="font-size:9px; color:#b45309;">Shifts</div>
+        </div>
+    </div>
+
+    <!-- Clock In/Out Section -->
+    <div class="card" style="text-align:center; padding:25px 15px; background:linear-gradient(to right bottom, #ffffff, #f0fdf4);">
+        <h4 style="margin-bottom:5px; color:#374151;">Today's Attendance</h4>
+        <div id="clockTimeDisplay" style="font-size:12px; color:#6b7280; margin-bottom:20px;">Not clocked in yet</div>
+        
+        <button id="btnClockInOut" class="btn" style="padding:15px; font-size:18px; border-radius:50px; box-shadow:0 10px 20px rgba(0,0,0,0.1);" onclick="toggleClock()">
+            <i class="ri-fingerprint-line"></i> Clock IN Now
+        </button>
+    </div>
+
+    <!-- 🚀 NEW: Commission & Target Tracker (Hidden by default for non-sales staff) -->
+    <div id="commissionTrackerBox" class="card" style="display:none; background:linear-gradient(to right bottom, #ffffff, #fffbeb); border-color:#fde68a; padding:20px 15px;">
+        <h4 style="color:#b45309; margin-bottom:10px;"><i class="ri-medal-fill"></i> My Sales Performance</h4>
+        <div style="display:flex; justify-content:space-between; font-size:11px; font-weight:bold; color:#6b7280; margin-bottom:8px;">
+            <span id="empNetSalesTxt">Net Sales: Rs 0</span>
+            <span id="empTargetTxt" style="color:#b45309;">Target: Rs 0</span>
+        </div>
+        <div style="width:100%; background:#e5e7eb; height:10px; border-radius:5px; overflow:hidden; margin-bottom:12px;">
+            <div id="empProgressBar" style="width:0%; background:linear-gradient(90deg, #f59e0b, #10b981); height:100%; transition:0.5s;"></div>
+        </div>
+        <div style="text-align:center; font-size:14px; font-weight:900; color:#15803d;" id="empCommissionEarnedTxt">Earned: Rs 0.00</div>
+    </div>
+
+    <!-- Salary Estimate (Interactive Touch Card) -->
+    <div class="stat-box" onclick="openSalaryBreakdownModal()" style="display:flex; justify-content:space-between; align-items:center; text-align:left; cursor:pointer; transition:0.2s; position:relative;" onmouseover="this.style.transform='scale(1.01)'" onmouseout="this.style.transform='none'">
+        <div>
+            <div style="font-size:11px; color:#15803d; font-weight:800; text-transform:uppercase; letter-spacing:0.5px;">Current Month Est. Net Salary</div>
+            <div style="font-size:26px; font-weight:900; color:#166534; margin:3px 0;" id="estSalaryDisplay">Rs 0.00</div>
+            <div style="font-size:11px; color:#15803d; display:flex; align-items:center; gap:4px; font-weight:bold;">
+                <i class="ri-eye-line"></i> Tap to view full Payslip breakdown & deductions
+            </div>
+        </div>
+        <div style="width:48px; height:48px; border-radius:50%; background:#dcfce7; display:flex; align-items:center; justify-content:center; color:#15803d; font-size:26px;">
+            <i class="ri-file-list-3-line"></i>
+        </div>
+    </div>
+
+    <!-- Advances Info -->
+    <div class="stat-box warning" style="display:flex; justify-content:space-between; align-items:center; text-align:left;">
+        <div>
+            <div style="font-size:11px; color:#b45309; font-weight:700; text-transform:uppercase;">Advances Taken This Month</div>
+            <div style="font-size:20px; font-weight:900; color:#b45309;" id="totAdvanceDisplay">Rs 0.00</div>
+        </div>
+        <i class="ri-hand-coin-line" style="font-size:30px; color:#fcd34d;"></i>
+    </div>
+</div>
+
+<!-- ATTENDANCE LOGS VIEW -->
+<div id="view-attendance" class="view">
+    <h3 style="margin-bottom:15px;"><i class="ri-calendar-check-line"></i> My Attendance Logs</h3>
+    <div class="card" style="padding:0; overflow:hidden;">
+        <table style="width:100%; border-collapse:collapse; font-size:12px;">
+            <thead style="background:#f9fafb; border-bottom:1px solid #e5e7eb;">
+                <tr>
+                    <th style="padding:10px; text-align:left;">Date</th>
+                    <th style="padding:10px; text-align:center;">In</th>
+                    <th style="padding:10px; text-align:center;">Out</th>
+                    <th style="padding:10px; text-align:right;">OT (Hrs)</th>
+                </tr>
+            </thead>
+            <tbody id="logsTableBody">
+                <tr><td colspan="4" style="text-align:center; padding:15px; color:#999;">Loading...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- TASKS VIEW -->
+<div id="view-tasks" class="view">
+    <h3 style="margin-bottom:15px;"><i class="ri-list-check-2"></i> My Duties & Tasks</h3>
+    <div class="card" style="padding:5px;" id="tasksList">
+        <div style="text-align:center; padding:15px; color:#999;">Loading tasks...</div>
+    </div>
+</div>
+
+<!-- CHAT VIEW -->
+<div id="view-chat" class="view">
+    <h3 style="margin-bottom:15px;"><i class="ri-chat-3-line"></i> Manager Chat</h3>
+    <div class="chat-container">
+        <div class="chat-history" id="chatHistory">
+            <div style="text-align:center; color:#999; font-size:12px; margin-top:20px;">Secured Chat System</div>
+        </div>
+        <div class="chat-input">
+            <input type="text" id="chatMsgInput" placeholder="Type message..." onkeypress="if(event.key === 'Enter') sendChatMsg()">
+            <button class="btn" onclick="sendChatMsg()"><i class="ri-send-plane-fill"></i></button>
+        </div>
+    </div>
+</div>
+
+<!-- SETTINGS VIEW -->
+<!-- 🚀 NEW: EMPLOYEE VIDEO CALL MODAL -->
+<div id="empVideoCallModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.95); display:none; align-items:center; justify-content:center; z-index:9000;">
+    <div style="width:100%; height:100vh; display:flex; flex-direction:column;">
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:15px; background:#111827;">
+            <div style="color:#10b981; font-weight:bold; font-size:14px;"><i class="ri-vidicon-fill"></i> Manager Call</div>
+            <button class="btn btn-danger" style="width:auto; padding:6px 15px; font-size:12px; border-radius:50px;" onclick="closeEmpVideoCall()"><i class="ri-phone-camera-line"></i> End Call</button>
+        </div>
+        <div style="flex:1; position:relative;">
+            <iframe id="empVideoCallIframe" style="width:100%; height:100%; border:none;" allow="camera; microphone; fullscreen; display-capture"></iframe>
+        </div>
+    </div>
+</div>
+<div id="view-settings" class="view">
+    <h3 style="margin-bottom:15px;"><i class="ri-settings-4-line"></i> Account Settings</h3>
+    
+    <div class="card">
+        <div style="display:flex; align-items:center; gap:15px; margin-bottom:15px;">
+            <div id="profileAvatar" style="width:60px; height:60px; border-radius:50%; background:var(--primary-light); color:white; display:flex; align-items:center; justify-content:center; font-size:24px; font-weight:bold;"></div>
+            <div>
+                <div style="font-weight:700;" id="profName">...</div>
+                <div style="font-size:12px; color:#666;" id="profPhone">...</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h4 style="font-size:14px; margin-bottom:10px;">Change Security PIN</h4>
+        <input type="password" id="currentPin" placeholder="Current PIN" maxlength="4">
+        <input type="password" id="newPin1" placeholder="New 4-Digit PIN" maxlength="4" style="margin-top:10px;">
+        <input type="password" id="newPin2" placeholder="Confirm New PIN" maxlength="4">
+        <button class="btn" onclick="changePin()">Update PIN</button>
+    </div>
+    <button class="btn btn-danger" onclick="logoutEmployee()" style="margin-top:20px;"><i class="ri-logout-box-line"></i> Logout Securely</button>
+</div>
+
+<!-- =========================================================================
+     🏛️ INTERACTIVE DIGITAL PAYSLIP BREAKDOWN MODAL (100% TRANSPARENT)
+     සේවකයාට තම සියලුම දීමනා, අතිකාල, කොමිස් සහ කැපීම් සතයටම පෙන්වන කවුළුව
+     ========================================================================= -->
+<div id="payslipBreakdownModal" style="position:fixed; inset:0; background:rgba(0,0,0,0.85); display:none; align-items:flex-end; justify-content:center; z-index:9500; backdrop-filter:blur(5px);">
+    <div class="card" style="width:100%; max-width:500px; margin:0; border-radius:24px 24px 0 0; max-height:85vh; display:flex; flex-direction:column; padding:20px; box-shadow:0 -10px 25px rgba(0,0,0,0.3); border:none; animation:slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);">
+        
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e5e7eb; padding-bottom:12px; margin-bottom:15px;">
+            <div>
+                <h3 style="color:#0f766e; margin:0; font-size:17px; font-weight:900;"><i class="ri-file-paper-2-fill"></i> Monthly Payslip Breakdown</h3>
+                <div style="font-size:11px; color:#64748b;" id="psPeriodSubtitle">Current Month Estimate</div>
+            </div>
+            <i class="ri-close-circle-fill" style="cursor:pointer; font-size:26px; color:#94a3b8;" onclick="closeModal('payslipBreakdownModal')"></i>
+        </div>
+
+        <div style="flex:1; overflow-y:auto; padding-right:5px;" id="payslipModalContent">
+            <!-- Dynamic itemized breakdown injected here -->
+        </div>
+
+        <button class="btn" style="margin-top:15px; background:#0f766e; padding:12px;" onclick="closeModal('payslipBreakdownModal')">Close Breakdown</button>
+    </div>
+</div>
+
+<!-- LOGIC -->
+<script type="module">
+    // Import all required Firebase modules
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+    import { getFirestore, doc, getDoc, collection, query, where, getDocs, orderBy, limit, addDoc, updateDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+    // 🔴 FIREBASE CONFIG
+    const firebaseConfig = {
+  apiKey: "AIzaSyBDwLs_z_SXX-t6olQ8xu6dRjxVpgRkuvE",
+  authDomain: "nawarathna-cool-engineering.firebaseapp.com",
+  projectId: "nawarathna-cool-engineering",
+  storageBucket: "nawarathna-cool-engineering.firebasestorage.app",
+  messagingSenderId: "863435741101",
+  appId: "1:863435741101:web:c2774c9a557d0fe014f324",
+  measurementId: "G-2PH6L13GP4"
+};
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // 🚀 ENTERPRISE DYNAMIC MULTI-TENANCY: Extract Owner & Shop from URL Parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const OWNER_ID = urlParams.get('owner');
+    let SHOP_ID = urlParams.get('shop'); 
+
+    if (!OWNER_ID) {
+        document.body.innerHTML = `
+            <div style="height:100vh; display:flex; align-items:center; justify-content:center; flex-direction:column; padding:20px; text-align:center; background:white;">
+                <i class="ri-error-warning-fill" style="font-size:60px; color:#ef4444; margin-bottom:15px;"></i>
+                <h2 style="color:#1f2937;">Invalid Portal Link</h2>
+                <p style="color:#64748b; font-size:14px; margin-top:5px; line-height:1.5;">This URL is incomplete. Please contact the manager for the correct Employee Link.</p>
+            </div>
+        `;
+        throw new Error("Missing Owner ID parameter in URL");
+    }
+
+    let loggedInEmp = null;
+    let todayLogDocId = null;
+    let unsubTasks = null;
+    let unsubChat = null;
+
+    // ==========================================
+    // 🛡️ ENTERPRISE SECURE CLOCK ENGINE (Anti-Time Theft)
+    // ==========================================
+    let secureBaseServerTime = Date.now(); 
+    let syncMark = performance.now(); 
+
+    async function initSecureClock() {
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 2500);
+            // Server එකේ වෙලාව රහසිගතව ලබාගැනීම
+            const res = await fetch(window.location.href, { method: 'HEAD', cache: 'no-store', signal: controller.signal });
+            clearTimeout(timeoutId);
+            const serverDateStr = res.headers.get('Date');
+            if (serverDateStr) {
+                secureBaseServerTime = new Date(serverDateStr).getTime();
+                syncMark = performance.now();
+            }
+        } catch (e) { console.warn("Clock sync failed. Using local fallback."); }
+    }
+    initSecureClock(); // ලොග් වන තත්පරයේදීම සැබෑ වෙලාව අල්ලා ගනී!
+
+    window.getSecureTime = () => {
+        return new Date(secureBaseServerTime + (performance.now() - syncMark));
+    };
+
+    window.getLocalDateStr = () => {
+        const secureNow = window.getSecureTime();
+        // ශ්‍රී ලංකාවේ වෙලාවට (Asia/Colombo) බලහත්කාරයෙන් අගුලු දැමීම
+        const slTime = new Date(secureNow.getTime() + (5.5 * 60 * 60 * 1000));
+        return slTime.toISOString().split('T')[0];
+    };
+
+    // --- UI Utilities ---
+    const showToast = (msg, type='success') => {
+        const t = document.getElementById('toastMsg');
+        t.textContent = msg; 
+        t.style.background = type === 'error' ? '#b91c1c' : '#111827';
+        t.style.display = 'block';
+        setTimeout(() => t.style.display = 'none', 3000);
+    };
+    const toggleLoader = (show) => document.getElementById('loader').style.display = show ? 'flex' : 'none';
+    const formatMoney = (a) => `Rs ${(Number(a)||0).toFixed(2)}`;
+
+    window.switchTab = (tabId, element) => {
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        document.getElementById(`view-${tabId}`).classList.add('active');
+        element.classList.add('active');
+
+        if(tabId === 'attendance') loadAttendanceLogs();
+        if(tabId === 'chat') {
+            document.getElementById('chatBadge').style.display = 'none';
+            setTimeout(() => {
+                const box = document.getElementById('chatHistory');
+                box.scrollTop = box.scrollHeight;
+            }, 100);
+        }
+    };
+
+    const normalizePhone = (rawPhone) => {
+        let phone = String(rawPhone).replace(/[^0-9]/g, '');
+        if (phone.startsWith('0094') && phone.length === 13) phone = '0' + phone.substring(4);
+        else if (phone.startsWith('94') && phone.length === 11) phone = '0' + phone.substring(2);
+        else if (phone.length === 9 && !phone.startsWith('0')) phone = '0' + phone;
+        return phone;
+    };
+
+    // --- Login ---
+    window.attemptLogin = async () => {
+        let rawPhone = document.getElementById('loginPhone').value.trim();
+        const pin = document.getElementById('loginPin').value.trim();
+        if(!rawPhone || !pin) return showToast("Phone and PIN required", "error");
+
+        const phone = normalizePhone(rawPhone);
+        toggleLoader(true);
+
+        try {
+            // Find Employee across all shops if SHOP_ID isn't provided in URL
+            let shopsToCheck = SHOP_ID ? [{id: SHOP_ID}] : [];
+            if(!SHOP_ID) {
+                const sSnap = await getDocs(collection(db, `users/${OWNER_ID}/shops`));
+                shopsToCheck = sSnap.docs.map(d => ({id: d.id}));
+            }
+
+            let foundEmp = null;
+            let foundShop = null;
+
+            for(let s of shopsToCheck) {
+                const eRef = doc(db, `users/${OWNER_ID}/shops/${s.id}/employees`, phone);
+                const eSnap = await getDoc(eRef);
+                if(eSnap.exists()) {
+                    foundEmp = { id: eSnap.id, ...eSnap.data() };
+                    foundShop = s.id;
+                    break;
+                }
+            }
+
+            if(!foundEmp) {
+                toggleLoader(false);
+                return showToast("Employee not found!", "error");
+            }
+
+            // PIN Verification (Default is 1234 if not set by employee yet)
+            const dbPin = foundEmp.pin || "1234";
+            if(String(pin) !== String(dbPin)) {
+                toggleLoader(false);
+                return showToast("Incorrect PIN!", "error");
+            }
+
+            // Login Success
+            loggedInEmp = foundEmp;
+            SHOP_ID = foundShop; // Lock to this shop
+
+            // Setup UI
+            document.getElementById('view-login').classList.remove('active');
+            document.getElementById('topNav').style.display = 'flex';
+            document.getElementById('view-dashboard').classList.add('active');
+            
+            document.getElementById('empNameDisplay').textContent = loggedInEmp.name;
+            document.getElementById('empRoleDisplay').textContent = loggedInEmp.role || "Staff";
+            document.getElementById('profName').textContent = loggedInEmp.name;
+            document.getElementById('profPhone').textContent = loggedInEmp.id;
+            document.getElementById('profileAvatar').textContent = loggedInEmp.name.charAt(0).toUpperCase();
+
+            // 🚨 ENTERPRISE UI FIX: Dynamically fetch brand color for Employee Portal
+try {
+    const profRef = doc(db, `users/${OWNER_ID}/shops/${SHOP_ID}/settings`, 'profile');
+    const profSnap = await getDoc(profRef);
+    if(profSnap.exists() && profSnap.data().logoColor) {
+        document.documentElement.style.setProperty('--primary', profSnap.data().logoColor);
+    }
+} catch(e) { console.warn("Failed to load brand colors"); }
+
+initRealtimeListeners();
+calculateCurrentMonthSalary();
+checkTodayAttendance();
+checkTodayOtStatus(); // 👈 🏛️ අද දින OT තත්ත්වය පරීක්ෂා කිරීම
+
+        } catch (e) {
+            console.error(e);
+            showToast("Connection Error", "error");
+        }
+        toggleLoader(false);
+    };
+
+    window.logoutEmployee = () => {
+        if(!confirm("Log out securely?")) return;
+        if(unsubTasks) unsubTasks();
+        if(unsubChat) unsubChat();
+        loggedInEmp = null;
+        
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+        document.getElementById('view-login').classList.add('active'); 
+        document.getElementById('topNav').style.display = 'none';
+        document.getElementById('loginPin').value = '';
+    };
+
+    // =========================================================================
+    // 🏛️ ZERO-LOSS OVERNIGHT SHIFT ATTENDANCE STATE-MACHINE (24/7 COMPLIANT)
+    // මධ්‍යම රාත්‍රිය පසු වුවද පරණ Clock-In එක අනාථ නොවී නිවැරදිව Out-Punch හඳුනාගැනීම
+    // =========================================================================
+    async function checkTodayAttendance() {
+        const logsRef = collection(db, `users/${OWNER_ID}/shops/${SHOP_ID}/employees/${loggedInEmp.id}/logs`);
+        const btn = document.getElementById('btnClockInOut');
+        const disp = document.getElementById('clockTimeDisplay');
+
+        try {
+            // 🛡️ දිනය මත පමණක් යැපීම වෙනුවට අවසාන සක්‍රීය ලොගය සෘජුවම ලබාගැනීම
+            const qLast = query(logsRef, orderBy("timestamp", "desc"), limit(1));
+            const snapLast = await getDocs(qLast);
+            
+            const now = window.getSecureTime();
+            todayLogDocId = null;
+
+            if (!snapLast.empty) {
+                const lastLog = snapLast.docs[0];
+                const lData = lastLog.data();
+
+                if (lData.clockInTime && !lData.clockOutTime) {
+                    const inTimeMs = new Date(lData.clockInTime).getTime();
+                    const hrsSinceIn = (now.getTime() - inTimeMs) / (1000 * 60 * 60);
+
+                    // පැය 16ක කවුළුව තුළ පවතී නම්, දින මාරු වුවද මෙය නියම CLOCK-OUT අවස්ථාවයි
+                    if (hrsSinceIn >= 0 && hrsSinceIn <= 16) {
+                        todayLogDocId = lastLog.id;
+                        btn.innerHTML = `<i class="ri-logout-circle-r-line"></i> Clock OUT Now`;
+                        btn.className = "btn btn-danger";
+                        btn.disabled = false;
+                        disp.innerHTML = `Shift Active since <strong style="color:var(--primary)">${new Date(lData.clockInTime).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</strong> (${lData.date})`;
+                        return;
+                    }
+                }
+            }
+
+            // අද දිනට අදාළව දැනටමත් සම්පූර්ණ කළ ලොගයක් ඇත්දැයි බැලීම
+            const todayStr = window.getLocalDateStr();
+            const qToday = query(logsRef, where("date", "==", todayStr));
+            const snapToday = await getDocs(qToday);
+
+            if (!snapToday.empty) {
+                const todayLog = snapToday.docs[0];
+                const tData = todayLog.data();
+                todayLogDocId = todayLog.id;
+
+                if (tData.clockInTime && tData.clockOutTime) {
+                    btn.innerHTML = `<i class="ri-check-double-line"></i> Shift Completed`;
+                    btn.className = "btn";
+                    btn.style.background = "#9ca3af";
+                    btn.disabled = true;
+                    disp.innerHTML = `Clocked OUT at <strong style="color:#b91c1c">${new Date(tData.clockOutTime).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</strong>`;
+                } else {
+                    btn.innerHTML = `<i class="ri-shield-check-line"></i> Manager Updated`;
+                    btn.className = "btn";
+                    btn.style.background = "#9ca3af";
+                    btn.disabled = true;
+                    disp.innerHTML = `Status: <strong>${tData.status}</strong>`;
+                }
+            } else {
+                todayLogDocId = null;
+                btn.innerHTML = `<i class="ri-fingerprint-line"></i> Clock IN Now`;
+                btn.className = "btn btn-primary";
+                btn.disabled = false;
+                disp.innerHTML = `Ready for shift. Tap to start.`;
+            }
+        } catch(e) { console.error("Attendance Check Error:", e); }
+    }
+
+    // =========================================================================
+    // 🏛️ ZERO-TRUST GEOFENCING & BIOMETRIC ENFORCEMENT PUNCH ENGINE
+    // හොර GPS සහ Biometric Strict අවස්ථාවල Phone Punching සම්පූර්ණයෙන්ම වළක්වන පලිහ
+    // =========================================================================
+    function calculateHaversineDistanceKm(lat1, lon1, lat2, lon2) {
+        const R = 6371; // Earth radius in KM
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                  Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                  Math.sin(dLon/2) * Math.sin(dLon/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return R * c;
+    }
+
+    window.toggleClock = async () => {
+        toggleLoader(true);
+        document.querySelector('#loader div:nth-child(2)').textContent = "Verifying Corporate Policy...";
+
+        // 1. ශාඛාවේ Attendance Policy සහ Geofencing පරීක්ෂාව
+        let shopProfile = null;
+        try {
+            const profSnap = await getDoc(doc(db, `users/${OWNER_ID}/shops/${SHOP_ID}/settings`, 'profile'));
+            if (profSnap.exists()) shopProfile = profSnap.data();
+        } catch(e) {}
+
+        // 🛡️ BIOMETRIC STRICT GUARD: Admin විසින් Fingerprint Only දමා ඇත්නම් Phone එකෙන් බෑ!
+        if (shopProfile && shopProfile.attendanceMode === 'biometric_strict') {
+            toggleLoader(false);
+            alert("⛔ CORPORATE POLICY LOCKOUT!\n\nමෙම ආයතනයේ පැමිණීම සටහන් කිරීම ඇඟිලි සලකුණු යන්ත්‍රයට (Biometric Machine) පමණක් සීමා කර ඇත.\nදුරකථනය මඟින් Clock-In/Out වීම ආයතන ප්‍රතිපත්තිය අනුව තහනම්ය.");
+            return showToast("Mobile Punching disabled by Admin policy!", "error");
+        }
+
+        if (!navigator.geolocation) {
+            toggleLoader(false);
+            return showToast("Location services not supported on this device.", "error");
+        }
+
+        document.querySelector('#loader div:nth-child(2)').textContent = "Acquiring Accurate GPS...";
+
+        navigator.geolocation.getCurrentPosition(async (position) => {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            const accuracy = position.coords.accuracy;
+            const mapLink = `https://www.google.com/maps?q=${lat},${lng}`;
+
+            // 🛡️ SMART GEOFENCING: කඩේ GPS ලියාපදිංචි කර ඇත්නම් මීටර් 200 සීමාව පරීක්ෂා කිරීම
+            if (shopProfile && shopProfile.geoLatitude && shopProfile.geoLongitude) {
+                const shopLat = parseFloat(shopProfile.geoLatitude);
+                const shopLng = parseFloat(shopProfile.geoLongitude);
+                const distKm = calculateHaversineDistanceKm(lat, lng, shopLat, shopLng);
+                const distMeters = distKm * 1000;
+
+                if (distMeters > 200) { // මීටර් 200කට වඩා ඈතින් නම්
+                    toggleLoader(false);
+                    alert(`⛔ GEOFENCE PERIMETER VIOLATION!\n\nඔබ සිටින්නේ ආයතනයට නියමිත භූමි සීමාවෙන් පිටතය (දුර: මීටර් ${Math.round(distMeters)}).\nපැමිණීම සටහන් කිරීමට ආයතන පරිශ්‍රය තුළ රැඳී සිටිය යුතුය.`);
+                    return showToast("Punch rejected: Outside shop perimeter!", "error");
+                }
+            }
+
+            const todayStr = window.getLocalDateStr();
+            const now = window.getSecureTime(); 
+            const nowIso = now.toISOString(); 
+            const logsRef = collection(db, `users/${OWNER_ID}/shops/${SHOP_ID}/employees/${loggedInEmp.id}/logs`);
+
+            document.querySelector('#loader div:nth-child(2)').textContent = "Checking Branch Roster...";
+
+            try {
+                // =========================================================================
+                // 🏛️ STEP 1: FETCH AUTHORITATIVE BRANCH ROSTER FOR TODAY
+                // සේවකයා අයිති ශාඛාවේ Roster දින දර්ශනය සෘජුවම පරිශීලනය කිරීම
+                // =========================================================================
+                const [ry, rm] = todayStr.split('-');
+                const rosterRef = doc(db, `users/${OWNER_ID}/shops/${SHOP_ID}/settings`, `roster_${ry}_${rm}`);
+                const rosterSnap = await getDoc(rosterRef);
+
+                let todayRoster = null;
+                if (rosterSnap.exists() && rosterSnap.data().days) {
+                    todayRoster = rosterSnap.data().days[todayStr] || null;
+                }
+
+                // 🚨 CLOSED STORE ENFORCEMENT: අද කඩේ වසා ඇත්නම් ලොග් වීම අවහිර කිරීම
+                if (todayRoster && todayRoster.isClosed && !todayLogDocId) {
+                    toggleLoader(false);
+                    alert(`⛔ STORE CLOSED TODAY (${todayStr})!\n\nආයතනික Roster එකට අනුව අද ශාඛාව වසා ඇත.\nනිවාඩු දින සේවා මුරයක් නම් Admin විසින් පද්ධතියෙන් අවසර ලබාදිය යුතුය.`);
+                    return showToast("Store is officially closed today!", "error");
+                }
+
+                if(!todayLogDocId) {
+                    // =========================================================================
+                    // 🏛️ CLOCK-IN ENGINE (ROSTER COMPLIANT WITH LATE TRACKING)
+                    // =========================================================================
+                    let calculatedLateMinutes = 0;
+                    if (todayRoster && !todayRoster.isClosed && todayRoster.shiftStart) {
+                        const shiftStartTime = new Date(`${todayStr}T${todayRoster.shiftStart}:00+05:30`);
+                        if (now > shiftStartTime) {
+                            calculatedLateMinutes = Math.floor((now - shiftStartTime) / 60000);
+                        }
+                    }
+
+                    const newLogRef = await addDoc(logsRef, {
+                        date: todayStr, 
+                        status: 'P', 
+                        clockInTime: nowIso,
+                        lateMins: calculatedLateMinutes, // 👈 🏛️ Roster Late Minutes සටහන් වේ
+                        ot: 0, 
+                        workedHours: 0, 
+                        advance: 0, 
+                        timestamp: nowIso,
+                        clockInLocation: mapLink
+                    });
+                    todayLogDocId = newLogRef.id;
+
+                    const lateNotice = calculatedLateMinutes > 0 ? ` (Late by ${Math.floor(calculatedLateMinutes/60)}h ${calculatedLateMinutes%60}m)` : '';
+                    showToast(`Clocked IN Successfully!${lateNotice}`, calculatedLateMinutes > 0 ? "warning" : "success");
+
+                } else {
+                    // =========================================================================
+                    // 🏛️ CLOCK-OUT ENGINE (MEAL BREAK, ROSTER OT WINDOW & WHITELIST COMPLIANT)
+                    // =========================================================================
+                    const logDoc = await getDoc(doc(logsRef, todayLogDocId));
+                    const lData = logDoc.data();
+                    
+                    const inTime = new Date(lData.clockInTime);
+                    const outTime = now; 
+                    let totalPhysicalHours = (outTime - inTime) / (1000 * 60 * 60);
+                    if (totalPhysicalHours < 0) totalPhysicalHours = 0;
+
+                    // A. සේවා මුරයේ මුල් දිනයට අදාළ Roster නීති ලබාගැනීම
+                    const shiftDateStr = lData.date || todayStr;
+                    const [sy, sm] = shiftDateStr.split('-');
+                    const shiftRosterSnap = await getDoc(doc(db, `users/${OWNER_ID}/shops/${SHOP_ID}/settings`, `roster_${sy}_${sm}`));
+                    const shiftRoster = (shiftRosterSnap.exists() && shiftRosterSnap.data().days) ? shiftRosterSnap.data().days[shiftDateStr] : todayRoster;
+
+                    // B. ROSTER MEAL BREAK DEDUCTION (නොගෙවන කෑම පැය ස්වයංක්‍රීයව අඩු කිරීම)
+                    let netWorkedHours = totalPhysicalHours;
+                    const breakMins = shiftRoster ? (parseInt(shiftRoster.breakMins) || 60) : 60;
+                    const breakThreshold = shiftRoster ? (parseFloat(shiftRoster.breakThreshold) || 4.0) : 4.0;
+                    const isPaidBreak = shiftRoster ? (shiftRoster.isBreakPaid || false) : false;
+
+                    if (!isPaidBreak && totalPhysicalHours >= breakThreshold) {
+                        netWorkedHours = Math.max(0, totalPhysicalHours - (breakMins / 60));
+                    }
+                    netWorkedHours = Math.round((netWorkedHours + Number.EPSILON) * 100) / 100;
+
+                    // C. ROSTER & WHITELIST OT ENGINE (නීත්‍යානුකූල අතිකාල ගණනය)
+                    let calculatedOT = 0;
+                    let otAuditNote = "";
+                    const isHolidayDuty = shiftRoster ? (shiftRoster.isClosed || shiftRoster.isHolidayOT) : false;
+                    const empOtType = loggedInEmp.otType || 'auto';
+
+                    if (empOtType === 'none') {
+                        calculatedOT = 0;
+                        otAuditNote = "OT Ineligible (Executive Role)";
+                    } else if (isHolidayDuty) {
+                        // පෝය සහ නිවාඩු දිනවල සේවය කළ මුළු ශුද්ධ පැය ගණන Holiday OT ලෙස සලකයි
+                        calculatedOT = netWorkedHours;
+                    } else {
+                        // සාමාන්‍ය දිනවල OT සඳහා: 1. Whitelist Check එක + 2. Roster OT Window Check එක
+                        const wlSnap = await getDoc(doc(db, `users/${OWNER_ID}/shops/${SHOP_ID}/settings`, `ot_whitelist_${shiftDateStr}`));
+                        const isWhitelisted = wlSnap.exists() && (wlSnap.data().allowedEmpIds || []).includes(loggedInEmp.id);
+
+                        if (!isWhitelisted) {
+                            calculatedOT = 0;
+                            otAuditNote = "Unapproved OT: Employee not in Daily OT Whitelist";
+                        } else if (shiftRoster && shiftRoster.otStart) {
+                            const otStartTime = new Date(`${shiftDateStr}T${shiftRoster.otStart}:00+05:30`);
+                            if (outTime > otStartTime) {
+                                let rawOtHours = (outTime - otStartTime) / (1000 * 60 * 60);
+                                if (rawOtHours < 0.5) calculatedOT = 0; // විනාඩි 30 ට අඩු නම් 0 යි
+                                else calculatedOT = Math.floor(rawOtHours * 2) / 2; // පැය භාගයේ පියවරවලට වටයයි
+                            }
+                        }
+                    }
+
+                    calculatedOT = Math.round((calculatedOT + Number.EPSILON) * 100) / 100;
+
+                    const updateFields = {
+                        clockOutTime: nowIso,
+                        workedHours: netWorkedHours, // 👈 🏛️ කෑම පැය කැපුණු නියම වැඩ කළ පැය
+                        ot: calculatedOT,             // 👈 🏛️ Whitelist එකෙන් අනුමත වූ Roster OT
+                        systemCalcOt: calculatedOT,
+                        isHolidayDuty: isHolidayDuty,
+                        clockOutLocation: mapLink
+                    };
+
+                    if (otAuditNote) {
+                        updateFields.systemNote = `⚠️ ${otAuditNote}`;
+                    }
+
+                    await updateDoc(doc(logsRef, todayLogDocId), updateFields);
+                    
+                    const otMsg = calculatedOT > 0 ? ` | Authorized OT: ${calculatedOT}h` : (otAuditNote ? ` (Notice: ${otAuditNote})` : '');
+                    showToast(`Clocked OUT! Net Worked: ${netWorkedHours}h${otMsg}`);
+                }
+
+                await checkTodayAttendance();
+                calculateCurrentMonthSalary(); 
+            } catch (e) {
+                console.error("Attendance Sync Error:", e);
+                showToast("Error updating attendance", "error");
+            }
+            toggleLoader(false);
+            
+        }, (error) => {
+            // 🚨 සේවකයා GPS on කිරීම ප්‍රතික්ෂේප කළහොත් බොත්තම වැඩ කරන්නේ නැත!
+            toggleLoader(false);
+            showToast("You MUST allow GPS Location to Clock In/Out!", "error");
+            alert("ආයතනික නීති වලට අනුව පැමිණීම සටහන් කිරීමට අනිවාර්යයෙන්ම GPS Location On කළ යුතුය.");
+        }, { enableHighAccuracy: true }); // උපරිම නිරවද්‍යතාවය (High Accuracy)
+    };
+
+    // =========================================================================
+    // 🏛️ TRANSPARENT SALARY, ALLOWANCES & ATTENDANCE AGGREGATION ENGINE
+    // සේවකයාට පැමිණි දින, නොපැමිණි දින, දීමනා, කැපීම් විනිවිදව පෙන්වන ගණනය
+    // =========================================================================
+    window.currentSalaryBreakdown = null;
+
+    async function checkTodayOtStatus() {
+        const badge = document.getElementById('todayOtStatusBadge');
+        if (!badge || !loggedInEmp) return;
+
+        const todayStr = window.getLocalDateStr();
+        const [ry, rm] = todayStr.split('-');
+
+        try {
+            // 1. Roster Check
+            const rSnap = await getDoc(doc(db, `users/${OWNER_ID}/shops/${SHOP_ID}/settings`, `roster_${ry}_${rm}`));
+            const shiftRoster = (rSnap.exists() && rSnap.data().days) ? rSnap.data().days[todayStr] : null;
+
+            // 2. Whitelist Check
+            const wlSnap = await getDoc(doc(db, `users/${OWNER_ID}/shops/${SHOP_ID}/settings`, `ot_whitelist_${todayStr}`));
+            const isWhitelisted = wlSnap.exists() && (wlSnap.data().allowedEmpIds || []).includes(loggedInEmp.id);
+
+            const isHolidayDuty = shiftRoster ? (shiftRoster.isClosed || shiftRoster.isHolidayOT) : false;
+            const empOtType = loggedInEmp.otType || 'auto';
+
+            if (empOtType === 'none') {
+                badge.style.background = '#f1f5f9';
+                badge.style.borderColor = '#cbd5e1';
+                badge.style.color = '#64748b';
+                badge.innerHTML = `<span><i class="ri-forbid-line"></i> Today's OT: <b>Ineligible (Fixed Executive Role)</b></span>`;
+            } else if (isHolidayDuty) {
+                badge.style.background = '#faf5ff';
+                badge.style.borderColor = '#d8b4fe';
+                badge.style.color = '#7e22ce';
+                badge.innerHTML = `<span><i class="ri-vip-crown-fill"></i> Today's Shift: <b>Holiday Duty (Double OT Rate Applies)</b></span><span style="font-size:10px; background:#f3e8ff; padding:2px 6px; border-radius:4px;">2.0x</span>`;
+            } else if (isWhitelisted && shiftRoster && shiftRoster.otStart) {
+                badge.style.background = '#f0fdf4';
+                badge.style.borderColor = '#86efac';
+                badge.style.color = '#15803d';
+                badge.innerHTML = `<span><i class="ri-checkbox-circle-fill"></i> Today's OT: <b>Pre-Approved (${shiftRoster.otStart} - ${shiftRoster.otEnd || 'Night'})</b></span><span style="font-size:10px; background:#dcfce7; padding:2px 6px; border-radius:4px;">Authorized</span>`;
+            } else {
+                badge.style.background = '#f8fafc';
+                badge.style.borderColor = '#e2e8f0';
+                badge.style.color = '#475569';
+                badge.innerHTML = `<span><i class="ri-time-line"></i> Today's OT: <b>Standard Shift Only (No OT Authorized)</b></span><span style="font-size:10px; background:#f1f5f9; padding:2px 6px; border-radius:4px;">Normal</span>`;
+            }
+        } catch(e) {
+            console.warn("OT Status Check Warning:", e);
+        }
+    }
+
+    async function calculateCurrentMonthSalary() {
+        const now = window.getSecureTime ? window.getSecureTime() : new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const lastDay = new Date(year, now.getMonth() + 1, 0).getDate();
+        
+        const startOfMonthIso = new Date(`${year}-${month}-01T00:00:00.000Z`).toISOString();
+        const endOfMonthIso = new Date(`${year}-${month}-${lastDay}T23:59:59.999Z`).toISOString();
+        
+        try {
+            // 🚀 1. CALCULATE COMMISSION (REALIZED REVENUE)
+            let earnedCommission = 0;
+            const target = Number(loggedInEmp.targetAmount) || 0;
+            const rate = Number(loggedInEmp.commissionRate) || 0;
+            const isRep = loggedInEmp.isSalesRep === true;
+            const commBox = document.getElementById('commissionTrackerBox');
+
+            if (isRep && rate > 0) {
+                commBox.style.display = 'block';
+                let realizedSales = 0;
+
+                const qSales = query(collection(db, `users/${OWNER_ID}/shops/${SHOP_ID}/sales`),
+                    where("salesRepId", "==", loggedInEmp.id), where("date", ">=", startOfMonthIso), where("date", "<=", endOfMonthIso)
+                );
+                const snapSales = await getDocs(qSales);
+                snapSales.forEach(d => {
+                    const s = d.data();
+                    const unpaid = s.creditBalance || 0;
+                    const tax = s.taxAmt || 0;
+                    let realized = s.total - tax - unpaid;
+                    if(realized > 0) realizedSales += realized;
+                });
+
+                const qRef = query(collection(db, `users/${OWNER_ID}/shops/${SHOP_ID}/refunds`),
+                    where("salesRepId", "==", loggedInEmp.id), where("date", ">=", startOfMonthIso), where("date", "<=", endOfMonthIso)
+                );
+                const snapRef = await getDocs(qRef);
+                snapRef.forEach(d => {
+                    const r = d.data();
+                    const reversedTax = r.taxReversed || 0;
+                    realizedSales -= (r.amount - reversedTax);
+                });
+
+                if (target > 0) {
+                    let perc = Math.min((realizedSales / target) * 100, 100);
+                    document.getElementById('empProgressBar').style.width = `${perc}%`;
+
+                    if (realizedSales > target) {
+                        earnedCommission = (realizedSales - target) * (rate / 100);
+                        document.getElementById('empCommissionEarnedTxt').textContent = `🔥 Target Reached! Earned: ${formatMoney(earnedCommission)}`;
+                        document.getElementById('empCommissionEarnedTxt').style.color = '#15803d';
+                    } else {
+                        const short = target - realizedSales;
+                        document.getElementById('empCommissionEarnedTxt').textContent = `Sell ${formatMoney(short)} more for ${rate}% Comm!`;
+                        document.getElementById('empCommissionEarnedTxt').style.color = '#b45309';
+                    }
+                } else {
+                    document.getElementById('empProgressBar').style.width = `100%`;
+                    earnedCommission = realizedSales * (rate / 100);
+                    document.getElementById('empCommissionEarnedTxt').textContent = `🔥 Earned: ${formatMoney(earnedCommission)}`;
+                }
+
+                document.getElementById('empNetSalesTxt').textContent = `Net Sales: ${formatMoney(realizedSales)}`;
+                document.getElementById('empTargetTxt').textContent = `Target: ${formatMoney(target)}`;
+            } else {
+                commBox.style.display = 'none';
+            }
+
+            // 🚀 2. CALCULATE ATTENDANCE & NET SALARY
+            const startStr = `${year}-${month}-01`;
+            const endStr = `${year}-${month}-${String(lastDay).padStart(2, '0')}`;
+
+            const logsRef = collection(db, `users/${OWNER_ID}/shops/${SHOP_ID}/employees/${loggedInEmp.id}/logs`);
+            const qLogs = query(logsRef, where("date", ">=", startStr), where("date", "<=", endStr));
+            const snapLogs = await getDocs(qLogs);
+            
+            const uniqueLogs = {};
+            snapLogs.forEach(d => {
+                const l = d.data();
+                if(!uniqueLogs[l.date] || new Date(l.timestamp) > new Date(uniqueLogs[l.date].timestamp)) {
+                    uniqueLogs[l.date] = l;
+                }
+            });
+            const processedLogs = Object.values(uniqueLogs);
+
+            let pDays = 0, plDays = 0, halfDays = 0, lwpDays = 0;
+            let totExtra = 0, totAdvance = 0, deficitDeduction = 0, totalLateMins = 0;
+
+            const baseSal = Number(loggedInEmp.baseSalary) || 0;
+            const stdHours = Math.max(1, Number(loggedInEmp.standardHours) || 8); 
+            
+            // Statutory OT Rate (Base / 240 * 1.5)
+            let hourlyOtRate = 0;
+            const empOtType = loggedInEmp.otType || 'auto';
+            if (empOtType === 'fixed') {
+                hourlyOtRate = Number(loggedInEmp.otRate) || 0;
+            } else if (empOtType === 'auto') {
+                hourlyOtRate = (baseSal / 240) * 1.5;
+            }
+
+            const dailyRate = baseSal / lastDay; 
+            const hourlyRate = dailyRate / stdHours;
+
+            processedLogs.forEach(l => {
+                if(l.status === 'P') {
+                    pDays++;
+                    const worked = Number(l.workedHours) || 0;
+                    if(worked > 0 && worked < stdHours) {
+                        deficitDeduction += ((stdHours - worked) * hourlyRate);
+                    }
+                }
+                else if(l.status === 'PL') plDays++;
+                else if(l.status === 'H') halfDays++;
+                else if(l.status === 'LWP') lwpDays++;
+
+                totExtra += (Number(l.ot) || 0);
+                totAdvance += (Number(l.advance) || 0);
+                totalLateMins += (Number(l.lateMins) || 0);
+            });
+
+            // 🏛️ UPDATE DASHBOARD ATTENDANCE SUMMARY HUD COUNTERS
+            document.getElementById('dashPresentDays').textContent = pDays;
+            document.getElementById('dashLeaveDays').textContent = (plDays + lwpDays);
+            document.getElementById('dashHalfDays').textContent = halfDays;
+
+            const payableDays = pDays + plDays + (halfDays * 0.5);
+            const earnedBasic = Math.round((payableDays * dailyRate) * 100) / 100;
+            const otPay = Math.round((totExtra * hourlyOtRate) * 100) / 100;
+
+            // 🏛️ SALARY PACKAGE ALLOWANCES & DEDUCTIONS BREAKDOWN
+            let packageAllowances = 0;
+            let epfLiableAllowances = 0;
+            let dynamicDeductions = 0;
+            let itemizedAllowances = [];
+            let itemizedDeductions = [];
+
+            if (loggedInEmp.salaryPackageId) {
+                try {
+                    const pkgSnap = await getDoc(doc(db, `users/${OWNER_ID}/shops/${SHOP_ID}/salary_packages`, loggedInEmp.salaryPackageId));
+                    if (pkgSnap.exists()) {
+                        const pkgData = pkgSnap.data();
+                        
+                        // Allowances
+                        (pkgData.allowances || []).forEach(alw => {
+                            let amt = 0;
+                            if (alw.type === 'fixed') amt = Number(alw.amount) || 0;
+                            else if (alw.type === 'daily') amt = (Number(alw.amount) || 0) * (pDays + (halfDays * 0.5));
+                            else if (alw.type === 'condition' && lwpDays === 0 && deficitDeduction === 0) amt = Number(alw.amount) || 0;
+                            
+                            if (amt > 0) {
+                                packageAllowances += amt;
+                                if (alw.isEpf) epfLiableAllowances += amt;
+                                itemizedAllowances.push({ name: alw.name, amount: amt, isEpf: !!alw.isEpf });
+                            }
+                        });
+
+                        // Deductions
+                        (pkgData.deductions || []).forEach(ded => {
+                            const amt = Number(ded.amount) || 0;
+                            if (amt > 0) {
+                                dynamicDeductions += amt;
+                                itemizedDeductions.push({ name: ded.name, amount: amt });
+                            }
+                        });
+                    }
+                } catch(pkgErr) { console.warn("Package load error:", pkgErr); }
+            }
+
+            // Late Penalty (Shop & Office Employees Act: max 20% cap)
+            let latePenaltyAmount = 0;
+            try {
+                const profSnap = await getDoc(doc(db, `users/${OWNER_ID}/shops/${SHOP_ID}/settings`, 'profile'));
+                if (profSnap.exists()) {
+                    const prof = profSnap.data();
+                    const grace = prof.gracePeriod !== undefined ? parseFloat(prof.gracePeriod) : 30;
+                    const penRate = prof.latePenaltyRate !== undefined ? parseFloat(prof.latePenaltyRate) : 0;
+                    if (totalLateMins > grace && penRate > 0) {
+                        const rawPen = ((totalLateMins - grace) / 60) * penRate;
+                        latePenaltyAmount = Math.min(rawPen, earnedBasic * 0.20);
+                    }
+                }
+            } catch(e) {}
+            latePenaltyAmount = Math.round(latePenaltyAmount * 100) / 100;
+            deficitDeduction = Math.round(deficitDeduction * 100) / 100;
+
+            // EPF Deduction (8%)
+            const epfGrossBase = earnedBasic + epfLiableAllowances;
+            const epfDeduction = (loggedInEmp.isEpfEligible !== false && epfGrossBase > 0) ? Math.round((epfGrossBase * 0.08) * 100) / 100 : 0;
+            
+            // Total Gross Earnings
+            const grossEarnings = Math.round((earnedBasic + packageAllowances + otPay + earnedCommission) * 100) / 100;
+            // Total Deductions
+            const totalDeductions = Math.round((epfDeduction + dynamicDeductions + totAdvance + latePenaltyAmount + deficitDeduction) * 100) / 100;
+            // Net Salary
+            const netSalary = Math.round((grossEarnings - totalDeductions) * 100) / 100;
+
+            document.getElementById('estSalaryDisplay').textContent = formatMoney(netSalary);
+            document.getElementById('totAdvanceDisplay').textContent = formatMoney(totAdvance);
+
+            // 🏛️ CACHE COMPLETE RECONCILED PAYSLIP DATA FOR POPUP VIEWER
+            window.currentSalaryBreakdown = {
+                monthYear: `${now.toLocaleString('en-US', { month: 'long' })} ${year}`,
+                baseSalary: baseSal,
+                earnedBasic: earnedBasic,
+                payableDays: payableDays,
+                pDays: pDays,
+                plDays: plDays,
+                lwpDays: lwpDays,
+                halfDays: halfDays,
+                otHours: totExtra,
+                otPay: otPay,
+                earnedCommission: earnedCommission,
+                allowances: itemizedAllowances,
+                packageAllowancesTotal: packageAllowances,
+                grossEarnings: grossEarnings,
+                epfDeduction: epfDeduction,
+                advancesTotal: totAdvance,
+                latePenalty: latePenaltyAmount,
+                totalLateMins: totalLateMins,
+                deficitDeduction: deficitDeduction,
+                deductions: itemizedDeductions,
+                totalDeductions: totalDeductions,
+                netSalary: netSalary
+            };
+
+        } catch (e) {
+            console.error("Salary calculation error", e);
+        }
+    }
+
+    // =========================================================================
+    // 🏛️ DIGITAL PAYSLIP BREAKDOWN MODAL VIEWER
+    // =========================================================================
+    window.openSalaryBreakdownModal = () => {
+        if (!window.currentSalaryBreakdown) {
+            return showToast("Salary data is still calculating...", "warning");
+        }
+
+        const b = window.currentSalaryBreakdown;
+        document.getElementById('psPeriodSubtitle').textContent = `Month of ${b.monthYear} (Live Calculation)`;
+
+        const container = document.getElementById('payslipModalContent');
+        
+        let allowancesListHtml = b.allowances.map(a => `
+            <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:12px;">
+                <span style="color:#475569;">+ ${a.name} ${a.isEpf ? '<b style="color:#0f766e; font-size:9px;">(EPF)</b>' : ''}</span>
+                <span style="color:#15803d; font-weight:bold;">+${formatMoney(a.amount)}</span>
+            </div>
+        `).join('');
+        if (!allowancesListHtml) allowancesListHtml = `<div style="font-size:11px; color:#94a3b8; font-style:italic;">No package allowances</div>`;
+
+        let deductionsListHtml = b.deductions.map(d => `
+            <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:12px;">
+                <span style="color:#475569;">- ${d.name}</span>
+                <span style="color:#b91c1c; font-weight:bold;">-${formatMoney(d.amount)}</span>
+            </div>
+        `).join('');
+
+        container.innerHTML = `
+            <!-- 1. EARNINGS SECTION -->
+            <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:12px; margin-bottom:12px;">
+                <div style="font-size:11px; font-weight:900; color:#166534; text-transform:uppercase; margin-bottom:8px; border-bottom:1px dashed #86efac; padding-bottom:4px;">
+                    <i class="ri-add-circle-fill"></i> Gross Earnings (ඉපයීම්)
+                </div>
+                
+                <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:12px;">
+                    <span>Contract Basic Salary:</span>
+                    <span style="font-weight:bold;">${formatMoney(b.baseSalary)}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:6px; font-size:12px;">
+                    <span>Gross Basic Earned (${b.payableDays} Days):</span>
+                    <span style="color:#15803d; font-weight:bold;">+${formatMoney(b.earnedBasic)}</span>
+                </div>
+
+                <div style="margin:6px 0; border-top:1px dashed #bbf7d0;"></div>
+                <div style="font-size:10px; font-weight:bold; color:#166534; margin-bottom:4px;">Allowances:</div>
+                ${allowancesListHtml}
+
+                <div style="margin:6px 0; border-top:1px dashed #bbf7d0;"></div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:12px;">
+                    <span>Overtime Pay (${b.otHours.toFixed(1)}h):</span>
+                    <span style="color:#15803d; font-weight:bold;">+${formatMoney(b.otPay)}</span>
+                </div>
+                ${b.earnedCommission > 0 ? `
+                <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:12px;">
+                    <span>Sales Commission:</span>
+                    <span style="color:#15803d; font-weight:bold;">+${formatMoney(b.earnedCommission)}</span>
+                </div>` : ''}
+
+                <div style="display:flex; justify-content:space-between; margin-top:8px; padding-top:6px; border-top:1.5px solid #86efac; font-weight:900; font-size:13px; color:#14532d;">
+                    <span>Total Gross Earnings:</span>
+                    <span>${formatMoney(b.grossEarnings)}</span>
+                </div>
+            </div>
+
+            <!-- 2. DEDUCTIONS SECTION -->
+            <div style="background:#fff1f2; border:1px solid #fecaca; border-radius:12px; padding:12px; margin-bottom:12px;">
+                <div style="font-size:11px; font-weight:900; color:#991b1b; text-transform:uppercase; margin-bottom:8px; border-bottom:1px dashed #fca5a5; padding-bottom:4px;">
+                    <i class="ri-subtract-line"></i> Deductions (අඩු කිරීම්)
+                </div>
+
+                <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:12px;">
+                    <span>EPF Employee (8%):</span>
+                    <span style="color:#b91c1c; font-weight:bold;">-${formatMoney(b.epfDeduction)}</span>
+                </div>
+                ${b.advancesTotal > 0 ? `
+                <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:12px;">
+                    <span>Cash Advances Drawn:</span>
+                    <span style="color:#b91c1c; font-weight:bold;">-${formatMoney(b.advancesTotal)}</span>
+                </div>` : ''}
+                ${b.latePenalty > 0 ? `
+                <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:12px;">
+                    <span>Late Attendance Penalty (${b.totalLateMins}m):</span>
+                    <span style="color:#b91c1c; font-weight:bold;">-${formatMoney(b.latePenalty)}</span>
+                </div>` : ''}
+                ${b.deficitDeduction > 0 ? `
+                <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:12px;">
+                    <span>Short-Hours Deficit:</span>
+                    <span style="color:#b91c1c; font-weight:bold;">-${formatMoney(b.deficitDeduction)}</span>
+                </div>` : ''}
+                ${deductionsListHtml}
+
+                <div style="display:flex; justify-content:space-between; margin-top:8px; padding-top:6px; border-top:1.5px solid #fca5a5; font-weight:900; font-size:13px; color:#7f1d1d;">
+                    <span>Total Deductions:</span>
+                    <span>-${formatMoney(b.totalDeductions)}</span>
+                </div>
+            </div>
+
+            <!-- 3. NET PAYABLE BANNER -->
+            <div style="background:#0f766e; color:white; border-radius:12px; padding:15px; text-align:center;">
+                <div style="font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:1px; opacity:0.9;">Take-Home Est. Net Salary</div>
+                <div style="font-size:28px; font-weight:900; margin:4px 0;">${formatMoney(b.netSalary)}</div>
+                <div style="font-size:10px; opacity:0.8;">Subject to final monthly payroll authorization by Manager</div>
+            </div>
+        `;
+
+        document.getElementById('payslipBreakdownModal').style.display = 'flex';
+    };
+
+    // --- History View ---
+    async function loadAttendanceLogs() {
+        const tbody = document.getElementById('logsTableBody');
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:15px; color:#999;"><i class="ri-loader-4-line ri-spin"></i> Loading...</td></tr>';
+        
+        try {
+            const logsRef = collection(db, `users/${OWNER_ID}/shops/${SHOP_ID}/employees/${loggedInEmp.id}/logs`);
+            const q = query(logsRef, orderBy("date", "desc"), limit(30));
+            const snap = await getDocs(q);
+            
+            if(snap.empty) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:15px; color:#999;">No recent logs.</td></tr>';
+                return;
+            }
+
+            let html = '';
+            snap.forEach(d => {
+                const l = d.data();
+                const inTime = l.clockInTime ? new Date(l.clockInTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '-';
+                const outTime = l.clockOutTime ? new Date(l.clockOutTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '-';
+                
+                let dateCol = l.date;
+                if (l.status === 'LWP') dateCol += `<br><span style="font-size:9px; color:#ef4444; background:#fee2e2; padding:2px; border-radius:2px;">Leave</span>`;
+                else if (l.status === 'H') dateCol += `<br><span style="font-size:9px; color:#d97706; background:#fef3c7; padding:2px; border-radius:2px;">Half Day</span>`;
+                
+                html += `
+                <tr style="border-bottom:1px solid #f3f4f6;">
+                    <td style="padding:10px; font-weight:600;">${dateCol}</td>
+                    <td style="padding:10px; text-align:center; color:var(--primary);">${inTime}</td>
+                    <td style="padding:10px; text-align:center; color:#b91c1c;">${outTime}</td>
+                    <td style="padding:10px; text-align:right; font-weight:bold; color:${(l.ot||0)>0?'#10b981':'#6b7280'}">${(l.ot||0).toFixed(1)}</td>
+                </tr>`;
+            });
+            tbody.innerHTML = html;
+        } catch(e) {
+            console.error(e);
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:15px; color:#ef4444;">Error loading logs.</td></tr>';
+        }
+    }
+
+    // --- Tasks & Chat Real-time Listeners ---
+    function initRealtimeListeners() {
+        if(unsubTasks) unsubTasks();
+        if(unsubChat) unsubChat();
+
+        // 1. Tasks Listener (Listen to general tasks assigned to this phone ID)
+        const qTasks = query(collection(db, `users/${OWNER_ID}/shops/${SHOP_ID}/tasks`), where("assignedTo", "==", loggedInEmp.id));
+        unsubTasks = onSnapshot(qTasks, (snap) => {
+            const list = document.getElementById('tasksList');
+            let html = '';
+            let pendingCount = 0;
+
+            snap.forEach(d => {
+                const t = { id: d.id, ...d.data() };
+                if(t.status !== 'done') pendingCount++;
+                
+                // 🛡️ ENTERPRISE UI FIX: Replaced Checkbox with beautiful Input Field & Done Button
+                html += `
+                <div class="task-item ${t.status === 'done' ? 'done' : ''}" style="flex-direction:column; background:${t.status === 'done' ? '#f8fafc' : '#ffffff'}; border:1px solid #e2e8f0; padding:12px; border-radius:8px; margin-bottom:10px;">
+                    <div>
+                        <div style="font-size:14px; font-weight:800; color:#1f2937;">${t.title}</div>
+                        ${t.desc ? `<div style="font-size:12px; color:#64748b; margin-top:3px;">${t.desc}</div>` : ''}
+                        <div style="font-size:10px; color:var(--primary); margin-top:5px; font-weight:bold;">Assigned: ${new Date(t.createdAt).toLocaleDateString()}</div>
+                    </div>
+                    
+                    ${t.status !== 'done' ? `
+                    <div style="margin-top:10px; display:flex; gap:8px; width:100%;">
+                        <input type="text" id="taskNote_${t.id}" placeholder="Type completion note here..." style="margin:0; flex:1; font-size:12px; padding:8px; border-color:#cbd5e1;">
+                        <button class="btn btn-success" style="width:auto; padding:8px 15px; font-size:12px;" onclick="markTaskDone('${t.id}')"><i class="ri-check-line"></i> Done</button>
+                    </div>
+                    ` : `
+                    <div style="margin-top:8px; font-size:11px; color:#15803d; font-weight:bold;">
+                        <i class="ri-check-double-line"></i> Completed ${t.employeeNote ? `- Note: ${t.employeeNote}` : ''}
+                    </div>
+                    `}
+                </div>`;
+            });
+
+            list.innerHTML = html || '<div style="text-align:center; padding:15px; color:#999;">No tasks assigned. Good job!</div>';
+            
+            const badge = document.getElementById('taskBadge');
+            if(pendingCount > 0) { badge.style.display = 'block'; } else { badge.style.display = 'none'; }
+        });
+
+        // 2. Chat Listener (Private isolated collection per employee)
+        const chatRef = collection(db, `users/${OWNER_ID}/shops/${SHOP_ID}/employees/${loggedInEmp.id}/messages`);
+        const qChat = query(chatRef, orderBy("timestamp", "asc"), limit(50));
+        
+        unsubChat = onSnapshot(qChat, (snap) => {
+            const history = document.getElementById('chatHistory');
+            let html = '<div style="text-align:center; color:#999; font-size:11px; margin-top:10px;">Manager & Admin Chat Line</div>';
+            let unread = false;
+
+            snap.forEach(d => {
+                const msg = d.data();
+                // 🛡️ ENTERPRISE FIX: Parse Video Call Links
+                let displayHtml = msg.text.replace(/</g, "&lt;");
+                if(msg.text.startsWith('[VIDEO_CALL]')) {
+                    const vUrl = msg.text.replace('[VIDEO_CALL]', '');
+                    displayHtml = `<div style="text-align:center; padding:5px; color:#166534;">
+                        <i class="ri-vidicon-fill" style="font-size:24px;"></i><br><b>Manager is calling...</b><br>
+                        <button class="btn btn-success" style="margin-top:8px; padding:6px 15px; font-size:12px; border-radius:50px;" onclick="joinEmpVideoCall('${vUrl}')"><i class="ri-phone-camera-fill"></i> Answer Call</button>
+                    </div>`;
+                }
+
+                if(msg.sender === 'manager' || msg.sender === 'admin') {
+                    html += `<div class="chat-msg manager"><b>Manager:</b><br>${displayHtml}</div>`;
+                    if(!document.getElementById('view-chat').classList.contains('active')) unread = true;
+                } else {
+                    html += `<div class="chat-msg me">${displayHtml}</div>`;
+                }
+            });
+
+            history.innerHTML = html;
+            
+            if(unread) document.getElementById('chatBadge').style.display = 'block';
+            
+            // Auto scroll down
+            setTimeout(() => { history.scrollTop = history.scrollHeight; }, 100);
+        });
+    }
+
+    // --- 🛡️ ENTERPRISE Task Engine ---
+    window.markTaskDone = async (taskId) => {
+        // 🚀 ENTERPRISE UX: Get Note directly from the beautiful UI Input instead of prompt!
+        const noteInput = document.getElementById(`taskNote_${taskId}`);
+        const empNote = noteInput ? noteInput.value.trim() : '';
+
+        toggleLoader(true);
+        try {
+            await updateDoc(doc(db, `users/${OWNER_ID}/shops/${SHOP_ID}/tasks`, taskId), {
+                status: 'done', 
+                completedAt: window.getSecureTime().toISOString(),
+                employeeNote: empNote || 'Task completed (No note)' 
+            });
+            showToast("Task marked as Done & Sent to Manager!");
+        } catch(e) { 
+            showToast("Error updating task", "error"); 
+        }
+        toggleLoader(false);
+    };
+
+    // --- Chat Engine ---
+    window.sendChatMsg = async () => {
+        const input = document.getElementById('chatMsgInput');
+        const text = input.value.trim();
+        if(!text) return;
+        
+        input.value = ''; // Instant clear UX
+        
+        try {
+            const chatRef = collection(db, `users/${OWNER_ID}/shops/${SHOP_ID}/employees/${loggedInEmp.id}/messages`);
+            await addDoc(chatRef, {
+                sender: 'employee',
+                text: text,
+                timestamp: window.getSecureTime().toISOString()
+            });
+        } catch(e) {
+            console.error(e);
+            showToast("Message failed to send", "error");
+        }
+    };
+
+    // --- Settings (Change PIN) ---
+    window.changePin = async () => {
+        const currentP = document.getElementById('currentPin').value;
+        const p1 = document.getElementById('newPin1').value;
+        const p2 = document.getElementById('newPin2').value;
+        
+        // Validation Logic
+        const dbPin = loggedInEmp.pin || "1234";
+        if(!currentP || currentP !== String(dbPin)) return showToast("Current PIN is incorrect!", "error");
+        if(!p1 || p1.length !== 4 || !/^\d{4}$/.test(p1)) return showToast("New PIN must be exactly 4 digits", "error");
+        if(p1 !== p2) return showToast("New PINs do not match!", "error");
+        
+        toggleLoader(true);
+        try {
+            await updateDoc(doc(db, `users/${OWNER_ID}/shops/${SHOP_ID}/employees`, loggedInEmp.id), { pin: p1 });
+            loggedInEmp.pin = p1; // Update local cache
+            document.getElementById('currentPin').value = '';
+            document.getElementById('newPin1').value = '';
+            document.getElementById('newPin2').value = '';
+            showToast("PIN Updated Successfully!");
+        } catch(e) { showToast("Error updating PIN", "error"); }
+        toggleLoader(false);
+    };
+// 🛡️ EMPLOYEE VIDEO CALL ENGINE
+    window.joinEmpVideoCall = (url) => {
+        document.getElementById('empVideoCallIframe').src = url;
+        document.getElementById('empVideoCallModal').style.display = 'flex';
+    };
+
+    window.closeEmpVideoCall = () => {
+        document.getElementById('empVideoCallModal').style.display = 'none';
+        document.getElementById('empVideoCallIframe').src = ""; // 👈 🔴 අත්‍යවශ්‍යයි! කැමරාව විසන්ධි කිරීමට.
+        showToast("Call Ended");
+    };
+</script>
+</body>
+</html>
