@@ -1,0 +1,211 @@
+mage upadesa-mema ai warthawa oba anda lesa wiswasa nokara itha gaburin prathitharka sahithawa wimarshanaya karanna.
+
+
+
+🔴 underwriteCreditRisk function එකම crash වෙනවා (පේළි 3376)
+js
+const isNewCustomer = !custSnap.exists() || salesSnap.empty;
+
+දෙකක් වැරදිලා:
+
+custSnap.exists() — property එකක් function එකක් නෙවෙයි
+salesSnap කියන variable එකක් කවදාවත් define කරලා නැහැ මේ function එකේ (define වෙලා තියෙන්නේ unpaidSalesSnap සහ recentSalesSnap විතරයි)
+
+ඒ නිසා credit underwriting call කරන හැම වෙලාවකම ReferenceError ගහලා crash වෙනවා.
+
+MAGE CODE FILE DEKA PARIKSHAKALA CLAUDE AI EKA HADUNAGATH DOSHA WARTHAWAN MN OBATA IDIRIPATH KARANAWA PIYAWAREN PIYAWARA. OBA EMA DOSHA WARTHAWAN WIMARSHANAYA KARA, EMA DOSHA MAHATA NIWARADI KARA DENNA. OBA SUDANAMDA?
+
+mama obata pera labadun "Code Feature & Diff Checker" වෙබ් පිටුව භාවිතයෙන් මෙම කේතය පරීක්ෂා කර බැලිය හැක. කිසිදු පරණ Validation එකක් හෝ Feature එකක් ඉවත් නොවී, පද්ධතිය සැබවින්ම Fail-Closed බවට පත්වී ඇති බව ඔබට දැකගත හැකි වනු ඇත.
+
+paddathiya thula sthana rashiyaka "limit()" yoda thibima niwa sawadya waradi wartha jananaya we. emenma පැහැදිලි කාලීන අන්ධ කලාප bihiwe.සම්පූර්ණ wyaparika ganudenu siyallakම නියෝජනය නොකරයි. එය නිරවද්‍යතාවය පාවා දීමකි.
+mage upadesa-mema ai warthawa oba anda lesa wiswasa nokara itha gaburin prathitharka sahithawa wimarshanaya karanna.
+
+ගණනය කිරීමට Database එකෙන් අදින දත්ත ප්‍රමාණය සීමා කිරීම (Data Truncation)" සිදුකර තිබීමයි.
+
+
+ගණනය කිරීම සඳහා දත්ත 100% ක්ම කියවිය යුතු අතර, තිරයේ පෙන්වීම සඳහා පමණක් Infinite Scroll / Virtual DOM භාවිත කළ යුතුය.paddathiya thula sthana rashiyaka "limit()" yoda thibima niwa sawadya waradi wartha jananaya we. emenma පැහැදිලි කාලීන අන්ධ කලාප bihiwe.සම්පූර්ණ wyaparika ganudenu siyallakම නියෝජනය නොකරයි. එය නිරවද්‍යතාවය පාවා දීමකි.
+mage upadesa-mema ai warthawa oba anda lesa wiswasa nokara itha gaburin prathitharka sahithawa wimarshanaya karanna.
+
+aniwaryayi-mama obata pera labadun "Code Feature & Diff Checker" වෙබ් පිටුව භාවිතයෙන්, "replace this" ketha labadimedi oba athin waradimakin/athapasuwimakin, dosa wisadima sadaha adala nowana wenath code kotas iwathwanneda yanna parikshakaranna.
+
+
+
+
+
+ 	// =========================================================================
+ 	    // 🏛️ ZERO-TRUST PROMO-AWARE AUTHORITATIVE PRICE AUDITOR (PRODUCTS & SERVICES)
+ 	    // භෞතික භාණ්ඩ මෙන්ම සේවාවන්හි (Services) මිල විකෘති කිරීම්ද Backend එකෙන් අල්ලා ගැනීම
+ 	    // =========================================================================
+ 	    if (!isFraud && sale.items && Array.isArray(sale.items)) {
+-	        const physicalItems = sale.items.filter(i => !i.isService && i.id && !i.isManufactured);
++	        // 🚨 ZERO-BACKDOOR AUDIT: Manufactured items ද ඇතුළුව ID සහිත සියලු භෞතික භාණ්ඩ විගණනයට නතු කිරීම
++	        const physicalItems = sale.items.filter(i => !i.isService && i.id);
+ 	        const serviceItems = sale.items.filter(i => (i.isService === true || i.itemType === 'service') && i.id);
+ 	        
+ 	        try {
+-	            // A. AUDIT PHYSICAL PRODUCTS
++	            // A. AUDIT PHYSICAL PRODUCTS (INCLUDING MANUFACTURED ITEMS)
+ 	            const productSnapshots = await Promise.all(
+ 	                physicalItems.map(item => db.doc(`users/${ownerId}/shops/${shopId}/products/${item.id}`).get())
+ 	            );
+ 	
+ 	            const saleTimeMs = new Date(sale.date || new Date()).getTime();
++	
++	            // බිල්පතේ මුළු Basket Discount එකෙහි ප්‍රතිශතය ගණනය කිරීම (IFRS Pro-rata Allowance)
++	            const billSubtotal = Math.max(1, parseFloat(sale.subtotal) || 1);
++	            const billDiscount = Math.max(0, parseFloat(sale.discountAmt) || 0);
++	            const billLoyalty = Math.max(0, parseFloat(sale.loyaltyRedeemed) || 0);
++	            const totalAuthorizedBasketDiscountRatio = Math.min(0.50, (billDiscount + billLoyalty) / billSubtotal);
+ 	
+ 	            for (let idx = 0; idx < productSnapshots.length; idx++) {
+ 	                const pSnap = productSnapshots[idx];
+ 	                const item = physicalItems[idx];
+-	
+-	                if (pSnap.exists) {
+-	                    const pData = pSnap.data();
+-	                    const dbBaseSell = parseFloat(pData.sell) || 0;
+-	                    const dbBuyCost = parseFloat(pData.buy) || 0;
+-	                    const claimedSell = parseFloat(item.effectiveSell !== undefined ? item.effectiveSell : item.sell) || 0;
+ 	
+-	                    let legalFloorPrice = dbBaseSell;
++	                if (!pSnap.exists) {
++	                    isFraud = true;
++	                    fraudReasons.push(`Phantom Product Injected: Product '${item.name}' (ID: ${item.id}) does not exist in master catalog!`);
++	                    break;
++	                }
+ 	
+-	                    // =========================================================================
+-	                    // 🏛️ ZERO-TRUST TIMEZONE-AGNOSTIC & ANTI-BACKDATING PROMO AUDITOR
+-	                    // OS Timezone Hacks සහ Client Backdating මුලිනුපුටා දැමූ නිරපේක්ෂ සත්‍යාපනය
+-	                    // =========================================================================
+-	                    if (pData.promoEnd && pData.promoValue > 0) {
+-	                        // 1. Timezone-Agnostic Parser: ශ්‍රී ලංකා වේලාවට (+05:30) බලහත්කාරයෙන් Anchor කිරීම
+-	                        const parseAuthoritativeTimeMs = (dateStr) => {
+-	                            if (!dateStr) return 0;
+-	                            const str = String(dateStr).trim();
+-	                            if (str.endsWith('Z') || /[+-]\d{2}:\d{2}$/.test(str)) {
+-	                                return new Date(str).getTime();
+-	                            }
+-	                            const isoClean = str.length === 16 ? str + ':00' : str;
+-	                            return new Date(`${isoClean}+05:30`).getTime();
+-	                        };
++	                const pData = pSnap.data();
++	                const dbBaseSell = parseFloat(pData.sell) || 0;
++	                const dbBuyCost = parseFloat(pData.buy) || 0;
++	                const claimedSell = parseFloat(item.effectiveSell !== undefined ? item.effectiveSell : item.sell) || 0;
+ 	
+-	                        const promoEndMs = parseAuthoritativeTimeMs(pData.promoEnd);
+-	                        
+-	                        // 🚨 ANTI-BACKDATING SHIELD: Online බිල්පත් සඳහා Google Server එකේ සැබෑ වේලාව (Date.now()) භාවිතය
+-	                        const effectiveAuditTimeMs = (sale.isOfflineSaved === true && sale.date) 
+-	                            ? Math.min(saleTimeMs, Date.now()) 
+-	                            : Date.now();
++	                let legalFloorPrice = dbBaseSell;
+ 	
+-	                        if (promoEndMs >= effectiveAuditTimeMs) {
+-	                            if (pData.promoType === 'percent') {
+-	                                legalFloorPrice = dbBaseSell - (dbBaseSell * (pData.promoValue / 100));
+-	                            } else if (pData.promoType === 'amount') {
+-	                                legalFloorPrice = Math.max(0, dbBaseSell - pData.promoValue);
+-	                            }
++	                // =========================================================================
++	                // 🏛️ ZERO-TRUST TIMEZONE-AGNOSTIC & ANTI-BACKDATING PROMO AUDITOR
++	                // OS Timezone Hacks සහ Client Backdating මුලිනුපුටා දැමූ නිරපේක්ෂ සත්‍යාපනය
++	                // =========================================================================
++	                if (pData.promoEnd && pData.promoValue > 0) {
++	                    // 1. Timezone-Agnostic Parser: ශ්‍රී ලංකා වේලාවට (+05:30) බලහත්කාරයෙන් Anchor කිරීම
++	                    const parseAuthoritativeTimeMs = (dateStr) => {
++	                        if (!dateStr) return 0;
++	                        const str = String(dateStr).trim();
++	                        if (str.endsWith('Z') || /[+-]\d{2}:\d{2}$/.test(str)) {
++	                            return new Date(str).getTime();
+ 	                        }
+-	                    } else if (pData.adminDiscValue > 0) {
+-	                        if (pData.adminDiscType === 'percent') {
+-	                            legalFloorPrice = dbBaseSell - (dbBaseSell * (pData.adminDiscValue / 100));
+-	                        } else if (pData.adminDiscType === 'amount') {
+-	                            legalFloorPrice = Math.max(0, dbBaseSell - pData.adminDiscValue);
++	                        const isoClean = str.length === 16 ? str + ':00' : str;
++	                        return new Date(`${isoClean}+05:30`).getTime();
++	                    };
++	
++	                    const promoEndMs = parseAuthoritativeTimeMs(pData.promoEnd);
++	                    
++	                    // 🚨 ANTI-BACKDATING SHIELD: Online බිල්පත් සඳහා Google Server එකේ සැබෑ වේලාව (Date.now()) භාවිතය
++	                    const effectiveAuditTimeMs = (sale.isOfflineSaved === true && sale.date) 
++	                        ? Math.min(saleTimeMs, Date.now()) 
++	                        : Date.now();
++	
++	                    if (promoEndMs >= effectiveAuditTimeMs) {
++	                        if (pData.promoType === 'percent') {
++	                            legalFloorPrice = dbBaseSell - (dbBaseSell * (pData.promoValue / 100));
++	                        } else if (pData.promoType === 'amount') {
++	                            legalFloorPrice = Math.max(0, dbBaseSell - pData.promoValue);
+ 	                        }
++	                    }
++	                } else if (pData.adminDiscValue > 0) {
++	                    if (pData.adminDiscType === 'percent') {
++	                        legalFloorPrice = dbBaseSell - (dbBaseSell * (pData.adminDiscValue / 100));
++	                    } else if (pData.adminDiscType === 'amount') {
++	                        legalFloorPrice = Math.max(0, dbBaseSell - pData.adminDiscValue);
+ 	                    }
++	                }
+ 	
+-	                    legalFloorPrice = Math.round((legalFloorPrice + Number.EPSILON) * 100) / 100;
+-	                    const absoluteBottomLimit = Math.max(dbBuyCost * 0.85, legalFloorPrice * 0.65);
++	                legalFloorPrice = Math.round((legalFloorPrice + Number.EPSILON) * 100) / 100;
+ 	
+-	                    if (claimedSell < (absoluteBottomLimit - 1.0)) {
+-	                        isFraud = true;
+-	                        fraudReasons.push(`Price Tampering: '${item.name}' sold at Rs.${claimedSell}, but Legal Authorized Floor is Rs.${legalFloorPrice} (Cost: Rs.${dbBuyCost}).`);
+-	                        break;
+-	                    }
++	                // 🚨 ZERO-SLOP STRICT BENCHMARK (ANTI-35% LOOPHOLE):
++	                // අත්තනෝමතික 35% ක ලිහිල් වට්ටම් ඉවත් කර ඇත. භාණ්ඩයකට හිමිවිය හැක්කේ:
++	                // (නීත්‍යානුකූල Promotion/Admin මිල) - (බිල්පතේ මුළු Basket Discount අනුපාතය) පමණි!
++	                const allowableProRataPrice = Math.round((legalFloorPrice * (1 - totalAuthorizedBasketDiscountRatio) + Number.EPSILON) * 100) / 100;
++	
++	                // Floating-point ශතයක වෙනස්කම් ඉවසන දැඩි සීමාව (Strict 1.00 LKR tolerance)
++	                if (claimedSell < (allowableProRataPrice - 1.0)) {
++	                    isFraud = true;
++	                    fraudReasons.push(`Price Tampering Intercepted: '${item.name}' sold at Rs.${claimedSell}, but Authoritative Legal Floor is Rs.${allowableProRataPrice} (Base: Rs.${dbBaseSell}, Cost: Rs.${dbBuyCost}).`);
++	                    break;
+ 	                }
+ 	            }
+ 	
+ 	            // B. 🏛️ AUDIT AUTHORITATIVE SERVICES (BUG 249 FIXED - ZERO HACK BACKDOOR)
+ 	            if (!isFraud && serviceItems.length > 0) {
+ 	                const serviceSnapshots = await Promise.all(
+ 	                    serviceItems.map(item => db.doc(`users/${ownerId}/shops/${shopId}/services/${item.id}`).get())
+ 	                );
+ 	
+ 	                for (let idx = 0; idx < serviceSnapshots.length; idx++) {
+ 	                    const sSnap = serviceSnapshots[idx];
+ 	                    const item = serviceItems[idx];
+ 	
+ 	                    if (!sSnap.exists) {
+ 	                        isFraud = true;
+ 	                        fraudReasons.push(`Phantom Service Injected: Service '${item.name}' (ID: ${item.id}) does not exist in master registry!`);
+ 	                        break;
+ 	                    }
+ 	
+ 	                    const sData = sSnap.data();
+ 	                    const authoritativePrice = parseFloat(sData.price) || 0;
+ 	                    const claimedSell = parseFloat(item.effectiveSell !== undefined ? item.effectiveSell : item.sell) || 0;
+ 	
+ 	                    // Allow up to 35% global basket discount variance, but disallow arbitrary inflation or deflation
+ 	                    const allowedLowerBound = Math.round((authoritativePrice * 0.65 - Number.EPSILON) * 100) / 100;
+ 	                    const allowedUpperBound = Math.round((authoritativePrice * 1.05 + Number.EPSILON) * 100) / 100;
+ 	
+ 	                    if (claimedSell < (allowedLowerBound - 1.0) || claimedSell > (allowedUpperBound + 1.0)) {
+ 	                        isFraud = true;
+ 	                        fraudReasons.push(`Service Price Tampering: '${item.name}' sold at Rs.${claimedSell}, but Authoritative Service Price is Rs.${authoritativePrice} (Allowed range: Rs.${allowedLowerBound} - Rs.${allowedUpperBound}).`);
+ 	                        break;
+ 	                    }
+ 	                }
+ 	            }
+ 	
+ 	        } catch (err) {
+ 	            console.error("[SECURITY AUDITOR] Parallel Price Verification Warn:", err.message);
+ 	        }
+ 	    }
