@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Manager Control Center | Enterprise Cloud</title>
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800;900&display=swap" rel="stylesheet">
+    
+    <style>
+        :root { --bg: #090d16; --card: #131b2e; --card-hover: #1e293b; --text: #f8fafc; --text-muted: #94a3b8; --primary: #3b82f6; --success: #10b981; --danger: #ef4444; --warning: #f59e0b; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { background: var(--bg); color: var(--text); display: flex; height: 100vh; overflow: hidden; }
+        
+        /* Responsive Sidebar */
+        .sidebar { width: 280px; background: #040711; border-right: 1px solid rgba(255,255,255,0.08); display: flex; flex-direction: column; transition: 0.3s; z-index: 50; }
+        .brand { padding: 20px; font-size: 16px; font-weight: 900; color: white; border-bottom: 1px solid rgba(255,255,255,0.08); display: flex; align-items: center; justify-content: space-between; letter-spacing: 0.5px; }
+        .nav-item { padding: 14px 20px; color: var(--text-muted); cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 13px; border-left: 4px solid transparent; }
+        .nav-item:hover, .nav-item.active { color: white; background: var(--card); border-left-color: var(--primary); }
+        .badge { background: var(--danger); color: white; font-size: 11px; padding: 2px 8px; border-radius: 10px; margin-left: auto; font-weight: 800; box-shadow: 0 0 10px rgba(239, 68, 68, 0.5); }
+
+        /* Main View */
+        .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; width: 100%; }
+        .header { height: 65px; background: #0b1120; border-bottom: 1px solid rgba(255,255,255,0.08); display: flex; justify-content: space-between; align-items: center; padding: 0 20px; }
+        .content { flex: 1; overflow-y: auto; padding: 20px; }
+
+        /* Cards & Components */
+        .card { background: var(--card); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 18px; margin-bottom: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        .btn { padding: 8px 16px; border-radius: 8px; border: none; font-weight: 800; cursor: pointer; transition: 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 6px; color: white; font-size: 13px; }
+        .btn-success { background: #059669; } .btn-success:hover { background: #10b981; }
+        .btn-danger { background: #dc2626; } .btn-danger:hover { background: #ef4444; }
+        .btn-primary { background: var(--primary); }
+        .btn-outline { background: transparent; border: 1px solid rgba(255,255,255,0.2); color: #cbd5e1; }
+        
+        input, select { background: #090d16; border: 1px solid #334155; color: white; padding: 10px; border-radius: 8px; outline: none; font-size: 13px; }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        th { text-align: left; padding: 12px; color: var(--text-muted); border-bottom: 1px solid #334155; }
+        td { padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.05); vertical-align: middle; }
+
+        /* Live Chat Engine */
+        .chat-box { flex: 1; background: #060913; border-radius: 10px; border: 1px solid rgba(255,255,255,0.08); display: flex; flex-direction: column; overflow: hidden; height: 260px; }
+        .chat-history { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+        .msg { max-width: 85%; padding: 8px 12px; border-radius: 10px; font-size: 12px; line-height: 1.4; }
+        .msg.admin { align-self: flex-end; background: var(--primary); color: white; border-bottom-right-radius: 2px; }
+        .msg.officer { align-self: flex-start; background: #1e293b; color: #f1f5f9; border-bottom-left-radius: 2px; border: 1px solid rgba(255,255,255,0.08); }
+        .chat-input { display: flex; border-top: 1px solid rgba(255,255,255,0.08); }
+        .chat-input input { flex: 1; border: none; border-radius: 0; background: transparent; padding: 10px 14px; }
+
+        /* Modal Engine */
+        .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(8px); padding: 15px; }
+        .modal-content { background: var(--card); width: 100%; max-width: 800px; border-radius: 16px; display: flex; overflow: hidden; border: 1px solid rgba(255,255,255,0.1); max-height: 90vh; }
+
+        /* Mobile Adjustments */
+        .mobile-toggle { display: none; font-size: 24px; cursor: pointer; color: white; }
+        
+        @media (max-width: 768px) {
+            .mobile-toggle { display: block; }
+            .sidebar { position: fixed; top: 0; bottom: 0; left: -290px; height: 100vh; box-shadow: 10px 0 25px rgba(0,0,0,0.8); }
+            .sidebar.open { left: 0; }
+            .modal-content { flex-direction: column; max-height: 92vh; overflow-y: auto; }
+            .modal-chat-pane { width: 100% !important; border-top: 1px solid #334155; }
+            .content { padding: 12px; }
+            #pendingContainer { grid-template-columns: 1fr !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- SIDEBAR -->
+    <div class="sidebar" id="sidebar">
+        <div class="brand">
+            <span><i class="ri-shield-user-fill" style="color:var(--primary); font-size:20px;"></i> MANAGER ROOM</span>
+            <i class="ri-close-line mobile-toggle" onclick="toggleSidebar()"></i>
+        </div>
+        
+        <div style="padding:15px 20px 8px 20px; color:var(--text-muted); font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:1px;">Live Governance</div>
+        
+        <div class="nav-item active" onclick="switchTab('pending')" id="tab-pending">
+            <i class="ri-time-line"></i> Pending Approvals
+            <span class="badge" id="pendingCount" style="display:none;">0</span>
+        </div>
+        <div class="nav-item" onclick="switchTab('history')" id="tab-history">
+            <i class="ri-history-line"></i> Resolution History
+        </div>
+        
+        <div style="margin-top:auto; padding:18px; border-top:1px solid rgba(255,255,255,0.08); font-size:11px; color:var(--text-muted); background:rgba(0,0,0,0.2);">
+            <div>Branch: <b id="shopNameDisplay" style="color:var(--primary);">-</b></div>
+            <div>User: <strong id="adminEmail" style="color:white; word-break:break-all;">Connecting...</strong></div>
+            <button onclick="logout()" style="background:none; border:none; color:var(--danger); cursor:pointer; margin-top:10px; font-weight:bold; display:flex; align-items:center; gap:5px;"><i class="ri-logout-box-line"></i> Secure Exit</button>
+        </div>
+    </div>
+
+    <!-- MAIN INTERFACE -->
+    <div class="main">
+        <div class="header">
+            <div style="display:flex; align-items:center; gap:12px;">
+                <i class="ri-menu-2-line mobile-toggle" onclick="toggleSidebar()"></i>
+                <h2 id="pageTitle" style="font-size:16px; font-weight:900;">Live Approvals</h2>
+                
+                <!-- 🏛️ DYNAMIC MULTI-BRANCH FILTER (ADMIN ONLY / LOCKED FOR MANAGERS) -->
+                <select id="headerBranchFilter" style="display:none; font-size:11px; font-weight:bold; border-color:var(--primary); padding:4px 8px; height:32px;" onchange="window.handleBranchFilterChange()">
+                    <option value="ALL">🌐 All Branches</option>
+                </select>
+                <div id="managerBranchLockedPill" style="display:none; font-size:11px; font-weight:800; background:rgba(59,130,246,0.15); color:var(--primary); border:1px solid rgba(59,130,246,0.3); padding:4px 10px; border-radius:6px;">
+                    <i class="ri-store-2-line"></i> <span id="lockedBranchNameText">-</span>
+                </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px;">
+                <button class="btn btn-outline" style="padding:4px 8px; font-size:11px;" onclick="testAlertSound()" title="Test Chime"><i class="ri-volume-up-line"></i> Sound Test</button>
+                <div id="liveStatus" style="font-size:11px; color:var(--success); font-weight:800; display:flex; align-items:center; gap:5px;"><i class="ri-record-circle-fill" style="animation:pulse 1.5s infinite;"></i> Linked</div>
+            </div>
+        </div>
+
+        <!-- PENDING CARDS CONTAINER -->
+        <div class="content" id="view-pending">
+            <div id="pendingContainer" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap:15px;">
+                <div style="color:var(--text-muted); text-align:center; padding:40px; grid-column:1/-1;"><i class="ri-loader-4-line ri-spin" style="font-size:30px; display:block; margin-bottom:10px;"></i> Linking to Corporate Mesh...</div>
+            </div>
+        </div>
+
+        <!-- HISTORY CONTAINER -->
+        <div class="content" id="view-history" style="display:none;">
+            <div class="card" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; padding:12px;">
+                <select id="histFilterType" style="flex:1; min-width:140px;">
+                    <option value="ALL">All Event Types</option>
+                    <option value="DISCOUNT">Discounts</option>
+                    <option value="REFUND">Refunds</option>
+                    <option value="EXPENSE">Petty Cash</option>
+                    <option value="HIGH_OT_VARIANCE">Overtime Override</option>
+                    <option value="BOT_SHORTFALL">F&B BOT Shortfall</option>
+                </select>
+                <input type="month" id="histFilterMonth" onchange="loadHistory()" style="flex:1; min-width:140px;">
+                <button class="btn btn-primary" onclick="loadHistory()"><i class="ri-search-line"></i> Search</button>
+            </div>
+            
+            <div class="card" id="histScrollArea" style="max-height:68vh; overflow-y:auto; padding:0;" onscroll="handleHistoryScroll()">
+                <table>
+                    <thead style="position:sticky; top:0; background:var(--card); z-index:10;">
+                        <tr><th>Date & Time</th><th>Requested By</th><th>Branch</th><th>Action Type</th><th>Status</th><th style="text-align:right;">Inspect</th></tr>
+                    </thead>
+                    <tbody id="histTbody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- RESPONSIVE ACTION & LIVE CHAT MODAL -->
+    <div class="modal" id="actionModal">
+        <div class="modal-content">
+            <!-- Left: Payload Metrics -->
+            <div style="flex:1; padding:20px; overflow-y:auto;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                    <h3 style="color:var(--primary); font-size:16px; font-weight:900;" id="amTitle">Request Verification</h3>
+                    <span id="amStatus" style="font-size:10px; padding:3px 8px; border-radius:4px; font-weight:900; letter-spacing:0.5px;">PENDING</span>
+                </div>
+                
+                <div style="background:#090d16; padding:15px; border-radius:10px; border:1px solid rgba(255,255,255,0.08); font-size:12px; margin-bottom:15px;" id="amDetails"></div>
+
+                <div id="amActionButtons" style="display:flex; gap:10px; margin-top:15px;">
+                    <button class="btn btn-success" style="flex:1; padding:12px; font-size:14px;" onclick="decideRequest('APPROVED')"><i class="ri-check-double-line"></i> AUTHORIZE</button>
+                    <button class="btn btn-danger" style="flex:1; padding:12px; font-size:14px;" onclick="decideRequest('DECLINED')"><i class="ri-close-circle-line"></i> REJECT</button>
+                </div>
+                <button class="btn btn-outline" style="width:100%; margin-top:10px; padding:10px;" onclick="closeActionModal()">Dismiss Window</button>
+            </div>
+
+            <!-- Right: Real-Time Officer Chat Pane -->
+            <div class="modal-chat-pane" style="width:320px; padding:20px; display:flex; flex-direction:column; background:#040711;">
+                <h4 style="margin-bottom:10px; font-size:13px; color:var(--text-muted); display:flex; align-items:center; gap:6px;"><i class="ri-chat-3-line"></i> Intercom Link</h4>
+                <div class="chat-box">
+                    <div class="chat-history" id="amChatHistory"></div>
+                    <div class="chat-input">
+                        <input type="text" id="amChatInput" placeholder="Direct reply to till..." onkeypress="if(event.key==='Enter') sendChat()">
+                        <button class="btn btn-primary" style="border-radius:0;" onclick="sendChat()"><i class="ri-send-plane-fill"></i></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CORE SOVEREIGN APPLICATION SCRIPTS -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+        import { getFirestore, collection, query, where, orderBy, onSnapshot, getDocs, doc, getDoc, updateDoc, setDoc, addDoc, limit, startAfter } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+        // MASTER FIREBASE CONFIGURATION
+        const firebaseConfig = {
+            apiKey: "AIzaSyCZrmkX2RsJTbn4j-WmbuCMudWaETMvXwQ",
+            authDomain: "managemybusiness-b4afb.firebaseapp.com",
+            projectId: "managemybusiness-b4afb",
+            storageBucket: "managemybusiness-b4afb.firebasestorage.app",
+            messagingSenderId: "237936848306",
+            appId: "1:237936848306:web:91a996c3d1d3ceda3b48ab"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let dbOwnerId = null;
+        let activeReqId = null;
+        let activeShopId = null;
+        let chatUnsub = null;
+        let currentUserId = null;
+        let currentUserRole = null;
+        let knownPendingIds = new Set();
+        let audioContext = null;
+
+        // =========================================================================
+        // 🔊 SYNTHETIC WEB AUDIO ALERT ENGINE (ZERO NETWORK DEPENDENCY CHIME)
+        // කිසිදු mp3 ගොනුවක් බාගත නොකර බ්‍රවුසරයෙන්ම නිපදවන ස්වභාවික අනතුරු ඇඟවීමේ සීනුව
+        // =========================================================================
+        function playChimeAlert() {
+            try {
+                if (!audioContext) {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (audioContext.state === 'suspended') {
+                    audioContext.resume();
+                }
+
+                // Dual-Tone Bell Synth (880Hz -> 1320Hz harmonic chime)
+                const now = audioContext.currentTime;
+                const osc = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, now);
+                osc.frequency.exponentialRampToValueAtTime(1320, now + 0.15);
+
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+
+                osc.connect(gain);
+                gain.connect(audioContext.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.6);
+
+                // Hardware Vibration on Android/Mobile devices
+                if (navigator.vibrate) {
+                    navigator.vibrate([200, 100, 200]);
+                }
+            } catch (e) {
+                console.warn("[AUDIO SYNTH] Audio playback un-interacted or blocked:", e.message);
+            }
+        }
+        window.testAlertSound = playChimeAlert;
+
+        // =========================================================================
+        // 🛡️ MULTI-TENANT IDENTITY & SOVEREIGN ROLE RESOLVER
+        // Manager කෙනෙක් ලොග් වුවද Owner ගේ දත්ත නිවැරදිව සම්බන්ධ කරගන්නා එන්ජිම
+        // =========================================================================
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+                return window.location.href = "index.html";
+            }
+
+            currentUserId = user.uid;
+            document.getElementById('adminEmail').textContent = user.email;
+
+            try {
+                const userRef = doc(db, 'users', user.uid);
+                const userSnap = await getDoc(userRef);
+
+                if (!userSnap.exists()) {
+                    alert("SECURITY REFUSAL: Identity profile missing on this Cloud ERP node!");
+                    await signOut(auth);
+                    return;
+                }
+
+                const userData = userSnap.data();
+                currentUserRole = userData.role;
+
+                // 1. Role-Based Identity & Branch Scope Routing
+                window.currentUserShopId = 'ALL';
+
+                if (userData.role === 'admin') {
+                    // Owner oversees ALL branches
+                    dbOwnerId = user.uid;
+                    window.currentUserShopId = 'ALL';
+                    document.getElementById('shopNameDisplay').textContent = "Enterprise Master (All Branches)";
+
+                    // Admin හට ශාඛා තෝරාගැනීමේ Dropdown එක සක්‍රීය කිරීම
+                    await setupAdminBranchSelector();
+
+                } else if (userData.role === 'manager' || userData.role === 'cashier' || userData.allowRemote === true) {
+                    // Manager is STRICTLY LOCKED to their assigned branch!
+                    dbOwnerId = userData.ownerId;
+                    window.currentUserShopId = userData.allowedShop || 'ALL';
+                    
+                    const branchPill = document.getElementById('managerBranchLockedPill');
+                    const branchText = document.getElementById('lockedBranchNameText');
+                    
+                    if (branchPill && branchText) {
+                        branchPill.style.display = 'inline-flex';
+                        branchText.textContent = `Branch: ${userData.allowedShop || 'Assigned'}`;
+                    }
+
+                    document.getElementById('shopNameDisplay').textContent = `Territory: ${userData.allowedShop || 'Assigned'}`;
+                    console.log(`🔒 [MANAGER SCOPE LOCKED]: Approvals strictly clamped to branch: '${window.currentUserShopId}'`);
+                } else {
+                    alert("ACCESS DENIED: Your profile lacks Managerial or Administrative Governance credentials!");
+                    await signOut(auth);
+                    return;
+                }
+
+                initManagerRoom();
+
+            } catch (err) {
+                console.error("Master Tenant Identity Resolution Error:", err);
+                alert("Cloud Identity Gateway Error: " + err.message);
+            }
+        });
+
+        window.logout = async () => {
+            await signOut(auth);
+            window.location.href = "index.html";
+        };
+
+        window.toggleSidebar = () => {
+            document.getElementById('sidebar').classList.toggle('open');
+        };
+
+        window.switchTab = (tab) => {
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            document.getElementById('tab-' + tab).classList.add('active');
+            
+            document.getElementById('view-pending').style.display = tab === 'pending' ? 'block' : 'none';
+            document.getElementById('view-history').style.display = tab === 'history' ? 'block' : 'none';
+            
+            document.getElementById('pageTitle').textContent = tab === 'pending' ? 'Live Pending Approvals' : 'Resolution History';
+            
+            if (window.innerWidth <= 768) {
+                document.getElementById('sidebar').classList.remove('open');
+            }
+
+            if (tab === 'history') loadHistory();
+        };
+
+        // =========================================================================
+        // 🚀 LIVE STREAMING ENGINE: MULTI-BRANCH CONCURRENT APPROVALS
+        // =========================================================================
+        function initManagerRoom() {
+            const reqRef = collection(db, `users/${dbOwnerId}/remote_approvals`);
+            const q = query(reqRef, where("status", "==", "PENDING"), orderBy("createdAt", "desc"));
+            
+            let isInitialBoot = true;
+
+            onSnapshot(q, (snap) => {
+                const container = document.getElementById('pendingContainer');
+                const badge = document.getElementById('pendingCount');
+                
+                if (snap.empty) {
+                    badge.style.display = 'none';
+                    knownPendingIds.clear();
+                    isInitialBoot = false;
+                    container.innerHTML = '<div style="color:var(--text-muted); text-align:center; padding:50px; grid-column:1/-1;"><i class="ri-shield-check-fill" style="font-size:45px; color:#10b981; display:block; margin-bottom:10px;"></i> All Clear. No pending requests requiring authorization.</div>';
+                    return;
+                }
+
+                badge.textContent = snap.docs.length;
+                badge.style.display = 'block';
+
+                let playChime = false;
+                let html = '';
+                let matchingPendingCount = 0;
+
+                snap.forEach(d => {
+                    const req = { id: d.id, ...d.data() };
+
+                    // =========================================================================
+                    // 🏛️ ZERO-TRUST BRANCH ISOLATION GUARD (HOMAGAMA vs KADAWATHA SHIELD)
+                    // හෝමාගම Manager ට කඩවත, මහරගම හෝ වෙනත් කිසිදු ශාඛාවක ඉල්ලීම් නොපෙන්වීම
+                    // =========================================================================
+                    if (window.currentUserShopId !== 'ALL') {
+                        // Manager assigned to specific branch
+                        if (req.shopId && req.shopId !== window.currentUserShopId) {
+                            return; // ⛔ සම්පූර්ණයෙන්ම මඟහරියි (Skip)!
+                        }
+                    }
+
+                    matchingPendingCount++;
+
+                    // Trigger sound only if the new request belongs to THIS manager's branch!
+                    if (!isInitialBoot && !knownPendingIds.has(req.id)) {
+                        playChime = true;
+                    }
+                    knownPendingIds.add(req.id);
+
+                    let typeColor = '#3b82f6'; 
+                    let icon = 'ri-question-mark';
+                    if (req.type === 'DISCOUNT') { typeColor = '#f59e0b'; icon = 'ri-discount-percent-fill'; }
+                    if (req.type === 'REFUND' || req.type === 'EXPIRED_REFUND') { typeColor = '#ef4444'; icon = 'ri-arrow-go-back-fill'; }
+                    if (req.type === 'EXPENSE' || req.type === 'MFG_OVERHEAD_PAYOUT') { typeColor = '#10b981'; icon = 'ri-money-dollar-circle-fill'; }
+                    if (req.type === 'HIGH_OT_VARIANCE') { typeColor = '#8b5cf6'; icon = 'ri-time-fill'; }
+                    if (req.type === 'BOT_SHORTFALL') { typeColor = '#ec4899'; icon = 'ri-restaurant-fill'; }
+
+                    html += `
+                    <div class="card" style="border-top:4px solid ${typeColor}; padding:16px;">
+                        <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:8px;">
+                            <span style="font-size:10px; font-weight:900; color:${typeColor}; background:rgba(255,255,255,0.06); padding:2px 8px; border-radius:4px; letter-spacing:0.5px;"><i class="${icon}"></i> ${req.type}</span>
+                            <span style="font-size:10px; color:var(--text-muted); font-family:monospace;">${new Date(req.createdAt).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
+                        </div>
+                        <div style="font-weight:900; font-size:15px; color:#fff; margin-bottom:4px;">${req.title}</div>
+                        <div style="font-size:11px; color:var(--text-muted); line-height:1.4; margin-bottom:12px;">
+                            Officer: <b style="color:#e2e8f0;">${req.officerEmail}</b><br>
+                            Branch: <b style="color:var(--primary);">${req.shopName}</b>
+                        </div>
+                        <button class="btn btn-primary" style="width:100%;" onclick='openActionModal(${JSON.stringify(req).replace(/'/g, "&#39;")})'>Inspect & Authorize</button>
+                    </div>`;
+                });
+
+                if (matchingPendingCount === 0) {
+                    badge.style.display = 'none';
+                    container.innerHTML = `<div style="color:var(--text-muted); text-align:center; padding:50px; grid-column:1/-1;">
+                        <i class="ri-shield-check-fill" style="font-size:45px; color:#10b981; display:block; margin-bottom:10px;"></i> 
+                        All Clear. No pending requests for ${window.currentUserShopId === 'ALL' ? 'any branch' : 'Branch: ' + window.currentUserShopId}.
+                    </div>`;
+                } else {
+                    badge.textContent = matchingPendingCount;
+                    badge.style.display = 'block';
+                    container.innerHTML = html;
+                }
+
+                if (playChime) {
+                    playChimeAlert();
+                }
+                isInitialBoot = false;
+            });
+        }
+
+        window.openActionModal = (req) => {
+            activeReqId = req.id;
+            activeShopId = req.shopId;
+            
+            document.getElementById('amTitle').textContent = `${req.type} OVERRIDE`;
+            
+            let bg = req.status === 'PENDING' ? 'var(--warning)' : (req.status === 'APPROVED' ? 'var(--success)' : 'var(--danger)');
+            const sBadge = document.getElementById('amStatus');
+            sBadge.textContent = req.status;
+            sBadge.style.background = bg;
+            sBadge.style.color = req.status === 'PENDING' ? '#000' : 'white';
+
+            let detHtml = `<div style="color:var(--primary); font-weight:900; font-size:14px; margin-bottom:10px;">${req.title}</div>`;
+            detHtml += `<table style="width:100%; border:none;">`;
+            if (req.details && typeof req.details === 'object') {
+                for (const [key, value] of Object.entries(req.details)) {
+                    detHtml += `<tr><td style="padding:4px 0; border:none; color:var(--text-muted); width:45%; text-transform:capitalize;">${key}:</td><td style="padding:4px 0; border:none; color:white; font-weight:800;">${value}</td></tr>`;
+                }
+            }
+            detHtml += `</table>`;
+            document.getElementById('amDetails').innerHTML = detHtml;
+
+            document.getElementById('amActionButtons').style.display = req.status === 'PENDING' ? 'flex' : 'none';
+            document.getElementById('actionModal').style.display = 'flex';
+
+            // Connect Live Intercom Channel
+            if (chatUnsub) chatUnsub();
+            const chatRef = collection(db, `users/${dbOwnerId}/remote_approvals/${req.id}/chat`);
+            chatUnsub = onSnapshot(query(chatRef, orderBy("timestamp", "asc")), (snap) => {
+                const cb = document.getElementById('amChatHistory');
+                let cHtml = '';
+                snap.forEach(c => {
+                    const msg = c.data();
+                    const isAd = msg.sender === 'admin' || msg.sender === 'manager';
+                    const time = new Date(msg.timestamp).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+                    cHtml += `<div class="msg ${isAd ? 'admin' : 'officer'}">${msg.text} <div style="font-size:8px; margin-top:3px; opacity:0.8; text-align:${isAd ? 'right' : 'left'};">${time}</div></div>`;
+                });
+                cb.innerHTML = cHtml || '<div style="text-align:center; color:var(--text-muted); font-size:11px; margin-top:20px;">Secure channel established.</div>';
+                cb.scrollTop = cb.scrollHeight;
+            });
+        };
+
+        window.closeActionModal = () => {
+            if (chatUnsub) { chatUnsub(); chatUnsub = null; }
+            document.getElementById('actionModal').style.display = 'none';
+            activeReqId = null;
+        };
+
+        window.sendChat = async () => {
+            const inp = document.getElementById('amChatInput');
+            const text = inp.value.trim();
+            if (!text || !activeReqId) return;
+            inp.value = '';
+            
+            await addDoc(collection(db, `users/${dbOwnerId}/remote_approvals/${activeReqId}/chat`), {
+                sender: 'manager', 
+                text: text, 
+                timestamp: new Date().toISOString()
+            });
+        };
+
+        // =========================================================================
+        // 🛡️ ATOMIC TRANSACTION: APPROVE OR DECLINE OVERRIDE
+        // Cashier Terminal එක බලා සිටින ලේඛනය ආරක්ෂිතව තහවුරු කිරීම
+        // =========================================================================
+        window.decideRequest = async (decision) => {
+            if (!confirm(`Are you sure you want to ${decision} this request?`)) return;
+            
+            try {
+                const reqDocRef = doc(db, `users/${dbOwnerId}/remote_approvals`, activeReqId);
+                const resolverEmail = auth.currentUser.email;
+
+                await updateDoc(reqDocRef, {
+                    status: decision,
+                    resolvedAt: new Date().toISOString(),
+                    resolvedBy: resolverEmail,
+                    resolverRole: currentUserRole
+                });
+                
+                await addDoc(collection(db, `users/${dbOwnerId}/remote_approvals/${activeReqId}/chat`), {
+                    sender: 'system', 
+                    text: `🛡️ Request has been ${decision} by Manager (${resolverEmail}).`, 
+                    timestamp: new Date().toISOString()
+                });
+
+                closeActionModal();
+            } catch(e) { 
+                alert("Decision Broadcast Error: " + e.message); 
+            }
+        };
+
+        // =========================================================================
+        // 📜 HISTORICAL AUDIT & PAGINATION ENGINE
+        // =========================================================================
+        let lastHistoryDoc = null;
+        let isFetchingHistory = false;
+        let hasMoreHistory = true;
+
+        window.loadHistory = async (isLoadMore = false) => {
+            const tbody = document.getElementById('histTbody');
+            const typeF = document.getElementById('histFilterType').value;
+            const monthF = document.getElementById('histFilterMonth').value;
+
+            if (!isLoadMore) {
+                lastHistoryDoc = null; 
+                hasMoreHistory = true; 
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:30px;"><i class="ri-loader-4-line ri-spin"></i> Querying Audit Trails...</td></tr>';
+            }
+            if (isFetchingHistory || !hasMoreHistory) return;
+            isFetchingHistory = true;
+
+            try {
+                const qColl = collection(db, `users/${dbOwnerId}/remote_approvals`);
+                let constraints = [where("status", "in", ["APPROVED", "DECLINED"])];
+                
+                if (typeF !== 'ALL') constraints.push(where("type", "==", typeF));
+                if (monthF) {
+                    const start = new Date(monthF + "-01T00:00:00Z").toISOString();
+                    const end = new Date(parseInt(monthF.split('-')[0]), parseInt(monthF.split('-')[1]), 0, 23, 59, 59).toISOString();
+                    constraints.push(where("createdAt", ">=", start), where("createdAt", "<=", end));
+                }
+
+                constraints.push(orderBy("createdAt", "desc"));
+                if (lastHistoryDoc) constraints.push(startAfter(lastHistoryDoc));
+                constraints.push(limit(25));
+
+                const snap = await getDocs(query(qColl, ...constraints));
+                if (!isLoadMore) tbody.innerHTML = '';
+
+                if (snap.empty) {
+                    if (!isLoadMore) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:30px; color:var(--text-muted);">No resolution history matching filters.</td></tr>';
+                    hasMoreHistory = false;
+                } else {
+                    lastHistoryDoc = snap.docs[snap.docs.length - 1];
+                    if (snap.docs.length < 25) hasMoreHistory = false;
+
+                    let html = '';
+                    snap.forEach(d => {
+                        const r = { id: d.id, ...d.data() };
+
+                        // 🏛️ ZERO-TRUST BRANCH ISOLATION ON AUDIT TRAILS
+                        if (window.currentUserShopId !== 'ALL') {
+                            if (r.shopId && r.shopId !== window.currentUserShopId) {
+                                return; // ⛔ Skip other branch history
+                            }
+                        }
+
+                        const col = r.status === 'APPROVED' ? 'var(--success)' : 'var(--danger)';
+                        html += `
+                        <tr>
+                            <td style="font-size:11px; font-family:monospace;">${new Date(r.createdAt).toLocaleString([], {month:'short', day:'2-digit', hour:'2-digit', minute:'2-digit'})}</td>
+                            <td style="font-weight:700;">${r.officerEmail}</td>
+                            <td style="font-size:11px; color:var(--text-muted);">${r.shopName || '-'}</td>
+                            <td style="font-weight:900; color:var(--primary);">${r.type}</td>
+                            <td><span style="color:${col}; font-weight:900; font-size:11px;">${r.status}</span></td>
+                            <td style="text-align:right;"><button class="btn btn-outline" style="padding:4px 8px; font-size:11px;" onclick='openActionModal(${JSON.stringify(r).replace(/'/g, "&#39;")})'>Inspect</button></td>
+                        </tr>`;
+                    });
+                    tbody.insertAdjacentHTML('beforeend', html);
+                }
+            } catch(e) { 
+                console.error(e); 
+            } finally {
+                isFetchingHistory = false;
+            }
+        };
+
+        window.handleHistoryScroll = () => {
+            const area = document.getElementById('histScrollArea');
+            if (area.scrollTop + area.clientHeight >= area.scrollHeight - 10) loadHistory(true);
+        };
+
+        // 🏛️ SETUP ADMIN BRANCH SELECTOR DROPDOWN
+        async function setupAdminBranchSelector() {
+            try {
+                const shopsSnap = await getDocs(collection(db, `users/${dbOwnerId}/shops`));
+                const filterSel = document.getElementById('headerBranchFilter');
+                if (!filterSel) return;
+
+                let opts = '<option value="ALL">🌐 All Branches</option>';
+                shopsSnap.forEach(d => {
+                    opts += `<option value="${d.id}">${d.data().name || d.id}</option>`;
+                });
+                filterSel.innerHTML = opts;
+                filterSel.style.display = 'inline-block';
+            } catch(e) { console.warn("Admin branch selector load error", e); }
+        }
+
+        window.handleBranchFilterChange = () => {
+            const sel = document.getElementById('headerBranchFilter');
+            window.currentUserShopId = sel.value; // Updates filter dynamically for Admin
+            initManagerRoom();
+            if (document.getElementById('view-history').style.display === 'block') {
+                loadHistory();
+            }
+        };
+    </script>
+</body>
+</html>

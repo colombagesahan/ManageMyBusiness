@@ -1,0 +1,862 @@
+adwithiya shop id dekak ekineka samana wunoth kumak sidu weida?eya walakwanne keseda? mema shop id eka ahamben ho kalin sadi thibeda kiyala pariksha karanna one neda?MEMA ADAHASA MELESAMA KRIYATHMAKA NOKARA PRATHI THARKA SAHITHAWA WIWIDA DUSTIKONAWALIN WIMARSHANATHMAKAWA NAWATHA GABURIN SITHA BALANNA.CODE LABADIMATA PERA NAWATHAWATHAWAK OBAGE MEMA YOJANAWA PRATHITHARKA SAHITHAWA WIMARSHANAYA KARA ADAHASA WADATH DIYUNUKARA WADATHMA THAKSHANAIKA NIWARADIMA CODE LABADENNA.
+
+oba danatamath mage system eke code eka dannawa. mn obata mehi thawath code dekak paste karannam.
+1)The Merchant ERP Folder (B2B SaaS)
+index.html
+<!DOCTYPE html>
+<html lang="si">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- 🚀 Dynamic Title (Will be updated by JS) -->
+    <title>Loading Portal...</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Sinhala:wght@400;600;800&family=Plus+Jakarta+Sans:wght@400;600;800&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+
+    <style>
+        /* 🚀 ENTERPRISE DYNAMIC CSS VARIABLES */
+        /* මේවා JS මගින් කඩේට අදාළව වෙනස් කරනු ඇත */
+        :root {
+            --primary: #475569; /* Neutral default until loaded */
+            --primary-light: #94a3b8;
+            --secondary: #0f172a;
+            --bg: #ffffff;
+            --text-main: #334155;
+        }
+        
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', 'Noto Sans Sinhala', sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { background: var(--bg); color: var(--text-main); height: 100vh; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+
+        /* THE IRON CURTAIN LOADER (Hides everything until branded) */
+        #masterLoader { position: fixed; inset: 0; background: white; z-index: 99999; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.4s ease; }
+        .spinner { width: 50px; height: 50px; border: 5px solid #f1f5f9; border-top: 5px solid var(--secondary); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        /* FATAL ERROR SCREEN */
+        #fatalError { display: none; text-align: center; padding: 30px; }
+        #fatalError i { font-size: 70px; color: #ef4444; margin-bottom: 10px; display: block; }
+        #fatalError h1 { color: #111827; font-size: 24px; margin-bottom: 10px; }
+
+        /* BRANDED CONTAINER */
+        #brandedApp { display: none; width: 100%; max-width: 500px; padding: 20px; text-align: center; animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* DYNAMIC LOGO AREA */
+        .dynamic-logo { max-width: 180px; max-height: 80px; object-fit: contain; margin-bottom: 25px; border-radius: 8px; }
+        .dynamic-text-logo { font-size: 28px; font-weight: 900; color: var(--primary); margin-bottom: 25px; line-height: 1.2; word-wrap: break-word; }
+
+        /* ROLE SELECTION GRID */
+        .role-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 30px; text-align: left; }
+        .role-card { background: white; border: 2px solid #e2e8f0; border-radius: 16px; padding: 20px 15px; cursor: pointer; transition: 0.3s; position: relative; overflow: hidden; display: flex; flex-direction: column; align-items: center; text-align: center; }
+        .role-card:hover { transform: translateY(-5px); box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); border-color: var(--primary); }
+        .role-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: var(--primary); opacity: 0; transition: 0.3s; }
+        .role-card:hover::before { opacity: 1; }
+        
+        .role-card i { font-size: 28px; color: var(--primary); background: #f1f5f9; width: 55px; height: 55px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; margin-bottom: 15px; transition: 0.3s; }
+        .role-card:hover i { background: var(--primary); color: white; transform: scale(1.1); }
+        
+        .role-card h4 { color: var(--secondary); margin-bottom: 5px; font-size: 15px; font-weight: 800; }
+        .role-card p { font-size: 11px; color: #64748b; line-height: 1.4; }
+
+        /* CASHIER LOGIN FORM */
+        #cashierFormView { display: none; background: white; padding: 30px; border-radius: 16px; border: 1px solid #e2e8f0; text-align: left; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+        input { width: 100%; padding: 14px; border: 2px solid #e2e8f0; border-radius: 12px; margin-bottom: 15px; font-size: 14px; outline: none; transition: 0.2s; }
+        input:focus { border-color: var(--primary); }
+        
+        .btn { width: 100%; padding: 14px; background: var(--primary); color: white; font-weight: 800; border: none; border-radius: 12px; cursor: pointer; transition: 0.2s; font-size: 15px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+        .btn:hover { box-shadow: 0 10px 20px -10px var(--primary); transform: translateY(-2px); }
+        
+        .btn-outline { background: transparent; border: 2px solid #e2e8f0; color: #64748b; padding: 8px 15px; width: auto; font-size: 12px; margin-bottom: 20px; }
+        .btn-outline:hover { background: #f1f5f9; color: var(--secondary); transform: none; box-shadow: none; }
+
+        /* System Tag */
+        .powered-by { position: fixed; bottom: 20px; left: 0; right: 0; text-align: center; font-size: 10px; color: #94a3b8; font-weight: 600; letter-spacing: 0.5px; }
+    </style>
+</head>
+<body>
+
+<!-- 1. INITIAL LOADER (THE CURTAIN) -->
+<div id="masterLoader">
+    <div class="spinner"></div>
+    <div style="color:#64748b; font-weight:600; font-size:14px; letter-spacing:1px;">SECURING CONNECTION...</div>
+</div>
+
+<!-- 2. FATAL ERROR (404 OR SUSPENDED) -->
+<div id="fatalError">
+    <i class="ri-store-3-line"></i>
+    <h1 id="errorTitle">Store Not Found</h1>
+    <p id="errorDesc" style="color:#64748b; font-size:14px;">The portal you are looking for does not exist or has been suspended.</p>
+</div>
+
+<!-- 3. BRANDED APPLICATION AREA -->
+<div id="brandedApp">
+    
+    <!-- Dynamic Branding Injected Here -->
+    <div id="brandingContainer"></div>
+
+    <!-- Role Selection -->
+    <div id="roleSelectionView">
+        <h2 style="color:var(--secondary); font-size:22px; font-weight:900;">පද්ධතියට පිවිසෙන්න</h2>
+        <p style="color:#64748b; font-size:13px; margin-top:5px;">කරුණාකර ඔබගේ ගිණුම් වර්ගය තෝරන්න.</p>
+        
+        <div class="role-grid">
+            <div class="role-card" onclick="adminLogin()">
+                <i class="ri-shield-user-fill"></i>
+                <h4>Admin</h4>
+                <p>Owner analytics & master controls.</p>
+            </div>
+            
+            <div class="role-card" onclick="showCashierForm()">
+                <i class="ri-shopping-cart-2-fill"></i>
+                <h4>Cashier</h4>
+                <p>POS, billing, and sales counter.</p>
+            </div>
+
+            <div class="role-card" onclick="goToPortal('employee')">
+                <i class="ri-briefcase-4-fill"></i>
+                <h4>Staff / Tech</h4>
+                <p>Clock-in, salary, and tasks.</p>
+            </div>
+
+            <div class="role-card" onclick="goToPortal('customer')">
+                <i class="ri-user-smile-fill"></i>
+                <h4>Customer</h4>
+                <p>View history, points & requests.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cashier Login Form -->
+    <div id="cashierFormView">
+        <button class="btn btn-outline" onclick="hideCashierForm()"><i class="ri-arrow-left-line"></i> Back to Roles</button>
+        
+        <div style="text-align:center; margin-bottom:25px;">
+            <i class="ri-shopping-cart-2-fill" style="font-size:40px; color:var(--primary); margin-bottom:10px; display:block;"></i>
+            <h3 style="color:var(--secondary); font-size: 20px; font-weight:900;">Cashier Login</h3>
+            <p style="font-size:12px; color:#64748b; margin-top:5px;">Access your assigned POS counter.</p>
+        </div>
+
+        <label style="font-size:12px; font-weight:800; color:#475569; text-transform:uppercase;">Email Address</label>
+        <input type="email" id="cashierEmail" placeholder="e.g. counter1@shop.com">
+        
+        <label style="font-size:12px; font-weight:800; color:#475569; text-transform:uppercase; margin-top:5px;">Password</label>
+        <input type="password" id="cashierPass" placeholder="Enter password">
+        
+        <button class="btn" onclick="cashierLoginSubmit()" id="btnCashierLogin"><i class="ri-login-circle-fill"></i> Secure Login</button>
+    </div>
+
+</div>
+
+<div class="powered-by">POWERED BY WORLDBIZNET ENTERPRISE</div>
+
+<!-- ==========================================
+     FIREBASE & THE MAGIC ROUTER LOGIC
+========================================== -->
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+    import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+    import { getFirestore, doc, getDoc, collection, query, limit, getDocs } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+    // 🔴 1. YOUR MASTER FIREBASE CONFIG
+    const firebaseConfig = {
+      apiKey: "AIzaSyBDwLs_z_SXX-t6olQ8xu6dRjxVpgRkuvE",
+      authDomain: "nawarathna-cool-engineering.firebaseapp.com",
+      projectId: "nawarathna-cool-engineering",
+      storageBucket: "nawarathna-cool-engineering.firebasestorage.app",
+      messagingSenderId: "863435741101",
+      appId: "1:863435741101:web:c2774c9a557d0fe014f324"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const provider = new GoogleAuthProvider();
+
+    // 🧠 GLOBAL STATE FOR THIS TENANT
+    let resolvedOwnerId = null;
+    let resolvedShopId = null; // 🛡️ ENTERPRISE FIX: Must be determined dynamically!
+    let tenantProfile = null;
+
+    // =======================================================
+    // 🚀 STEP 1: THE INTELLIGENT ROUTER (Bootstrapping)
+    // =======================================================
+    window.onload = async () => {
+        // 1. Identify the Subdomain
+        let hostname = window.location.hostname; // e.g. "kamal.worldbiznet.com"
+        let tenantPrefix = "";
+
+        if (hostname.includes('localhost') || hostname.includes('127.0.0.1')) {
+            // Localhost Testing Fallback (e.g. localhost:5000?tenant=nawarathna)
+            const urlParams = new URLSearchParams(window.location.search);
+            tenantPrefix = urlParams.get('tenant');
+            if(!tenantPrefix) return showFatalError("Local Testing Error", "Please provide a ?tenant=name parameter in the URL.");
+        } else {
+            // Live Server Extraction
+            tenantPrefix = hostname.split('.')[0]; 
+        }
+
+        try {
+            // 2. Cross-reference with Master Registry
+            const registryRef = doc(db, 'master_tenants', tenantPrefix);
+            const registrySnap = await getDoc(registryRef);
+
+            if (!registrySnap.exists()) {
+                return showFatalError("Store Not Found", `The domain '${tenantPrefix}' is not registered in our network.`);
+            }
+
+            const registryData = registrySnap.data();
+
+            // 3. Security Failsafe: Check if Admin suspended this shop!
+            if (registryData.status !== 'active') {
+                return showFatalError("Service Suspended", "This store's portal has been temporarily suspended by the administrator.");
+            }
+
+            resolvedOwnerId = registryData.ownerUid;
+
+            // 4. Fetch the Merchant's Custom Branding
+            // 🛡️ ENTERPRISE FIX: Smart Branch Resolution! 
+            // Try to find the last active shop from LocalStorage for this specific Owner, 
+            // fallback to defaultShopId from registry, or query the DB for their primary shop.
+            resolvedShopId = localStorage.getItem(`active_shop_id_${resolvedOwnerId}`) || registryData.defaultShopId;
+            
+            if (!resolvedShopId) {
+                // Get the first available shop for this tenant
+                const shopsQ = query(collection(db, `users/${resolvedOwnerId}/shops`), limit(1));
+                const shopSnap = await getDocs(shopsQ);
+                if(!shopSnap.empty) {
+                    resolvedShopId = shopSnap.docs[0].id;
+                } else {
+                    resolvedShopId = "MAIN"; // Absolute Fallback
+                }
+            }
+
+            const profileRef = doc(db, `users/${resolvedOwnerId}/shops/${resolvedShopId}/settings`, 'profile');
+            const profileSnap = await getDoc(profileRef);
+
+            if (profileSnap.exists()) {
+                tenantProfile = profileSnap.data();
+                applyBranding(tenantProfile);
+            } else {
+                // Fallback minimal branding if they haven't set up the profile yet
+                applyBranding({ bizName: registryData.shopName || tenantPrefix.toUpperCase(), logoColor: '#2563eb' });
+            }
+
+            // 5. Save securely to LocalStorage so POS (dashboard.html) knows who to load!
+            localStorage.setItem('active_owner_id', resolvedOwnerId);
+            localStorage.setItem('active_shop_id', resolvedShopId);
+
+            // 6. Lift the Iron Curtain (Hide Loader, Show Branded App)
+            document.getElementById('masterLoader').style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('masterLoader').style.display = 'none';
+                document.getElementById('brandedApp').style.display = 'block';
+            }, 400);
+
+        } catch (error) {
+            console.error("Routing Error:", error);
+            showFatalError("Connection Error", "Failed to connect to the central database.");
+        }
+    };
+
+    // =======================================================
+    // 🎨 STEP 2: DYNAMIC CSS INJECTION (The Illusion)
+    // =======================================================
+    function applyBranding(p) {
+        document.title = `${p.bizName} | System Portal`;
+
+        // Inject Theme Colors natively into CSS Variables
+        if (p.logoColor) {
+            document.documentElement.style.setProperty('--primary', p.logoColor);
+            document.documentElement.style.setProperty('--primary-light', p.logoColor + '80'); // 50% opacity
+        }
+
+        // Render Logo or Text
+        const container = document.getElementById('brandingContainer');
+        if (p.logoImage) {
+            container.innerHTML = `<img src="${p.logoImage}" class="dynamic-logo" alt="${p.bizName}">`;
+        } else {
+            const font = p.logoFont || "'Plus Jakarta Sans'";
+            container.innerHTML = `<div class="dynamic-text-logo" style="font-family:${font};">${p.bizName}</div>`;
+        }
+    }
+
+    function showFatalError(title, desc) {
+        document.getElementById('masterLoader').style.display = 'none';
+        document.getElementById('brandedApp').style.display = 'none';
+        document.getElementById('fatalError').style.display = 'block';
+        document.getElementById('errorTitle').textContent = title;
+        document.getElementById('errorDesc').textContent = desc;
+    }
+
+    // =======================================================
+    // 🔐 STEP 3: AUTHENTICATION ROUTERS
+    // =======================================================
+
+    // A. Admin Login
+    window.adminLogin = async () => {
+        setBtnLoading('roleSelectionView', true);
+        try {
+            const result = await signInWithPopup(auth, provider);
+            // Verify if the Google User actually owns THIS specific shop!
+            if (result.user.uid !== resolvedOwnerId) {
+                await auth.signOut();
+                alert("Access Denied: Your Google account is not the registered owner of this store.");
+                setBtnLoading('roleSelectionView', false);
+                return;
+            }
+            // Success! Send to POS. (Dashboard will read localStorage to load data)
+            window.location.href = "dashboard.html";
+        } catch (error) {
+            setBtnLoading('roleSelectionView', false);
+            if (error.code !== 'auth/popup-closed-by-user') alert("Login Failed: " + error.message);
+        }
+    };
+
+    // B. Cashier Login
+    window.cashierLoginSubmit = async () => {
+        const email = document.getElementById('cashierEmail').value.trim();
+        const pass = document.getElementById('cashierPass').value.trim();
+        if(!email || !pass) return alert("Email and Password required.");
+
+        setBtnLoading('btnCashierLogin', true);
+        try {
+            const result = await signInWithEmailAndPassword(auth, email, pass);
+            
+            // SECURITY FIREWALL: Double check if this Cashier belongs to this specific shop!
+            const userDoc = await getDoc(doc(db, 'users', result.user.uid));
+            if (!userDoc.exists() || userDoc.data().ownerId !== resolvedOwnerId) {
+                await auth.signOut();
+                alert("Security Breach Blocked: You do not have permission to access this store's portal!");
+                setBtnLoading('btnCashierLogin', false);
+                return;
+            }
+
+            // 🛡️ ENTERPRISE SAAS FIX: Strict Cashier Branch Routing!
+            // Cashier ට අයිති කඩේ මොකක්ද කියලා Database එකෙන් අරන්, ඒක බලහත්කාරයෙන්ම LocalStorage එකට දානවා. 
+            // එතකොට Dashboard එක Load වෙන්නේ හරියටම Cashier ට අයිති කඩෙන් විතරයි!
+            const authorizedShopId = userDoc.data().allowedShop;
+            if (authorizedShopId) {
+                localStorage.setItem('active_shop_id', authorizedShopId);
+            } else {
+                await auth.signOut();
+                alert("Security Alert: You have not been assigned to any branch. Contact Admin.");
+                setBtnLoading('btnCashierLogin', false);
+                return;
+            }
+
+            // Success! Send to POS.
+            window.location.href = "dashboard.html";
+        } catch (error) {
+            setBtnLoading('btnCashierLogin', false);
+            alert("Invalid Credentials.");
+        }
+    };
+
+    // C. Customer / Employee Handoff (Throw them to the Master Portal)
+    window.goToPortal = (type) => {
+        if (!resolvedOwnerId || !resolvedShopId) return;
+
+        // 🚀 ENTERPRISE MAGIC: We seamlessly throw them to the Main Domain, 
+        // passing the Owner and Shop keys securely via the URL!
+        const MAIN_DOMAIN = "https://worldbiznet.com"; // Replace with your actual main domain URL
+        
+        if (type === 'customer') {
+            window.location.href = `${MAIN_DOMAIN}/customer.html?owner=${resolvedOwnerId}&shop=${resolvedShopId}`;
+        } else if (type === 'employee') {
+            window.location.href = `${MAIN_DOMAIN}/employee.html?owner=${resolvedOwnerId}&shop=${resolvedShopId}`;
+        }
+    };
+
+    // --- UI Helpers ---
+    window.showCashierForm = () => {
+        document.getElementById('roleSelectionView').style.display = 'none';
+        document.getElementById('cashierFormView').style.display = 'block';
+    };
+
+    window.hideCashierForm = () => {
+        document.getElementById('cashierFormView').style.display = 'none';
+        document.getElementById('roleSelectionView').style.display = 'block';
+        document.getElementById('cashierEmail').value = '';
+        document.getElementById('cashierPass').value = '';
+    };
+
+    function setBtnLoading(id, isLoading) {
+        // Minimal visual feedback during auth
+        document.body.style.opacity = isLoading ? '0.7' : '1';
+        document.body.style.pointerEvents = isLoading ? 'none' : 'auto';
+    }
+
+</script>
+</body>
+</html>
+
+2)The God-Mode Folder (Chief Admin Console)
+index.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>God Mode | Chief Admin Console</title>
+<link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800;900&display=swap" rel="stylesheet">
+
+<style>
+    /* ENTERPRISE DARK THEME FOR CHIEF CONSOLE */
+    :root { --primary: #10b981; --bg: #0f172a; --card: #1e293b; --text: #f8fafc; --text-muted: #94a3b8; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', sans-serif; }
+    body { background: var(--bg); color: var(--text); padding: 20px; overflow-x: hidden; }
+
+    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 20px; margin-bottom: 20px; }
+    .header h1 { font-size: 24px; font-weight: 900; color: var(--primary); display: flex; align-items: center; gap: 10px; }
+    
+    .grid-layout { display: grid; grid-template-columns: 1fr 2fr; gap: 20px; align-items: start; }
+    
+    .card { background: var(--card); padding: 25px; border-radius: 16px; border: 1px solid #334155; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+    .card h2 { font-size: 16px; margin-bottom: 20px; border-bottom: 1px dashed #475569; padding-bottom: 10px; color: var(--primary); }
+
+    input, select { width: 100%; padding: 12px 15px; border: 1px solid #475569; background: #0f172a; color: white; border-radius: 8px; margin-bottom: 15px; font-size: 14px; outline: none; transition: 0.2s; }
+    input:focus, select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2); }
+    
+    .input-group { display: flex; align-items: center; margin-bottom: 15px; }
+    .input-group input { margin-bottom: 0; border-radius: 8px 0 0 8px; border-right: none; }
+    .input-addon { background: #334155; padding: 12px 15px; font-size: 14px; border: 1px solid #475569; border-radius: 0 8px 8px 0; color: #cbd5e1; font-weight: 600; }
+
+    .btn { width: 100%; padding: 14px; background: var(--primary); color: #022c22; font-weight: 900; border: none; border-radius: 8px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 15px; }
+    .btn:hover { background: #059669; color: white; }
+    .btn-danger { background: #ef4444; color: white; }
+    .btn-danger:hover { background: #dc2626; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #334155; }
+    th { color: var(--text-muted); font-weight: 800; text-transform: uppercase; font-size: 11px; }
+    tr:hover { background: rgba(255,255,255,0.02); }
+
+    .badge { padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: 900; }
+    .badge.active { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid #059669; }
+    .badge.suspended { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid #dc2626; }
+
+    .loader-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.9); z-index: 9999; display: none; align-items: center; justify-content: center; flex-direction: column; color: var(--primary); font-weight: 900; }
+    .ri-spin { animation: spin 1s linear infinite; }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+
+    /* Login Screen strictly for Chief Admin */
+    #view-login { position: fixed; inset: 0; background: #0f172a; z-index: 10000; display: flex; align-items: center; justify-content: center; }
+</style>
+</head>
+<body>
+
+<div class="loader-overlay" id="globalLoader">
+    <i class="ri-loader-4-line ri-spin" style="font-size:40px;"></i>
+    <div style="margin-top:10px;" id="loaderText">Processing Engine...</div>
+</div>
+
+<!-- ==========================================
+     CHIEF ADMIN LOGIN
+========================================== -->
+<div id="view-login">
+    <div class="card" style="width: 100%; max-width: 400px; text-align: center;">
+        <i class="ri-shield-keyhole-fill" style="font-size:50px; color:var(--primary);"></i>
+        <h2 style="border:none; margin:10px 0 5px 0;">Chief Admin Console</h2>
+        <p style="color:var(--text-muted); font-size:12px; margin-bottom:20px;">Strictly restricted to Master Administrator.</p>
+        
+        <button class="btn" onclick="loginChiefAdmin()"><i class="ri-google-fill"></i> Authenticate with Google</button>
+    </div>
+</div>
+
+<!-- ==========================================
+     MAIN CONSOLE DASHBOARD
+========================================== -->
+<div id="view-dashboard" style="display:none; max-width: 1400px; margin: 0 auto;">
+    <div class="header">
+        <h1><i class="ri-server-fill"></i> SaaS Fleet Controller</h1>
+        <div style="display:flex; align-items:center; gap:15px;">
+            <div style="font-size:13px; color:var(--text-muted);">Logged in as: <b id="adminEmailDisp" style="color:white;"></b></div>
+            <button class="btn btn-danger" style="width:auto; padding:8px 15px; font-size:12px;" onclick="logoutChief()"><i class="ri-logout-circle-r-line"></i> Exit</button>
+        </div>
+    </div>
+
+    <div class="grid-layout">
+        
+        <!-- COLUMN 1: CREATE NEW TENANT -->
+        <div class="card">
+            <h2><i class="ri-add-box-fill"></i> Provision New System (Shop)</h2>
+            
+            <label style="font-size:11px; font-weight:800; color:var(--text-muted); text-transform:uppercase;">Business / Shop Name *</label>
+            <input type="text" id="shopName" placeholder="e.g. Nawarathna Cool Engineering">
+            
+            <label style="font-size:11px; font-weight:800; color:var(--text-muted); text-transform:uppercase;">Subdomain Prefix *</label>
+            <div class="input-group">
+                <input type="text" id="subDomain" placeholder="e.g. nawarathna" oninput="sanitizeSubdomain(this)">
+                <div class="input-addon">.worldbiznet.com</div>
+            </div>
+            <div id="domainStatus" style="font-size:11px; font-weight:bold; margin-top:-10px; margin-bottom:15px;"></div>
+
+            <label style="font-size:11px; font-weight:800; color:var(--text-muted); text-transform:uppercase;">Owner's Email Address *</label>
+            <input type="email" id="ownerEmail" placeholder="merchant@gmail.com">
+            
+            <label style="font-size:11px; font-weight:800; color:var(--text-muted); text-transform:uppercase;">Temporary Admin Password *</label>
+            <div style="position:relative;">
+                <input type="text" id="ownerPass" placeholder="e.g. Nawarathna@123" value="Admin@1234">
+                <i class="ri-refresh-line" style="position:absolute; right:15px; top:12px; cursor:pointer; color:var(--primary);" title="Generate Random" onclick="generateRandomPass()"></i>
+            </div>
+            
+            <button class="btn" onclick="provisionNewTenant()"><i class="ri-rocket-2-fill"></i> Deploy New System</button>
+        </div>
+
+        <!-- COLUMN 2: ACTIVE TENANTS LIST -->
+        <div class="card" style="overflow-x:auto;">
+            <h2><i class="ri-building-4-fill"></i> Active Merchants (Tenants)</h2>
+            <div style="background:#0f172a; border-radius:8px; border:1px solid #334155; display:flex; align-items:center; padding:0 15px; margin-bottom:15px;">
+                <i class="ri-search-line" style="color:#64748b;"></i>
+                <input type="text" id="searchTenants" placeholder="Search domain or email..." style="border:none; margin:0; box-shadow:none; padding:12px 10px; background:transparent;" onkeyup="filterTenants()">
+            </div>
+            <table id="tenantsTable">
+                <thead>
+                    <tr>
+                        <th>Subdomain (URL)</th>
+                        <th>Owner Email</th>
+                        <th>Created At</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="tenantsBody">
+                    <tr><td colspan="5" style="text-align:center;">Loading tenants...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+</div>
+
+<!-- ==========================================
+     FIREBASE & LOGIC
+========================================== -->
+<script type="module">
+    import { initializeApp, deleteApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+    import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+    import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, query, getDocs, orderBy, writeBatch } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+    // 🔴 1. PRIMARY FIREBASE CONFIG (Your central database)
+    const firebaseConfig = {
+      apiKey: "AIzaSyBDwLs_z_SXX-t6olQ8xu6dRjxVpgRkuvE",
+      authDomain: "nawarathna-cool-engineering.firebaseapp.com",
+      projectId: "nawarathna-cool-engineering",
+      storageBucket: "nawarathna-cool-engineering.firebasestorage.app",
+      messagingSenderId: "863435741101",
+      appId: "1:863435741101:web:c2774c9a557d0fe014f324"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const provider = new GoogleAuthProvider();
+
+    // 🚨 CHIEF ADMIN SECURITY LOCK
+    const CHIEF_ADMIN_EMAIL = "nadun.admin@gmail.com"; 
+
+    let tenantsCache = [];
+    const toggleLoader = (show, text="Processing...") => {
+        document.getElementById('globalLoader').style.display = show ? 'flex' : 'none';
+        document.getElementById('loaderText').textContent = text;
+    };
+
+    // --- 1. AUTHENTICATION (God Mode) ---
+    window.loginChiefAdmin = async () => {
+        toggleLoader(true, "Authenticating Securely...");
+        try {
+            await signInWithPopup(auth, provider);
+        } catch(e) {
+            alert("Login Failed: " + e.message);
+            toggleLoader(false);
+        }
+    };
+
+    onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            if (user.email !== CHIEF_ADMIN_EMAIL) {
+                await signOut(auth);
+                alert("🚨 SECURITY BREACH BLOCKED: You are not authorized to access the Chief Console.");
+                toggleLoader(false);
+                return;
+            }
+            // Authorized!
+            document.getElementById('view-login').style.display = 'none';
+            document.getElementById('view-dashboard').style.display = 'block';
+            document.getElementById('adminEmailDisp').textContent = user.email;
+            loadTenants();
+        } else {
+            document.getElementById('view-login').style.display = 'flex';
+            document.getElementById('view-dashboard').style.display = 'none';
+        }
+        toggleLoader(false);
+    });
+
+    window.logoutChief = async () => {
+        if(confirm("Exit Chief Console?")) await signOut(auth);
+    };
+
+    // --- 2. SUBDOMAIN SANITIZER ---
+    let typingTimer;
+    window.sanitizeSubdomain = (input) => {
+        // අකුරු සහ ඉලක්කම් පමණක් ඉඩ දේ. හිස්තැන් සහ කැපිටල් අකුරු මකා දමයි.
+        input.value = input.value.toLowerCase().replace(/[^a-z0-9]/g, '');
+        
+        const statusEl = document.getElementById('domainStatus');
+        const val = input.value;
+        
+        clearTimeout(typingTimer);
+        if(val.length < 3) {
+            statusEl.innerHTML = '<span style="color:#ef4444;">Too short (Min 3 chars)</span>';
+            return;
+        }
+
+        statusEl.innerHTML = '<span style="color:var(--text-muted);">Checking availability...</span>';
+        
+        typingTimer = setTimeout(async () => {
+            const docRef = doc(db, 'master_tenants', val);
+            const snap = await getDoc(docRef);
+            if(snap.exists()) {
+                statusEl.innerHTML = '<span style="color:#ef4444;"><i class="ri-close-circle-fill"></i> Domain Taken! Try another.</span>';
+            } else {
+                statusEl.innerHTML = '<span style="color:var(--primary);"><i class="ri-checkbox-circle-fill"></i> Available!</span>';
+            }
+        }, 500);
+    };
+
+    window.generateRandomPass = () => {
+        const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$";
+        let pass = "";
+        for(let i=0; i<10; i++) pass += chars.charAt(Math.floor(Math.random() * chars.length));
+        document.getElementById('ownerPass').value = pass;
+    };
+
+    // --- 3. PROVISION NEW TENANT (The Master Creator) ---
+    window.provisionNewTenant = async () => {
+        const shopName = document.getElementById('shopName').value.trim();
+        const subdomain = document.getElementById('subDomain').value.trim();
+        const ownerEmail = document.getElementById('ownerEmail').value.trim();
+        const ownerPass = document.getElementById('ownerPass').value.trim();
+
+        if(!shopName || !subdomain || !ownerEmail || !ownerPass) return alert("All fields are required!");
+        if(subdomain.length < 3) return alert("Subdomain must be at least 3 characters.");
+
+        toggleLoader(true, "Deploying Infrastructure...");
+
+        let secondaryApp = null;
+        try {
+            // 1. Double check domain availability securely
+            const checkRef = doc(db, 'master_tenants', subdomain);
+            const checkSnap = await getDoc(checkRef);
+            if (checkSnap.exists()) throw new Error("Subdomain is already taken!");
+
+            toggleLoader(true, "Creating Merchant Account...");
+
+            // 2. 🚨 THE TRICK: Use Secondary App to create user without logging Chief Admin out!
+            secondaryApp = initializeApp(firebaseConfig, "TempApp_" + Date.now());
+            const secondaryAuth = getAuth(secondaryApp);
+            const userCred = await createUserWithEmailAndPassword(secondaryAuth, ownerEmail, ownerPass);
+            const newOwnerUid = userCred.user.uid;
+            
+            // Clean up the temp app instantly
+            await signOut(secondaryAuth);
+            await deleteApp(secondaryApp);
+
+            toggleLoader(true, "Writing Database Pointers...");
+
+            // 3. 🚨 ATOMIC BATCH WRITE: Build the Merchant's Database Foundation
+            const batch = writeBatch(db);
+            const secureNow = new Date().toISOString();
+
+            // 🚀 ENTERPRISE FIX: Generate a 100% Unique Shop ID
+            const generatedShopId = "SHOP_" + Date.now();
+
+            // A. Create Master Registry Entry (For Routing)
+            batch.set(checkRef, {
+                ownerUid: newOwnerUid,
+                defaultShopId: generatedShopId, // 👈 අනාගතයේ හොයාගන්න මේක මෙතන ලියනවා
+                shopName: shopName,
+                ownerEmail: ownerEmail,
+                status: 'active',
+                createdAt: secureNow
+            });
+
+            // B. Create the Owner Profile in ERP Core
+            const ownerRef = doc(db, 'users', newOwnerUid);
+            batch.set(ownerRef, {
+                role: 'admin',
+                email: ownerEmail,
+                ownerId: newOwnerUid,
+                status: 'active',
+                createdAt: secureNow
+            });
+
+            // C. Create the First Default Shop (Branch) for this Owner with Unique ID
+            const mainShopRef = doc(db, `users/${newOwnerUid}/shops`, generatedShopId);
+            batch.set(mainShopRef, {
+                name: shopName,
+                currency: "Rs",
+                created: secureNow
+            });
+
+            // D. Pre-fill their Business Profile so the Landing Page works instantly!
+// 🚨 ENTERPRISE FIX: Dynamic Shop ID used instead of hardcoded 'MAIN'
+const profileRef = doc(db, `users/${newOwnerUid}/shops/${generatedShopId}/settings`, 'profile');
+batch.set(profileRef, {
+                bizName: shopName,
+                email: ownerEmail,
+                showBizName: true,
+                logoColor: '#2563eb' // Default Blue
+            });
+
+            await batch.commit();
+
+            alert(`✅ System Deployed Successfully!\n\nURL: https://${subdomain}.worldbiznet.com\nEmail: ${ownerEmail}\nPassword: ${ownerPass}\n\nPlease copy and send these details to the merchant.`);
+            
+            document.getElementById('shopName').value = '';
+            document.getElementById('subDomain').value = '';
+            document.getElementById('ownerEmail').value = '';
+            generateRandomPass();
+            document.getElementById('domainStatus').innerHTML = '';
+
+            loadTenants(); // Refresh table
+
+        } catch (e) {
+            console.error(e);
+            alert("Deployment Failed: " + e.message);
+        } finally {
+            if (secondaryApp) {
+                try { await deleteApp(secondaryApp); } catch(err){}
+            }
+            toggleLoader(false);
+        }
+    };
+
+    // --- 4. MANAGE TENANTS (List & Suspend) ---
+    async function loadTenants() {
+        const tbody = document.getElementById('tenantsBody');
+        try {
+            const q = query(collection(db, 'master_tenants'), orderBy('createdAt', 'desc'));
+            const snap = await getDocs(q);
+            
+            tenantsCache = [];
+            snap.forEach(d => tenantsCache.push({ id: d.id, ...d.data() }));
+            
+            renderTenants();
+        } catch(e) {
+            tbody.innerHTML = `<tr><td colspan="5" style="color:red; text-align:center;">Error loading tenants</td></tr>`;
+        }
+    }
+
+    window.renderTenants = () => {
+        const term = document.getElementById('searchTenants').value.toLowerCase().trim();
+        const tbody = document.getElementById('tenantsBody');
+        
+        const filtered = tenantsCache.filter(t => 
+            t.id.toLowerCase().includes(term) || t.ownerEmail.toLowerCase().includes(term)
+        );
+
+        if (filtered.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--text-muted);">No merchants found.</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = filtered.map(t => {
+            const isActive = t.status === 'active';
+            const badge = isActive 
+                ? `<span class="badge active">ACTIVE</span>` 
+                : `<span class="badge suspended">SUSPENDED</span>`;
+                
+            const actionBtn = isActive
+                ? `<button class="btn btn-danger" style="padding:6px 12px; font-size:11px; width:auto;" onclick="toggleTenantStatus('${t.id}', 'suspended')"><i class="ri-lock-fill"></i> Suspend Site</button>`
+                : `<button class="btn" style="padding:6px 12px; font-size:11px; width:auto; background:var(--primary); color:#022c22;" onclick="toggleTenantStatus('${t.id}', 'active')"><i class="ri-lock-unlock-fill"></i> Reactivate</button>`;
+
+            return `
+            <tr>
+                <td><a href="https://${t.id}.worldbiznet.com" target="_blank" style="color:var(--primary); font-weight:bold; text-decoration:none;">${t.id}.worldbiznet.com <i class="ri-external-link-line" style="font-size:10px;"></i></a><br><span style="font-size:11px; color:var(--text-muted);">${t.shopName}</span></td>
+                <td style="font-weight:600;">${t.ownerEmail}</td>
+                <td style="color:var(--text-muted); font-size:11px;">${new Date(t.createdAt).toLocaleDateString()}</td>
+                <td>${badge}</td>
+                <td>${actionBtn}</td>
+            </tr>`;
+        }).join('');
+    };
+
+    window.filterTenants = () => renderTenants();
+
+    // 🚨 SUSPEND MERCHANTS WHO DON'T PAY!
+    window.toggleTenantStatus = async (domainId, newStatus) => {
+        const msg = newStatus === 'suspended' ? `Suspend ${domainId}.worldbiznet.com?\nThe merchant and all customers will be instantly locked out!` : `Reactivate this site?`;
+        if(!confirm(msg)) return;
+
+        toggleLoader(true, "Updating Status...");
+        try {
+            // 1. Update Master Registry
+            await updateDoc(doc(db, 'master_tenants', domainId), { status: newStatus });
+            
+            // 2. Update the Owner's Root Profile to completely lock API requests
+            const t = tenantsCache.find(x => x.id === domainId);
+            if (t && t.ownerUid) {
+                await updateDoc(doc(db, 'users', t.ownerUid), { status: newStatus });
+            }
+
+            loadTenants();
+        } catch(e) {
+            alert("Error updating status: " + e.message);
+        }
+        toggleLoader(false);
+    };
+
+</script>
+</body>
+</html>
+
+wadiduratath obata karunu therum ganimata mage web site eka host kirima pilibadawa wenath ai ekak labadun upades mehi idiripathkarannam. 
+[ 100% Enterprise විසඳුම: "Firebase Multi-Site Hosting" (බහු-අඩවි ගෘහනිර්මාණය)
+
+අපි මේ අර්බුදය විසඳන්නේ **"Micro-Frontends"** (වෙන් කළ මුහුණත්) න්‍යායෙනි. 
+අපේ Database එක සහ Cloud Functions එකක් වුණාට, අපි අන්තර්ජාලයට මේක දාන්නේ **වෙන වෙනම වෙබ් අඩවි 3 ක් (3 Separate Sites)** විදිහටයි!
+
+ඔබගේ පරිගණකයේ ගොනු (Folders) සැකසිය යුතු නිවැරදිම ආකාරය මෙන්න:
+
+#### 📁 1. The Customer App Folder (B2C Portal)
+* **අරමුණ:** පාරිභෝගිකයින් සඳහා පමණි.
+* **ගොනු:** `index.html` (අපි අන්තිමට හැදූ Customer Portal එක).
+* **Domain එක:** `www.worldbiznet.com`
+* **ක්‍රියාවලිය:** පාරිභෝගිකයා මෙතැනට පැමිණ Gmail හරහා ලොග් වී මුළු ලංකාවේම බිල්පත් බලයි. මේ ෆෝල්ඩරය ඇතුළේ POS එකේ සේයාවක්වත් නෑ. එබැවින් 100% ක් සුරක්ෂිතයි.
+
+#### 📁 2. The Merchant ERP Folder (B2B SaaS)
+* **අරමුණ:** කඩේ මුදලාලි, Cashiers ලා සහ සේවකයින් සඳහා පමණි.
+* **ගොනු:** 
+  - `index.html` (අපි හැදූ Magic Router Landing Page එක. කඩේ ලෝගෝ එක දාගෙන ලොග් වෙන තැන).
+  - `dashboard.html` (ඔබගේ දැවැන්ත POS සහ ERP පද්ධතිය).
+  - `employee.html` (සේවකයින්ගේ Attendance සහ පඩි බලන තිරය).
+* **Domain එක:** `*.worldbiznet.com` (Wildcard)
+* **ක්‍රියාවලිය:** `kamal.worldbiznet.com` ගැහුවම එන්නේ මේ සයිට් එකටයි. මෙතැනින් තමයි ව්‍යාපාරය දුවන්නේ. පාරිභෝගිකයෙකුට මේ ෆෝල්ඩරයට ඇතුල් වීමට කිසිදු අවසරයක් නැත.
+
+#### 📁 3. The God-Mode Folder (Chief Admin Console)
+* **අරමුණ:** ඔබට (ප්‍රධාන අයිතිකරුට) පමණි.
+* **ගොනු:** `index.html` (ඔබගේ අර `admin.html` කේතය මෙහි `index.html` ලෙස නම් කර තබයි).
+* **Domain එක:** `admin.worldbiznet.com` (හෝ වෙනත් රහසිගත නමක්).
+* **ක්‍රියාවලිය:** ඔබ මෙතැනින් ලොග් වී අලුත් කඩවල් (Subdomains) නිර්මාණය කරයි.
+
+#### 📁 4. The Backend Folder (`functions`)
+* **අරමුණ:** අදෘශ්‍යමාන සේවා (Node.js).
+* **ගොනු:** `index.js` (අර අපි හැදූ AI Cooldown Engine එක, ඊමේල් යවන කේත).
+* **ක්‍රියාවලිය:** මේවා අන්තර්ජාලයේ කිසිවෙකුට නොපෙනෙන අතර, ඉහත Sites 3 ම ආරක්ෂිතව කතා කරන්නේ මේ Backend එකටයි.
+
+---
+
+### 🧠 මේ ව්‍යූහයෙන් (Architecture) ලැබෙන දැවැන්ත වාසි:
+
+1. **පරිපූර්ණ ආරක්ෂාව (Absolute Security):** කඩේ POS එක දුවන සයිට් එකයි, පාරිභෝගිකයා එන සයිට් එකයි භෞතිකව (Physically) වෙනස්. හැකර් කෙනෙකුට පාරිභෝගික සයිට් එකෙන් රිංගලා POS එකේ කේතය කියවන්න බෑ.
+2. **Zero Downtime Updates:** හෙට ඔබට Customer Portal එකේ පාට වෙනස් කරන්න ඕනේ නම්, ඒ Folder එක විතරක් Update කළාම ඇති. කඩවල් වල POS සිස්ටම් වලට තත්පරයක හෝ බාධාවක් වෙන්නේ නෑ. ඒවා වෙනම දුවනවා.
+3. **පැහැදිලි ගමනාන්ත (Clear Routing):** කමල් මුදලාලිගේ කඩේට ආපු පාරිභෝගිකයෙක් ඒ සයිට් එකේ (Merchant ERP) තියෙන "Customer" කියන බොත්තම එබුවම, ඔහුව ඉබේම අර `worldbiznet.com` (Customer App) සයිට් එකට පාස් කරනවා (Handoff).
+
+### මීළඟ පියවර කුමක්ද?
+
+දැන් ඔබගේ පරිගණකය තුළ මේ Folder ව්‍යූහය සකසාගෙන, ඒ ඒ HTML ෆයිල් ටික අදාළ ෆෝල්ඩර් වලට බෙදාගන්න (Copy-paste).
+
+ඉන්පසු අපි කළ යුත්තේ අපේ **`firebase.json`** ෆයිල් එකට මේ Sites 3 ගැන කියලා දීලා (Configuration), එක පාරින් මේ 3 ම අන්තර්ජාලයට මුදා හැරීමයි (Deploying). ]
